@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+## [5.0.1] - 2026-06-08
+
+### Fixed
+- **Hierarchy tools no longer fail intermittently on the first call after an IDE restart** (`ide_call_hierarchy` / `ide_type_hierarchy`). A cold-start read-action cancellation thrown while constructing the IDE's hierarchy browser was swallowed to `null` and mislabeled as a hard `createHierarchyBrowser returned non-HierarchyBrowserBaseEx` error; it is now rethrown so the platform's cancellable read action performs its write-pending restart — the browser-construction sibling of the #141 tree-build fix. A genuine construction failure now surfaces its real cause instead of the generic message. Closes #30.
+
 ## [5.0.0] - 2026-06-08
 
 First release since 4.16.2. This is a **major** version — tool names, parameters, and

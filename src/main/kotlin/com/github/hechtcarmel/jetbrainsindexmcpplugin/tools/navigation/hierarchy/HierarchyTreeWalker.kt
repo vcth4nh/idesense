@@ -55,6 +55,45 @@ internal fun rethrowIfCancellation(t: Throwable) {
 }
 
 /**
+ * Classifies the outcome of reflectively invoking
+ * `HierarchyProvider.createHierarchyBrowser(PsiElement)` (#30).
+ *
+ * - **Cooperative cancellation** — a cold-start [com.intellij.openapi.application.ReadAction.CannotReadException]
+ *   / [com.intellij.openapi.progress.ProcessCanceledException], wrapped by reflection in
+ *   [InvocationTargetException] — is **rethrown** via [rethrowIfCancellation] so the enclosing
+ *   coroutine `readAction { }` performs its write-pending restart instead of surfacing a spurious
+ *   hard failure. This is the sibling of the tree-build retry sites fixed in #141: the one
+ *   construction site that previously swallowed the signal to `null`, mislabeling a retryable
+ *   cold-start race as "createHierarchyBrowser returned non-HierarchyBrowserBaseEx".
+ * - A **genuine ctor failure** is surfaced as a [Result.failure] with the real cause attached, so
+ *   a permanent problem is diagnosable from the tool response instead of being hidden in idea.log
+ *   at WARN.
+ * - A **non-null wrong-type** browser (or `null`) is a permanent mismatch: a descriptive
+ *   [Result.failure] naming the actual type.
+ */
+internal fun classifyBrowserConstruction(invokeResult: Result<Any?>): Result<HierarchyBrowserBaseEx> =
+    invokeResult.fold(
+        onSuccess = { raw ->
+            if (raw is HierarchyBrowserBaseEx) {
+                Result.success(raw)
+            } else {
+                Result.failure(
+                    IllegalStateException(
+                        "createHierarchyBrowser returned ${raw?.javaClass?.name ?: "null"}, not HierarchyBrowserBaseEx"
+                    )
+                )
+            }
+        },
+        onFailure = { t ->
+            rethrowIfCancellation(t) // transient cold-start cancellation -> escape for the readAction retry
+            val cause = (t as? InvocationTargetException)?.targetException ?: t
+            Result.failure(
+                IllegalStateException("createHierarchyBrowser threw ${cause.javaClass.simpleName}: ${cause.message}", cause)
+            )
+        }
+    )
+
+/**
  * Resolves the "logical element" represented by a [HierarchyNodeDescriptor].
  * This abstraction is needed because `HierarchyNodeDescriptor.psiElement` may
  * point at the call site (e.g. a `PsiReferenceExpression`) rather than the
@@ -241,8 +280,11 @@ internal object HierarchyTreeWalker {
         val target = resolveTarget(provider, project, coercedElement)
             ?: return Result.failure(IllegalStateException("Provider rejected element for $kind"))
 
+        // createBrowserHeadless rethrows a cold-start read cancellation (caught by walk()'s
+        // runCatching and re-rethrown there for the readAction retry); a genuine failure is
+        // surfaced here with its real cause attached (#30).
         val browser = createBrowserHeadless(provider, target)
-            ?: return Result.failure(IllegalStateException("createHierarchyBrowser returned non-HierarchyBrowserBaseEx"))
+            .getOrElse { return Result.failure(it) }
 
         val typeName = typeStringFor(kind)
 
@@ -279,7 +321,7 @@ internal object HierarchyTreeWalker {
         return coerced ?: element
     }
 
-    private fun createBrowserHeadless(provider: Any, target: PsiElement): HierarchyBrowserBaseEx? {
+    private fun createBrowserHeadless(provider: Any, target: PsiElement): Result<HierarchyBrowserBaseEx> {
         // HierarchyProvider.createHierarchyBrowser(PsiElement): HierarchyBrowser
         //
         // Called from inside a read action. The IDE's deadlock-prevention guard rejects
@@ -289,15 +331,17 @@ internal object HierarchyTreeWalker {
         // platform `HierarchyBrowserBaseEx` ctor allocates Swing components but does not
         // display them — Swing tolerates off-EDT construction of unmounted JComponents.
         // The reflective `createHierarchyTreeStructure` call later is read-action-safe.
+        //
+        // [classifyBrowserConstruction] rethrows a cold-start read cancellation (so the
+        // readAction{} retries — #30) and surfaces a genuine failure's real cause.
         val createBrowser = runCatching {
             provider.javaClass.getMethod("createHierarchyBrowser", PsiElement::class.java)
         }.getOrElse {
-            LOG.warn("createHierarchyBrowser method not found on ${provider.javaClass.name}", it)
-            return null
+            return Result.failure(
+                IllegalStateException("createHierarchyBrowser method not found on ${provider.javaClass.name}", it)
+            )
         }
-        return runCatching { createBrowser.invoke(provider, target) as? HierarchyBrowserBaseEx }
-            .onFailure { LOG.warn("createHierarchyBrowser invocation failed", it) }
-            .getOrNull()
+        return classifyBrowserConstruction(runCatching { createBrowser.invoke(provider, target) })
     }
 
     /**
