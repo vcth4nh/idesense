@@ -177,6 +177,8 @@ The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggl
 
 ## Installation
 
+> **Note:** IdeSense isn't on the JetBrains Marketplace yet — for now, use [Manual Installation](#manual-installation) below.
+
 ### Using the IDE built-in plugin system
 
 <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "IdeSense"</kbd> > <kbd>Install</kbd>
@@ -430,8 +432,8 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for build inst
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
----
+## Acknowledgments
 
-Plugin based on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
+IdeSense started as a fork of [jetbrains-index-mcp-plugin](https://github.com/hechtcarmel/jetbrains-index-mcp-plugin) by Carmel Hecht, and builds on the [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template).
