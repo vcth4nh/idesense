@@ -161,20 +161,22 @@ Some snapshot rows encode platform quirks intentionally. When you see a
 IDE legitimately returns that output, and changing the probe to "fix" it
 will just snapshot a different empty/odd result.
 
-- **Java `hier-callee-makeDefault`**: empty callees. Constructor invocations
-  inside a method body don't surface as call-hierarchy callees in IntelliJ.
-  Same in Kotlin / PHP analogs — but **not** TypeScript: WebStorm *does* surface
-  constructor calls as `CLASS` callees (`makeDefault` → `Circle`/`Rectangle`/`Square`),
-  so the TS `hier-callee-makeDefault` snapshot is non-empty.
+- **`hier-callee-makeDefault` constructor callees split by language.** **Kotlin & PHP**
+  return empty callees — constructor invocations inside a method body don't surface as
+  call-hierarchy callees there. **Java & TypeScript** are non-empty: Java surfaces the
+  `Circle`/`Rectangle`/`Square` constructors as `CONSTRUCTOR` callees, and WebStorm
+  surfaces them (in TS) as `CLASS` callees — so both the Java and TS
+  `hier-callee-makeDefault` snapshots are non-empty.
 - **Java `find-symbol` for overridden methods**: collapses to the topmost
   super; concrete overrides on subclasses are not separately surfaced.
-- **PHP `hier-callee-makeDefault`**: same constructor-callee root cause as
-  Java.
-- **Python `impls-Drawable-protocol`**: returns empty. `Drawable` is a
-  `typing.Protocol`, so PyCharm has no nominal implementer set to enumerate.
+- **PHP `hier-callee-makeDefault`**: empty callees — constructor invocations don't
+  surface (same as Kotlin; unlike Java/TS).
+- **Python `impls-Drawable.draw`**: returns empty. `Drawable` is a
+  `typing.Protocol`, so PyCharm has no nominal implementer set to enumerate
+  (`usage-Drawable-protocol` is likewise empty).
 - **Python `find-definition` on builtins inside lambda / dict bodies**: some
-  positions return `tool_error_text: No named element at position`. Captured
-  as the documented limitation.
+  positions can return `tool_error_text: No named element at position` — but the
+  suite currently has no probe capturing this, so it's an observation, not a blessed row.
 - **TypeScript `impls-` via object literal**: classes/objects satisfying an
   interface structurally (no `implements` clause) are not surfaced.
 - **JS `hier-type-Probe-sub-*` subtypes omit a cross-file child that `extends` a
@@ -209,18 +211,18 @@ will just snapshot a different empty/odd result.
   resolve; a few positions still return `null`.
 - **Rust `qualifiedName` partially `null`**: when the Rust provider can't
   compute an FQN. The `name` field is unaffected.
-- **Rust `impls-` on a generic trait bound** (e.g. `<C: Coercer>`): returns
-  "No method or class found at position". Bound positions don't expose the
-  trait through this API; anchor on the trait declaration directly instead.
-- **Kotlin `hier-callee-makeDefault`**: same constructor filtering as
-  Java's — `Circle(...)`, `Rectangle(...)`, `Square(...)` invocations don't
-  appear.
+- **Rust `impls-generic-bound-Coercer`** (anchored on `Coercer` in the `<C: Coercer>`
+  bound): resolves to the trait's implementations — `impl Coercer for IntCoercer`,
+  `impl Coercer for LenCoercer` (`totalCount: 2`).
+- **Kotlin `hier-callee-makeDefault`**: empty callees — `Circle(...)`,
+  `Rectangle(...)`, `Square(...)` constructor invocations don't appear
+  (same as PHP; unlike Java/TS).
 - **Kotlin `qualifiedName` uses `#` for methods** (e.g. `demo.Shape#area`):
   correct — matches IntelliJ's "Copy Reference" format and is consistent
   with Java.
 - **JDK / toolchain paths in supertype results**: `hier-super-*` for classes
   extending `java.lang.Object` records an absolute path to a JDK `.class`
-  file. After path normalization this is `${JDK}!/java/lang/Object.class`.
+  file. After path normalization this is `${JDK}!/java.base/java/lang/Object.class`.
   Path token changes when the toolchain changes; re-bless is the right
   response.
 - **PyCharm / WebStorm stdlib paths**: similar — `Number.parseInt` →
@@ -257,10 +259,10 @@ will just snapshot a different empty/odd result.
   to the package changes these snapshots — re-bless them when you add Go
   fixtures (this is why they drift after `multisuper.go` / `*_super.go` land).
 - **Go `find_usages` on a type counts the method receiver as a usage**:
-  `usage-baseShape-embed` (find_usages of the `baseShape` struct) returns 4
+  `usage-baseShape-embed` (find_usages of the `baseShape` struct) returns 11
   usages — the three embed sites (`Labeled` embed.go:6, `Circle` normal.go:19,
-  `Rectangle` normal.go:30) **plus** the receiver declaration
-  `func (b baseShape) Describe()` at normal.go:16. The receiver names the type,
+  `Rectangle` normal.go:30), the receiver declaration
+  `func (b baseShape) Describe()` at normal.go:16, **plus 7 more in `normal_test.go`**. The receiver names the type,
   so GoLand counts it as a reference. Verified in GoLand (Find Usages lists the
   receiver). Not a tool artifact.
 - **Rust `super-Inherent.foo-inherent`**: empty hierarchy — *correct*. An
