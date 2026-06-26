@@ -1,0 +1,10 @@
+package com.github.vcth4nh.idesense.constants
+
+object UsageTypes {
+    const val METHOD_CALL = "METHOD_CALL"
+    const val REFERENCE = "REFERENCE"
+    const val FIELD_ACCESS = "FIELD_ACCESS"
+    const val IMPORT = "IMPORT"
+    const val PARAMETER = "PARAMETER"
+    const val VARIABLE = "VARIABLE"
+}

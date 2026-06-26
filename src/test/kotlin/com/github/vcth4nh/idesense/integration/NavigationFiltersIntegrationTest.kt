@@ -1,0 +1,1017 @@
+package com.github.vcth4nh.idesense.integration
+
+import com.github.vcth4nh.idesense.server.models.ContentBlock
+import com.github.vcth4nh.idesense.tools.models.CallHierarchyResult
+import com.github.vcth4nh.idesense.tools.models.FindClassResult
+import com.github.vcth4nh.idesense.tools.models.FindFileResult
+import com.github.vcth4nh.idesense.tools.models.FindSymbolResult
+import com.github.vcth4nh.idesense.tools.models.FindUsagesResult
+import com.github.vcth4nh.idesense.tools.models.ImplementationResult
+import com.github.vcth4nh.idesense.tools.models.TypeHierarchyResult
+import com.github.vcth4nh.idesense.tools.navigation.CallHierarchyTool
+import com.github.vcth4nh.idesense.tools.navigation.FindClassTool
+import com.github.vcth4nh.idesense.tools.navigation.FindFileTool
+import com.github.vcth4nh.idesense.tools.navigation.FindImplementationsTool
+import com.github.vcth4nh.idesense.tools.navigation.FindSymbolTool
+import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
+import com.github.vcth4nh.idesense.tools.navigation.TypeHierarchyTool
+import com.github.vcth4nh.idesense.util.ProjectUtils
+import com.intellij.openapi.roots.ModuleRootModificationUtil
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiManager
+import com.intellij.testFramework.IndexingTestUtil
+import com.intellij.testFramework.PsiTestUtil
+import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import java.nio.file.Files
+import java.nio.file.Path
+import javax.tools.ToolProvider
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+
+class NavigationFiltersIntegrationTest : BasePlatformTestCase() {
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
+
+    fun testTypeHierarchyRespectsProductionScope() = runBlocking {
+        val fixture = createLibraryInterfaceFixture()
+        val tool = TypeHierarchyTool()
+
+        val result = tool.execute(project, buildJsonObject {
+            put("className", fixture.interfaceFqn)
+            put("scope", "production")
+        })
+
+        assertFalse("Type hierarchy should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val hierarchy = json.decodeFromString<TypeHierarchyResult>(content.text)
+        val subtypeNames = hierarchy.subtypes.map { it.name }
+
+        assertTrue("Production implementation should remain visible", subtypeNames.any { it.contains("ProdRepositoryImpl") })
+        assertFalse("Test implementation should be filtered out by production scope", subtypeNames.any { it.contains("TestRepositoryImpl") })
+        assertFalse("Library implementation should be filtered out by production scope", subtypeNames.any { it.contains("LibraryRepositoryImpl") })
+    }
+
+    fun testFindImplementationsRespectsProjectTestFilesScope() = runBlocking {
+        val fixture = createLibraryInterfaceFixture()
+        val (line, column) = findPosition(fixture.interfaceSource, "ExternalRepository")
+        val tool = FindImplementationsTool()
+
+        val result = tool.execute(project, buildJsonObject {
+            put("file", fixture.interfaceFile.toString().replace('\\', '/'))
+            put("line", line)
+            put("column", column)
+            put("scope", "project_test_files")
+        })
+
+        assertFalse("Find implementations should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val implementations = json.decodeFromString<ImplementationResult>(content.text)
+        val implementationNames = implementations.implementations.map { it.name }
+
+        assertFalse("Production implementation should be filtered out by project_test_files", implementationNames.any { it.contains("ProdRepositoryImpl") })
+        assertTrue("Test implementation should remain visible", implementationNames.any { it.contains("TestRepositoryImpl") })
+        assertFalse("Library implementation should be filtered out by project_test_files", implementationNames.any { it.contains("LibraryRepositoryImpl") })
+    }
+
+    fun testFindClassRespectsProjectTestFilesScope() = runBlocking {
+        createLibraryInterfaceFixture()
+        val tool = FindClassTool()
+
+        val result = tool.execute(project, buildJsonObject {
+            put("query", "RepositoryImpl")
+            put("fuzzySearch", true)
+            put("scope", "project_test_files")
+        })
+
+        assertFalse("Find class should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val classes = json.decodeFromString<FindClassResult>(content.text)
+        val classNames = classes.classes.map { it.name }
+
+        assertTrue("Primary test implementation should remain visible", classNames.any { it == "TestRepositoryImpl" })
+        assertTrue("Secondary test implementation should remain visible", classNames.any { it == "MoreTestRepositoryImpl" })
+        assertFalse("Production implementation should be filtered out by project_test_files", classNames.any { it == "ProdRepositoryImpl" })
+        assertFalse("Library implementation should be filtered out by project_test_files", classNames.any { it == "LibraryRepositoryImpl" })
+    }
+
+    fun testFindSymbolRespectsProjectTestFilesScopeAcrossPagination() = runBlocking {
+        createLibraryInterfaceFixture()
+        val tool = FindSymbolTool()
+
+        val firstPage = tool.execute(project, buildJsonObject {
+            put("query", "fetch")
+            put("scope", "project_test_files")
+            put("pageSize", 1)
+        })
+
+        assertFalse("Find symbol first page should succeed: ${firstPage.content}", firstPage.isError)
+
+        val firstContent = firstPage.content.first() as ContentBlock.Text
+        val firstResult = json.decodeFromString<FindSymbolResult>(firstContent.text)
+        val aggregatedFiles = firstResult.symbols.map { it.file }.toMutableList()
+        var nextCursor = firstResult.nextCursor
+
+        while (nextCursor != null) {
+            val nextPage = tool.execute(project, buildJsonObject {
+                put("cursor", nextCursor)
+                put("pageSize", 1)
+            })
+            assertFalse("Find symbol page for cursor $nextCursor should succeed: ${nextPage.content}", nextPage.isError)
+            val nextContent = nextPage.content.first() as ContentBlock.Text
+            val nextResult = json.decodeFromString<FindSymbolResult>(nextContent.text)
+            aggregatedFiles += nextResult.symbols.map { it.file }
+            nextCursor = nextResult.nextCursor
+        }
+
+        assertTrue("Expected test-symbol results to be returned", aggregatedFiles.isNotEmpty())
+        assertTrue("Primary test implementation method should be visible", aggregatedFiles.any { it.endsWith("TestRepositoryImpl.java") })
+        assertTrue("Secondary test implementation method should be visible", aggregatedFiles.any { it.endsWith("MoreTestRepositoryImpl.java") })
+        assertFalse("Production methods should be filtered out by project_test_files", aggregatedFiles.any { it.endsWith("ProdRepositoryImpl.java") })
+        assertFalse("Library methods should be filtered out by project_test_files", aggregatedFiles.any { it.endsWith("LibraryRepositoryImpl.java") })
+    }
+
+    fun testFindSymbolDoesNotApplyLegacyExcludedPathFilteringWithinScope() = runBlocking {
+        val fixture = createExcludedPathScopeProbeFixture()
+        val classTool = FindClassTool()
+        val fileTool = FindFileTool()
+        val symbolTool = FindSymbolTool()
+
+        val classResult = classTool.execute(project, buildJsonObject {
+            put("query", fixture.className)
+            put("scope", "project_production_files")
+        })
+        assertFalse("Find class should succeed: ${classResult.content}", classResult.isError)
+        val classContent = classResult.content.first() as ContentBlock.Text
+        val classes = json.decodeFromString<FindClassResult>(classContent.text)
+        assertTrue(
+            "Class search should include the probe inside project_production_files",
+            classes.classes.any { it.name == fixture.className && it.file.endsWith(fixture.relativePath) }
+        )
+
+        val fileResult = fileTool.execute(project, buildJsonObject {
+            put("query", fixture.fileName)
+            put("scope", "project_production_files")
+        })
+        assertFalse("Find file should succeed: ${fileResult.content}", fileResult.isError)
+        val fileContent = fileResult.content.first() as ContentBlock.Text
+        val files = json.decodeFromString<FindFileResult>(fileContent.text)
+        assertTrue(
+            "File search should include the probe inside project_production_files",
+            files.files.any { it.name == fixture.fileName && it.path.endsWith(fixture.relativePath) }
+        )
+
+        val symbolResult = symbolTool.execute(project, buildJsonObject {
+            put("query", fixture.className)
+            put("scope", "project_production_files")
+        })
+        assertFalse("Find symbol should succeed: ${symbolResult.content}", symbolResult.isError)
+        val symbolContent = symbolResult.content.first() as ContentBlock.Text
+        val symbols = json.decodeFromString<FindSymbolResult>(symbolContent.text)
+        assertTrue(
+            "Symbol search should include files accepted by the selected built-in scope even under a venv path",
+            symbols.symbols.any { it.name == fixture.className && it.file.endsWith(fixture.relativePath) }
+        )
+    }
+
+    fun testFindSymbolSupportsQualifiedNameSearch() = runBlocking {
+        val fixture = createQualifiedSymbolFixture()
+        val tool = FindSymbolTool()
+
+        val result = tool.execute(project, buildJsonObject {
+            put("query", "BasicSolver.run")
+        })
+
+        assertFalse("Find symbol should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val symbols = json.decodeFromString<FindSymbolResult>(content.text)
+
+        assertEquals("Qualified query should resolve to exactly one method", 1, symbols.symbols.size)
+        val symbol = symbols.symbols.single()
+        assertEquals("run", symbol.name)
+        assertTrue(
+            "Qualified query should resolve to BasicSolver.run",
+            symbol.file.endsWith(fixture.basicSolverRelativePath)
+        )
+    }
+
+    fun testFindSymbolQualifierMiddleMatch() = runBlocking {
+        val fixture = createQualifiedSymbolFixture()
+        val tool = FindSymbolTool()
+
+        // "asic" is a middle substring of "BasicSolver" (not a prefix, not a suffix).
+        // Parity with IntelliJ's Go to Symbol popup: a partial qualifier should still
+        // resolve via middle-matching on the class/module segment.
+        val result = tool.execute(project, buildJsonObject {
+            put("query", "asic.run")
+        })
+        assertFalse("Find symbol should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val symbols = json.decodeFromString<FindSymbolResult>(content.text)
+
+        assertTrue(
+            "Middle-match qualifier should include BasicSolver.run; got ${symbols.symbols.map { it.file }}",
+            symbols.symbols.any { it.name == "run" && it.file.endsWith(fixture.basicSolverRelativePath) }
+        )
+    }
+
+    fun testFindSymbolWildcardSuffixQuery() = runBlocking {
+        val fixture = createQualifiedSymbolFixture()
+        val tool = FindSymbolTool()
+
+        // `*Solver` should match class names ending with "Solver" (BasicSolver, StackSolver).
+        val result = tool.execute(project, buildJsonObject {
+            put("query", "*Solver")
+            put("fuzzySearch", true)
+            put("pageSize", 100)
+        })
+        assertFalse("Find symbol should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val symbols = json.decodeFromString<FindSymbolResult>(content.text)
+        val names = symbols.symbols.map { it.name }
+
+        assertTrue(
+            "Wildcard suffix `*Solver` should match BasicSolver; got $names",
+            names.contains("BasicSolver")
+        )
+        assertTrue(
+            "Wildcard suffix `*Solver` should match StackSolver; got $names",
+            names.contains("StackSolver")
+        )
+        assertFalse(
+            "Wildcard suffix `*Solver` should NOT match BatchRunner; got $names",
+            names.contains("BatchRunner")
+        )
+    }
+
+    fun testFindSymbolWildcardPrefixQuery() = runBlocking {
+        val fixture = createQualifiedSymbolFixture()
+        val tool = FindSymbolTool()
+
+        // `Batch*` should match names starting with "Batch" (BatchRunner).
+        val result = tool.execute(project, buildJsonObject {
+            put("query", "Batch*")
+            put("fuzzySearch", true)
+            put("pageSize", 100)
+        })
+        assertFalse("Find symbol should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val symbols = json.decodeFromString<FindSymbolResult>(content.text)
+        val names = symbols.symbols.map { it.name }
+
+        assertTrue(
+            "Wildcard prefix `Batch*` should match BatchRunner; got $names",
+            names.contains("BatchRunner")
+        )
+        assertFalse(
+            "Wildcard prefix `Batch*` should NOT match BasicSolver; got $names",
+            names.contains("BasicSolver")
+        )
+    }
+
+    fun testFindSymbolSupportsFullyQualifiedNameSearch() = runBlocking {
+        val fixture = createQualifiedSymbolFixture()
+        val tool = FindSymbolTool()
+
+        val result = tool.execute(project, buildJsonObject {
+            put("query", "test.BasicSolver.run")
+        })
+
+        assertFalse("Find symbol should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val symbols = json.decodeFromString<FindSymbolResult>(content.text)
+
+        assertEquals("Fully-qualified query should resolve to exactly one method", 1, symbols.symbols.size)
+        val symbol = symbols.symbols.single()
+        assertEquals("run", symbol.name)
+        assertTrue(
+            "Fully-qualified query should resolve to BasicSolver.run",
+            symbol.file.endsWith(fixture.basicSolverRelativePath)
+        )
+    }
+
+    fun testFindSymbolQualifiedSuffixSearchPaginatesCorrectly() = runBlocking {
+        val fixture = createQualifiedSymbolFixture()
+        val tool = FindSymbolTool()
+
+        val firstPage = tool.execute(project, buildJsonObject {
+            put("query", "Solver.run")
+            put("pageSize", 1)
+        })
+
+        assertFalse("Find symbol first page should succeed: ${firstPage.content}", firstPage.isError)
+
+        val firstContent = firstPage.content.first() as ContentBlock.Text
+        val firstResult = json.decodeFromString<FindSymbolResult>(firstContent.text)
+        val aggregatedFiles = firstResult.symbols.map { it.file }.toMutableList()
+        var nextCursor = firstResult.nextCursor
+
+        while (nextCursor != null) {
+            val nextPage = tool.execute(project, buildJsonObject {
+                put("cursor", nextCursor)
+                put("pageSize", 1)
+            })
+            assertFalse("Find symbol page for cursor $nextCursor should succeed: ${nextPage.content}", nextPage.isError)
+            val nextContent = nextPage.content.first() as ContentBlock.Text
+            val nextResult = json.decodeFromString<FindSymbolResult>(nextContent.text)
+            aggregatedFiles += nextResult.symbols.map { it.file }
+            nextCursor = nextResult.nextCursor
+        }
+
+        assertEquals("Qualified suffix query should resolve to two solver methods", 2, aggregatedFiles.size)
+        assertTrue(
+            "BasicSolver.run should be part of the paginated results",
+            aggregatedFiles.any { it.endsWith(fixture.basicSolverRelativePath) }
+        )
+        assertTrue(
+            "StackSolver.run should be part of the paginated results",
+            aggregatedFiles.any { it.endsWith(fixture.stackSolverRelativePath) }
+        )
+        assertFalse(
+            "BatchRunner.run should not match the qualified suffix query",
+            aggregatedFiles.any { it.endsWith(fixture.batchRunnerRelativePath) }
+        )
+    }
+
+    fun testFindSymbolLanguageFilterReturnsOnlyRequestedLanguage() = runBlocking {
+        createQualifiedSymbolFixture()
+        val tool = FindSymbolTool()
+
+        val filtered = tool.execute(project, buildJsonObject {
+            put("query", "run")
+            put("language", "Java")
+            put("pageSize", 100)
+        })
+        assertFalse("Find symbol should succeed: ${filtered.content}", filtered.isError)
+
+        val filteredContent = filtered.content.first() as ContentBlock.Text
+        val filteredResult = json.decodeFromString<FindSymbolResult>(filteredContent.text)
+        assertTrue(
+            "Language filter should keep results non-empty when Java matches exist",
+            filteredResult.symbols.isNotEmpty()
+        )
+        assertTrue(
+            "All results must be Java when language=Java is specified",
+            filteredResult.symbols.all { it.file.endsWith(".java", ignoreCase = true) }
+        )
+
+        // Case-insensitive: lowercase input should return the same results as canonical case.
+        val lowercase = tool.execute(project, buildJsonObject {
+            put("query", "run")
+            put("language", "java")
+            put("pageSize", 100)
+        })
+        assertFalse("Find symbol with lowercase language should succeed: ${lowercase.content}", lowercase.isError)
+        val lowercaseContent = lowercase.content.first() as ContentBlock.Text
+        val lowercaseResult = json.decodeFromString<FindSymbolResult>(lowercaseContent.text)
+        assertEquals(
+            "Language filter must be case-insensitive — lowercase 'java' must yield the same symbol set as canonical 'Java'",
+            filteredResult.symbols.map { it.file }.toSet(),
+            lowercaseResult.symbols.map { it.file }.toSet()
+        )
+
+        val mismatched = tool.execute(project, buildJsonObject {
+            put("query", "run")
+            put("language", "Kotlin")
+            put("pageSize", 100)
+        })
+        assertFalse("Find symbol should succeed: ${mismatched.content}", mismatched.isError)
+        val mismatchedContent = mismatched.content.first() as ContentBlock.Text
+        val mismatchedResult = json.decodeFromString<FindSymbolResult>(mismatchedContent.text)
+        assertTrue(
+            "Language filter is exclusive — fixture has no Kotlin, so zero results expected",
+            mismatchedResult.symbols.isEmpty()
+        )
+    }
+
+    fun testCallHierarchyRespectsProductionScope() = runBlocking {
+        val fixture = createProjectMethodFixture()
+        val tool = CallHierarchyTool()
+
+        val result = tool.execute(project, buildJsonObject {
+            put("file", fixture.targetFilePath)
+            put("line", fixture.targetLine)
+            put("column", fixture.targetColumn)
+            put("direction", "callers")
+            put("scope", "production")
+        })
+
+        assertFalse("Call hierarchy should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val hierarchy = json.decodeFromString<CallHierarchyResult>(content.text)
+        val callerNames = hierarchy.calls.map { it.name }
+
+        assertTrue("Production caller should remain visible", callerNames.any { it.contains("ProdCaller.call") })
+        assertFalse("Test caller should be filtered out by production scope", callerNames.any { it.contains("TargetServiceTest.exercise") })
+    }
+
+    fun testCallHierarchyAllScopeIncludesLibraries() = runBlocking {
+        val fixture = createLibraryMethodFixture()
+        val tool = CallHierarchyTool()
+
+        val result = tool.execute(project, buildJsonObject {
+            put("file", fixture.targetFile.toString().replace('\\', '/'))
+            put("line", fixture.targetLine)
+            put("column", fixture.targetColumn)
+            put("direction", "callers")
+            put("scope", "all")
+        })
+
+        assertFalse("Call hierarchy should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val hierarchy = json.decodeFromString<CallHierarchyResult>(content.text)
+        val callerNames = hierarchy.calls.map { it.name }
+
+        assertTrue("Project caller should be visible", callerNames.any { it.contains("ProjectCaller.call") })
+        assertTrue("Library caller should be visible when scope includes libraries", callerNames.any { it.contains("LibraryCaller.call") })
+    }
+
+    fun testFindReferencesRespectsProjectAndLibrariesScope() = runBlocking {
+        val fixture = createLibraryMethodFixture()
+        val tool = FindUsagesTool()
+
+        val result = tool.execute(project, buildJsonObject {
+            put("file", fixture.targetFile.toString().replace('\\', '/'))
+            put("line", fixture.targetLine)
+            put("column", fixture.targetColumn)
+            put("scope", "project_and_libraries")
+        })
+
+        assertFalse("Find references should succeed: ${result.content}", result.isError)
+
+        val content = result.content.first() as ContentBlock.Text
+        val usages = json.decodeFromString<FindUsagesResult>(content.text)
+        val usageFiles = usages.usages.map { it.file }
+
+        assertTrue("Project usage should remain visible", usageFiles.any { it.endsWith("ProjectCaller.java") })
+        assertTrue("Library usage should remain visible when scope includes libraries", usageFiles.any { it.contains("LibraryCaller.java") })
+    }
+
+    fun testFindUsagesCursorRoundTripVisitsEveryUsageExactlyOnce() = runBlocking {
+        val fixture = createMultiUsageFixture()
+        val tool = FindUsagesTool()
+
+        // Baseline: a single large page collects every usage in one shot (no cursor).
+        val baselinePage = tool.execute(project, buildJsonObject {
+            put("file", fixture.targetFilePath)
+            put("line", fixture.targetLine)
+            put("column", fixture.targetColumn)
+            put("pageSize", 100)
+        })
+        assertFalse("Baseline find_usages should succeed: ${baselinePage.content}", baselinePage.isError)
+        val baseline = json.decodeFromString<FindUsagesResult>(
+            (baselinePage.content.first() as ContentBlock.Text).text
+        )
+        assertNull("Every usage fits one large page, so there is no next cursor", baseline.nextCursor)
+        val baselineKeys = baseline.usages.map { Triple(it.file, it.line, it.column) }
+        assertTrue(
+            "Fixture must yield enough usages to force multiple pages, got ${baselineKeys.size}",
+            baselineKeys.size >= 4
+        )
+        assertEquals("Baseline usages must have distinct positions", baselineKeys.size, baselineKeys.toSet().size)
+
+        // Walk the same result set two-at-a-time, chaining each returned cursor into the next request.
+        val pageSize = 2
+        val firstPage = tool.execute(project, buildJsonObject {
+            put("file", fixture.targetFilePath)
+            put("line", fixture.targetLine)
+            put("column", fixture.targetColumn)
+            put("pageSize", pageSize)
+        })
+        assertFalse("First page should succeed: ${firstPage.content}", firstPage.isError)
+        var page = json.decodeFromString<FindUsagesResult>(
+            (firstPage.content.first() as ContentBlock.Text).text
+        )
+        assertEquals("First page should be full", pageSize, page.usages.size)
+        assertNotNull("First page must carry a cursor while results remain", page.nextCursor)
+
+        val collected = page.usages.map { Triple(it.file, it.line, it.column) }.toMutableList()
+        var cursor = page.nextCursor
+        var guard = 0
+        while (cursor != null) {
+            assertTrue("Pagination did not terminate", guard++ < 50)
+            val nextPage = tool.execute(project, buildJsonObject {
+                put("cursor", cursor)
+                put("pageSize", pageSize)
+            })
+            assertFalse("Cursor page should succeed: ${nextPage.content}", nextPage.isError)
+            page = json.decodeFromString<FindUsagesResult>(
+                (nextPage.content.first() as ContentBlock.Text).text
+            )
+            // Every page before the last is full.
+            if (page.nextCursor != null) {
+                assertEquals("Non-final page should be full", pageSize, page.usages.size)
+            }
+            collected += page.usages.map { Triple(it.file, it.line, it.column) }
+            cursor = page.nextCursor
+        }
+
+        // The paged walk must reproduce the baseline exactly: no omissions, no extras, no duplicates.
+        assertEquals(
+            "Paged walk must visit each usage once (no cross-page duplicates)",
+            collected.size, collected.toSet().size
+        )
+        assertEquals(
+            "Paged walk must cover exactly the single-page baseline",
+            baselineKeys.toSet(), collected.toSet()
+        )
+    }
+
+    private data class LibraryInterfaceFixture(
+        val interfaceFqn: String,
+        val interfaceFile: Path,
+        val interfaceSource: String
+    )
+
+    private data class ProjectMethodFixture(
+        val targetFilePath: String,
+        val targetLine: Int,
+        val targetColumn: Int
+    )
+
+    private data class LibraryMethodFixture(
+        val targetFile: Path,
+        val targetLine: Int,
+        val targetColumn: Int
+    )
+
+    private data class ExcludedPathScopeProbeFixture(
+        val className: String,
+        val fileName: String,
+        val relativePath: String
+    )
+
+    private data class QualifiedSymbolFixture(
+        val basicSolverRelativePath: String,
+        val stackSolverRelativePath: String,
+        val batchRunnerRelativePath: String
+    )
+
+    private fun createLibraryInterfaceFixture(): LibraryInterfaceFixture {
+        val prodRootPath = createProjectDirectory("prod-src")
+        val testRootPath = createProjectDirectory("test-src")
+        val prodRoot = refreshVfsDirectory(prodRootPath)
+        val testRoot = refreshVfsDirectory(testRootPath)
+        PsiTestUtil.addSourceRoot(module, prodRoot, false)
+        PsiTestUtil.addSourceRoot(module, testRoot, true)
+
+        val librarySourceRoot = Files.createTempDirectory("idesense-lib-src")
+        val libraryClassesRoot = Files.createTempDirectory("idesense-lib-classes")
+        val interfaceSource = """
+            package libpkg;
+
+            public interface ExternalRepository {
+                String fetch();
+            }
+        """.trimIndent()
+        val libraryImplSource = """
+            package libpkg;
+
+            public class LibraryRepositoryImpl implements ExternalRepository {
+                @Override
+                public String fetch() {
+                    return "library";
+                }
+            }
+        """.trimIndent()
+
+        val interfaceFile = writePathFile(librarySourceRoot, "libpkg/ExternalRepository.java", interfaceSource)
+        val libraryImplFile = writePathFile(librarySourceRoot, "libpkg/LibraryRepositoryImpl.java", libraryImplSource)
+        compileJavaSources(listOf(interfaceFile, libraryImplFile), libraryClassesRoot)
+
+        val sourceRootVFile = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(librarySourceRoot)
+        val classesRootVFile = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(libraryClassesRoot)
+        assertNotNull("Library source root should resolve in VFS", sourceRootVFile)
+        assertNotNull("Library classes root should resolve in VFS", classesRootVFile)
+        ModuleRootModificationUtil.addModuleLibrary(
+            module,
+            "external-repository-library",
+            listOf(classesRootVFile!!.url),
+            listOf(sourceRootVFile!!.url)
+        )
+
+        val prodImplFile = writePathFile(
+            prodRootPath,
+            "app/ProdRepositoryImpl.java",
+            """
+                package app;
+
+                import libpkg.ExternalRepository;
+
+                public class ProdRepositoryImpl implements ExternalRepository {
+                    @Override
+                    public String fetch() {
+                        return "prod";
+                    }
+                }
+            """.trimIndent()
+        )
+        val testImplFile = writePathFile(
+            testRootPath,
+            "app/TestRepositoryImpl.java",
+            """
+                package app;
+
+                import libpkg.ExternalRepository;
+
+                public class TestRepositoryImpl implements ExternalRepository {
+                    @Override
+                    public String fetch() {
+                        return "test";
+                    }
+                }
+            """.trimIndent()
+        )
+        val secondTestImplFile = writePathFile(
+            testRootPath,
+            "app/MoreTestRepositoryImpl.java",
+            """
+                package app;
+
+                import libpkg.ExternalRepository;
+
+                public class MoreTestRepositoryImpl implements ExternalRepository {
+                    @Override
+                    public String fetch() {
+                        return "test-more";
+                    }
+                }
+            """.trimIndent()
+        )
+
+        refreshVfsFile(prodImplFile)
+        refreshVfsFile(testImplFile)
+        refreshVfsFile(secondTestImplFile)
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        return LibraryInterfaceFixture(
+            interfaceFqn = "libpkg.ExternalRepository",
+            interfaceFile = interfaceFile,
+            interfaceSource = interfaceSource
+        )
+    }
+
+    private fun createProjectMethodFixture(): ProjectMethodFixture {
+        val prodRootPath = createProjectDirectory("callers-src")
+        val testRootPath = createProjectDirectory("callers-test")
+        val prodRoot = refreshVfsDirectory(prodRootPath)
+        val testRoot = refreshVfsDirectory(testRootPath)
+        PsiTestUtil.addSourceRoot(module, prodRoot, false)
+        PsiTestUtil.addSourceRoot(module, testRoot, true)
+
+        val targetSource = """
+            package callers;
+
+            public class TargetService {
+                public void run() {
+                }
+            }
+        """.trimIndent()
+        val targetFile = writePathFile(prodRootPath, "callers/TargetService.java", targetSource)
+
+        val prodCallerFile = writePathFile(
+            prodRootPath,
+            "callers/ProdCaller.java",
+            """
+                package callers;
+
+                public class ProdCaller {
+                    public void call(TargetService service) {
+                        service.run();
+                    }
+                }
+            """.trimIndent()
+        )
+        val testCallerFile = writePathFile(
+            testRootPath,
+            "callers/TargetServiceTest.java",
+            """
+                package callers;
+
+                public class TargetServiceTest {
+                    public void exercise(TargetService service) {
+                        service.run();
+                    }
+                }
+            """.trimIndent()
+        )
+
+        refreshVfsFile(targetFile)
+        refreshVfsFile(prodCallerFile)
+        refreshVfsFile(testCallerFile)
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        val targetVirtualFile = refreshVfsFile(targetFile)
+        val targetPsiFile = requireNotNull(PsiManager.getInstance(project).findFile(targetVirtualFile)) {
+            "Expected PSI file for $targetFile"
+        }
+        val targetDocument = requireNotNull(PsiDocumentManager.getInstance(project).getDocument(targetPsiFile)) {
+            "Expected document for $targetFile"
+        }
+        val offset = targetDocument.text.indexOf("run")
+        assertTrue("Target method name should exist in fixture document", offset >= 0)
+        val line = targetDocument.getLineNumber(offset) + 1
+        val column = offset - targetDocument.getLineStartOffset(line - 1) + 1
+
+        return ProjectMethodFixture(
+            targetFilePath = ProjectUtils.getRelativePath(project, targetFile.toString().replace('\\', '/')),
+            targetLine = line,
+            targetColumn = column
+        )
+    }
+
+    /** A target method invoked from five distinct call sites — enough usages to span several pages. */
+    private fun createMultiUsageFixture(): ProjectMethodFixture {
+        val prodRootPath = createProjectDirectory("usage-pagination-src")
+        val prodRoot = refreshVfsDirectory(prodRootPath)
+        PsiTestUtil.addSourceRoot(module, prodRoot, false)
+
+        val targetSource = """
+            package paging;
+
+            public class UsageTarget {
+                public void ping() {
+                }
+            }
+        """.trimIndent()
+        val targetFile = writePathFile(prodRootPath, "paging/UsageTarget.java", targetSource)
+
+        // One caller invoking ping() on five distinct lines → five distinct usage positions.
+        val callerFile = writePathFile(
+            prodRootPath,
+            "paging/UsageCaller.java",
+            """
+                package paging;
+
+                public class UsageCaller {
+                    public void exercise(UsageTarget t) {
+                        t.ping();
+                        t.ping();
+                        t.ping();
+                        t.ping();
+                        t.ping();
+                    }
+                }
+            """.trimIndent()
+        )
+
+        refreshVfsFile(targetFile)
+        refreshVfsFile(callerFile)
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        val (line, column) = findPosition(targetSource, "ping")
+        return ProjectMethodFixture(
+            targetFilePath = ProjectUtils.getRelativePath(project, targetFile.toString().replace('\\', '/')),
+            targetLine = line,
+            targetColumn = column
+        )
+    }
+
+    private fun createLibraryMethodFixture(): LibraryMethodFixture {
+        val prodRootPath = createProjectDirectory("library-callers-src")
+        val prodRoot = refreshVfsDirectory(prodRootPath)
+        PsiTestUtil.addSourceRoot(module, prodRoot, false)
+
+        val librarySourceRoot = Files.createTempDirectory("idesense-lib-callers-src")
+        val libraryClassesRoot = Files.createTempDirectory("idesense-lib-callers-classes")
+        val targetSource = """
+            package libcallers;
+
+            public class TargetApi {
+                public void run() {
+                }
+            }
+        """.trimIndent()
+        val libraryCallerSource = """
+            package libcallers;
+
+            public class LibraryCaller {
+                public void call(TargetApi api) {
+                    api.run();
+                }
+            }
+        """.trimIndent()
+
+        val targetFile = writePathFile(librarySourceRoot, "libcallers/TargetApi.java", targetSource)
+        val libraryCallerFile = writePathFile(librarySourceRoot, "libcallers/LibraryCaller.java", libraryCallerSource)
+        compileJavaSources(listOf(targetFile, libraryCallerFile), libraryClassesRoot)
+
+        val sourceRootVFile = refreshVfsDirectory(librarySourceRoot)
+        val classesRootVFile = refreshVfsDirectory(libraryClassesRoot)
+        ModuleRootModificationUtil.addModuleLibrary(
+            module,
+            "library-callers-library",
+            listOf(classesRootVFile.url),
+            listOf(sourceRootVFile.url)
+        )
+
+        val projectCallerFile = writePathFile(
+            prodRootPath,
+            "app/ProjectCaller.java",
+            """
+                package app;
+
+                import libcallers.TargetApi;
+
+                public class ProjectCaller {
+                    public void call(TargetApi api) {
+                        api.run();
+                    }
+                }
+            """.trimIndent()
+        )
+
+        refreshVfsFile(targetFile)
+        refreshVfsFile(libraryCallerFile)
+        refreshVfsFile(projectCallerFile)
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        val (line, column) = findPosition(targetSource, "run")
+        return LibraryMethodFixture(
+            targetFile = targetFile,
+            targetLine = line,
+            targetColumn = column
+        )
+    }
+
+    private fun createExcludedPathScopeProbeFixture(): ExcludedPathScopeProbeFixture {
+        val prodRootPath = createProjectDirectory("excluded-path-src")
+        val prodRoot = refreshVfsDirectory(prodRootPath)
+        PsiTestUtil.addSourceRoot(module, prodRoot, false)
+
+        val className = "VenvScopeProbe"
+        val relativePath = "excluded-path-src/venv/excludedpath/$className.java"
+        val source = """
+            package excludedpath;
+
+            public class $className {
+                public String marker() {
+                    return "scope-probe";
+                }
+            }
+        """.trimIndent()
+
+        val probeFile = writePathFile(prodRootPath, "venv/excludedpath/$className.java", source)
+        refreshVfsFile(probeFile)
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        return ExcludedPathScopeProbeFixture(
+            className = className,
+            fileName = "$className.java",
+            relativePath = relativePath
+        )
+    }
+
+    private fun createQualifiedSymbolFixture(): QualifiedSymbolFixture {
+        val prodRootPath = createProjectDirectory("qualified-symbol-src")
+        val prodRoot = refreshVfsDirectory(prodRootPath)
+        PsiTestUtil.addSourceRoot(module, prodRoot, false)
+
+        val basicSolverRelativePath = "qualified-symbol-src/test/BasicSolver.java"
+        val stackSolverRelativePath = "qualified-symbol-src/test/StackSolver.java"
+        val batchRunnerRelativePath = "qualified-symbol-src/test/BatchRunner.java"
+
+        val basicSolverFile = writePathFile(
+            prodRootPath,
+            "test/BasicSolver.java",
+            """
+                package test;
+
+                public class BasicSolver {
+                    public String run(String expr) {
+                        return expr;
+                    }
+                }
+            """.trimIndent()
+        )
+        val stackSolverFile = writePathFile(
+            prodRootPath,
+            "test/StackSolver.java",
+            """
+                package test;
+
+                public class StackSolver {
+                    public String run(String expr) {
+                        return expr;
+                    }
+                }
+            """.trimIndent()
+        )
+        val batchRunnerFile = writePathFile(
+            prodRootPath,
+            "test/BatchRunner.java",
+            """
+                package test;
+
+                public class BatchRunner {
+                    public String run(String expr) {
+                        return expr;
+                    }
+                }
+            """.trimIndent()
+        )
+
+        refreshVfsFile(basicSolverFile)
+        refreshVfsFile(stackSolverFile)
+        refreshVfsFile(batchRunnerFile)
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        return QualifiedSymbolFixture(
+            basicSolverRelativePath = basicSolverRelativePath,
+            stackSolverRelativePath = stackSolverRelativePath,
+            batchRunnerRelativePath = batchRunnerRelativePath
+        )
+    }
+
+    private fun createProjectDirectory(relativePath: String): Path {
+        val projectRoot = Path.of(requireNotNull(project.basePath) { "Project base path should be available in tests" })
+        return Files.createDirectories(projectRoot.resolve(relativePath))
+    }
+
+    private fun refreshVfsDirectory(path: Path): VirtualFile {
+        return requireNotNull(refreshVfsPath(path)) {
+            "Expected VFS directory for $path"
+        }
+    }
+
+    private fun refreshVfsFile(path: Path): VirtualFile {
+        return requireNotNull(refreshVfsPath(path)) {
+            "Expected VFS file for $path"
+        }
+    }
+
+    private fun refreshVfsPath(path: Path): VirtualFile? {
+        val localFileSystem = LocalFileSystem.getInstance()
+        val normalizedPath = path.toAbsolutePath().normalize().toString().replace('\\', '/')
+        return localFileSystem.refreshAndFindFileByNioFile(path)
+            ?: localFileSystem.refreshAndFindFileByPath(normalizedPath)
+            ?: localFileSystem.findFileByPath(normalizedPath)
+    }
+
+    private fun writePathFile(root: Path, relativePath: String, text: String): Path {
+        val file = root.resolve(relativePath)
+        Files.createDirectories(file.parent)
+        Files.writeString(file, text)
+        return file
+    }
+
+    private fun compileJavaSources(sourceFiles: List<Path>, outputDir: Path) {
+        val compiler = ToolProvider.getSystemJavaCompiler()
+        val args = buildList {
+            add("-d")
+            add(outputDir.toString())
+            sourceFiles.forEach { add(it.toString()) }
+        }
+
+        val exitCode = if (compiler != null) {
+            compiler.run(null, null, null, *args.toTypedArray())
+        } else {
+            val javaHome = System.getenv("JAVA_HOME")
+            assertNotNull("Tests require a JDK with javac available", javaHome)
+
+            val javac = Path.of(javaHome!!, "bin", "javac").toString()
+            val process = ProcessBuilder(listOf(javac) + args)
+                .redirectErrorStream(true)
+                .start()
+            process.inputStream.bufferedReader().use { reader ->
+                val output = reader.readText()
+                val completed = process.waitFor()
+                assertEquals("javac should compile library sources successfully. Output: $output", 0, completed)
+            }
+            0
+        }
+
+        assertEquals("Library sources should compile successfully", 0, exitCode)
+    }
+
+    private fun findPosition(text: String, needle: String): Pair<Int, Int> {
+        val offset = text.indexOf(needle)
+        assertTrue("Needle '$needle' should exist in fixture text", offset >= 0)
+
+        val before = text.substring(0, offset)
+        val line = before.count { it == '\n' } + 1
+        val column = offset - before.lastIndexOf('\n').let { if (it == -1) -1 else it }
+        return line to column
+    }
+}

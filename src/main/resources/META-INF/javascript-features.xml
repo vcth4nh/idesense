@@ -1,14 +1,14 @@
 <idea-plugin>
-    <extensions defaultExtensionNs="com.github.hechtcarmel.jetbrainsindexmcpplugin">
+    <extensions defaultExtensionNs="com.github.vcth4nh.idesense">
         <superMethodsProvider language="JavaScript"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.javascript.JavaScriptSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.javascript.JavaScriptSuperMethodsProvider"/>
         <superMethodsProvider language="TypeScript"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.javascript.JavaScriptSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.javascript.JavaScriptSuperMethodsProvider"/>
         <superMethodsProvider language="ECMAScript 6"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.javascript.JavaScriptSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.javascript.JavaScriptSuperMethodsProvider"/>
         <superMethodsProvider language="JSX Harmony"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.javascript.JavaScriptSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.javascript.JavaScriptSuperMethodsProvider"/>
         <superMethodsProvider language="TypeScript JSX"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.javascript.JavaScriptSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.javascript.JavaScriptSuperMethodsProvider"/>
     </extensions>
 </idea-plugin>

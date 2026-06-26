@@ -88,7 +88,7 @@ choosing unilaterally:
 
 ## Project Structure
 
-Package map under `src/main/kotlin/com/github/hechtcarmel/jetbrainsindexmcpplugin/`
+Package map under `src/main/kotlin/com/github/vcth4nh/idesense/`
 (file list is `ls`-derivable — this documents *purpose*, which is not):
 
 - `server/` — MCP infra: `McpServerService` (app-level lifecycle), `JsonRpcHandler`,
@@ -163,7 +163,7 @@ MCP servers expose:
 
 **Server Infrastructure:**
 - Custom embedded **Ktor CIO** HTTP server (not IntelliJ's built-in server)
-- Configurable port with IDE-specific defaults (e.g., IntelliJ: 29170, PyCharm: 29172) via Settings → Index MCP Server → Server Port
+- Configurable port with IDE-specific defaults (e.g., IntelliJ: 29170, PyCharm: 29172) via Settings → IdeSense → Server Port
 - Binds to `127.0.0.1` (localhost) by default; configurable via **Server Host** setting. Change to `0.0.0.0` for remote/WSL access — **security note**: a non-local host exposes the server to all network interfaces
 - Single server instance across all open projects
 - Auto-restart on port change
@@ -177,34 +177,34 @@ MCP servers expose:
 **Transport**: This plugin supports two transports with JSON-RPC 2.0. All tool results include native `structuredContent` (MCP 2025-11-25). The text content block mirrors the structured content for backward compatibility: in **JSON** mode (default) it contains the serialized JSON; in **TOON** mode it contains the TOON representation instead. The format is controlled by the **Response Format** setting.
 
 *Streamable HTTP (Primary, MCP 2025-11-25):*
-- `POST /index-mcp/streamable-http` → Stateless JSON-RPC requests/responses
-- `GET /index-mcp/streamable-http` → 405 Method Not Allowed
-- `DELETE /index-mcp/streamable-http` → 405 Method Not Allowed
+- `POST /mcp/streamable-http` → Stateless JSON-RPC requests/responses
+- `GET /mcp/streamable-http` → 405 Method Not Allowed
+- `DELETE /mcp/streamable-http` → 405 Method Not Allowed
 - Protocol version is negotiated on `initialize` (supported: 2025-11-25, 2025-03-26, 2024-11-05); streamable-HTTP defaults to 2025-11-25
 
 *Legacy SSE (MCP 2024-11-05):*
-- `GET /index-mcp/sse` → Opens SSE stream, sends `endpoint` event with POST URL
-- `POST /index-mcp` → JSON-RPC requests/responses
+- `GET /mcp/sse` → Opens SSE stream, sends `endpoint` event with POST URL
+- `POST /mcp` → JSON-RPC requests/responses
 
 
-**Port Configuration**: Settings → Tools → Index MCP Server → Server Port (IDE-specific defaults, range: 1024-65535)
+**Port Configuration**: Settings → Tools → IdeSense → Server Port (IDE-specific defaults, range: 1024-65535)
 
 **IDE-Specific Defaults**:
 | IDE | Server Name | Default Port |
 |-----|-------------|--------------|
-| IntelliJ IDEA | `intellij-index` | 29170 |
-| Android Studio | `android-studio-index` | 29171 |
-| PyCharm | `pycharm-index` | 29172 |
-| WebStorm | `webstorm-index` | 29173 |
-| GoLand | `goland-index` | 29174 |
-| PhpStorm | `phpstorm-index` | 29175 |
-| RubyMine | `rubymine-index` | 29176 |
-| CLion | `clion-index` | 29177 |
-| RustRover | `rustrover-index` | 29178 |
-| DataGrip | `datagrip-index` | 29179 |
-| Aqua | `aqua-index` | 29180 |
-| DataSpell | `dataspell-index` | 29181 |
-| Rider | `rider-index` | 29182 |
+| IntelliJ IDEA | `intellij-idesense` | 29170 |
+| Android Studio | `android-studio-idesense` | 29171 |
+| PyCharm | `pycharm-idesense` | 29172 |
+| WebStorm | `webstorm-idesense` | 29173 |
+| GoLand | `goland-idesense` | 29174 |
+| PhpStorm | `phpstorm-idesense` | 29175 |
+| RubyMine | `rubymine-idesense` | 29176 |
+| CLion | `clion-idesense` | 29177 |
+| RustRover | `rustrover-idesense` | 29178 |
+| DataGrip | `datagrip-idesense` | 29179 |
+| Aqua | `aqua-idesense` | 29180 |
+| DataSpell | `dataspell-idesense` | 29181 |
+| Rider | `rider-idesense` | 29182 |
 
 > **Note**: Rider has a port entry but is currently marked incompatible in `plugin.xml` and is not supported.
 

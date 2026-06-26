@@ -9,8 +9,8 @@ body:
         #### Thank you for taking the time to report a bug!
 
         Before opening an issue, please check:
-        - [Existing issues](https://github.com/hechtcarmel/jetbrains-index-mcp-plugin/issues?q=is%3Aissue)
-        - [README / Troubleshooting](https://github.com/hechtcarmel/jetbrains-index-mcp-plugin#readme)
+        - [Existing issues](https://github.com/vcth4nh/idesense/issues?q=is%3Aissue)
+        - [README / Troubleshooting](https://github.com/vcth4nh/idesense#readme)
   - type: textarea
     id: description
     attributes:
@@ -34,7 +34,7 @@ body:
            ```
         2. Call the MCP tool:
            ```bash
-           fastmcp call --server-spec http://127.0.0.1:29170/index-mcp/streamable-http --target ide_find_usages file=Example.java line=1 column=14
+           fastmcp call --server-spec http://127.0.0.1:29170/mcp/streamable-http --target ide_find_usages file=Example.java line=1 column=14
            ```
         3. See error / unexpected result
     validations:
@@ -61,7 +61,7 @@ body:
     id: plugin-version
     attributes:
       label: Plugin version
-      description: Check Settings > Plugins > IDE Index MCP Server for the version
+      description: Check Settings > Plugins > IdeSense for the version
       placeholder: "e.g. 5.4.0"
     validations:
       required: true

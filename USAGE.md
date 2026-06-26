@@ -1,6 +1,6 @@
-# IDE Index MCP Server - Tool Reference
+# IdeSense - Tool Reference
 
-This document provides detailed documentation for all MCP tools available in the IDE Index MCP Server plugin.
+This document provides detailed documentation for all MCP tools available in the IdeSense plugin.
 
 ## Tool Availability by IDE
 
@@ -589,7 +589,7 @@ Force the IDE to synchronize its virtual file system and PSI cache with external
 
 ### ide_build_project
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Build the project using the IDE's build system (supports JPS, Gradle, Maven).
 
@@ -644,7 +644,7 @@ Build the project using the IDE's build system (supports JPS, Gradle, Maven).
 
 ### ide_read_file
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Read file content by file path or fully qualified class name.
 
@@ -698,7 +698,7 @@ Read file content by file path or fully qualified class name.
 
 ### ide_get_active_file
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Get the currently active file(s) open in the IDE editor, including split panes.
 
@@ -745,7 +745,7 @@ Get the currently active file(s) open in the IDE editor, including split panes.
 
 ### ide_open_file
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Open a file in the IDE editor with optional line/column navigation.
 
@@ -790,7 +790,7 @@ Open a file in the IDE editor with optional line/column navigation.
 
 ### ide_find_symbol
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Searches for code symbols (classes, interfaces, methods, fields, and functions) by name using the IDE's semantic index and IntelliJ's Go to Symbol matching.
 
@@ -902,7 +902,7 @@ For Markdown heading outlines, use `ide_file_structure`.
 
 ### ide_install_plugin
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Install a locally built plugin distribution (`.zip`) into THIS IDE's custom plugins directory, replacing any existing copy of the same plugin. Used as half of the local plugin dev loop: build → `ide_install_plugin` → `ide_restart`.
 
@@ -931,13 +931,13 @@ The new code only takes effect after an IDE restart — call `ide_restart` after
 
 **Returns**: `{ "installed": true, "source": "/abs/path/plugin.zip", "pluginDir": "/abs/path/plugins/myplugin", "pluginId": "com.example.plugin", "pluginVersion": "1.0.0", "restartRequired": true, "message": "…" }`
 
-> **Disabled by default.** Enable in Settings > Tools > Index MCP Server.
+> **Disabled by default.** Enable in Settings > Tools > IdeSense.
 
 ---
 
 ### ide_restart
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Restart THIS IDE. Use after `ide_install_plugin` to load a freshly installed plugin build.
 
@@ -968,7 +968,7 @@ The restart is scheduled after this tool's response is flushed (default 2 s dela
 
 **Returns**: `{ "restarting": true, "delaySeconds": 5, "message": "IDE will restart in 5s. …" }`
 
-> **Disabled by default.** Enable in Settings > Tools > Index MCP Server.
+> **Disabled by default.** Enable in Settings > Tools > IdeSense.
 
 ---
 
@@ -978,7 +978,7 @@ The restart is scheduled after this tool's response is flushed (default 2 s dela
 
 ### ide_optimize_imports
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Optimize imports in a file: remove unused imports and organize remaining imports according to project code style. Equivalent to the IDE's "Optimize Imports" action (<kbd>Ctrl+Alt+O</kbd> / <kbd>Cmd+Opt+O</kbd>). Does NOT reformat code. Supports undo (Ctrl/Cmd+Z).
 
@@ -1008,7 +1008,7 @@ Optimize imports in a file: remove unused imports and organize remaining imports
 
 **Returns**: `{ "success": true, "affectedFiles": ["src/…"], "changesCount": 1, "message": "Optimized imports in …" }`
 
-> **Disabled by default.** Enable in Settings > Tools > Index MCP Server.
+> **Disabled by default.** Enable in Settings > Tools > IdeSense.
 
 ---
 
@@ -1213,7 +1213,7 @@ Move a file to a new directory using the IDE's refactoring engine. Applies langu
 
 ### ide_reformat_code
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Reformat code according to the project's code style settings. Equivalent to the IDE's "Reformat Code" action (<kbd>Ctrl+Alt+L</kbd> / <kbd>Cmd+Opt+L</kbd>).
 
@@ -1615,7 +1615,7 @@ Finds the complete inheritance hierarchy for a method - all parent methods it ov
 
 ### ide_file_structure
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Get the hierarchical structure of a source file, similar to the IDE's Structure view (<kbd>Cmd+7</kbd> / <kbd>Alt+7</kbd>).
 
@@ -1668,7 +1668,7 @@ These tools require the Java plugin and are only available in **IntelliJ IDEA** 
 
 ### ide_convert_java_to_kotlin
 
-> **Default**: Disabled - enable in Settings > Tools > Index MCP Server
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Convert one or more Java files to Kotlin using IntelliJ's built-in J2K (Java-to-Kotlin) converter.
 

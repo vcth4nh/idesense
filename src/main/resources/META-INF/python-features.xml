@@ -1,8 +1,8 @@
 <idea-plugin>
-    <extensions defaultExtensionNs="com.github.hechtcarmel.jetbrainsindexmcpplugin">
+    <extensions defaultExtensionNs="com.github.vcth4nh.idesense">
         <languageKindResolver language="Python"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.python.PythonKindResolver"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.python.PythonKindResolver"/>
         <superMethodsProvider language="Python"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.python.PythonSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.python.PythonSuperMethodsProvider"/>
     </extensions>
 </idea-plugin>

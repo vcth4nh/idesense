@@ -1,0 +1,352 @@
+package com.github.vcth4nh.idesense.tools.navigation
+
+import com.github.vcth4nh.idesense.constants.ParamNames
+import com.github.vcth4nh.idesense.constants.ToolNames
+import com.github.vcth4nh.idesense.handlers.createFilteredScope
+import com.github.vcth4nh.idesense.server.PaginationService
+import com.github.vcth4nh.idesense.server.ProjectResolver
+import com.github.vcth4nh.idesense.server.models.ToolCallResult
+import com.github.vcth4nh.idesense.tools.AbstractMcpTool
+import com.github.vcth4nh.idesense.tools.models.SearchTextResult
+import com.github.vcth4nh.idesense.tools.models.TextMatch
+import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiComment
+import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiElement
+import com.intellij.psi.search.PsiSearchHelper
+import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.psi.search.TextOccurenceProcessor
+import com.intellij.psi.search.UsageSearchContext
+import com.intellij.psi.util.PsiModificationTracker
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonPrimitive
+
+/**
+ * Text search using IDE's word index.
+ *
+ * Uses a pre-built word index for exact word matches.
+ *
+ * Supports context filtering: search only in code, comments, or string literals.
+ */
+@Suppress("unused")
+class SearchTextTool : AbstractMcpTool() {
+
+    companion object {
+        private const val DEFAULT_PAGE_SIZE = 100
+        private const val MAX_PAGE_SIZE = PaginationService.MAX_PAGE_SIZE
+    }
+
+    override val name = ToolNames.SEARCH_TEXT
+
+    override val description = """
+        Search for an exact word across the project using the IDE's pre-built word index — O(1) lookup,
+        much faster than file scanning. Use for quick literal sweeps when you don't need semantic
+        resolution. Prefer ide_find_usages when you need semantic accuracy (aliases, overrides,
+        generics); prefer Grep/external tools when you need regex.
+
+        Supports context filtering: search only in code, comments, or string literals.
+
+        Returns: file paths, 1-based line/column, context snippets, and context type (CODE,
+        COMMENT, STRING_LITERAL). Paginated — pass the returned cursor for the next page.
+
+        Gotchas: exact word match only — no wildcards or regex. Requires smart mode.
+    """.trimIndent()
+
+    override val inputSchema: JsonObject = SchemaBuilder.tool()
+        .projectPath()
+        .stringProperty(ParamNames.QUERY, "Exact word to search for (no wildcards or regex). Required for fresh search; ignored when cursor is provided.")
+        .enumProperty(ParamNames.CONTEXT, "Where to search: \"code\", \"comments\", \"strings\", \"all\". Default: \"all\".", listOf("code", "comments", "strings", "all"))
+        .booleanProperty(ParamNames.CASE_SENSITIVE, "Case sensitive search. Default: true.")
+        .intProperty(ParamNames.LIMIT, "Maximum results per page (deprecated, use pageSize). Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
+        .stringProperty("cursor", "Pagination cursor from a previous response. When provided, returns the next page of results. Search parameters are ignored; project_path and pageSize may still be provided.")
+        .intProperty("pageSize", "Results per page. Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
+        .build()
+
+    override suspend fun doExecute(project: Project, arguments: JsonObject): ToolCallResult {
+        val cursor = arguments["cursor"]?.jsonPrimitive?.content
+        if (cursor != null) {
+            val pageSize = resolveExplicitPageSize(arguments, aliases = arrayOf("limit"))
+            return buildPaginatedResult<TextMatch, SearchTextResult>(getPageFromCache(cursor, pageSize, project)) { items, page ->
+                SearchTextResult(
+                    matches = items,
+                    totalCount = page.totalCollected,
+                    query = page.metadata["query"] ?: "",
+                    nextCursor = page.nextCursor,
+                    hasMore = page.hasMore,
+                    totalCollected = page.totalCollected,
+                    offset = page.offset,
+                    pageSize = page.pageSize,
+                    stale = page.stale
+                )
+            }
+        }
+
+        val query = arguments[ParamNames.QUERY]?.jsonPrimitive?.content
+            ?: return createErrorResult("Missing required parameter: ${ParamNames.QUERY}")
+        val contextStr = arguments[ParamNames.CONTEXT]?.jsonPrimitive?.content ?: "all"
+        val caseSensitive = arguments[ParamNames.CASE_SENSITIVE]?.jsonPrimitive?.boolean ?: true
+        val pageSize = resolvePageSize(arguments, DEFAULT_PAGE_SIZE, aliases = arrayOf("limit"))
+        val collectLimit = maxOf(PaginationService.DEFAULT_OVERCOLLECT, pageSize)
+
+        if (query.isBlank()) {
+            return createErrorResult("Query cannot be empty")
+        }
+
+        val searchContext = parseSearchContext(contextStr)
+
+        requireSmartMode(project)
+
+        val cursorToken = suspendingReadAction {
+            val scope = createFilteredScope(project)
+            val matches = searchText(project, query, scope, searchContext, caseSensitive, collectLimit)
+
+            val searchExtender: suspend (Set<String>, Int) -> List<PaginationService.SerializedResult> = extender@{ seenKeys, limit ->
+                suspendingReadAction {
+                    extendSearchText(project, query, searchContext, caseSensitive, seenKeys, limit)
+                }
+            }
+
+            val serializedResults = matches.map { match ->
+                PaginationService.SerializedResult(
+                    key = "${match.file}:${match.line}",
+                    data = json.encodeToJsonElement(match)
+                )
+            }
+
+            val paginationService = ApplicationManager.getApplication().getService(PaginationService::class.java)
+            paginationService.createCursor(
+                toolName = name,
+                results = serializedResults,
+                seenKeys = serializedResults.map { it.key }.toSet(),
+                searchExtender = searchExtender,
+                psiModCount = PsiModificationTracker.getInstance(project).modificationCount,
+                projectBasePath = ProjectResolver.normalizePath(project.basePath ?: ""),
+                metadata = mapOf("query" to query)
+            )
+        }
+
+        return buildPaginatedResult<TextMatch, SearchTextResult>(getPageFromCache(cursorToken, pageSize, project)) { items, page ->
+            SearchTextResult(
+                matches = items,
+                totalCount = page.totalCollected,
+                query = page.metadata["query"] ?: "",
+                nextCursor = page.nextCursor,
+                hasMore = page.hasMore,
+                totalCollected = page.totalCollected,
+                offset = page.offset,
+                pageSize = page.pageSize,
+                stale = page.stale
+            )
+        }
+    }
+
+    private fun parseSearchContext(contextStr: String): Short {
+        return when (contextStr.lowercase()) {
+            "code" -> UsageSearchContext.IN_CODE
+            "comments" -> UsageSearchContext.IN_COMMENTS
+            "strings" -> UsageSearchContext.IN_STRINGS
+            "all" -> UsageSearchContext.ANY
+            else -> UsageSearchContext.ANY
+        }
+    }
+
+    private fun searchText(
+        project: Project,
+        word: String,
+        scope: com.intellij.psi.search.GlobalSearchScope,
+        searchContext: Short,
+        caseSensitive: Boolean,
+        limit: Int
+    ): List<TextMatch> {
+        val results = ConcurrentLinkedQueue<TextMatch>()
+        val seenLines = ConcurrentHashMap.newKeySet<String>()
+        val count = AtomicInteger(0)
+        val helper = PsiSearchHelper.getInstance(project)
+
+        val processor = TextOccurenceProcessor { element, _ ->
+            if (count.get() >= limit) {
+                return@TextOccurenceProcessor false
+            }
+
+            val match = convertToTextMatch(project, element, searchContext)
+            if (match != null) {
+                val lineContainsWord = if (caseSensitive) {
+                    match.context.contains(word)
+                } else {
+                    match.context.contains(word, ignoreCase = true)
+                }
+                if (!lineContainsWord) {
+                    return@TextOccurenceProcessor true
+                }
+
+                val lineKey = "${match.file}:${match.line}"
+                if (seenLines.add(lineKey)) {
+                    val slot = count.incrementAndGet()
+                    if (slot <= limit) {
+                        results.add(match)
+                    }
+                    slot < limit
+                } else {
+                    true
+                }
+            } else {
+                true
+            }
+        }
+
+        helper.processElementsWithWord(
+            processor,
+            scope,
+            word,
+            searchContext,
+            caseSensitive
+        )
+
+        return results.toList()
+    }
+
+    /**
+     * Re-executes the search to collect more results beyond the initial cache.
+     * This re-scans from the beginning, skipping already-seen keys — O(total_results) per extension.
+     * This is unavoidable: IntelliJ's search APIs (ReferencesSearch, PsiSearchHelper, etc.)
+     * don't support offset-based iteration or resumption.
+     */
+    private fun extendSearchText(
+        project: Project,
+        word: String,
+        searchContext: Short,
+        caseSensitive: Boolean,
+        seenKeys: Set<String>,
+        limit: Int
+    ): List<PaginationService.SerializedResult> {
+        val scope = createFilteredScope(project)
+        val newResults = ConcurrentLinkedQueue<PaginationService.SerializedResult>()
+        val seenLines = ConcurrentHashMap.newKeySet<String>()
+        seenLines.addAll(seenKeys)
+        val count = AtomicInteger(0)
+        val helper = PsiSearchHelper.getInstance(project)
+
+        val processor = TextOccurenceProcessor { element, _ ->
+            if (count.get() >= limit) {
+                return@TextOccurenceProcessor false
+            }
+
+            val match = convertToTextMatch(project, element, searchContext)
+            if (match != null) {
+                val lineContainsWord = if (caseSensitive) {
+                    match.context.contains(word)
+                } else {
+                    match.context.contains(word, ignoreCase = true)
+                }
+                if (!lineContainsWord) {
+                    return@TextOccurenceProcessor true
+                }
+
+                val lineKey = "${match.file}:${match.line}"
+                if (seenLines.add(lineKey)) {
+                    val slot = count.incrementAndGet()
+                    if (slot <= limit) {
+                        newResults.add(PaginationService.SerializedResult(
+                            key = lineKey,
+                            data = json.encodeToJsonElement(match)
+                        ))
+                    }
+                    slot < limit
+                } else {
+                    true
+                }
+            } else {
+                true
+            }
+        }
+
+        helper.processElementsWithWord(
+            processor,
+            scope,
+            word,
+            searchContext,
+            caseSensitive
+        )
+
+        return newResults.toList()
+    }
+
+    private fun convertToTextMatch(
+        project: Project,
+        element: PsiElement,
+        searchContext: Short
+    ): TextMatch? {
+        val containingFile = element.containingFile ?: return null
+        val virtualFile = containingFile.virtualFile ?: return null
+        val relativePath = getRelativePath(project, virtualFile)
+
+        val document = PsiDocumentManager.getInstance(project).getDocument(containingFile) ?: return null
+        val offset = element.textOffset
+        val lineNumber = document.getLineNumber(offset)
+        val lineStartOffset = document.getLineStartOffset(lineNumber)
+        val columnNumber = offset - lineStartOffset
+
+        val lineEndOffset = document.getLineEndOffset(lineNumber)
+        val lineText = document.getText(com.intellij.openapi.util.TextRange(lineStartOffset, lineEndOffset))
+
+        val contextType = resolveActualContextType(element)
+
+        // When a specific context filter is active, skip elements that don't match.
+        // processElementsWithWord may return false positives (e.g., code occurrences
+        // from files that also have the word in a comment).
+        if (searchContext != UsageSearchContext.ANY && !matchesRequestedContext(contextType, searchContext)) {
+            return null
+        }
+
+        return TextMatch(
+            file = relativePath,
+            line = lineNumber + 1,
+            column = columnNumber + 1,
+            context = lineText.trim(),
+            contextType = contextType
+        )
+    }
+
+    private fun resolveActualContextType(element: PsiElement): String {
+        // Check if element is inside a comment (PsiComment or comment-type node)
+        if (PsiTreeUtil.getParentOfType(element, PsiComment::class.java, false) != null) {
+            return "COMMENT"
+        }
+        // Walk ancestors checking node element types for languages where PsiComment
+        // may not cover all comment variants (e.g., doc comments, template comments)
+        var current: PsiElement? = element
+        while (current != null && current !is com.intellij.psi.PsiFile) {
+            val typeName = current.node?.elementType?.toString() ?: ""
+            when {
+                typeName.contains("COMMENT", ignoreCase = true) -> return "COMMENT"
+                typeName.contains("STRING_LITERAL", ignoreCase = true) ||
+                typeName.contains("TEMPLATE_EXPRESSION", ignoreCase = true) -> return "STRING_LITERAL"
+            }
+            current = current.parent
+        }
+        // Check the element itself for string-like types not caught by ancestor walk
+        val elementType = element.node?.elementType?.toString() ?: ""
+        return when {
+            elementType.contains("STRING", ignoreCase = true) -> "STRING_LITERAL"
+            elementType.contains("LITERAL", ignoreCase = true) -> "STRING_LITERAL"
+            else -> "CODE"
+        }
+    }
+
+    private fun matchesRequestedContext(actualType: String, searchContext: Short): Boolean {
+        return when (searchContext) {
+            UsageSearchContext.IN_COMMENTS -> actualType == "COMMENT"
+            UsageSearchContext.IN_STRINGS -> actualType == "STRING_LITERAL"
+            UsageSearchContext.IN_CODE -> actualType == "CODE"
+            else -> true
+        }
+    }
+}

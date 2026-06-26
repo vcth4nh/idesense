@@ -1,8 +1,19 @@
 <!-- Keep a Changelog guide -> https://keepachangelog.com -->
 
-# IDE Index MCP Server Changelog
+# IdeSense Changelog
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-06-25
+
+### Changed
+- **Renamed to IdeSense** and established as an independent project, forked from
+  [`jetbrains-index-mcp-plugin`](https://github.com/hechtcarmel/jetbrains-index-mcp-plugin) by
+  Carmel Hecht (MIT). New plugin id `com.github.vcth4nh.idesense`; MCP server ids renamed
+  `<ide>-index` → `<ide>-idesense`. **Existing users must update their MCP client config to the new
+  server name.**
+
+<!-- Prior 5.x history below is from the pre-fork lineage. -->
 
 ## [5.0.2] - 2026-06-09
 

@@ -1,8 +1,8 @@
 <idea-plugin>
-    <extensions defaultExtensionNs="com.github.hechtcarmel.jetbrainsindexmcpplugin">
+    <extensions defaultExtensionNs="com.github.vcth4nh.idesense">
         <languageKindResolver language="kotlin"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.kotlin.KotlinKindResolver"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.kotlin.KotlinKindResolver"/>
         <superMethodsProvider language="kotlin"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.kotlin.KotlinSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.kotlin.KotlinSuperMethodsProvider"/>
     </extensions>
 </idea-plugin>

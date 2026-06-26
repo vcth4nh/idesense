@@ -1,6 +1,6 @@
 # Live MCP Test Harness
 
-Snapshot-based regression suite for the IDE Index MCP plugin. Drives real
+Snapshot-based regression suite for the IdeSense plugin. Drives real
 HTTP POST requests against running JetBrains IDEs and diffs the responses
 against committed `expected.jsonl` files.
 
@@ -39,7 +39,7 @@ then run the harness.
 ./run.py --bless --prune                 # allow bless to drop orphan expected ids
 ./run.py --language python               # one language only
 ./run.py --tool ide_find_definition      # one tool across all languages
-./run.py --url http://127.0.0.1:29170/index-mcp/streamable-http   # override URL
+./run.py --url http://127.0.0.1:29170/mcp/streamable-http   # override URL
 ./run.py --check-fixtures                # validate input/expected files offline (no IDE calls)
 ```
 
@@ -72,7 +72,7 @@ without re-blessing.
 - **`PRECHECK: cannot reach …`** — the IDE's MCP server isn't running on
   the expected port. Check that the dev plugin is installed and enabled,
   and that the IDE is open. Override the port with `--url` if you've
-  configured a non-default value in Settings → Tools → Index MCP Server.
+  configured a non-default value in Settings → Tools → IdeSense.
 - **`PRECHECK: project is in dumb mode`** — wait for indexing to finish
   in the IDE, then retry.
 - **`MISSING (no expected entry for this id)`** — `expected.jsonl` doesn't

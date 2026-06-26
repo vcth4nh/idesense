@@ -9,7 +9,7 @@ body:
         #### Thank you for suggesting a feature!
 
         Before opening a request, please check:
-        - [Existing feature requests](https://github.com/hechtcarmel/jetbrains-index-mcp-plugin/issues?q=is%3Aissue+label%3Aenhancement)
+        - [Existing feature requests](https://github.com/vcth4nh/idesense/issues?q=is%3Aissue+label%3Aenhancement)
   - type: textarea
     id: problem
     attributes:

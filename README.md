@@ -1,8 +1,6 @@
-# IDE Index MCP Server
+# IdeSense
 
-![Build](https://github.com/hechtcarmel/jetbrains-index-mcp-plugin/workflows/Build/badge.svg)
-[![Version](https://img.shields.io/jetbrains/plugin/v/29174.svg)](https://plugins.jetbrains.com/plugin/29174-ide-index-mcp-server)
-[![Downloads](https://img.shields.io/jetbrains/plugin/d/29174.svg)](https://plugins.jetbrains.com/plugin/29174-ide-index-mcp-server)
+![Build](https://github.com/vcth4nh/idesense/workflows/Build/badge.svg)
 
 A JetBrains IDE plugin that exposes an **MCP (Model Context Protocol) server**, enabling AI coding assistants like Claude, Codex, Cursor, and Windsurf to leverage the IDE's powerful indexing and refactoring capabilities.
 
@@ -12,7 +10,7 @@ A JetBrains IDE plugin that exposes an **MCP (Model Context Protocol) server**, 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/vcth4nh)
 
 <!-- Plugin description -->
-**IDE Index MCP Server** provides AI coding assistants with access to the IDE's powerful code intelligence features through the Model Context Protocol (MCP).
+**IdeSense** is an MCP server for JetBrains IDEs (IntelliJ IDEA, PyCharm, WebStorm, GoLand, PhpStorm, RustRover, and more) that gives AI coding assistants the IDE's own indexing, navigation, and refactoring engines through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io).
 
 ### Features
 
@@ -72,7 +70,7 @@ Perfect for AI-assisted development workflows where accuracy and safety matter.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** — build, dev-loop, testing, PR checklist
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** — design, backing-mechanism model, internals
 - **[CHANGELOG.md](CHANGELOG.md)** — release notes and version history
-- **[Agent skill](src/main/resources/skill/ide-index-mcp/SKILL.md)** — runtime guidance for AI agents on tool selection and conventions
+- **[Agent skill](src/main/resources/skill/idesense/SKILL.md)** — runtime guidance for AI agents on tool selection and conventions
 - **[Live-test harness](live-test/README.md)** — snapshot regression suite for verifying tool behavior against real IDEs
 
 ## Table of Contents
@@ -90,7 +88,7 @@ Perfect for AI-assisted development workflows where accuracy and safety matter.
 
 ## Available Tools
 
-The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>Index MCP Server</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](USAGE.md)**.
+The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](USAGE.md)**.
 
 **Legend:**
 - **✅** supported & tested
@@ -181,33 +179,33 @@ The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggl
 
 ### Using the IDE built-in plugin system
 
-<kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "IDE Index MCP Server"</kbd> > <kbd>Install</kbd>
+<kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "IdeSense"</kbd> > <kbd>Install</kbd>
 
 ### Using JetBrains Marketplace
 
-Go to [JetBrains Marketplace](https://plugins.jetbrains.com/plugin/29174-ide-index-mcp-server) and install it by clicking the <kbd>Install to ...</kbd> button.
+Go to [JetBrains Marketplace](https://plugins.jetbrains.com/) and install it by clicking the <kbd>Install to ...</kbd> button.
 
 ### Manual Installation
 
-Download the [latest release](https://plugins.jetbrains.com/plugin/29174-ide-index-mcp-server/versions) and install it manually:
+Download the [latest release](https://github.com/vcth4nh/idesense/releases) and install it manually:
 <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
 
 ## Quick Start
 
 1. **Install the plugin** and restart your JetBrains IDE
 2. **Open a project** - the MCP server starts automatically with IDE-specific defaults:
-   - IntelliJ IDEA: `intellij-index` on port **29170**
-   - PyCharm: `pycharm-index` on port **29172**
-   - WebStorm: `webstorm-index` on port **29173**
+   - IntelliJ IDEA: `intellij-idesense` on port **29170**
+   - PyCharm: `pycharm-idesense` on port **29172**
+   - WebStorm: `webstorm-idesense` on port **29173**
    - Other IDEs: See [IDE-Specific Defaults](#ide-specific-defaults)
 3. **Configure your AI assistant** using the "Install on Coding Agents" button (easiest) or manually
-4. **Use the tool window** (bottom panel: "Index MCP Server") to copy configuration or monitor commands
-5. **Change port** (optional): Click "Change port, disable tools" in the toolbar or go to <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>Index MCP Server</kbd>
+4. **Use the tool window** (bottom panel: "IdeSense") to copy configuration or monitor commands
+5. **Change port** (optional): Click "Change port, disable tools" in the toolbar or go to <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>
 
 ### Using the "Install on Coding Agents" Button
 
 The easiest way to configure your AI assistant:
-1. Open the "Index MCP Server" tool window (bottom panel)
+1. Open the "IdeSense" tool window (bottom panel)
 2. Click the prominent **"Install on Coding Agents"** button on the right side of the toolbar
 3. A popup appears with two sections:
    - **Install Now** - For Claude Code CLI and Codex CLI: Runs the installation command automatically
@@ -222,20 +220,20 @@ Use the "Install on Coding Agents" button in the tool window, or run this comman
 
 ```bash
 # IntelliJ IDEA
-claude mcp add --transport http intellij-index http://127.0.0.1:29170/index-mcp/streamable-http --scope user
+claude mcp add --transport http intellij-idesense http://127.0.0.1:29170/mcp/streamable-http --scope user
 
 # PyCharm
-claude mcp add --transport http pycharm-index http://127.0.0.1:29172/index-mcp/streamable-http --scope user
+claude mcp add --transport http pycharm-idesense http://127.0.0.1:29172/mcp/streamable-http --scope user
 
 # WebStorm
-claude mcp add --transport http webstorm-index http://127.0.0.1:29173/index-mcp/streamable-http --scope user
+claude mcp add --transport http webstorm-idesense http://127.0.0.1:29173/mcp/streamable-http --scope user
 ```
 
 Options:
 - `--scope user` - Adds globally for all projects
 - `--scope project` - Adds to current project only
 
-To remove: `claude mcp remove <server-name>` (e.g., `claude mcp remove intellij-index`)
+To remove: `claude mcp remove <server-name>` (e.g., `claude mcp remove intellij-idesense`)
 
 ### Codex CLI
 
@@ -243,16 +241,16 @@ Use the "Install on Coding Agents" button in the tool window, or run this comman
 
 ```bash
 # IntelliJ IDEA
-codex mcp add intellij-index --url http://127.0.0.1:29170/index-mcp/streamable-http
+codex mcp add intellij-idesense --url http://127.0.0.1:29170/mcp/streamable-http
 
 # PyCharm
-codex mcp add pycharm-index --url http://127.0.0.1:29172/index-mcp/streamable-http
+codex mcp add pycharm-idesense --url http://127.0.0.1:29172/mcp/streamable-http
 
 # WebStorm
-codex mcp add webstorm-index --url http://127.0.0.1:29173/index-mcp/streamable-http
+codex mcp add webstorm-idesense --url http://127.0.0.1:29173/mcp/streamable-http
 ```
 
-To remove: `codex mcp remove <server-name>` (e.g., `codex mcp remove intellij-index`)
+To remove: `codex mcp remove <server-name>` (e.g., `codex mcp remove intellij-idesense`)
 
 ### Cursor
 
@@ -261,8 +259,8 @@ Add to `.cursor/mcp.json` in your project root or `~/.cursor/mcp.json` globally 
 ```json
 {
   "mcpServers": {
-    "intellij-index": {
-      "url": "http://127.0.0.1:29170/index-mcp/streamable-http"
+    "intellij-idesense": {
+      "url": "http://127.0.0.1:29170/mcp/streamable-http"
     }
   }
 }
@@ -275,8 +273,8 @@ Add to `~/.codeium/windsurf/mcp_config.json` (adjust name and port for your IDE)
 ```json
 {
   "mcpServers": {
-    "intellij-index": {
-      "serverUrl": "http://127.0.0.1:29170/index-mcp/streamable-http"
+    "intellij-idesense": {
+      "serverUrl": "http://127.0.0.1:29170/mcp/streamable-http"
     }
   }
 }
@@ -287,8 +285,8 @@ Add to `~/.codeium/windsurf/mcp_config.json` (adjust name and port for your IDE)
 ```json
 {
   "mcp.servers": {
-    "intellij-index": {
-      "url": "http://127.0.0.1:29170/index-mcp/streamable-http"
+    "intellij-idesense": {
+      "url": "http://127.0.0.1:29170/mcp/streamable-http"
     }
   }
 }
@@ -302,16 +300,16 @@ Each JetBrains IDE has a unique default port and server name to allow running mu
 
 | IDE | Server Name | Default Port |
 |-----|-------------|--------------|
-| IntelliJ IDEA | `intellij-index` | 29170 |
-| Android Studio | `android-studio-index` | 29171 |
-| PyCharm | `pycharm-index` | 29172 |
-| WebStorm | `webstorm-index` | 29173 |
-| GoLand | `goland-index` | 29174 |
-| PhpStorm | `phpstorm-index` | 29175 |
-| RubyMine | `rubymine-index` | 29176 |
-| CLion | `clion-index` | 29177 |
-| RustRover | `rustrover-index` | 29178 |
-| DataGrip | `datagrip-index` | 29179 |
+| IntelliJ IDEA | `intellij-idesense` | 29170 |
+| Android Studio | `android-studio-idesense` | 29171 |
+| PyCharm | `pycharm-idesense` | 29172 |
+| WebStorm | `webstorm-idesense` | 29173 |
+| GoLand | `goland-idesense` | 29174 |
+| PhpStorm | `phpstorm-idesense` | 29175 |
+| RubyMine | `rubymine-idesense` | 29176 |
+| CLion | `clion-idesense` | 29177 |
+| RustRover | `rustrover-idesense` | 29178 |
+| DataGrip | `datagrip-idesense` | 29179 |
 
 > **Tip**: Use the "Install on Coding Agents" button in the tool window - it automatically uses the correct server name and port for your IDE.
 >
@@ -349,7 +347,7 @@ When an error occurs, the response returns `available_projects`. By default this
 
 ## Tool Window
 
-The plugin adds an "Index MCP Server" tool window (bottom panel) that shows:
+The plugin adds an "IdeSense" tool window (bottom panel) that shows:
 
 - **Server Status**: Running indicator with server URL and port
 - **Project Name**: Currently active project
@@ -408,7 +406,7 @@ Common `error` codes:
 
 ## Settings
 
-Configure the plugin at <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>Index MCP Server</kbd>:
+Configure the plugin at <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>:
 
 | Setting | Default | Description |
 |---------|---------|-------------|

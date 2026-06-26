@@ -1,0 +1,105 @@
+package com.github.vcth4nh.idesense.tools.project
+
+import com.github.vcth4nh.idesense.constants.ToolNames
+import com.github.vcth4nh.idesense.server.models.ToolCallResult
+import com.github.vcth4nh.idesense.tools.AbstractMcpTool
+import com.github.vcth4nh.idesense.tools.models.SyncFilesResult
+import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
+import com.github.vcth4nh.idesense.util.ProjectUtils
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonObject
+
+class SyncFilesTool : AbstractMcpTool() {
+
+    override val requiresPsiSync: Boolean = false
+
+    override val name = ToolNames.SYNC_FILES
+
+    override val description = """
+        Force the IDE's virtual file system and PSI cache to sync with external file changes. Use
+        when files were created, modified, or deleted outside the IDE (e.g. by a coding agent) and
+        other tools return stale results or miss references in recently changed files. Call
+        on-demand only — it is not needed for normal workflows.
+
+        Returns: list of synced paths and whether the entire project was synced.
+
+        Gotchas: syncing the entire project can be slow on large repos; prefer passing specific
+        paths when you know which files changed.
+    """.trimIndent()
+
+    override val inputSchema: JsonObject = SchemaBuilder.tool()
+        .projectPath()
+        .property("paths", buildJsonObject {
+            put("type", "array")
+            putJsonObject("items") {
+                put("type", "string")
+            }
+            put("description", "File or directory paths relative to project root to sync. If omitted, syncs the entire project.")
+        })
+        .build()
+
+    override suspend fun doExecute(project: Project, arguments: JsonObject): ToolCallResult {
+        val basePath = project.basePath
+            ?: return createErrorResult("Project base path is not available.")
+
+        val requestedPaths = arguments["paths"]?.jsonArray?.map { it.jsonPrimitive.content }
+
+        // Determine the effective root: if project_path was a workspace sub-project,
+        // use that sub-project root instead of the workspace basePath
+        val projectPathArg = arguments["project_path"]?.jsonPrimitive?.content
+        val effectiveRoot = resolveEffectiveRoot(project, projectPathArg) ?: basePath
+
+        val syncedPaths: List<String>
+        val syncedAll: Boolean
+
+        if (requestedPaths != null && requestedPaths.isNotEmpty()) {
+            val resolvedFiles = requestedPaths.mapNotNull { relativePath ->
+                resolveFile(project, relativePath)?.let { relativePath to it }
+            }
+            if (resolvedFiles.isNotEmpty()) {
+                VfsUtil.markDirtyAndRefresh(false, true, true, *resolvedFiles.map { it.second }.toTypedArray())
+            }
+            syncedPaths = resolvedFiles.map { it.first }
+            syncedAll = false
+        } else {
+            val projectDir = LocalFileSystem.getInstance().findFileByPath(effectiveRoot)
+            if (projectDir != null) {
+                VfsUtil.markDirtyAndRefresh(false, true, true, projectDir)
+            }
+            syncedPaths = listOf(effectiveRoot)
+            syncedAll = true
+        }
+
+        commitDocuments(project)
+
+        val message = if (syncedAll) {
+            "Synchronized entire project."
+        } else if (requestedPaths != null && syncedPaths.size < requestedPaths.size) {
+            "Synchronized ${syncedPaths.size} of ${requestedPaths.size} requested path(s). Not found: ${(requestedPaths - syncedPaths.toSet()).joinToString(", ")}."
+        } else {
+            "Synchronized ${syncedPaths.size} path(s)."
+        }
+
+        return createJsonResult(SyncFilesResult(
+            syncedPaths = syncedPaths,
+            syncedAll = syncedAll,
+            message = message
+        ))
+    }
+
+    private fun resolveEffectiveRoot(project: Project, projectPathArg: String?): String? {
+        if (projectPathArg == null) return project.basePath
+        val normalized = projectPathArg.trimEnd('/', '\\')
+        if (normalized == project.basePath) return project.basePath
+        return ProjectUtils.getModuleContentRoots(project)
+            .firstOrNull { it == normalized }
+            ?: project.basePath
+    }
+}

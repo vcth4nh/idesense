@@ -1,8 +1,8 @@
 <idea-plugin>
-    <extensions defaultExtensionNs="com.github.hechtcarmel.jetbrainsindexmcpplugin">
+    <extensions defaultExtensionNs="com.github.vcth4nh.idesense">
         <languageKindResolver language="JAVA"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.java.JavaKindResolver"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.java.JavaKindResolver"/>
         <superMethodsProvider language="JAVA"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.java.JavaSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.java.JavaSuperMethodsProvider"/>
     </extensions>
 </idea-plugin>

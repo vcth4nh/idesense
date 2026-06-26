@@ -517,7 +517,7 @@ def main() -> int:
             "  ./run.py --bless                  # rewrite expected.jsonl\n"
             "  ./run.py --language java          # one language\n"
             "  ./run.py --tool ide_find_definition\n"
-            "  ./run.py --url http://127.0.0.1:29170/index-mcp/streamable-http"
+            "  ./run.py --url http://127.0.0.1:29170/mcp/streamable-http"
         ),
     )
     parser.add_argument("--language", help="Restrict to one language.")
@@ -565,7 +565,7 @@ def main() -> int:
             if port is None:
                 print(f"No port mapped for language '{lang}'", file=sys.stderr)
                 return 1
-            url = f"http://127.0.0.1:{port}/index-mcp/streamable-http"
+            url = f"http://127.0.0.1:{port}/mcp/streamable-http"
         passed, failed = run_language(
             lang, root / lang, url, args.tool, args.bless,
             bless_errors=args.bless_errors, prune=args.prune,

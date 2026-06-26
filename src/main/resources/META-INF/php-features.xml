@@ -1,8 +1,8 @@
 <idea-plugin>
-    <extensions defaultExtensionNs="com.github.hechtcarmel.jetbrainsindexmcpplugin">
+    <extensions defaultExtensionNs="com.github.vcth4nh.idesense">
         <languageKindResolver language="PHP"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.php.PhpKindResolver"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.php.PhpKindResolver"/>
         <superMethodsProvider language="PHP"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.php.PhpSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.php.PhpSuperMethodsProvider"/>
     </extensions>
 </idea-plugin>

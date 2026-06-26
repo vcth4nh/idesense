@@ -1,4 +1,4 @@
-# IDE Index MCP Server
+# IdeSense
 
 An IntelliJ Platform plugin that exposes an MCP server so coding agents can use the IDE's
 indexing, navigation, and refactoring engines. Works across JetBrains IDEs (IntelliJ IDEA,
@@ -18,7 +18,7 @@ PyCharm, WebStorm, GoLand, PhpStorm, RubyMine, CLion, RustRover, DataGrip, Andro
   version silently keeps old code. `-dev.NN` never lands on `main`. Details: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Where things live
-- **Using the tools (agents):** src/main/resources/skill/ide-index-mcp/SKILL.md
+- **Using the tools (agents):** src/main/resources/skill/idesense/SKILL.md
 - **User tool reference:** USAGE.md
 - **Contributing (build/test/PR/dev-loop):** CONTRIBUTING.md
 - **Architecture & design:** ARCHITECTURE.md

@@ -1,8 +1,8 @@
 <!-- Plugin Configuration File. Read more: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html -->
 <idea-plugin>
-    <id>com.github.hechtcarmel.jetbrainsindexmcpplugin</id>
-    <name>IDE Index MCP Server</name>
-    <vendor email="hechtcarmel@gmail.com" url="https://github.com/hechtcarmel">hechtcarmel</vendor>
+    <id>com.github.vcth4nh.idesense</id>
+    <name>IdeSense - IDE MCP Server</name>
+    <vendor email="idesense@thanh.vc" url="https://github.com/vcth4nh">vcth4nh</vendor>
     <description><![CDATA[
 <p><b>Supercharge your AI coding assistant</b> with the IDE's powerful code intelligence through the
 <a href="https://modelcontextprotocol.io">Model Context Protocol (MCP)</a>.</p>
@@ -79,12 +79,12 @@
 <h3>Quick Start</h3>
 <ol>
     <li>Install plugin and restart IDE</li>
-    <li>Open <b>Index MCP Server</b> tool window (bottom panel)</li>
+    <li>Open <b>IdeSense</b> tool window (bottom panel)</li>
     <li>Click <b>"Install on Coding Agents"</b></li>
     <li>Select your AI assistant and follow the instructions</li>
 </ol>
 
-<p>See the <a href="https://github.com/hechtcarmel/jetbrains-index-mcp-plugin">GitHub repository</a>
+<p>See the <a href="https://github.com/vcth4nh/idesense">GitHub repository</a>
 for detailed documentation and examples.</p>
 ]]>    </description>
 
@@ -124,56 +124,56 @@ for detailed documentation and examples.</p>
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Application-level MCP Server Service -->
-        <applicationService serviceImplementation="com.github.hechtcarmel.jetbrainsindexmcpplugin.server.McpServerService"/>
+        <applicationService serviceImplementation="com.github.vcth4nh.idesense.server.McpServerService"/>
 
         <!-- Project-level Command History Service -->
-        <projectService serviceImplementation="com.github.hechtcarmel.jetbrainsindexmcpplugin.history.CommandHistoryService"/>
+        <projectService serviceImplementation="com.github.vcth4nh.idesense.history.CommandHistoryService"/>
 
         <!-- Project-level Build Diagnostics Cache Service -->
-        <projectService serviceImplementation="com.github.hechtcarmel.jetbrainsindexmcpplugin.server.BuildDiagnosticsCacheService"/>
+        <projectService serviceImplementation="com.github.vcth4nh.idesense.server.BuildDiagnosticsCacheService"/>
 
         <!-- Project-level diagnostics analysis service -->
-        <projectService serviceImplementation="com.github.hechtcarmel.jetbrainsindexmcpplugin.tools.intelligence.DiagnosticsAnalysisService"/>
+        <projectService serviceImplementation="com.github.vcth4nh.idesense.tools.intelligence.DiagnosticsAnalysisService"/>
 
         <!-- Tool Window -->
-        <toolWindow id="Index MCP Server" anchor="bottom" icon="com.github.hechtcarmel.jetbrainsindexmcpplugin.icons.McpIcons.ToolWindow" factoryClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.ui.McpToolWindowFactory"/>
+        <toolWindow id="IdeSense" anchor="bottom" icon="com.github.vcth4nh.idesense.icons.McpIcons.ToolWindow" factoryClass="com.github.vcth4nh.idesense.ui.McpToolWindowFactory"/>
 
         <!-- Settings -->
-        <applicationService serviceImplementation="com.github.hechtcarmel.jetbrainsindexmcpplugin.settings.McpSettings"/>
-        <applicationConfigurable id="mcp.settings" displayName="Index MCP Server" instance="com.github.hechtcarmel.jetbrainsindexmcpplugin.settings.McpSettingsConfigurable"/>
+        <applicationService serviceImplementation="com.github.vcth4nh.idesense.settings.McpSettings"/>
+        <applicationConfigurable id="mcp.settings" displayName="IdeSense" instance="com.github.vcth4nh.idesense.settings.McpSettingsConfigurable"/>
 
         <!-- Startup Activity -->
-        <postStartupActivity implementation="com.github.hechtcarmel.jetbrainsindexmcpplugin.startup.McpServerStartupActivity"/>
+        <postStartupActivity implementation="com.github.vcth4nh.idesense.startup.McpServerStartupActivity"/>
 
         <!-- Notification Group -->
-        <notificationGroup id="Index MCP Server" displayType="BALLOON"/>
+        <notificationGroup id="IdeSense" displayType="BALLOON"/>
     </extensions>
 
     <!-- Extension Points -->
     <extensionPoints>
         <extensionPoint name="mcpTool"
-                        interface="com.github.hechtcarmel.jetbrainsindexmcpplugin.tools.McpTool"
+                        interface="com.github.vcth4nh.idesense.tools.McpTool"
                         dynamic="true"/>
         <extensionPoint name="languageKindResolver"
                         beanClass="com.intellij.lang.LanguageExtensionPoint">
             <with attribute="implementationClass"
-                  implements="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.LanguageKindResolver"/>
+                  implements="com.github.vcth4nh.idesense.handlers.LanguageKindResolver"/>
         </extensionPoint>
         <extensionPoint name="superMethodsProvider"
                         beanClass="com.intellij.lang.LanguageExtensionPoint">
             <with attribute="implementationClass"
-                  implements="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.SuperMethodsProvider"/>
+                  implements="com.github.vcth4nh.idesense.handlers.SuperMethodsProvider"/>
         </extensionPoint>
     </extensionPoints>
 
     <actions>
-        <group id="McpServer.Actions" text="Index MCP Server">
-            <action id="McpServer.CopyUrl" class="com.github.hechtcarmel.jetbrainsindexmcpplugin.actions.CopyServerUrlAction" text="Copy Server URL" description="Copy the MCP server URL to clipboard"/>
-            <action id="McpServer.CopyConfig" class="com.github.hechtcarmel.jetbrainsindexmcpplugin.actions.CopyClientConfigAction" text="Copy Client Config..." description="Copy MCP client configuration for AI assistants"/>
-            <action id="McpServer.ClearHistory" class="com.github.hechtcarmel.jetbrainsindexmcpplugin.actions.ClearHistoryAction" text="Clear History" description="Clear command history"/>
-            <action id="McpServer.ExportHistory" class="com.github.hechtcarmel.jetbrainsindexmcpplugin.actions.ExportHistoryAction" text="Export History..." description="Export command history to file"/>
-            <action id="McpServer.InstallSkill" class="com.github.hechtcarmel.jetbrainsindexmcpplugin.actions.InstallSkillAction" text="Get Companion Skill" description="Install or export the companion skill for AI coding agents"/>
-            <action id="McpServer.OpenSettings" class="com.github.hechtcarmel.jetbrainsindexmcpplugin.actions.OpenSettingsAction" text="Settings" description="Open MCP Server settings"/>
+        <group id="McpServer.Actions" text="IdeSense">
+            <action id="McpServer.CopyUrl" class="com.github.vcth4nh.idesense.actions.CopyServerUrlAction" text="Copy Server URL" description="Copy the MCP server URL to clipboard"/>
+            <action id="McpServer.CopyConfig" class="com.github.vcth4nh.idesense.actions.CopyClientConfigAction" text="Copy Client Config..." description="Copy MCP client configuration for AI assistants"/>
+            <action id="McpServer.ClearHistory" class="com.github.vcth4nh.idesense.actions.ClearHistoryAction" text="Clear History" description="Clear command history"/>
+            <action id="McpServer.ExportHistory" class="com.github.vcth4nh.idesense.actions.ExportHistoryAction" text="Export History..." description="Export command history to file"/>
+            <action id="McpServer.InstallSkill" class="com.github.vcth4nh.idesense.actions.InstallSkillAction" text="Get Companion Skill" description="Install or export the companion skill for AI coding agents"/>
+            <action id="McpServer.OpenSettings" class="com.github.vcth4nh.idesense.actions.OpenSettingsAction" text="Settings" description="Open MCP Server settings"/>
         </group>
     </actions>
 </idea-plugin>

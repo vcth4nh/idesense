@@ -1,6 +1,6 @@
 # Contributing
 
-How to work on the IDE Index MCP Server plugin: tech stack, build/run, dev loop, testing, and the PR checklist. For design and internals, see [ARCHITECTURE.md](ARCHITECTURE.md).
+How to work on the IdeSense plugin: tech stack, build/run, dev loop, testing, and the PR checklist. For design and internals, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Doc ownership (where each topic lives)
 | Topic | Owner |
@@ -9,7 +9,7 @@ How to work on the IDE Index MCP Server plugin: tech stack, build/run, dev loop,
 | Design, backing-mechanism model, multi-language, hierarchy internals | ARCHITECTURE.md |
 | Agent-only rules + pointers | CLAUDE.md |
 | User-facing tool reference | USAGE.md |
-| Agent return-shapes + tool selection | src/main/resources/skill/ide-index-mcp/references/tools-reference.md |
+| Agent return-shapes + tool selection | src/main/resources/skill/idesense/references/tools-reference.md |
 
 ## Technology Stack
 - **Language**: Kotlin (JVM 21)

@@ -1,8 +1,8 @@
 <idea-plugin>
-    <extensions defaultExtensionNs="com.github.hechtcarmel.jetbrainsindexmcpplugin">
+    <extensions defaultExtensionNs="com.github.vcth4nh.idesense">
         <languageKindResolver language="Rust"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.rust.RustKindResolver"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.rust.RustKindResolver"/>
         <superMethodsProvider language="Rust"
-                              implementationClass="com.github.hechtcarmel.jetbrainsindexmcpplugin.handlers.rust.RustSuperMethodsProvider"/>
+                              implementationClass="com.github.vcth4nh.idesense.handlers.rust.RustSuperMethodsProvider"/>
     </extensions>
 </idea-plugin>
