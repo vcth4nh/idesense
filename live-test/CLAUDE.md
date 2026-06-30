@@ -100,20 +100,32 @@ safe. Don't run parallel `--bless` against the same language.
 whatever the live IDE returns as truth. If the IDE has a regression, that
 regression becomes the new baseline.
 
-## Library / SDK path normalization
+## Path normalization — project vs library
 
-`LIBRARY_PATH_SUBS` in `run.py` substitutes machine-specific stub paths with
-stable tokens before diffing. Currently Linux-only patterns:
+`normalize()` in `run.py` keeps snapshots stable across machines, IDE installs,
+and toolchain versions by classifying every file ref (`_is_library`):
 
-- `${RUST_STDLIB}/`, `${KOTLIN_STDLIB}.jar!`, `${JDK}!`,
-  `${PYCHARM_TYPESHED}/`, `${PYTHON_STDLIB}/`, `${PHP_STUBS}.jar!`,
-  `${WEBSTORM_JS_STUBS}/`, catch-all `${HOME}/`.
+- **Project files** — the plugin returns these relative to the project root
+  (`src/normal.py`). Kept as-is, with `line`/`column`: we control these files,
+  so their positions only move when we edit a fixture.
+- **Library / SDK files** — the plugin returns these as absolute paths
+  (`/usr/lib/python3.12/abc.py`). Reduced to **basename + symbol identity**
+  (`name`, `qualifiedName`, `kind`); `line`/`column` are dropped. The directory
+  is machine-specific and the line/column track the IDE's decompiler — neither
+  signals a plugin regression. So a hit at
+  `…/mise/installs/go/1.26.1/src/fmt/print.go:64` snapshots as just `print.go`
+  with its `fmt.Stringer.String` qualifiedName.
 
-When running on a new host (macOS, Windows, non-Toolbox install, SDKMAN/asdf
-JDK), library paths will leak through the catch-all as `${HOME}/...` and
-cause diffs. Extend `LIBRARY_PATH_SUBS` in `run.py` with the new prefix
-family (e.g. the JDK install path, Toolbox path, or language-specific stdlib
-path for that host).
+Absoluteness is the signal because the plugin already emits project files
+relative and library files absolute. We key off the **project root** (which we
+are handed), never off library install locations — so a new host, install
+manager, SDK version, or renamed checkout needs **zero** maintenance, and a
+toolchain bump no longer drifts the snapshot or forces a re-bless. There is no
+`LIBRARY_PATH_SUBS` list to extend. `enclosingScope` is kept — it is usually the
+enclosing method/class scope (a relative name chain like `['ShapeCollection',
+'Add']`), which is real signal; only its absolute-*directory* form (a FILE
+node's folder, `['/','home',…,'src']`) is dropped as machine-specific and
+redundant with `file`.
 
 ## Fixture-edit safety
 
@@ -220,13 +232,13 @@ will just snapshot a different empty/odd result.
 - **Kotlin `qualifiedName` uses `#` for methods** (e.g. `demo.Shape#area`):
   correct — matches IntelliJ's "Copy Reference" format and is consistent
   with Java.
-- **JDK / toolchain paths in supertype results**: `hier-super-*` for classes
-  extending `java.lang.Object` records an absolute path to a JDK `.class`
-  file. After path normalization this is `${JDK}!/java.base/java/lang/Object.class`.
-  Path token changes when the toolchain changes; re-bless is the right
-  response.
-- **PyCharm / WebStorm stdlib paths**: similar — `Number.parseInt` →
-  `${WEBSTORM_JS_STUBS}/...`; Python `int` → `${PYCHARM_TYPESHED}/...`.
+- **Library/SDK targets show as a bare basename**: a hit resolving into a
+  JDK / stdlib / stub file (`java.lang.Object`, JS `Number.parseInt`, Python
+  `int`, …) is reduced to basename + symbol identity, with no directory and no
+  line/column — so it reads as `Object.class` / `lib.es5.d.ts` / `builtins.pyi`,
+  not a path. By design (see "Path normalization — project vs library"); a
+  toolchain or IDE bump no longer drifts these rows, so it is not a re-bless
+  trigger.
 - **Java `super-LambdaHost-lambda.run-sam`**: returns the lambda's SAM as the
   `method` (`java.lang.Runnable#run`, empty `hierarchy`). Caret is on a lambda's
   `->`; the provider resolves the functional interface's single abstract method

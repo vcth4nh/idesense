@@ -14,7 +14,6 @@ import argparse
 import difflib
 import json
 import os
-import re
 import sys
 import urllib.error
 import urllib.request
@@ -44,54 +43,20 @@ SORTABLE_ARRAYS = {
     "children",
 }
 
-# Replace machine-specific library / SDK / stub paths with stable tokens so
-# expected.jsonl stays portable across machines, IDE installs, and runtime
-# versions. Order matters — more-specific patterns first; the catch-all home
-# substitution must run last.
-LIBRARY_PATH_SUBS: list[tuple[re.Pattern[str], str]] = [
-    # Rust stdlib via RustRover cache (version + 40-char git hash)
-    (re.compile(
-        r"/home/[^/]+/\.cache/JetBrains/RustRover[^/]+/intellij-rust/"
-        r"stdlib-local-copy/[^/]+/library/"),
-     "${RUST_STDLIB}/"),
-    # Kotlin stdlib JAR via Gradle cache (version + hash dir)
-    (re.compile(
-        r"/home/[^/]+/\.gradle/caches/modules-2/files-2\.1/"
-        r"org\.jetbrains\.kotlin/kotlin-stdlib/[^/]+/[0-9a-f]+/"
-        r"kotlin-stdlib-[^/]+\.jar!"),
-     "${KOTLIN_STDLIB}.jar!"),
-    # JDK installed via Gradle JDK manager
-    (re.compile(r"/home/[^/]+/\.gradle/jdks/[^!]+!"), "${JDK}!"),
-    # JDK installed via mise
-    (re.compile(r"/home/[^/]+/\.local/share/mise/installs/java/[^!]+!"), "${JDK}!"),
-    # PyCharm typeshed stubs
-    (re.compile(
-        r"/home/[^/]+/\.local/share/JetBrains/Toolbox/apps/pycharm/plugins/"
-        r"python-ce/helpers/typeshed/"),
-     "${PYCHARM_TYPESHED}/"),
-    # Python stdlib installed via uv
-    (re.compile(
-        r"/home/[^/]+/\.local/share/uv/python/cpython-[^/]+/lib/python[^/]+/"),
-     "${PYTHON_STDLIB}/"),
-    # PhpStorm bundled PHP stubs
-    (re.compile(
-        r"/home/[^/]+/\.local/share/JetBrains/Toolbox/apps/phpstorm/plugins/"
-        r"php-impl/lib/php\.jar!"),
-     "${PHP_STUBS}.jar!"),
-    # WebStorm bundled JS library stubs
-    (re.compile(
-        r"/home/[^/]+/\.local/share/JetBrains/Toolbox/apps/webstorm/plugins/"
-        r"javascript-plugin/jsLanguageServicesImpl/external/"),
-     "${WEBSTORM_JS_STUBS}/"),
-    # Catch-all: any remaining $HOME prefix
-    (re.compile(r"/home/[^/]+/"), "${HOME}/"),
-]
+def _is_library(file_path: str, project_root: str) -> bool:
+    """True if a file ref is library/SDK code (lives outside the project root).
 
-
-def _normalize_library_paths(s: str) -> str:
-    for pattern, replacement in LIBRARY_PATH_SUBS:
-        s = pattern.sub(replacement, s)
-    return s
+    The plugin returns project files relative to the project root and library /
+    SDK files as absolute paths, so absoluteness is the project/library signal.
+    We key off the project root we are handed — never off library install
+    locations (mise / JDK / /usr / gradle / …), so there is nothing
+    host-specific to maintain: a relative path is always project; an absolute
+    path is library unless it resolves back under the project root.
+    """
+    if not os.path.isabs(file_path):
+        return False
+    rel = os.path.relpath(file_path, project_root)
+    return rel == os.pardir or rel.startswith(os.pardir + os.sep)
 
 
 def _sort_key(item: Any) -> tuple:
@@ -106,11 +71,35 @@ def _sort_key(item: Any) -> tuple:
 
 
 def normalize(obj: Any, project_root: str) -> Any:
-    """Drop noisy fields, sort known result arrays, substitute project paths."""
+    """Reduce a tool result to a host- and toolchain-stable snapshot.
+
+    Project files keep their project-relative path + line/column — we control
+    those. Library/SDK files are reduced to basename + symbol identity (name,
+    qualifiedName, kind): their directory is machine-specific and their
+    line/column track the IDE's decompiler, neither of which signals a plugin
+    regression. Noisy fields are dropped and known result arrays sorted.
+    """
     if isinstance(obj, dict):
+        is_lib = isinstance(obj.get("file"), str) and _is_library(obj["file"], project_root)
         out: dict[str, Any] = {}
         for k, v in obj.items():
             if k in DROP_FIELDS:
+                continue
+            if k == "file" and isinstance(v, str):
+                if is_lib:
+                    out[k] = os.path.basename(v)
+                elif os.path.isabs(v):
+                    out[k] = os.path.relpath(v, project_root)
+                else:
+                    out[k] = v
+                continue
+            if is_lib and k in ("line", "column"):
+                continue
+            if k == "enclosingScope" and isinstance(v, list) and v and v[0] == "/":
+                # A FILE node's enclosing *directory*, as a path-segment array:
+                # machine-specific and redundant with `file`. (Scope-NAME chains
+                # like ['ShapeCollection','Add'] are relative — kept as semantic
+                # signal.)
                 continue
             v = normalize(v, project_root)
             if k in SORTABLE_ARRAYS and isinstance(v, list):
@@ -119,8 +108,6 @@ def normalize(obj: Any, project_root: str) -> Any:
         return out
     if isinstance(obj, list):
         return [normalize(item, project_root) for item in obj]
-    if isinstance(obj, str):
-        return _normalize_library_paths(obj.replace(project_root, "${PROJECT_ROOT}"))
     return obj
 
 
