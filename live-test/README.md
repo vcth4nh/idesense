@@ -67,6 +67,13 @@ without re-blessing.
      version bump.
    - Regression: file an issue or revert the change.
 
+> **Automating install/restart across IDEs.** Steps 2–3 above can be driven headlessly
+> instead of clicking through Settings → Install from Disk: enable the `ide_install_plugin`
+> and `ide_restart` tools (both off by default), then POST `tools/call` for them to each
+> IDE's port (see the table above). Pass a `project_path` argument when an IDE has multiple
+> fixtures open — IntelliJ IDEA (`java` + `kotlin`) and WebStorm (`javascript` +
+> `typescript`) — otherwise the call fails with `multiple_projects_open`.
+
 ## Troubleshooting
 
 - **`PRECHECK: cannot reach …`** — the IDE's MCP server isn't running on

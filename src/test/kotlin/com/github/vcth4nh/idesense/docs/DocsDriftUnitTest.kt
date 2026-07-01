@@ -101,7 +101,7 @@ class DocsDriftUnitTest : TestCase() {
 
     fun testUsageDocumentsEveryTool() {
         assertEquals("USAGE.md per-tool headings must equal the canonical tool set",
-            allTools, headingSet(read("USAGE.md")))
+            allTools, headingSet(read("docs/USAGE.md")))
     }
 
     fun testReadmeCuratedSubset() {
@@ -126,11 +126,11 @@ class DocsDriftUnitTest : TestCase() {
 
     fun testArchitectureMechanismRowPerTool() {
         assertEquals("ARCHITECTURE.md mechanism table must have one row per tool",
-            allTools, tableToolSet(read("ARCHITECTURE.md")))
+            allTools, tableToolSet(read("docs/ARCHITECTURE.md")))
     }
 
     fun testUsageParamsSubsetOfSchema() {
-        val usage = read("USAGE.md")
+        val usage = read("docs/USAGE.md")
         val byName = allToolInstances().associateBy { it.name }
         val sections = headingToken.findAll(usage).toList()
         val problems = mutableListOf<String>()
@@ -160,7 +160,7 @@ class DocsDriftUnitTest : TestCase() {
         // cannot be excluded — the per-tool section for tools that *do* have them must list them.
         val COMMON = setOf("project_path")
 
-        val usage = read("USAGE.md")
+        val usage = read("docs/USAGE.md")
         val byName = allToolInstances().associateBy { it.name }
         val sections = headingToken.findAll(usage).toList()
         val problems = mutableListOf<String>()

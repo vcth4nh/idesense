@@ -213,7 +213,9 @@ Tests are split into two categories to optimize execution time:
 
 > **AI agents (Claude, Codex, etc.)**: run only `./gradlew test --tests "*UnitTest*"`. Never run platform tests (`*Test`) locally — CI handles those.
 
-> **Live-test harness**: For tool-behavior changes, also run the snapshot regression suite in `live-test/` against real running IDEs. See [live-test/README.md](live-test/README.md) for instructions. The harness is not part of `./gradlew test` and requires running IDEs.
+> **Editing docs?** `DocsDriftUnitTest` (a `*UnitTest`) pins the catalog docs to code-derived facts (tool names, params), but it reads the `.md` files via `File()` at runtime — they are **not** declared Gradle task inputs. So after a docs-only edit a plain `./gradlew test` reports `UP-TO-DATE`, and even `cleanTest` can return `FROM-CACHE` — a **stale pass**. Force a real re-run with `./gradlew --no-build-cache cleanTest test --tests "*DocsDriftUnitTest*"`. (`--rerun-tasks` also works but recompiles everything → add `-Pkotlin.daemon.jvmargs="-Xmx4g"`.)
+
+> **Live-test harness**: For tool-behavior changes, also run the snapshot regression suite in `live-test/` against real running IDEs. See [live-test/README.md](../live-test/README.md) for instructions. The harness is not part of `./gradlew test` and requires running IDEs.
 
 ### Test Data
 - Place test fixtures in `src/test/testData/`
@@ -251,7 +253,7 @@ Every PR **must** include:
 3. Follow existing code patterns and use `SchemaBuilder` for new tool schemas
 4. Add tests for new functionality
 5. Update the docs ([ARCHITECTURE.md](ARCHITECTURE.md) for design/structure, this file for process) for any structural or architectural changes
-6. Run `./gradlew test --tests "*UnitTest*"` to verify unit tests pass. Do NOT run platform tests yourself (CI runs `./gradlew test` which includes them). For tool-behavior changes, also run the live-test harness — see [live-test/README.md](live-test/README.md).
+6. Run `./gradlew test --tests "*UnitTest*"` to verify unit tests pass. Do NOT run platform tests yourself (CI runs `./gradlew test` which includes them). For tool-behavior changes, also run the live-test harness — see [live-test/README.md](../live-test/README.md).
 
 ---
 
