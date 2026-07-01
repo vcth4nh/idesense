@@ -56,20 +56,42 @@ jobs:
 
           ./gradlew patchChangelog --release-note-file=$RELEASE_NOTE
 
-      # Publish the plugin to JetBrains Marketplace
+      # Build the installable (unsigned) plugin ZIP so it can be attached to the release
+      # regardless of whether Marketplace publishing runs.
+      - name: Build Plugin
+        run: ./gradlew buildPlugin
+
+      # Attach the built ZIP as a downloadable release asset — always, and before publishing,
+      # so the download is guaranteed even if Marketplace publishing is skipped or fails.
+      # --clobber makes workflow re-runs idempotent.
+      - name: Upload Release Asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.event.release.tag_name }} ./build/distributions/* --clobber
+
+      # Detect whether Marketplace publishing secrets are configured. Reads the token into an env
+      # var (never echoed) and exposes a boolean output; the `steps` context is available in `if:`.
+      - name: Detect publish secrets
+        id: secrets
+        env:
+          PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
+        run: |
+          if [ -n "$PUBLISH_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Publish the plugin to JetBrains Marketplace — only when signing/publish secrets exist.
+      # Absent → skipped, and the workflow still succeeds with the ZIP already attached above.
       - name: Publish Plugin
+        if: steps.secrets.outputs.present == 'true'
         env:
           PUBLISH_TOKEN: ${{ secrets.PUBLISH_TOKEN }}
           CERTIFICATE_CHAIN: ${{ secrets.CERTIFICATE_CHAIN }}
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           PRIVATE_KEY_PASSWORD: ${{ secrets.PRIVATE_KEY_PASSWORD }}
         run: ./gradlew publishPlugin
-
-      # Upload an artifact as a release asset
-      - name: Upload Release Asset
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload ${{ github.event.release.tag_name }} ./build/distributions/*
 
       # Create a pull request
       - name: Create Pull Request
