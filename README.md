@@ -66,9 +66,9 @@ Perfect for AI-assisted development workflows where accuracy and safety matter.
 
 ## Documentation
 
-- **[USAGE.md](USAGE.md)** — full per-tool reference (parameters, examples, return shapes)
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** — build, dev-loop, testing, PR checklist
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** — design, backing-mechanism model, internals
+- **[USAGE.md](docs/USAGE.md)** — full per-tool reference (parameters, examples, return shapes)
+- **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** — build, dev-loop, testing, PR checklist
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — design, backing-mechanism model, internals
 - **[CHANGELOG.md](CHANGELOG.md)** — release notes and version history
 - **[Agent skill](src/main/resources/skill/idesense/SKILL.md)** — runtime guidance for AI agents on tool selection and conventions
 - **[Live-test harness](live-test/README.md)** — snapshot regression suite for verifying tool behavior against real IDEs
@@ -88,7 +88,7 @@ Perfect for AI-assisted development workflows where accuracy and safety matter.
 
 ## Available Tools
 
-The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](USAGE.md)**.
+The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](docs/USAGE.md)**.
 
 **Legend:**
 - **✅** supported & tested
@@ -315,7 +315,7 @@ Each JetBrains IDE has a unique default port and server name to allow running mu
 
 > **Tip**: Use the "Install on Coding Agents" button in the tool window - it automatically uses the correct server name and port for your IDE.
 >
-> **Note**: The full IDE port list (including Aqua, DataSpell, and Rider) is documented in [ARCHITECTURE.md](ARCHITECTURE.md#ide-specific-defaults). Rider has a port entry but is currently marked incompatible in the plugin manifest and is not supported.
+> **Note**: The full IDE port list (including Aqua, DataSpell, and Rider) is documented in [ARCHITECTURE.md](docs/ARCHITECTURE.md#ide-specific-defaults). Rider has a port entry but is currently marked incompatible in the plugin manifest and is not supported.
 
 ## Multi-Project Support
 
@@ -428,7 +428,7 @@ Configure the plugin at <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</
 
 ## Contributing
 
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, the dev loop, testing guidelines, and the PR checklist.
+Contributions are welcome! See [CONTRIBUTING.md](docs/CONTRIBUTING.md) for build instructions, the dev loop, testing guidelines, and the PR checklist.
 
 ## License
 
