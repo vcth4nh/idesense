@@ -13,6 +13,7 @@ local.properties
 
 # generated scratch (decompile logs, dependency cache, eclipse metadata, live-test stderr)
 logs
+*.log
 cache
 .classpath
 .project
