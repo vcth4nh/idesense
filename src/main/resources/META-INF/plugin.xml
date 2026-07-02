@@ -48,6 +48,7 @@
 <h3>Refactoring Tools</h3>
 <ul>
     <li><b>Rename Refactoring</b> - Safe symbol renaming with automatic reference updates - works across ALL languages, fully headless</li>
+    <li><b>Move File</b> - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend</li>
 </ul>
 
 <h3>Why This Plugin?</h3>

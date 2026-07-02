@@ -46,6 +46,7 @@ These tools activate based on installed language plugins:
 
 **Refactoring Tools**
 - **Rename Refactoring** - Safe renaming with automatic related element renaming (getters/setters, overriding methods) - works across ALL languages, fully headless
+- **Move File** - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend
 
 ### Why Use This Plugin?
 
