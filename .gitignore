@@ -9,6 +9,7 @@ bin
 tmp
 .claude
 docs/superpowers/
+docs/reviews/
 local.properties
 
 # generated scratch (decompile logs, dependency cache, eclipse metadata, live-test stderr)
