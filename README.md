@@ -47,8 +47,6 @@ These tools activate based on installed language plugins:
 
 **Refactoring Tools**
 - **Rename Refactoring** - Safe renaming with automatic related element renaming (getters/setters, overriding methods) - works across ALL languages, fully headless
-- **Safe Delete** - Remove code with usage checking (Java/Kotlin only)
-- **Java to Kotlin Conversion** - Convert Java to Kotlin using IntelliJ's built-in converter (Java only)
 
 ### Why Use This Plugin?
 
@@ -125,8 +123,6 @@ The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggl
 |------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | `ide_refactor_rename` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 | `ide_move_file` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
-| `ide_refactor_safe_delete` | ⚠️ | ⚠️ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
-| `ide_convert_java_to_kotlin` | ⚠️ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
 
 **Project** — language-agnostic (operate on the project/IDE, not language-specific code)
 
@@ -140,7 +136,7 @@ The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggl
 | `ide_read_file` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 > **Notes:**
-> - `ide_refactor_safe_delete` and `ide_convert_java_to_kotlin` require the Java plugin; refactoring tools are supported but not yet live-tested here (⚠️).
+> - Refactoring tools (`ide_refactor_rename`, `ide_move_file`) are supported but not yet live-tested here (⚠️).
 > - `ide_build_project` does a real build on JVM projects (Java/Kotlin, via JPS — ✅). It's build-system-driven (JPS/Gradle/Maven), so on non-JVM projects with no such build it returns trivial success without compiling — those stay ⚠️.
 > - `ide_search_text` is backed by the IDE's word index, so language keywords (e.g. Kotlin `fun`) may not be matched even though identifiers and most words are.
 

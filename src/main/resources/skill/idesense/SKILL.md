@@ -5,10 +5,10 @@ description: >
   TRIGGER: When ANY of these MCP tools are available in the current session: ide_find_usages,
   ide_find_definition, ide_find_class, ide_find_file, ide_search_text, ide_diagnostics,
   ide_index_status, ide_sync_files, ide_refactor_rename, ide_move_file, ide_type_hierarchy,
-  ide_call_hierarchy, ide_find_implementations, ide_find_super_methods, ide_refactor_safe_delete.
+  ide_call_hierarchy, ide_find_implementations, ide_find_super_methods.
   Use when performing code navigation (find usages, go to definition, find class),
   code analysis (diagnostics, type hierarchy, call hierarchy),
-  refactoring (rename, move, safe delete),
+  refactoring (rename, move),
   or searching code (text search, symbol search, file search).
   Prefer IDE tools over grep/find/sed for ALL semantic code operations.
 ---
@@ -36,7 +36,6 @@ The IdeSense server exposes JetBrains IDE indexing and refactoring capabilities.
 | Understand class hierarchy | `ide_type_hierarchy` | Never - no equivalent |
 | Find who calls a method | `ide_call_hierarchy` | Never - grep misses indirect calls |
 | Find interface implementations | `ide_find_implementations` | Never - grep can't resolve type relationships |
-| Delete a symbol safely | `ide_refactor_safe_delete` | Never - manual deletion misses usages |
 | Find what a method overrides | `ide_find_super_methods` | Never - no equivalent |
 | Read file content | `ide_read_file` only for library/jar sources | Built-in Read tool |
 | Find text with regex | `Grep` | IDE search_text doesn't support regex |
@@ -93,7 +92,6 @@ Omit `paths` to sync the entire project.
 ### "I need to refactor"
 1. `ide_refactor_rename` - rename symbol + all references atomically
 2. `ide_move_file` - move file and let the IDE apply semantic updates when that language/backend supports them
-3. `ide_refactor_safe_delete` - delete with usage checking (Java/Kotlin only)
 
 ### "I need to check for problems"
 1. `ide_diagnostics` - per-file errors/warnings + quick fixes; also cached last-build errors and open test-run results via `includeBuildErrors` / `includeTestResults` (at least one source required)

@@ -27,9 +27,7 @@ object ToolNames {
 
     // Refactoring tools
     const val REFACTOR_RENAME = "ide_refactor_rename"
-    const val REFACTOR_SAFE_DELETE = "ide_refactor_safe_delete"
     const val REFACTOR_MOVE = "ide_move_file"
-    const val CONVERT_JAVA_TO_KOTLIN = "ide_convert_java_to_kotlin"
 
     /**
      * All known tool names, sorted alphabetically.
@@ -38,7 +36,6 @@ object ToolNames {
     val ALL: List<String> = listOf(
         BUILD_PROJECT,
         CALL_HIERARCHY,
-        CONVERT_JAVA_TO_KOTLIN,
         DIAGNOSTICS,
         FILE_STRUCTURE,
         FIND_CLASS,
@@ -53,7 +50,6 @@ object ToolNames {
         REFACTOR_MOVE,
         READ_FILE,
         REFACTOR_RENAME,
-        REFACTOR_SAFE_DELETE,
         RESTART_IDE,
         SEARCH_TEXT,
         SYNC_FILES,

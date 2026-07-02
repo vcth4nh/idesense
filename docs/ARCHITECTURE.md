@@ -27,9 +27,7 @@ The "verified against" column cites the exact call site so a future reader can r
 | `ide_install_plugin` | none — `PathManager.getPluginsDir()` + JDK `ZipInputStream` (zip-slip guarded) | `InstallPluginTool.kt` |
 | `ide_restart` | none — `ApplicationManagerEx.getApplicationEx().restart(true)` (scheduled via `AppExecutorUtil`) | `RestartIdeTool.kt` |
 | `ide_refactor_rename` | `RenameProcessor` + `RenamePsiElementProcessor` EP + `AutomaticRenamerFactory` EP iteration | `RenameSymbolTool.kt` |
-| `ide_refactor_safe_delete` | none — `ReferencesSearch` usage check + `WriteCommandAction` PSI delete (Java plugin required for gating) | `SafeDeleteTool.kt` |
 | `ide_move_file` | `MoveFilesOrDirectoriesProcessor` (delegates to `MoveFileHandler` EP per language; PHP class files route through PhpStorm's class-move processor) | `MoveFileTool.kt` |
-| `ide_convert_java_to_kotlin` | reflection: `JavaToKotlinAction.Handler.convertFiles()` (2025.x) / `JavaToKotlinActionHandler.convertFiles()` (2026.1+) | `ConvertJavaToKotlinTool.kt` |
 
 ## Core Design Principle: Mimic the IDE
 
@@ -236,7 +234,6 @@ Works for all languages (each plugin registers its own `QueryExecutor`).
    `ide_install_plugin`/`ide_restart`)
 2. `registerLanguageNavigationTools()` — `ide_find_super_methods` (gated by
    `LanguageServices.hasAnySuperMethodsProvider()`), hierarchy tools
-3. `registerJavaRefactoringTools()` — `ide_refactor_safe_delete` if Java plugin present
 
 ## Hierarchy Tools (IDE Extension-Point Delegation)
 

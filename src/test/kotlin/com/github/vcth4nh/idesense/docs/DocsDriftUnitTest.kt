@@ -22,10 +22,8 @@ import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
 import com.github.vcth4nh.idesense.tools.project.InstallPluginTool
 import com.github.vcth4nh.idesense.tools.project.RestartIdeTool
 import com.github.vcth4nh.idesense.tools.project.SyncFilesTool
-import com.github.vcth4nh.idesense.tools.refactoring.ConvertJavaToKotlinTool
 import com.github.vcth4nh.idesense.tools.refactoring.MoveFileTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
-import com.github.vcth4nh.idesense.tools.refactoring.SafeDeleteTool
 import junit.framework.TestCase
 import kotlinx.serialization.json.jsonObject
 import java.io.File
@@ -73,8 +71,7 @@ class DocsDriftUnitTest : TestCase() {
         FindImplementationsTool(), FindSymbolTool(), FindSuperMethodsTool(), FileStructureTool(),
         FindClassTool(), FindFileTool(), SearchTextTool(), ReadFileTool(), GetDiagnosticsTool(),
         GetIndexStatusTool(), SyncFilesTool(), BuildProjectTool(), InstallPluginTool(), RestartIdeTool(),
-        RenameSymbolTool(), SafeDeleteTool(), MoveFileTool(),
-        ConvertJavaToKotlinTool()
+        RenameSymbolTool(), MoveFileTool()
     )
 
     private fun schemaProps(tool: McpTool): Set<String> =
@@ -89,8 +86,8 @@ class DocsDriftUnitTest : TestCase() {
     private fun tableToolSet(md: String) = tableCol1Tool.findAll(md).map { it.groupValues[1] }.toSet()
 
     fun testCanonicalCounts() {
-        assertEquals("Expected 22 tools in ToolNames.ALL", 22, allTools.size)
-        assertEquals("Expected 7 disabled-by-default tools", 7, disabled.size)
+        assertEquals("Expected 20 tools in ToolNames.ALL", 20, allTools.size)
+        assertEquals("Expected 6 disabled-by-default tools", 6, disabled.size)
         assertEquals("Every tool must be instantiable for schema introspection",
             allTools, allToolInstances().map { it.name }.toSet())
     }

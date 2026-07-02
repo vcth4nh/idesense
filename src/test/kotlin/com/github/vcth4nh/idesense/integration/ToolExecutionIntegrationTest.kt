@@ -488,9 +488,7 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             ToolNames.SYNC_FILES,
             // Refactoring tools
             ToolNames.REFACTOR_RENAME,
-            ToolNames.REFACTOR_MOVE,
-            ToolNames.REFACTOR_SAFE_DELETE,
-            ToolNames.CONVERT_JAVA_TO_KOTLIN
+            ToolNames.REFACTOR_MOVE
         )
 
         assertEquals("Should have correct number of tools", expectedTools.size, registry.getAllTools().size)

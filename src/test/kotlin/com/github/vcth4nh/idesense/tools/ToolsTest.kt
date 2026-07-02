@@ -12,7 +12,6 @@ import com.github.vcth4nh.idesense.tools.navigation.FindDefinitionTool
 import com.github.vcth4nh.idesense.tools.navigation.TypeHierarchyTool
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
-import com.github.vcth4nh.idesense.tools.refactoring.SafeDeleteTool
 import com.github.vcth4nh.idesense.constants.SchemaConstants
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
@@ -259,25 +258,6 @@ class ToolsTest : BasePlatformTestCase() {
         })
 
         assertTrue("Should error with blank name", result.isError)
-    }
-
-    fun testSafeDeleteToolMissingParams() = runBlocking {
-        val tool = SafeDeleteTool()
-
-        val result = tool.execute(project, buildJsonObject { })
-        assertTrue("Should error with missing params", result.isError)
-    }
-
-    fun testSafeDeleteToolInvalidFile() = runBlocking {
-        val tool = SafeDeleteTool()
-
-        val result = tool.execute(project, buildJsonObject {
-            put("file", "nonexistent/file.kt")
-            put("line", 1)
-            put("column", 1)
-        })
-
-        assertTrue("Should error with invalid file", result.isError)
     }
 
     // File Structure Tool Tests

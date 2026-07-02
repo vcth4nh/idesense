@@ -23,7 +23,6 @@ import com.github.vcth4nh.idesense.tools.project.RestartIdeTool
 import com.github.vcth4nh.idesense.tools.project.SyncFilesTool
 import com.github.vcth4nh.idesense.tools.refactoring.MoveFileTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
-import com.github.vcth4nh.idesense.tools.refactoring.SafeDeleteTool
 import com.github.vcth4nh.idesense.handlers.isExcludedPath
 import junit.framework.TestCase
 import kotlinx.serialization.json.jsonArray
@@ -370,7 +369,6 @@ class ToolsUnitTest : TestCase() {
      * Note: The number of tools registered depends on available language plugins:
      * - Universal tools: Always registered in all IDEs
      * - Navigation tools: Registered when language handlers are available (Java, Python, JS/TS)
-     * - Refactoring tools: Registered only when Java plugin is available
      *
      * In a unit test environment without the full IntelliJ Platform, only universal tools
      * may be registered since plugin detection may fail.
@@ -400,12 +398,9 @@ class ToolsUnitTest : TestCase() {
     }
 
     /**
-     * Tests tool registration in a fully initialized IntelliJ Platform environment.
+     * Tests tool registration for language-specific navigation tools.
      *
-     * This test verifies that when Java plugin is available (as in IntelliJ IDEA platform tests),
-     * all 11 tools are registered including navigation and refactoring tools.
-     *
-     * Note: This test may register fewer tools in unit test mode since plugin detection
+     * Note: This test may register fewer tools in unit test mode since handler detection
      * depends on the IntelliJ Platform being fully initialized.
      */
     fun testToolRegistryRegistersLanguageToolsWhenAvailable() {
@@ -421,42 +416,21 @@ class ToolsUnitTest : TestCase() {
             ToolNames.FILE_STRUCTURE
         )
 
-        // Java-specific refactoring tools
-        val refactoringTools = listOf(
-            ToolNames.REFACTOR_RENAME,
-            ToolNames.REFACTOR_SAFE_DELETE
-        )
-
-        // Check if language navigation tools are registered (depends on platform initialization)
         val registeredNavTools = navigationTools.count { registry.getTool(it) != null }
-        val registeredRefTools = refactoringTools.count { registry.getTool(it) != null }
 
-        // Check if SafeDeleteTool is specifically registered (indicates Java plugin is available)
-        val safeDeleteRegistered = registry.getTool(ToolNames.REFACTOR_SAFE_DELETE) != null
-
-        // In IntelliJ platform tests with Java plugin, all navigation and refactoring tools should be available.
-        // In unit tests, individual handler availability drives registration: the bundled Markdown plugin
-        // registers a structure handler (so FILE_STRUCTURE is expected), while Java-backed hierarchy/super
-        // tools require the Java plugin to be fully initialised. Assert at least one nav tool is registered
-        // when any handler loads, and that FILE_STRUCTURE is among them.
+        // In unit tests, individual handler availability drives registration: the bundled Markdown
+        // plugin registers a structure handler, so FILE_STRUCTURE is expected whenever any handler loads.
         if (registeredNavTools > 0) {
             assertTrue("FILE_STRUCTURE should be registered when the Markdown structure handler is available",
                 registry.getTool(ToolNames.FILE_STRUCTURE) != null)
         }
 
-        if (safeDeleteRegistered) {
-            // If SafeDeleteTool is registered, Java plugin is available and both refactoring tools should be registered
-            assertEquals("When Java plugin available, both refactoring tools should be registered",
-                2, registeredRefTools)
-        } else {
-            // SafeDeleteTool requires Java plugin, but RenameSymbolTool is universal and should always be registered
-            assertTrue("RenameSymbolTool should always be registered (universal tool)",
-                registry.getTool(ToolNames.REFACTOR_RENAME) != null)
-        }
+        // RenameSymbolTool is universal and should always be registered
+        assertTrue("RenameSymbolTool should always be registered (universal tool)",
+            registry.getTool(ToolNames.REFACTOR_RENAME) != null)
 
-        // Log the actual tool count for debugging
         val totalTools = registry.getAllTools().size
-        println("Tool registry test: $totalTools tools registered ($registeredNavTools navigation + $registeredRefTools refactoring)")
+        println("Tool registry test: $totalTools tools registered ($registeredNavTools navigation)")
     }
 
     /**
@@ -507,53 +481,6 @@ class ToolsUnitTest : TestCase() {
         assertNotNull("relatedRenamingStrategy should have enum", relatedStrategyProp?.get("enum"))
         val enumValues = relatedStrategyProp?.get("enum")?.jsonArray?.map { it.jsonPrimitive.content }
         assertEquals(listOf("all", "none", "accessors_and_tests", "ask"), enumValues)
-    }
-
-    fun testSafeDeleteToolSchema() {
-        val tool = SafeDeleteTool()
-
-        assertEquals(ToolNames.REFACTOR_SAFE_DELETE, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
-        assertNotNull("Should have line property", properties?.get(ParamNames.LINE))
-        assertNotNull("Should have column property", properties?.get(ParamNames.COLUMN))
-        assertNotNull("Should have force property", properties?.get(ParamNames.FORCE))
-        assertNotNull("Should have target_type property", properties?.get(ParamNames.TARGET_TYPE))
-
-        // Verify target_type has enum values and default
-        val targetTypeProp = properties?.get(ParamNames.TARGET_TYPE)?.jsonObject
-        assertNotNull("target_type should have enum", targetTypeProp?.get("enum"))
-        assertEquals("target_type default should be 'symbol'", "symbol", targetTypeProp?.get("default")?.jsonPrimitive?.content)
-    }
-
-    fun testSafeDeleteToolSchemaHasRequiredFile() {
-        val tool = SafeDeleteTool()
-        val schema = tool.inputSchema
-
-        // Verify required array includes "file" (conditional line/column requirements are validated at runtime)
-        // Note: We don't use oneOf/allOf/anyOf because Anthropic's API doesn't support them
-        val required = schema["required"]
-        assertNotNull("Schema should have required array", required)
-        assertTrue("Required should include 'file'", required.toString().contains("file"))
-    }
-
-    fun testSafeDeleteToolDescriptionIncludesTargetTypes() {
-        val tool = SafeDeleteTool()
-        val description = tool.description
-
-        assertTrue("Description should mention target_type='symbol'", description.contains("target_type='symbol'"))
-        assertTrue("Description should mention target_type='file'", description.contains("target_type='file'"))
-        assertTrue("Description should mention external usages", description.contains("external usages"))
-        assertTrue("Description should mention line/column required for symbol", description.contains("REQUIRED: file, line, column"))
-        assertTrue("Description should mention only file required for file mode", description.contains("REQUIRED: file only"))
     }
 
     // New navigation tools
