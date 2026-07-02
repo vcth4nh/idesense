@@ -368,9 +368,8 @@ class GetDiagnosticsToolBehaviorTest : BasePlatformTestCase() {
     }
 
     fun testReportsBuildDiagnosticsRecordedAfterBuildCompletes() = runBlocking {
-        val cacheService = BuildDiagnosticsCacheService.getInstance(project)
-        cacheService.recordBuildResult(
-            listOf(
+        seedBuildDiagnostics(
+            compilerMessages = listOf(
                 BuildMessage(
                     category = "ERROR",
                     message = "Recorded build failure",

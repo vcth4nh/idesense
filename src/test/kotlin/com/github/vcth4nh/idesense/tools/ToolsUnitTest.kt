@@ -17,7 +17,6 @@ import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.SearchTextTool
 import com.github.vcth4nh.idesense.tools.navigation.TypeHierarchyTool
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
-import com.github.vcth4nh.idesense.tools.project.BuildProjectTool
 import com.github.vcth4nh.idesense.tools.project.InstallPluginTool
 import com.github.vcth4nh.idesense.tools.project.RestartIdeTool
 import com.github.vcth4nh.idesense.tools.project.SyncFilesTool
@@ -88,35 +87,6 @@ class ToolsUnitTest : TestCase() {
         val tool = registry.getTool(ToolNames.SYNC_FILES)
         assertNotNull("ide_sync_files should be registered", tool)
         assertEquals(ToolNames.SYNC_FILES, tool?.name)
-    }
-
-    fun testBuildProjectToolSchema() {
-        val tool = BuildProjectTool()
-
-        assertEquals(ToolNames.BUILD_PROJECT, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have rebuild property", properties?.get(ParamNames.REBUILD))
-        assertNotNull("Should have includeRawOutput property", properties?.get(ParamNames.INCLUDE_RAW_OUTPUT))
-        assertNotNull("Should have timeoutSeconds property", properties?.get(ParamNames.TIMEOUT_SECONDS))
-
-        assertNull("Should not have required array", schema[SchemaConstants.REQUIRED])
-    }
-
-    fun testBuildProjectToolIsRegistered() {
-        val registry = ToolRegistry()
-        registry.registerBuiltInTools()
-
-        val tool = registry.getTool(ToolNames.BUILD_PROJECT)
-        assertNotNull("ide_build_project should be registered", tool)
-        assertEquals(ToolNames.BUILD_PROJECT, tool?.name)
     }
 
     fun testInstallPluginToolSchema() {
@@ -384,8 +354,7 @@ class ToolsUnitTest : TestCase() {
             ToolNames.FIND_SYMBOL,
             ToolNames.DIAGNOSTICS,
             ToolNames.INDEX_STATUS,
-            ToolNames.SYNC_FILES,
-            ToolNames.BUILD_PROJECT
+            ToolNames.SYNC_FILES
         )
 
         // Universal tools should always be registered

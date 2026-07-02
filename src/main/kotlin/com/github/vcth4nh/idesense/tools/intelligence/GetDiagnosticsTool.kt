@@ -55,8 +55,8 @@ class GetDiagnosticsTool : AbstractMcpTool() {
 
     override val description = """
         Unified diagnostics: per-file code analysis, last-build compiler output, and test results
-        from open run tabs — all in one call. Use over ide_build_project when you want diagnostics
-        without triggering a new build; use ide_build_project when you need a fresh compilation.
+        from open run tabs — all in one call. Build diagnostics come from the IDE's most recent
+        build; this tool never triggers a build itself.
 
         At least one source must be active: file for per-file analysis, includeBuildErrors for last
         build output, includeTestResults for open test-run tabs. Combine freely.

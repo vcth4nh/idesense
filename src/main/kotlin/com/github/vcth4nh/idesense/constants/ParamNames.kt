@@ -53,11 +53,6 @@ object ParamNames {
     const val LANGUAGE = "language"
     const val FUZZY_SEARCH = "fuzzySearch"
 
-    // Build parameters
-    const val REBUILD = "rebuild"
-    const val INCLUDE_RAW_OUTPUT = "includeRawOutput"
-    const val TIMEOUT_SECONDS = "timeoutSeconds"
-
     // Lifecycle parameters (install plugin / restart IDE)
     const val DELAY_SECONDS = "delaySeconds"
 

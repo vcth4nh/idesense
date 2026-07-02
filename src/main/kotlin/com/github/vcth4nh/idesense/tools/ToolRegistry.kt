@@ -14,7 +14,6 @@ import com.github.vcth4nh.idesense.tools.navigation.FindSymbolTool
 import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.ReadFileTool
 import com.github.vcth4nh.idesense.tools.navigation.SearchTextTool
-import com.github.vcth4nh.idesense.tools.project.BuildProjectTool
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
 import com.github.vcth4nh.idesense.tools.project.InstallPluginTool
 import com.github.vcth4nh.idesense.tools.project.RestartIdeTool
@@ -45,7 +44,6 @@ import java.util.concurrent.ConcurrentHashMap
  * - `ide_find_symbol` - Search for symbols by name (universal, popup-backed)
  * - `ide_search_text` - Text search using word index
  * - `ide_diagnostics` - Analyze code for problems and available intentions
- * - `ide_build_project` - Build project using IDE's build system (disabled by default)
  * - `ide_install_plugin` - Install a locally built plugin .zip into this IDE (disabled by default)
  * - `ide_restart` - Restart this IDE to load a freshly installed plugin (disabled by default)
  * - `ide_index_status` - Check indexing status
@@ -197,7 +195,6 @@ class ToolRegistry {
         // Project tools
         register(GetIndexStatusTool())
         register(SyncFilesTool())
-        register(BuildProjectTool())
         register(InstallPluginTool())
         register(RestartIdeTool())
 

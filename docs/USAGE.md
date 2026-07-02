@@ -21,7 +21,6 @@ These tools work in every supported JetBrains IDE:
 | `ide_diagnostics` | Analyze file problems with fresh IDE diagnostics, plus optional build/test results | Enabled |
 | `ide_index_status` | Check indexing status | Enabled |
 | `ide_sync_files` | Force sync VFS/PSI cache | Enabled |
-| `ide_build_project` | Build project with structured errors | Disabled |
 | `ide_read_file` | Read file content by path or qualified name | Disabled |
 | `ide_refactor_rename` | Rename symbol with reference updates (all languages) | Enabled |
 | `ide_move_file` | Move file to new directory with IDE-aware move semantics | Enabled |
@@ -55,7 +54,6 @@ These tools activate based on available language plugins:
   - [ide_diagnostics](#ide_diagnostics)
   - [ide_index_status](#ide_index_status)
   - [ide_sync_files](#ide_sync_files)
-  - [ide_build_project](#ide_build_project)
   - [ide_install_plugin](#ide_install_plugin)
   - [ide_restart](#ide_restart)
   - [ide_read_file](#ide_read_file)
@@ -564,61 +562,6 @@ Force the IDE to synchronize its virtual file system and PSI cache with external
   "syncedPaths": ["src/main/java/com/example/NewFile.java"],
   "syncedAll": false,
   "message": "Synced 1 path(s)"
-}
-```
-
----
-
-### ide_build_project
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Build the project using the IDE's build system (supports JPS, Gradle, Maven).
-
-**Use when:**
-- Checking for compilation errors after code changes
-- Verifying that refactoring didn't break anything
-- Getting structured error messages with file locations
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `rebuild` | boolean | No | Full rebuild instead of incremental build (default: false) |
-| `includeRawOutput` | boolean | No | Include raw build output log (default: false) |
-| `timeoutSeconds` | integer | No | Timeout in seconds. No timeout if omitted |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_build_project",
-    "arguments": {}
-  }
-}
-```
-
-**Example Response:**
-
-```json
-{
-  "success": false,
-  "aborted": false,
-  "errors": 1,
-  "warnings": 2,
-  "buildMessages": [
-    {
-      "category": "ERROR",
-      "message": "Unresolved reference: fooBar",
-      "file": "src/main/kotlin/com/example/App.kt",
-      "line": 15,
-      "column": 10
-    }
-  ],
-  "truncated": false,
-  "durationMs": 3200
 }
 ```
 

@@ -17,7 +17,6 @@ import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.ReadFileTool
 import com.github.vcth4nh.idesense.tools.navigation.SearchTextTool
 import com.github.vcth4nh.idesense.tools.navigation.TypeHierarchyTool
-import com.github.vcth4nh.idesense.tools.project.BuildProjectTool
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
 import com.github.vcth4nh.idesense.tools.project.InstallPluginTool
 import com.github.vcth4nh.idesense.tools.project.RestartIdeTool
@@ -70,7 +69,7 @@ class DocsDriftUnitTest : TestCase() {
         FindUsagesTool(), FindDefinitionTool(), TypeHierarchyTool(), CallHierarchyTool(),
         FindImplementationsTool(), FindSymbolTool(), FindSuperMethodsTool(), FileStructureTool(),
         FindClassTool(), FindFileTool(), SearchTextTool(), ReadFileTool(), GetDiagnosticsTool(),
-        GetIndexStatusTool(), SyncFilesTool(), BuildProjectTool(), InstallPluginTool(), RestartIdeTool(),
+        GetIndexStatusTool(), SyncFilesTool(), InstallPluginTool(), RestartIdeTool(),
         RenameSymbolTool(), MoveFileTool()
     )
 
@@ -86,8 +85,8 @@ class DocsDriftUnitTest : TestCase() {
     private fun tableToolSet(md: String) = tableCol1Tool.findAll(md).map { it.groupValues[1] }.toSet()
 
     fun testCanonicalCounts() {
-        assertEquals("Expected 20 tools in ToolNames.ALL", 20, allTools.size)
-        assertEquals("Expected 6 disabled-by-default tools", 6, disabled.size)
+        assertEquals("Expected 19 tools in ToolNames.ALL", 19, allTools.size)
+        assertEquals("Expected 5 disabled-by-default tools", 5, disabled.size)
         assertEquals("Every tool must be instantiable for schema introspection",
             allTools, allToolInstances().map { it.name }.toSet())
     }

@@ -431,6 +431,37 @@ class ToolModelsUnitTest : TestCase() {
         assertFalse(deserialized.buildErrorsTruncated!!)
     }
 
+    // BuildMessage tests
+
+    fun testBuildMessageSerializationNullFields() {
+        val msg = BuildMessage(
+            category = "ERROR",
+            message = "Something failed"
+        )
+
+        val jsonString = json.encodeToString(msg)
+        val decoded = json.decodeFromString<BuildMessage>(jsonString)
+        assertEquals("ERROR", decoded.category)
+        assertEquals("Something failed", decoded.message)
+        assertNull(decoded.file)
+        assertNull(decoded.line)
+        assertNull(decoded.column)
+    }
+
+    fun testBuildMessageSerializationAllFields() {
+        val msg = BuildMessage(
+            category = "WARNING",
+            message = "Unused import",
+            file = "src/main/Foo.kt",
+            line = 3,
+            column = 1
+        )
+
+        val jsonString = json.encodeToString(msg)
+        val decoded = json.decodeFromString<BuildMessage>(jsonString)
+        assertEquals(msg, decoded)
+    }
+
     fun testDiagnosticsResultWithTestResults() {
         val result = DiagnosticsResult(
             testResults = listOf(

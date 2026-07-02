@@ -22,7 +22,6 @@ class ConstantsUnitTest : TestCase() {
 
     fun testToolNamesProjectTools() {
         assertEquals("ide_index_status", ToolNames.INDEX_STATUS)
-        assertEquals("ide_build_project", ToolNames.BUILD_PROJECT)
         assertEquals("ide_install_plugin", ToolNames.INSTALL_PLUGIN)
         assertEquals("ide_restart", ToolNames.RESTART_IDE)
     }
@@ -55,7 +54,6 @@ class ConstantsUnitTest : TestCase() {
             ToolNames.DIAGNOSTICS,
             ToolNames.INDEX_STATUS,
             ToolNames.SYNC_FILES,
-            ToolNames.BUILD_PROJECT,
             ToolNames.INSTALL_PLUGIN,
             ToolNames.RESTART_IDE,
             ToolNames.REFACTOR_RENAME,
@@ -114,12 +112,6 @@ class ConstantsUnitTest : TestCase() {
     fun testParamNamesSymbolSearch() {
         assertEquals("query", ParamNames.QUERY)
         assertEquals("limit", ParamNames.LIMIT)
-    }
-
-    fun testParamNamesBuild() {
-        assertEquals("rebuild", ParamNames.REBUILD)
-        assertEquals("includeRawOutput", ParamNames.INCLUDE_RAW_OUTPUT)
-        assertEquals("timeoutSeconds", ParamNames.TIMEOUT_SECONDS)
     }
 
     // UsageTypes tests
