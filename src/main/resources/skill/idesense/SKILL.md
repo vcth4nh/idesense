@@ -32,7 +32,7 @@ The IdeSense server exposes JetBrains IDE indexing and refactoring capabilities.
 | Search for a word in code | `ide_search_text` | `Grep` is fine for regex patterns (IDE tool is exact-word only) |
 | Rename a symbol across project | `ide_refactor_rename` | Never - sed/replace breaks code |
 | Move a file to another directory | `ide_move_file` | Never - mv/git mv bypasses IDE move semantics |
-| Check for errors in a file | `ide_diagnostics` | Never - no equivalent |
+| Check errors/warnings, build output, or test results | `ide_diagnostics` | Never - no equivalent |
 | Understand class hierarchy | `ide_type_hierarchy` | Never - no equivalent |
 | Find who calls a method | `ide_call_hierarchy` | Never - grep misses indirect calls |
 | Find interface implementations | `ide_find_implementations` | Never - grep can't resolve type relationships |
@@ -63,15 +63,15 @@ Omit `paths` to sync the entire project.
 
 ## Pagination
 
-`ide_find_usages`, `ide_find_class`, `ide_find_file`, `ide_search_text`, `ide_find_implementations`, and `ide_find_symbol` return paginated results. The first response carries `nextCursor` and `hasMore` (`truncated` mirrors `hasMore`). To fetch the next page, call the **same tool** again with `cursor: "<nextCursor>"` — on a cursor call the search arguments (query, file/line/column, scope) are ignored; only `cursor`, `pageSize`, and `project_path` are read. Stop when `hasMore` is `false`.
+`ide_find_usages`, `ide_find_class`, `ide_find_file`, `ide_search_text`, `ide_find_implementations`, and `ide_find_symbol` return paginated results. The first response carries `nextCursor` and `hasMore` (`ide_find_usages` also includes a legacy `truncated` field mirroring `hasMore`). To fetch the next page, call the **same tool** again with `cursor: "<nextCursor>"` — on a cursor call the search arguments (query, file/line/column, scope) are ignored; only `cursor`, `pageSize`, and `project_path` are read. Stop when `hasMore` is `false`. For the position-based tools (`ide_find_usages`, `ide_find_implementations`) a fresh search requires `file` + `line` + `column` together — they're marked optional in the schema only so cursor calls can omit them.
 
 ## Parameter Rules
 
 1. **Line and column are 1-based** (first line = 1, first column = 1)
-2. **Project file paths are relative** to project root (e.g., `src/main/java/App.java`, NOT absolute paths). If an IDE tool returns a dependency/library file, keep the returned absolute path or `jar://` URL unchanged when passing it back to read-only navigation tools or `ide_read_file`
-3. **Column must point to the symbol name**, not whitespace or punctuation. For `public void myMethod()`, column should land on `m` of `myMethod`. For dotted expressions like `json.dumps()` or `os.path.join()`, put the column on the member token (`dumps`, `join`) when you want the member definition rather than the module/package.
+2. **Project file paths are relative** to project root (e.g., `src/main/java/App.java`, NOT absolute paths). If an IDE tool returns a dependency/library file, keep the returned path unchanged when passing it back to read-only navigation tools or `ide_read_file` — it may be an absolute path, a `.jar!/` jar path, or a `jar://` URL
+3. **Column must point to the symbol name**, not whitespace or punctuation. For `public void myMethod()`, column should land on `m` of `myMethod`. For dotted expressions like `json.dumps()` or `os.path.join()`, put the column on the member token (`dumps`, `join`) when you want the member definition rather than the module/package. For `ide_call_hierarchy`, anchor on the **declaration** of the target method/function/constructor: a column on a call site resolves to the *enclosing* function, not the callee — if you only have a call site, run `ide_find_definition` first and use the returned location.
 4. **project_path is only needed** for multi-project workspaces. Omit for single-project setups. When needed, use the absolute path to the project root — for a workspace with sub-projects, pass the sub-project's root, not the workspace root.
-5. **Use search scope intentionally**: `ide_find_usages`, `ide_find_implementations`, `ide_find_class`, `ide_find_file`, and `ide_find_symbol` accept `scope`. Use `project_files` for the default project-only view, `project_and_libraries` when dependency code matters, `project_production_files` to stay out of tests, and `project_test_files` when you want test-only results. The hierarchy tools `ide_type_hierarchy` and `ide_call_hierarchy` use the IDE's native hierarchy scope instead: `all` (default), `production`, `test` (plus `this_class` and `this_module` for `ide_call_hierarchy`).
+5. **Use search scope intentionally**: `ide_find_usages`, `ide_find_implementations`, `ide_find_class`, `ide_find_file`, and `ide_find_symbol` accept `scope`. Use `project_files` for the default project-only view, `project_and_libraries` when dependency code matters, `project_production_files` to stay out of tests, and `project_test_files` when you want test-only results. The hierarchy tools `ide_type_hierarchy` and `ide_call_hierarchy` use the IDE's native hierarchy scope instead: `all` (default), `production`, `test` (plus `this_class` and `this_module` for `ide_call_hierarchy`). This scope is IDE-native and provider-dependent: `production`/`test` narrow results only when the language's hierarchy provider honors those roots — otherwise they behave like `all` (type-hierarchy scope is currently a no-op in several languages).
 
 ## Tool Selection by Task
 
@@ -97,10 +97,10 @@ Omit `paths` to sync the entire project.
 4. `ide_reformat_code` - apply project code style (disabled by default)
 
 ### "I need to check for problems"
-1. `ide_diagnostics` - compiler errors, warnings, quick fixes
+1. `ide_diagnostics` - per-file errors/warnings + quick fixes; also cached last-build errors and open test-run results via `includeBuildErrors` / `includeTestResults` (at least one source required)
 
 ### "I need to find implementations of an interface"
-1. `ide_find_implementations` - cursor on interface/abstract class/method
+1. `ide_find_implementations` - anchor on a class/interface/trait/protocol or method (declaration or resolvable reference); returns a flat list of implementations, inheritors, and overrides
 
 ### "I need to trace call chains"
 1. `ide_call_hierarchy` with `direction: "callers"` - who calls this?
@@ -120,13 +120,13 @@ Omit `paths` to sync the entire project.
 
 6. **Passing absolute project file paths**: Use relative paths for project files. `src/main/App.java`, not `/Users/me/project/src/main/App.java`.
 
-7. **Rewriting plugin-returned library paths**: If a search or read tool returns an absolute path or `jar://` URL for a dependency/library file, pass that path back unchanged to read-only navigation tools or `ide_read_file`.
+7. **Rewriting plugin-returned library paths**: If a search or read tool returns a dependency/library path (an absolute path, a `.jar!/` jar path, or a `jar://` URL), pass that path back unchanged to read-only navigation tools or `ide_read_file`.
 
 8. **Not syncing after external file changes**: After creating files via Write tool, call `ide_sync_files` before searching.
 
 9. **Using `ide_search_text` for regex**: This tool is exact-word only (uses word index). Use `Grep` for regex.
 
-10. **Using `ide_find_class` for methods/functions**: It searches classes only. Use `ide_search_text` for a quick word lookup.
+10. **Using `ide_find_class` for methods/functions**: It searches class-like/type declarations (classes, interfaces, enums, records, structs, traits, objects, annotations, and similar), not methods/fields/functions. Use `ide_find_symbol` when enabled, or `ide_search_text` for a quick word lookup.
 
 ## Tool Availability
 

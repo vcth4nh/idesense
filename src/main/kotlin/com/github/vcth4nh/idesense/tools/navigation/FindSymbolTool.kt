@@ -59,7 +59,7 @@ class FindSymbolTool : AbstractMcpTool() {
         Returns: symbols with qualified names, file paths, line/column numbers, and kind. Paginated
         — pass the returned cursor for the next page.
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense. Requires
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. Requires
         smart mode.
     """.trimIndent()
 

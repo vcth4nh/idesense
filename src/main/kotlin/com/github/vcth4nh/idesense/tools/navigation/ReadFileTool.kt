@@ -29,7 +29,7 @@ class ReadFileTool : AbstractMcpTool() {
         Returns: file content (full or line-range slice) with metadata: language, lineCount,
         startLine, endLine, isLibraryFile.
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense.
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense.
         Either file or qualifiedName is required; when both endLine is given, startLine is also
         required.
     """.trimIndent()

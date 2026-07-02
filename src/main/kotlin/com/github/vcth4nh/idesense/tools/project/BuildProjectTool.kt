@@ -51,7 +51,7 @@ class BuildProjectTool : AbstractMcpTool() {
         locations. Note: error/warning counts are null (not 0) when the build system produced no
         compiler messages (e.g. no-op incremental build or unsupported build system).
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense. When
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. When
         project_path points to a workspace sub-project, only that module and its dependencies are
         built. Project must be trusted (IDE trust prompt).
     """.trimIndent()

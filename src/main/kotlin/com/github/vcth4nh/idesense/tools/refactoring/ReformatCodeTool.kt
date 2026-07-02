@@ -53,7 +53,7 @@ class ReformatCodeTool : AbstractMcpTool() {
 
         Returns: success status, affected file, and a description of which operations ran.
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense. Does not
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. Does not
         require smart mode (formatting is index-free).
     """.trimIndent()
 

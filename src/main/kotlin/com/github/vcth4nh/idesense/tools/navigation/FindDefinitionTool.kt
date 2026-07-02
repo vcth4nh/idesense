@@ -27,9 +27,9 @@ class FindDefinitionTool : AbstractMcpTool() {
         or ide_find_class when you already know where the usage is.
 
         Returns: file path, 1-based line/column of the declaration, code preview, symbol name, kind,
-        and qualified name.
+        and qualified name when available (otherwise an enclosing-scope path).
 
-        Gotchas: requires smart mode. Works for all languages and library sources (jar://…).
+        Gotchas: requires smart mode. Works for any language whose JetBrains plugin provides Go to Declaration/reference resolution (Java, Kotlin, Python, JS/TS, Go, PHP, Rust in live coverage), and library sources (jar://…).
     """.trimIndent()
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()

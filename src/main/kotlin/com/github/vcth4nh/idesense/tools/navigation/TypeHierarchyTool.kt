@@ -38,8 +38,8 @@ class TypeHierarchyTool : AbstractMcpTool() {
     override val name = "ide_type_hierarchy"
 
     override val description = """
-        Get the inheritance hierarchy for a class or interface — supertypes, subtypes, or both. Use
-        when you need the full tree of ancestors or descendants; prefer ide_find_super_methods for a
+        Get a depth-limited inheritance hierarchy for a class or interface (up to maxDepth, default 5 / max 20) — supertypes, subtypes, or both. Use
+        when you need the tree of ancestors or descendants; prefer ide_find_super_methods for a
         single element's direct super (cheaper), or ide_find_implementations for a flat list of
         implementors.
 
@@ -53,7 +53,7 @@ class TypeHierarchyTool : AbstractMcpTool() {
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
-        .stringProperty("className", "Fully qualified class name (e.g., 'com.example.MyClass' for Java or 'App\\\\Models\\\\User' for PHP). RECOMMENDED - use this if you know the class name.")
+        .stringProperty("className", "Fully qualified class name (e.g., 'com.example.MyClass' for Java or 'App\\\\Models\\\\User' for PHP). RECOMMENDED where supported - use this if you know the class name. Not supported for Rust (use file + line + column).")
         .file(required = false, description = "Path to file relative to project root (e.g., 'src/main/java/com/example/MyClass.java'). Use with line and column.")
         .intProperty("line", "1-based line number where the class is defined. Required if using file parameter.")
         .intProperty("column", "1-based column number. Required if using file parameter.")

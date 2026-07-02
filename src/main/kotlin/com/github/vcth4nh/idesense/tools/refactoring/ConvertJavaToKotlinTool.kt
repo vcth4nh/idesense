@@ -90,7 +90,7 @@ class ConvertJavaToKotlinTool : AbstractRefactoringTool() {
         Returns: per-file status (CONVERTED / SKIPPED / FAILED), paths to created .kt files,
         line counts, and whether the original .java was deleted.
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense. Requires
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. Requires
         both Java and Kotlin plugins. Original .java files are deleted after successful conversion.
         Some advanced constructs (annotations processors, complex generics) may need manual
         adjustment.

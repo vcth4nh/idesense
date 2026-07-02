@@ -55,7 +55,7 @@ class InstallPluginTool : AbstractMcpTool() {
         Returns: source zip path, installed plugin directory, detected pluginId/pluginVersion
         (best-effort from META-INF/plugin.xml), restartRequired (always true).
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense. Plugin is
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. Plugin is
         not dynamically reloadable; restart is mandatory.
     """.trimIndent()
 
