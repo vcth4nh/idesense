@@ -25,8 +25,6 @@ These tools work in every supported JetBrains IDE:
 | `ide_read_file` | Read file content by path or qualified name | Disabled |
 | `ide_refactor_rename` | Rename symbol with reference updates (all languages) | Enabled |
 | `ide_move_file` | Move file to new directory with IDE-aware move semantics | Enabled |
-| `ide_reformat_code` | Reformat code using project code style | Disabled |
-| `ide_optimize_imports` | Remove unused imports and organize remaining imports | Disabled |
 | `ide_install_plugin` | Install a locally built plugin `.zip` into this IDE (dev loop) | Disabled |
 | `ide_restart` | Restart this IDE (pair with `ide_install_plugin`) | Disabled |
 
@@ -69,10 +67,8 @@ These tools activate based on available language plugins:
   - [ide_restart](#ide_restart)
   - [ide_read_file](#ide_read_file)
 - [Refactoring Tools](#refactoring-tools)
-  - [ide_optimize_imports](#ide_optimize_imports)
   - [ide_refactor_rename](#ide_refactor_rename)
   - [ide_move_file](#ide_move_file)
-  - [ide_reformat_code](#ide_reformat_code)
 - [Extended Tools (Language-Aware)](#extended-tools-language-aware)
   - [ide_type_hierarchy](#ide_type_hierarchy)
   - [ide_call_hierarchy](#ide_call_hierarchy)
@@ -880,42 +876,6 @@ The restart is scheduled after this tool's response is flushed (default 2 s dela
 
 > **Note**: All refactoring tools modify source files. Changes can be undone with Ctrl/Cmd+Z.
 
-### ide_optimize_imports
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Optimize imports in a file: remove unused imports and organize remaining imports according to project code style. Equivalent to the IDE's "Optimize Imports" action (<kbd>Ctrl+Alt+O</kbd> / <kbd>Cmd+Opt+O</kbd>). Does NOT reformat code. Supports undo (Ctrl/Cmd+Z).
-
-**Use when:**
-- Removing unused imports after editing or refactoring
-- Organizing imports without changing any formatting
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `file` | string | Yes | File path relative to project root |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_optimize_imports",
-    "arguments": {
-      "file": "src/main/kotlin/com/example/UserService.kt"
-    }
-  }
-}
-```
-
-**Returns**: `{ "success": true, "affectedFiles": ["src/…"], "changesCount": 1, "message": "Optimized imports in …" }`
-
-> **Disabled by default.** Enable in Settings > Tools > IdeSense.
-
----
-
 ### ide_refactor_rename (Universal - All Languages)
 
 Renames a symbol and updates all references across the project. This tool uses IntelliJ's `RenameProcessor` which is language-agnostic and works across **all languages** supported by your IDE.
@@ -1110,56 +1070,6 @@ Move a file to a new directory using the IDE's refactoring engine. Applies langu
   ],
   "changesCount": 2,
   "message": "Successfully moved 'src/main/java/com/old/MyService.java' to 'src/main/java/com/new/services/MyService.java' using IDE file move semantics"
-}
-```
-
----
-
-### ide_reformat_code
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Reformat code according to the project's code style settings. Equivalent to the IDE's "Reformat Code" action (<kbd>Ctrl+Alt+L</kbd> / <kbd>Cmd+Opt+L</kbd>).
-
-**Use when:**
-- Applying consistent formatting after code changes
-- Organizing imports
-- Rearranging code members according to project rules
-
-**Respects:** `.editorconfig`, project code style, language-specific formatting rules.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `file` | string | Yes | File path relative to project root |
-| `startLine` | integer | No | Start line for partial formatting (1-based). Requires `endLine` |
-| `endLine` | integer | No | End line for partial formatting (1-based). Requires `startLine` |
-| `optimizeImports` | boolean | No | Optimize imports (default: true) |
-| `rearrangeCode` | boolean | No | Rearrange code members (default: true) |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_reformat_code",
-    "arguments": {
-      "file": "src/main/kotlin/com/example/UserService.kt"
-    }
-  }
-}
-```
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "affectedFiles": ["src/main/kotlin/com/example/UserService.kt"],
-  "changesCount": 1,
-  "message": "Reformatted code (optimized imports, rearranged code)"
 }
 ```
 

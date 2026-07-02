@@ -11,7 +11,6 @@ import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.FindDefinitionTool
 import com.github.vcth4nh.idesense.tools.navigation.TypeHierarchyTool
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
-import com.github.vcth4nh.idesense.tools.refactoring.ReformatCodeTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
 import com.github.vcth4nh.idesense.tools.refactoring.SafeDeleteTool
 import com.github.vcth4nh.idesense.constants.SchemaConstants
@@ -298,71 +297,6 @@ class ToolsTest : BasePlatformTestCase() {
         })
 
         assertTrue("Should error with invalid file", result.isError)
-    }
-
-    // Reformat Code Tool Tests
-
-    fun testReformatCodeToolMissingParams() = runBlocking {
-        val tool = ReformatCodeTool()
-
-        val result = tool.execute(project, buildJsonObject { })
-        assertTrue("Should error with missing params", result.isError)
-    }
-
-    fun testReformatCodeToolInvalidFile() = runBlocking {
-        val tool = ReformatCodeTool()
-
-        val result = tool.execute(project, buildJsonObject {
-            put("file", "nonexistent/file.kt")
-        })
-
-        assertTrue("Should error with invalid file", result.isError)
-    }
-
-    fun testReformatCodeToolStartLineWithoutEndLine() = runBlocking {
-        val tool = ReformatCodeTool()
-
-        val result = tool.execute(project, buildJsonObject {
-            put("file", "test.kt")
-            put("startLine", 1)
-        })
-
-        assertTrue("Should error when startLine provided without endLine", result.isError)
-    }
-
-    fun testReformatCodeToolEndLineWithoutStartLine() = runBlocking {
-        val tool = ReformatCodeTool()
-
-        val result = tool.execute(project, buildJsonObject {
-            put("file", "test.kt")
-            put("endLine", 10)
-        })
-
-        assertTrue("Should error when endLine provided without startLine", result.isError)
-    }
-
-    fun testReformatCodeToolInvalidLineRange() = runBlocking {
-        val tool = ReformatCodeTool()
-
-        val result = tool.execute(project, buildJsonObject {
-            put("file", "test.kt")
-            put("startLine", 10)
-            put("endLine", 5)
-        })
-
-        assertTrue("Should error when endLine < startLine", result.isError)
-    }
-
-    fun testReformatCodeToolStartLineLessThanOne() = runBlocking {
-        val tool = ReformatCodeTool()
-
-        val result = tool.execute(project, buildJsonObject {
-            put("file", "test.kt")
-            put("startLine", 0)
-            put("endLine", 5)
-        })
-
-        assertTrue("Should error when startLine < 1", result.isError)
     }
 
     // FindSuperMethods Tool Tests

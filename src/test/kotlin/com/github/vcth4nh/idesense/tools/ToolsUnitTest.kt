@@ -22,8 +22,6 @@ import com.github.vcth4nh.idesense.tools.project.InstallPluginTool
 import com.github.vcth4nh.idesense.tools.project.RestartIdeTool
 import com.github.vcth4nh.idesense.tools.project.SyncFilesTool
 import com.github.vcth4nh.idesense.tools.refactoring.MoveFileTool
-import com.github.vcth4nh.idesense.tools.refactoring.OptimizeImportsTool
-import com.github.vcth4nh.idesense.tools.refactoring.ReformatCodeTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
 import com.github.vcth4nh.idesense.tools.refactoring.SafeDeleteTool
 import com.github.vcth4nh.idesense.handlers.isExcludedPath
@@ -599,68 +597,6 @@ class ToolsUnitTest : TestCase() {
         assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
         assertNotNull("Should have line property", properties?.get(ParamNames.LINE))
         assertNotNull("Should have column property", properties?.get(ParamNames.COLUMN))
-    }
-
-    fun testReformatCodeToolSchema() {
-        val tool = ReformatCodeTool()
-
-        assertEquals(ToolNames.REFORMAT_CODE, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
-        assertNotNull("Should have startLine property", properties?.get(ParamNames.START_LINE))
-        assertNotNull("Should have endLine property", properties?.get(ParamNames.END_LINE))
-        assertNotNull("Should have optimizeImports property", properties?.get(ParamNames.OPTIMIZE_IMPORTS))
-        assertNotNull("Should have rearrangeCode property", properties?.get(ParamNames.REARRANGE_CODE))
-
-        val required = schema[SchemaConstants.REQUIRED]
-        assertNotNull("Should have required array", required)
-        assertTrue("Required should include 'file'", required.toString().contains("file"))
-    }
-
-    fun testOptimizeImportsToolSchema() {
-        val tool = OptimizeImportsTool()
-
-        assertEquals(ToolNames.OPTIMIZE_IMPORTS, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
-
-        val required = schema[SchemaConstants.REQUIRED]
-        assertNotNull("Should have required array", required)
-        assertTrue("Required should include 'file'", required.toString().contains("file"))
-    }
-
-    fun testOptimizeImportsToolIsRegistered() {
-        val registry = ToolRegistry()
-        registry.registerBuiltInTools()
-
-        val tool = registry.getTool(ToolNames.OPTIMIZE_IMPORTS)
-        assertNotNull("ide_optimize_imports should be registered", tool)
-        assertEquals(ToolNames.OPTIMIZE_IMPORTS, tool?.name)
-    }
-
-    fun testReformatCodeToolIsRegistered() {
-        val registry = ToolRegistry()
-        registry.registerBuiltInTools()
-
-        val tool = registry.getTool(ToolNames.REFORMAT_CODE)
-        assertNotNull("ide_reformat_code should be registered", tool)
-        assertEquals(ToolNames.REFORMAT_CODE, tool?.name)
     }
 
     fun testAllRegisteredToolNamesAreInToolNamesAll() {

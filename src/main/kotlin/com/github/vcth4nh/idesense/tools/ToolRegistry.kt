@@ -20,8 +20,6 @@ import com.github.vcth4nh.idesense.tools.project.InstallPluginTool
 import com.github.vcth4nh.idesense.tools.project.RestartIdeTool
 import com.github.vcth4nh.idesense.tools.project.SyncFilesTool
 import com.github.vcth4nh.idesense.tools.refactoring.MoveFileTool
-import com.github.vcth4nh.idesense.tools.refactoring.OptimizeImportsTool
-import com.github.vcth4nh.idesense.tools.refactoring.ReformatCodeTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
 import com.github.vcth4nh.idesense.util.PluginDetectors
 import com.intellij.openapi.diagnostic.logger
@@ -67,8 +65,6 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * - `ide_refactor_rename` - Rename symbol (works across ALL languages via RenameProcessor)
  * - `ide_move_file` - Move file to a new directory using the IDE move backend appropriate for that file type
- * - `ide_reformat_code` - Reformat code using project code style (disabled by default)
- * - `ide_optimize_imports` - Optimize imports without reformatting (disabled by default)
  *
  * ### Java-Specific Refactoring Tools (IntelliJ IDEA & Android Studio Only)
  *
@@ -229,8 +225,6 @@ class ToolRegistry {
         // Refactoring tools (universal - uses platform APIs)
         register(RenameSymbolTool())
         register(MoveFileTool())
-        register(ReformatCodeTool())
-        register(OptimizeImportsTool())
 
         // Fast search tools (universal)
         register(FindClassTool())

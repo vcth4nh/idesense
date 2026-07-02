@@ -8,7 +8,7 @@ description: >
   ide_call_hierarchy, ide_find_implementations, ide_find_super_methods, ide_refactor_safe_delete.
   Use when performing code navigation (find usages, go to definition, find class),
   code analysis (diagnostics, type hierarchy, call hierarchy),
-  refactoring (rename, move, safe delete, reformat),
+  refactoring (rename, move, safe delete),
   or searching code (text search, symbol search, file search).
   Prefer IDE tools over grep/find/sed for ALL semantic code operations.
 ---
@@ -49,7 +49,7 @@ Before using any IDE tool that requires smart mode, check IDE readiness:
 ide_index_status -> if isDumbMode: true, wait a few seconds and retry
 ```
 
-Most tools require smart mode (IDE finished indexing). Tools that work in dumb mode: `ide_index_status`, `ide_sync_files`, `ide_reformat_code`.
+Most tools require smart mode (IDE finished indexing). Tools that work in dumb mode: `ide_index_status`, `ide_sync_files`.
 
 ## File Sync Rule
 
@@ -94,7 +94,6 @@ Omit `paths` to sync the entire project.
 1. `ide_refactor_rename` - rename symbol + all references atomically
 2. `ide_move_file` - move file and let the IDE apply semantic updates when that language/backend supports them
 3. `ide_refactor_safe_delete` - delete with usage checking (Java/Kotlin only)
-4. `ide_reformat_code` - apply project code style (disabled by default)
 
 ### "I need to check for problems"
 1. `ide_diagnostics` - per-file errors/warnings + quick fixes; also cached last-build errors and open test-run results via `includeBuildErrors` / `includeTestResults` (at least one source required)

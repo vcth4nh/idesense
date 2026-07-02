@@ -29,8 +29,6 @@ The "verified against" column cites the exact call site so a future reader can r
 | `ide_refactor_rename` | `RenameProcessor` + `RenamePsiElementProcessor` EP + `AutomaticRenamerFactory` EP iteration | `RenameSymbolTool.kt` |
 | `ide_refactor_safe_delete` | none — `ReferencesSearch` usage check + `WriteCommandAction` PSI delete (Java plugin required for gating) | `SafeDeleteTool.kt` |
 | `ide_move_file` | `MoveFilesOrDirectoriesProcessor` (delegates to `MoveFileHandler` EP per language; PHP class files route through PhpStorm's class-move processor) | `MoveFileTool.kt` |
-| `ide_reformat_code` | `ReformatCodeProcessor` + optional `OptimizeImportsProcessor` + `RearrangeCodeProcessor` (Ctrl+Alt+L) | `ReformatCodeTool.kt` |
-| `ide_optimize_imports` | `OptimizeImportsProcessor` (Ctrl+Alt+O) | `OptimizeImportsTool.kt` |
 | `ide_convert_java_to_kotlin` | reflection: `JavaToKotlinAction.Handler.convertFiles()` (2025.x) / `JavaToKotlinActionHandler.convertFiles()` (2026.1+) | `ConvertJavaToKotlinTool.kt` |
 
 ## Core Design Principle: Mimic the IDE

@@ -47,7 +47,6 @@ These tools activate based on installed language plugins:
 
 **Refactoring Tools**
 - **Rename Refactoring** - Safe renaming with automatic related element renaming (getters/setters, overriding methods) - works across ALL languages, fully headless
-- **Reformat Code** - Reformat using project code style with import optimization (disabled by default)
 - **Safe Delete** - Remove code with usage checking (Java/Kotlin only)
 - **Java to Kotlin Conversion** - Convert Java to Kotlin using IntelliJ's built-in converter (Java only)
 
@@ -126,8 +125,6 @@ The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggl
 |------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | `ide_refactor_rename` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 | `ide_move_file` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
-| `ide_reformat_code` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
-| `ide_optimize_imports` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 | `ide_refactor_safe_delete` | ⚠️ | ⚠️ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
 | `ide_convert_java_to_kotlin` | ⚠️ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
 

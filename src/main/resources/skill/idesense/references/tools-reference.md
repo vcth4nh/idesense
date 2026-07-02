@@ -151,7 +151,7 @@ Call when files were created or modified outside the IDE and search tools miss t
 ## Other tools
 
 The full tool set also includes `ide_read_file`,
-`ide_reformat_code`, `ide_optimize_imports`, `ide_convert_java_to_kotlin`, `ide_build_project`,
+`ide_convert_java_to_kotlin`, `ide_build_project`,
 `ide_install_plugin`, and `ide_restart`. Any tool can be
 enabled or disabled in **Settings → Tools → IdeSense**, so `tools/list` is the source of
 truth for what is callable right now. If a tool documented here is missing from `tools/list`, it is
