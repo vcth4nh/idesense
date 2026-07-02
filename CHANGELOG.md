@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### Removed
+- **Seven tools removed** in refocusing IdeSense on code analysis without human-in-the-IDE
+  interaction: `ide_open_file` and `ide_get_active_file` (editor interaction),
+  `ide_refactor_safe_delete`, `ide_optimize_imports`, `ide_convert_java_to_kotlin`, and
+  `ide_reformat_code` (code mutation), `ide_build_project` (dev-loop driver). **Breaking** for
+  MCP clients that call these tools. `ide_refactor_rename` and `ide_move_file` remain as the
+  minimal retained refactorings.
+
+### Changed
+- Mission statements (README/Marketplace description, CLAUDE.md, agent skill) rewritten to the
+  analysis-first philosophy. `ide_diagnostics` still reports last-build errors via the passive
+  build listener — only the ability to *trigger* builds is gone.
+
 ## [1.0.0] - 2026-06-25
 
 ### Changed

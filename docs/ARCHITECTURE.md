@@ -90,7 +90,7 @@ Package map under `src/main/kotlin/com/github/vcth4nh/idesense/`
   extend this and implement `doExecute()`), `ToolRegistry` (data-driven registration),
   `schema/SchemaBuilder` (all tool input schemas). Subpackages: `navigation/`,
   `intelligence/`, `project/` (incl. `InstallPluginTool`/`RestartIdeTool` dev-loop),
-  `editor/`, `refactoring/`
+  `refactoring/`
 - `tools/navigation/hierarchy/` — **IDE extension-point delegation** for
   `ide_call_hierarchy`/`ide_type_hierarchy`. `HierarchyTreeWalker` drives the IDE's own
   `HierarchyProvider` browser/tree-structure headlessly; `ClassLikePsi` is the cross-IDE

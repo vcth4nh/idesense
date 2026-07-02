@@ -148,7 +148,7 @@ class DocsDriftUnitTest : TestCase() {
         // (before the per-tool headings) that documents it as applying to *all* tools, and
         // indeed every tool schema includes it.  The "Position Parameters" subsection documents
         // file/line/column, but those are NOT present in every tool's schema (e.g.
-        // ide_index_status, ide_build_project, ide_restart have no positional params), so they
+        // ide_index_status, ide_restart have no positional params), so they
         // cannot be excluded — the per-tool section for tools that *do* have them must list them.
         val COMMON = setOf("project_path")
 

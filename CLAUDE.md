@@ -1,8 +1,11 @@
 # IdeSense
 
-An IntelliJ Platform plugin that exposes an MCP server so coding agents can use the IDE's
-indexing, navigation, and refactoring engines. Works across JetBrains IDEs (IntelliJ IDEA,
-PyCharm, WebStorm, GoLand, PhpStorm, RubyMine, CLion, RustRover, DataGrip, Android Studio).
+An IntelliJ Platform plugin that exposes an MCP server giving coding agents the IDE's
+code-analysis engines — indexing, navigation, cross-references, diagnostics — with no
+human-in-the-IDE interaction required. The IDE is not used to edit, build, or run code on the
+agent's behalf; a minimal set of index-backed refactorings (rename, move file) is retained.
+Works across JetBrains IDEs (IntelliJ IDEA, PyCharm, WebStorm, GoLand, PhpStorm, RubyMine,
+CLion, RustRover, DataGrip, Android Studio).
 
 ## Agent rules
 
