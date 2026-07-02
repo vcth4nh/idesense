@@ -36,8 +36,6 @@ Advanced tools work across multiple languages based on available plugins:
 - **Symbol Search** - Find code symbols by name with IntelliJ Go to Symbol matching (disabled by default)
 - **Search Text** - Text search using IDE's pre-built word index
 - **Read File** - Read file content by path or qualified name, including library sources (disabled by default)
-- **Open File** - Open a file in the editor with optional navigation (disabled by default)
-- **Get Active File** - Get currently active editor file(s) with cursor position (disabled by default)
 
 **Extended Tools (Language-Aware)**
 These tools activate based on installed language plugins:
@@ -133,7 +131,7 @@ The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggl
 | `ide_refactor_safe_delete` | ⚠️ | ⚠️ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
 | `ide_convert_java_to_kotlin` | ⚠️ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
 
-**Project & editor** — language-agnostic (operate on the project/IDE, not language-specific code)
+**Project** — language-agnostic (operate on the project/IDE, not language-specific code)
 
 | Tool | Java | Kotlin | Python | JS | TS | Go | PHP | Rust |
 |------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
@@ -143,8 +141,6 @@ The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggl
 | `ide_sync_files` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `ide_build_project` | ✅ | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 | `ide_read_file` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ide_get_active_file` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ide_open_file` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 > **Notes:**
 > - `ide_refactor_safe_delete` and `ide_convert_java_to_kotlin` require the Java plugin; refactoring tools are supported but not yet live-tested here (⚠️).

@@ -492,10 +492,7 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             ToolNames.REFACTOR_SAFE_DELETE,
             ToolNames.REFORMAT_CODE,
             ToolNames.OPTIMIZE_IMPORTS,
-            ToolNames.CONVERT_JAVA_TO_KOTLIN,
-            // Editor tools
-            ToolNames.GET_ACTIVE_FILE,
-            ToolNames.OPEN_FILE
+            ToolNames.CONVERT_JAVA_TO_KOTLIN
         )
 
         assertEquals("Should have correct number of tools", expectedTools.size, registry.getAllTools().size)

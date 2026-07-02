@@ -4,8 +4,6 @@ import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.SchemaConstants
 import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
-import com.github.vcth4nh.idesense.tools.editor.GetActiveFileTool
-import com.github.vcth4nh.idesense.tools.editor.OpenFileTool
 import com.github.vcth4nh.idesense.tools.intelligence.GetDiagnosticsTool
 import com.github.vcth4nh.idesense.tools.navigation.CallHierarchyTool
 import com.github.vcth4nh.idesense.tools.navigation.FileStructureTool
@@ -400,16 +398,6 @@ class ToolsUnitTest : TestCase() {
             assertNotNull("Universal tool $toolName should be registered", tool)
         }
 
-        // Editor tools (universal, disabled by default)
-        val editorTools = listOf(
-            ToolNames.GET_ACTIVE_FILE,
-            ToolNames.OPEN_FILE
-        )
-        for (toolName in editorTools) {
-            val tool = registry.getTool(toolName)
-            assertNotNull("Editor tool $toolName should be registered", tool)
-        }
-
         assertTrue("Should have at least 9 universal tools", registry.getAllTools().size >= 9)
     }
 
@@ -791,58 +779,6 @@ class ToolsUnitTest : TestCase() {
 
         assertNull("Should not have anyOf (incompatible with Anthropic API)", schema["anyOf"])
         assertNull("Should not have required array (all params optional for pagination)", schema[SchemaConstants.REQUIRED])
-    }
-
-    fun testGetActiveFileToolSchema() {
-        val tool = GetActiveFileTool()
-
-        assertEquals(ToolNames.GET_ACTIVE_FILE, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-
-        assertNull("Should not have required array (no required fields)", schema[SchemaConstants.REQUIRED])
-    }
-
-    fun testOpenFileToolSchema() {
-        val tool = OpenFileTool()
-
-        assertEquals(ToolNames.OPEN_FILE, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
-        assertNotNull("Should have line property", properties?.get(ParamNames.LINE))
-        assertNotNull("Should have column property", properties?.get(ParamNames.COLUMN))
-
-        val required = schema[SchemaConstants.REQUIRED]
-        assertNotNull("Should have required array", required)
-        assertTrue("Required should include 'file'", required.toString().contains("file"))
-    }
-
-    fun testEditorToolsAreRegistered() {
-        val registry = ToolRegistry()
-        registry.registerBuiltInTools()
-
-        val getActiveFileTool = registry.getTool(ToolNames.GET_ACTIVE_FILE)
-        assertNotNull("ide_get_active_file should be registered", getActiveFileTool)
-        assertEquals(ToolNames.GET_ACTIVE_FILE, getActiveFileTool?.name)
-
-        val openFileTool = registry.getTool(ToolNames.OPEN_FILE)
-        assertNotNull("ide_open_file should be registered", openFileTool)
-        assertEquals(ToolNames.OPEN_FILE, openFileTool?.name)
     }
 
     fun testNewSearchToolsAreRegistered() {

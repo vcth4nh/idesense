@@ -33,10 +33,6 @@ object ToolNames {
     const val OPTIMIZE_IMPORTS = "ide_optimize_imports"
     const val CONVERT_JAVA_TO_KOTLIN = "ide_convert_java_to_kotlin"
 
-    // Editor tools
-    const val GET_ACTIVE_FILE = "ide_get_active_file"
-    const val OPEN_FILE = "ide_open_file"
-
     /**
      * All known tool names, sorted alphabetically.
      * Keep this list in sync when adding or removing tool name constants.
@@ -54,11 +50,9 @@ object ToolNames {
         FIND_SUPER_METHODS,
         FIND_SYMBOL,
         FIND_USAGES,
-        GET_ACTIVE_FILE,
         INDEX_STATUS,
         INSTALL_PLUGIN,
         REFACTOR_MOVE,
-        OPEN_FILE,
         OPTIMIZE_IMPORTS,
         READ_FILE,
         REFACTOR_RENAME,

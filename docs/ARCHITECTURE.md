@@ -32,8 +32,6 @@ The "verified against" column cites the exact call site so a future reader can r
 | `ide_reformat_code` | `ReformatCodeProcessor` + optional `OptimizeImportsProcessor` + `RearrangeCodeProcessor` (Ctrl+Alt+L) | `ReformatCodeTool.kt` |
 | `ide_optimize_imports` | `OptimizeImportsProcessor` (Ctrl+Alt+O) | `OptimizeImportsTool.kt` |
 | `ide_convert_java_to_kotlin` | reflection: `JavaToKotlinAction.Handler.convertFiles()` (2025.x) / `JavaToKotlinActionHandler.convertFiles()` (2026.1+) | `ConvertJavaToKotlinTool.kt` |
-| `ide_get_active_file` | none — `FileEditorManager.getInstance(project).selectedEditors` | `GetActiveFileTool.kt` |
-| `ide_open_file` | none — `OpenFileDescriptor` + `FileEditorManager.openTextEditor` | `OpenFileTool.kt` |
 
 ## Core Design Principle: Mimic the IDE
 

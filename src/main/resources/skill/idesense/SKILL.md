@@ -49,7 +49,7 @@ Before using any IDE tool that requires smart mode, check IDE readiness:
 ide_index_status -> if isDumbMode: true, wait a few seconds and retry
 ```
 
-Most tools require smart mode (IDE finished indexing). Tools that work in dumb mode: `ide_index_status`, `ide_sync_files`, `ide_reformat_code`, `ide_open_file`, `ide_get_active_file`.
+Most tools require smart mode (IDE finished indexing). Tools that work in dumb mode: `ide_index_status`, `ide_sync_files`, `ide_reformat_code`.
 
 ## File Sync Rule
 

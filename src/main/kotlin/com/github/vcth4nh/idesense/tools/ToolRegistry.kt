@@ -4,8 +4,6 @@ import com.github.vcth4nh.idesense.handlers.LanguageServices
 import com.github.vcth4nh.idesense.server.McpServerService
 import com.github.vcth4nh.idesense.server.models.ToolDefinition
 import com.github.vcth4nh.idesense.settings.McpSettings
-import com.github.vcth4nh.idesense.tools.editor.GetActiveFileTool
-import com.github.vcth4nh.idesense.tools.editor.OpenFileTool
 import com.github.vcth4nh.idesense.tools.intelligence.GetDiagnosticsTool
 import com.github.vcth4nh.idesense.tools.navigation.FileStructureTool
 import com.github.vcth4nh.idesense.tools.navigation.FindClassTool
@@ -54,8 +52,6 @@ import java.util.concurrent.ConcurrentHashMap
  * - `ide_install_plugin` - Install a locally built plugin .zip into this IDE (disabled by default)
  * - `ide_restart` - Restart this IDE to load a freshly installed plugin (disabled by default)
  * - `ide_index_status` - Check indexing status
- * - `ide_get_active_file` - Get the currently active file(s) in the editor (disabled by default)
- * - `ide_open_file` - Open a file in the editor (disabled by default)
  *
  * ### Language-Specific Navigation Tools
  *
@@ -245,10 +241,6 @@ class ToolRegistry {
 
         // Navigation tools (EP-delegated, universal)
         register(FindImplementationsTool())
-
-        // Editor tools (universal, disabled by default)
-        register(GetActiveFileTool())
-        register(OpenFileTool())
 
         LOG.info("Registered universal tools (available in all JetBrains IDEs)")
     }

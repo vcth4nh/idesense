@@ -23,8 +23,6 @@ These tools work in every supported JetBrains IDE:
 | `ide_sync_files` | Force sync VFS/PSI cache | Enabled |
 | `ide_build_project` | Build project with structured errors | Disabled |
 | `ide_read_file` | Read file content by path or qualified name | Disabled |
-| `ide_get_active_file` | Get currently active editor file(s) | Disabled |
-| `ide_open_file` | Open file in editor with navigation | Disabled |
 | `ide_refactor_rename` | Rename symbol with reference updates (all languages) | Enabled |
 | `ide_move_file` | Move file to new directory with IDE-aware move semantics | Enabled |
 | `ide_reformat_code` | Reformat code using project code style | Disabled |
@@ -70,8 +68,6 @@ These tools activate based on available language plugins:
   - [ide_install_plugin](#ide_install_plugin)
   - [ide_restart](#ide_restart)
   - [ide_read_file](#ide_read_file)
-  - [ide_get_active_file](#ide_get_active_file)
-  - [ide_open_file](#ide_open_file)
 - [Refactoring Tools](#refactoring-tools)
   - [ide_optimize_imports](#ide_optimize_imports)
   - [ide_refactor_rename](#ide_refactor_rename)
@@ -691,98 +687,6 @@ Read file content by file path or fully qualified class name.
   "startLine": 1,
   "endLine": 50,
   "isLibraryFile": true
-}
-```
-
----
-
-### ide_get_active_file
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Get the currently active file(s) open in the IDE editor, including split panes.
-
-**Use when:**
-- Understanding what the user is currently looking at
-- Getting cursor position and selected text
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| (none) | | | Only `project_path` if multiple projects are open |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_get_active_file",
-    "arguments": {}
-  }
-}
-```
-
-**Example Response:**
-
-```json
-{
-  "activeFiles": [
-    {
-      "file": "src/main/kotlin/com/example/UserService.kt",
-      "line": 25,
-      "column": 10,
-      "selectedText": null,
-      "hasSelection": false,
-      "language": "Kotlin"
-    }
-  ]
-}
-```
-
----
-
-### ide_open_file
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Open a file in the IDE editor with optional line/column navigation.
-
-**Use when:**
-- Directing the user's attention to a specific file and location
-- Opening a file after finding it via search
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `file` | string | Yes | File path relative to project root, or absolute path |
-| `line` | integer | No | 1-based line number to navigate to |
-| `column` | integer | No | 1-based column number (requires `line`) |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_open_file",
-    "arguments": {
-      "file": "src/main/kotlin/com/example/UserService.kt",
-      "line": 25
-    }
-  }
-}
-```
-
-**Example Response:**
-
-```json
-{
-  "file": "src/main/kotlin/com/example/UserService.kt",
-  "opened": true,
-  "message": "Opened file at line 25"
 }
 ```
 

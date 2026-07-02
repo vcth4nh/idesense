@@ -34,11 +34,6 @@ class ConstantsUnitTest : TestCase() {
         assertEquals("ide_reformat_code", ToolNames.REFORMAT_CODE)
     }
 
-    fun testToolNamesEditorTools() {
-        assertEquals("ide_get_active_file", ToolNames.GET_ACTIVE_FILE)
-        assertEquals("ide_open_file", ToolNames.OPEN_FILE)
-    }
-
     fun testToolNamesHaveIdePrefix() {
         ToolNames.ALL.forEach { name ->
             assertTrue("Tool name '$name' should start with 'ide_'", name.startsWith("ide_"))
@@ -70,9 +65,7 @@ class ConstantsUnitTest : TestCase() {
             ToolNames.REFACTOR_MOVE,
             ToolNames.REFORMAT_CODE,
             ToolNames.OPTIMIZE_IMPORTS,
-            ToolNames.CONVERT_JAVA_TO_KOTLIN,
-            ToolNames.GET_ACTIVE_FILE,
-            ToolNames.OPEN_FILE
+            ToolNames.CONVERT_JAVA_TO_KOTLIN
         )
 
         for (name in expectedNames) {
