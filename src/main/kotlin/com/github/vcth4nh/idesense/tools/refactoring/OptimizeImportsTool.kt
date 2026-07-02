@@ -39,7 +39,7 @@ class OptimizeImportsTool : AbstractMcpTool() {
 
         Returns: success status and affected file.
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense. Does not
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. Does not
         require smart mode.
     """.trimIndent()
 

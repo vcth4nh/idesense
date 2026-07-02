@@ -53,7 +53,7 @@ class FindClassTool : AbstractMcpTool() {
     override val name = ToolNames.FIND_CLASS
 
     override val description = """
-        Search for classes and interfaces by name. Prefer this over ide_find_symbol when you only need
+        Search for class-like/type declarations by name (classes, interfaces, enums, records, structs, traits, objects, annotations, and similar type declarations). Prefer this over ide_find_symbol when you only need
         class-like types — it is faster and has better ranking. Uses the IDE's Go to Class popup
         (Ctrl+N) headlessly.
 

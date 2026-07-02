@@ -73,13 +73,13 @@ class FindImplementationsTool : AbstractMcpTool() {
     override val name = "ide_find_implementations"
 
     override val description = """
-        Find all concrete implementations of an interface, abstract class, or abstract method — the
+        Find implementations, inheritors, and overrides for a class/interface/trait/protocol or method — the
         IDE's Go to Implementations (Ctrl+Alt+B). Use over ide_find_usages when you specifically
         need subtypes/overrides, not all references. Also finds lambda/method-reference expressions
         for Java functional interfaces.
 
         Returns: implementing classes/methods with file paths, 1-based line/column, kind, and
-        qualified name. Paginated — pass the returned cursor for the next page.
+        qualified name. Paginated (collected up to an internal per-cursor cap) — pass the returned cursor for the next page; the count reflects collected results, not a guaranteed whole-project total.
 
         Gotchas: requires smart mode. For the supertype chain use ide_type_hierarchy; for "who
         extends X" in a tree use ide_type_hierarchy with direction=subtypes.

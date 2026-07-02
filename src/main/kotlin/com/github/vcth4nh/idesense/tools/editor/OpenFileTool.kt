@@ -25,7 +25,7 @@ class OpenFileTool : AbstractMcpTool() {
 
         Returns: the opened file's project-relative path and a confirmation message.
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense. column
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. column
         requires line to be specified.
     """.trimIndent()
 

@@ -48,7 +48,7 @@ class RestartIdeTool : AbstractMcpTool() {
 
         Returns: restarting flag and effective delaySeconds.
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense. Unsaved
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. Unsaved
         in-memory state is lost on restart.
     """.trimIndent()
 

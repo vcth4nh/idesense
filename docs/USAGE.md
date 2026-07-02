@@ -1276,7 +1276,7 @@ Navigation tools appear according to installed language plugins. Markdown file s
 
 ### ide_type_hierarchy
 
-Retrieves the complete type hierarchy for a class or interface.
+Retrieves a depth-limited type hierarchy (supertypes and subtypes) for a class or interface (up to `maxDepth`, default 5 / max 20).
 
 **Use when:**
 - Exploring class inheritance chains
@@ -1463,7 +1463,7 @@ Analyzes method call relationships to find callers or callees.
 
 ### ide_find_implementations
 
-Finds all concrete implementations of an interface, abstract class, or abstract method.
+Finds implementation, inheritor, and override locations for a class/interface/trait/protocol or method (anchored at a declaration or a resolvable reference). Results are collected up to an internal per-cursor cap.
 
 **Languages:** Java, Kotlin, Python, JS/TS, Go, PHP, Rust.
 
@@ -1535,7 +1535,7 @@ Finds all concrete implementations of an interface, abstract class, or abstract 
 
 ### ide_find_super_methods
 
-Finds the complete inheritance hierarchy for a method - all parent methods it overrides or implements.
+Finds IDE Go-to-Super targets for a code element — methods that override/implement a member, the direct supertypes of a class/interface/struct/trait, the SAM a lambda implements, or an overridden field/property/constant.
 
 **Languages:** Java, Kotlin, Python, JS/TS, PHP, Go (returns interface method(s) a struct method satisfies via `GoSuperMethodSearch`), Rust (returns trait fn/const/type alias the impl satisfies via `RsGotoSuperHandlerKt.gotoSuperTargets`).
 

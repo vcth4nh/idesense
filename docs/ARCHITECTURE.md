@@ -163,7 +163,7 @@ MCP servers expose:
 
 **Server Infrastructure:**
 - Custom embedded **Ktor CIO** HTTP server (not IntelliJ's built-in server)
-- Configurable port with IDE-specific defaults (e.g., IntelliJ: 29170, PyCharm: 29172) via Settings → IdeSense → Server Port
+- Configurable port with IDE-specific defaults (e.g., IntelliJ: 29170, PyCharm: 29172) via Settings → Tools → IdeSense → Server Port
 - Binds to `127.0.0.1` (localhost) by default; configurable via **Server Host** setting. Change to `0.0.0.0` for remote/WSL access — **security note**: a non-local host exposes the server to all network interfaces
 - Single server instance across all open projects
 - Auto-restart on port change

@@ -25,7 +25,7 @@ class GetActiveFileTool : AbstractMcpTool() {
         Returns: list of active files with project-relative path, cursor line/column, selected
         text (if any), and file type. Returns an empty list when no editors are open.
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense.
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense.
     """.trimIndent()
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()

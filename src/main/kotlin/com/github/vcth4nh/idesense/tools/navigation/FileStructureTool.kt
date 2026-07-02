@@ -54,7 +54,7 @@ class FileStructureTool : AbstractMcpTool() {
         Supports per-language category filters (show) and visibility sort; see property descriptions
         for per-language filter names.
 
-        Gotchas: disabled by default — must be enabled in Settings → IdeSense. Languages:
+        Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. Languages:
         Java, Kotlin, Python, JS/TS, Go, PHP, Rust. Other file types return an error if the IDE has
         no structure view for them.
     """.trimIndent()

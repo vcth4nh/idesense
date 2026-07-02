@@ -56,12 +56,12 @@ class FindUsagesTool : AbstractMcpTool() {
     override val name = ToolNames.FIND_USAGES
 
     override val description = """
-        Find every reference to a symbol across the project — semantic, not text. Prefer this over
+        Find references to a symbol in the chosen scope — semantic, not text. Prefer this over
         ide_search_text for usages: it resolves through imports, aliases, overrides, and generics
         that text search misses. Put the caret on the symbol name (file + line + column).
 
         Returns: file paths, 1-based positions, context snippets, and reference kinds
-        (method_call, field_access, import, …). Paginated — pass the returned cursor for the next page.
+        (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE). Paginated (each cursor collects up to an internal cap; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
 
         Gotchas: requires smart mode (not indexing). For a quick literal word sweep use ide_search_text;
         for "who calls this" as a tree use ide_call_hierarchy.

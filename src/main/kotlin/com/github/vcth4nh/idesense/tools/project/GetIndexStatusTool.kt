@@ -20,10 +20,10 @@ class GetIndexStatusTool : AbstractMcpTool() {
         Call this before batch operations or when other tools return index_not_ready errors; prefer
         this over retrying blindly.
 
-        Returns: isDumbMode (true = indexing in progress, most tools will fail), isIndexing flag.
+        Returns: isDumbMode (true = indexing in progress, most tools will fail) and isIndexing (currently mirrors isDumbMode; indexingProgress is currently always null).
         When isDumbMode is true, wait and retry — indexing will complete automatically.
 
-        Gotchas: this tool always succeeds regardless of mode; it is read-only and very fast.
+        Gotchas: read-only and very fast; after project resolution and argument validation it succeeds in both smart and dumb mode.
     """.trimIndent()
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()
