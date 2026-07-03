@@ -1,11 +1,11 @@
 {"id":"find-class-Circle","tool":"ide_find_class","params":{"query":"Circle"}}
-{"id":"find-class-Circle-exact","tool":"ide_find_class","params":{"query":"Circle"}}
+{"id":"find-class-Circle-exact","tool":"ide_find_class","params":{"fuzzySearch":false,"query":"Circle"}}
 {"id":"find-class-Drawable","tool":"ide_find_class","params":{"query":"Drawable"}}
 {"id":"find-class-Rectangle","tool":"ide_find_class","params":{"query":"Rectangle"}}
 {"id":"find-class-SC-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"SC"}}
 {"id":"find-class-Sh-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"Sh"}}
 {"id":"find-class-Shape","tool":"ide_find_class","params":{"query":"Shape"}}
-{"id":"find-class-Shape-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"Sh"}}
+{"id":"find-class-Shape-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"Shape"}}
 {"id":"find-class-ShapeCollection","tool":"ide_find_class","params":{"query":"ShapeCollection"}}
 {"id":"find-class-Square","tool":"ide_find_class","params":{"query":"Square"}}
 {"id":"find-class-no-match","tool":"ide_find_class","params":{"query":"NoSuchClassXyz"}}

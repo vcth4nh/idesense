@@ -1,3 +1,6 @@
+{"id":"hier-sub-Probe-all","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"src/probes.ts","line":1,"scope":"all"}}
+{"id":"hier-sub-Probe-production","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"src/probes.ts","line":1,"scope":"production"}}
+{"id":"hier-sub-Probe-test","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"src/probes.ts","line":1,"scope":"test"}}
 {"id":"hier-sub-Shape","tool":"ide_type_hierarchy","params":{"column":23,"direction":"subtypes","file":"src/normal.ts","line":5}}
 {"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"src/normal.ts","line":29}}
 {"id":"hier-super-Square-d1","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"src/normal.ts","line":29,"maxDepth":1}}
@@ -5,9 +8,6 @@
 {"id":"hier-type-Coerce-alias","tool":"ide_type_hierarchy","params":{"column":13,"file":"src/quirks.ts","line":60}}
 {"id":"hier-type-Direction","tool":"ide_type_hierarchy","params":{"column":13,"file":"src/enums.ts","line":1}}
 {"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":18,"file":"src/normal.ts","line":1}}
-{"id":"hier-type-Probe-sub-all","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"src/probes.ts","line":1,"scope":"all"}}
-{"id":"hier-type-Probe-sub-production","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"src/probes.ts","line":1,"scope":"production"}}
-{"id":"hier-type-Probe-sub-test","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"src/probes.ts","line":1,"scope":"test"}}
 {"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":14,"file":"src/normal.ts","line":21}}
 {"id":"hier-type-Shape","tool":"ide_type_hierarchy","params":{"column":23,"file":"src/normal.ts","line":5}}
 {"id":"hier-type-Shape-byname","tool":"ide_type_hierarchy","params":{"className":"Shape"}}

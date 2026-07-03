@@ -220,7 +220,7 @@ will just snapshot a different empty/odd result.
   suite currently has no probe capturing this, so it's an observation, not a blessed row.
 - **TypeScript `impls-` via object literal**: classes/objects satisfying an
   interface structurally (no `implements` clause) are not surfaced.
-- **JS `hier-type-Probe-sub-*` subtypes omit a cross-file child that `extends` a
+- **JS `hier-sub-Probe-*` subtypes omit a cross-file child that `extends` a
   `require()`-imported base.** `ProbeTestChild` (in `test/probe.test.js`,
   `class ProbeTestChild extends Probe` with `Probe` `require()`-imported from
   `src/probes.js`) does NOT appear under Subtypes of `Probe`; only the same-file

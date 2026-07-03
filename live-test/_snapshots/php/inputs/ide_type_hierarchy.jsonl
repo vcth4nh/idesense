@@ -1,12 +1,12 @@
+{"id":"hier-sub-Probe-all","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/Probes.php","line":4,"scope":"all"}}
+{"id":"hier-sub-Probe-production","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/Probes.php","line":4,"scope":"production"}}
+{"id":"hier-sub-Probe-test","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/Probes.php","line":4,"scope":"test"}}
 {"id":"hier-sub-Shape","tool":"ide_type_hierarchy","params":{"column":16,"direction":"subtypes","file":"src/Normal.php","line":8}}
 {"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/Normal.php","line":40}}
 {"id":"hier-type-Circle","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/Normal.php","line":16}}
 {"id":"hier-type-Coercer","tool":"ide_type_hierarchy","params":{"column":11,"file":"src/Quirks.php","line":79}}
 {"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":11,"file":"src/Normal.php","line":4}}
 {"id":"hier-type-Implementer-trait","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/AbstractTraitSuper.php","line":8}}
-{"id":"hier-type-Probe-sub-all","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/Probes.php","line":4,"scope":"all"}}
-{"id":"hier-type-Probe-sub-production","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/Probes.php","line":4,"scope":"production"}}
-{"id":"hier-type-Probe-sub-test","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/Probes.php","line":4,"scope":"test"}}
 {"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/Normal.php","line":28}}
 {"id":"hier-type-Severity-enum","tool":"ide_type_hierarchy","params":{"column":6,"file":"src/EnumSuper.php","line":8}}
 {"id":"hier-type-Shape","tool":"ide_type_hierarchy","params":{"column":16,"file":"src/Normal.php","line":8}}

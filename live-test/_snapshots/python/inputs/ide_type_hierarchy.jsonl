@@ -1,11 +1,11 @@
+{"id":"hier-sub-Probe-all","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/probes.py","line":1,"scope":"all"}}
+{"id":"hier-sub-Probe-production","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/probes.py","line":1,"scope":"production"}}
+{"id":"hier-sub-Probe-test","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/probes.py","line":1,"scope":"test"}}
 {"id":"hier-sub-Shape","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/normal.py","line":10}}
 {"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/normal.py","line":42}}
 {"id":"hier-type-ChildDC-dataclass","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/dataclass_super.py","line":14}}
 {"id":"hier-type-Circle","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":19}}
 {"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":6}}
-{"id":"hier-type-Probe-sub-all","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/probes.py","line":1,"scope":"all"}}
-{"id":"hier-type-Probe-sub-production","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/probes.py","line":1,"scope":"production"}}
-{"id":"hier-type-Probe-sub-test","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/probes.py","line":1,"scope":"test"}}
 {"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":30}}
 {"id":"hier-type-Shape","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":10}}
 {"id":"hier-type-Shape-byname","tool":"ide_type_hierarchy","params":{"className":"normal.Shape"}}

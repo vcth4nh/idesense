@@ -1,6 +1,5 @@
 {"id":"def-Circle-via-new-call","tool":"ide_find_definition","params":{"column":17,"file":"src/normal.js","line":57}}
 {"id":"def-Circle.area","tool":"ide_find_definition","params":{"column":5,"file":"src/normal.js","line":17}}
-{"id":"def-Number.parseInt-libraries-scope","tool":"ide_find_definition","params":{"column":23,"file":"src/quirks.js","line":5}}
 {"id":"def-Quirks-bind-call","tool":"ide_find_definition","params":{"column":28,"file":"src/quirks.js","line":48}}
 {"id":"def-Quirks-bind-parseint","tool":"ide_find_definition","params":{"column":19,"file":"src/quirks.js","line":48}}
 {"id":"def-Quirks-computed-key","tool":"ide_find_definition","params":{"column":19,"file":"src/quirks.js","line":11}}
