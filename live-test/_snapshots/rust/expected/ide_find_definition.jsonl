@@ -1,6 +1,7 @@
 {"id":"def-Circle.area","result":{"column":8,"enclosingScope":null,"file":"src/normal.rs","kind":"METHOD","line":18,"name":"area","qualifiedName":"crate::area"}}
 {"id":"def-CoerceMode.apply","result":{"column":12,"enclosingScope":null,"file":"src/quirks.rs","kind":"METHOD","line":72,"name":"apply","qualifiedName":"crate::apply"}}
 {"id":"def-Drawable.draw-decl","result":{"column":8,"enclosingScope":null,"file":"src/normal.rs","kind":"METHOD","line":2,"name":"draw","qualifiedName":"crate::Drawable::draw"}}
+{"id":"def-Point.clone-derived","result":{"enclosingScope":null,"file":"clone.rs","kind":"METHOD","name":"clone","qualifiedName":"crate::Clone::clone"}}
 {"id":"def-Rectangle.area","result":{"column":8,"enclosingScope":null,"file":"src/normal.rs","kind":"METHOD","line":39,"name":"area","qualifiedName":"crate::area"}}
 {"id":"def-cross-file-Circle","result":{"column":12,"enclosingScope":null,"file":"src/normal.rs","kind":"STRUCT","line":13,"name":"Circle","qualifiedName":"crate::Circle"}}
 {"id":"def-cross-mod-helper","result":{"column":12,"enclosingScope":null,"file":"src/extra.rs","kind":"FUNCTION","line":2,"name":"nested_helper","qualifiedName":"crate::inner::nested_helper"}}

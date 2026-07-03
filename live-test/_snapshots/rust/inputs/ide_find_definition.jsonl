@@ -1,6 +1,7 @@
 {"id":"def-Circle.area","tool":"ide_find_definition","params":{"column":48,"file":"src/normal.rs","line":23}}
 {"id":"def-CoerceMode.apply","tool":"ide_find_definition","params":{"column":10,"file":"src/quirks.rs","line":81}}
 {"id":"def-Drawable.draw-decl","tool":"ide_find_definition","params":{"column":8,"file":"src/normal.rs","line":2}}
+{"id":"def-Point.clone-derived","tool":"ide_find_definition","params":{"column":17,"file":"src/macros.rs","line":21}}
 {"id":"def-Rectangle.area","tool":"ide_find_definition","params":{"column":48,"file":"src/normal.rs","line":44}}
 {"id":"def-cross-file-Circle","tool":"ide_find_definition","params":{"column":20,"file":"src/extra.rs","line":11}}
 {"id":"def-cross-mod-helper","tool":"ide_find_definition","params":{"column":12,"file":"src/extra.rs","line":7}}
