@@ -2,6 +2,7 @@
 {"id":"def-Rectangle.area","result":{"column":21,"enclosingScope":null,"file":"src/Normal.php","kind":"METHOD","line":31,"name":"area","qualifiedName":"\\Demo\\Rectangle::area"}}
 {"id":"def-Status-enum-decl","result":{"column":6,"enclosingScope":null,"file":"src/Modern.php","kind":"ENUM","line":4,"name":"Status","qualifiedName":"\\Demo\\Status"}}
 {"id":"def-Status.Active-usage","result":{"column":10,"enclosingScope":null,"file":"src/Modern.php","kind":"ENUM_CASE","line":5,"name":"Active","qualifiedName":"\\Demo\\Status::Active"}}
+{"id":"def-label-nullsafe","result":{"column":21,"enclosingScope":null,"file":"src/Php8.php","kind":"METHOD","line":7,"name":"label","qualifiedName":"\\Demo\\Php8Helper::label"}}
 {"id":"def-makeDefaultShapes","result":{"column":10,"enclosingScope":null,"file":"src/Normal.php","kind":"FUNCTION","line":73,"name":"makeDefaultShapes","qualifiedName":"\\Demo\\makeDefaultShapes"}}
 {"id":"def-match-coerce","result":{"enclosingScope":null,"file":"standard_5.php","kind":"FUNCTION","name":"intval","qualifiedName":"\\intval"}}
 {"id":"def-promoted-property","result":{"column":55,"enclosingScope":null,"file":"src/Normal.php","kind":"PARAMETER","line":17,"name":"radius","qualifiedName":"\\Demo\\Circle::__construct(radius)"}}

@@ -2,6 +2,7 @@
 {"id":"def-Rectangle.area","tool":"ide_find_definition","params":{"column":21,"file":"src/Normal.php","line":31}}
 {"id":"def-Status-enum-decl","tool":"ide_find_definition","params":{"column":6,"file":"src/Modern.php","line":4}}
 {"id":"def-Status.Active-usage","tool":"ide_find_definition","params":{"column":20,"file":"src/Modern.php","line":22}}
+{"id":"def-label-nullsafe","tool":"ide_find_definition","params":{"column":32,"file":"src/Php8.php","line":26}}
 {"id":"def-makeDefaultShapes","tool":"ide_find_definition","params":{"column":10,"file":"src/Normal.php","line":73}}
 {"id":"def-match-coerce","tool":"ide_find_definition","params":{"column":32,"file":"src/Quirks.php","line":63}}
 {"id":"def-promoted-property","tool":"ide_find_definition","params":{"column":20,"file":"src/Quirks.php","line":75}}

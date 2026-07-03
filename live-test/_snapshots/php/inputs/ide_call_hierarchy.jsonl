@@ -1,8 +1,10 @@
 {"id":"hier-callee-largest","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callees","file":"src/Normal.php","line":62,"maxDepth":2}}
 {"id":"hier-callee-makeDefault","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callees","file":"src/Normal.php","line":73,"maxDepth":2}}
 {"id":"hier-callee-makeDefault-d3","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callees","file":"src/Normal.php","line":73,"maxDepth":3}}
+{"id":"hier-callee-qMatch","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callees","file":"src/Quirks.php","line":61,"maxDepth":2}}
 {"id":"hier-callee-totalArea","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callees","file":"src/Normal.php","line":54,"maxDepth":2}}
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":30,"direction":"callers","file":"src/Normal.php","line":9,"maxDepth":2}}
+{"id":"hier-caller-area-d1","tool":"ide_call_hierarchy","params":{"column":30,"direction":"callers","file":"src/Normal.php","line":9,"maxDepth":1}}
 {"id":"hier-caller-describe","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callers","file":"src/Normal.php","line":11,"maxDepth":2}}
 {"id":"hier-caller-draw","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callers","file":"src/Normal.php","line":5,"maxDepth":2}}
 {"id":"hier-caller-target-all","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callers","file":"src/Probes.php","line":6,"scope":"all"}}
