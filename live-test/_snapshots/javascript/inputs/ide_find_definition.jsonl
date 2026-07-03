@@ -14,3 +14,6 @@
 {"id":"def-Rectangle-via-new-call","tool":"ide_find_definition","params":{"column":34,"file":"src/normal.js","line":57}}
 {"id":"def-Rectangle.area","tool":"ide_find_definition","params":{"column":5,"file":"src/normal.js","line":27}}
 {"id":"def-makeDefaultShapes","tool":"ide_find_definition","params":{"column":10,"file":"src/normal.js","line":56}}
+{"id":"def-qBind","tool":"ide_find_definition","params":{"column":29,"file":"src/quirks.js","line":87}}
+{"id":"def-qComputed","tool":"ide_find_definition","params":{"column":14,"file":"src/quirks.js","line":86}}
+{"id":"def-qCond","tool":"ide_find_definition","params":{"column":34,"file":"src/quirks.js","line":86}}

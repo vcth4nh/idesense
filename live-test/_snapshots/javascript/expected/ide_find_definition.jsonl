@@ -14,3 +14,6 @@
 {"id":"def-Rectangle-via-new-call","result":{"column":5,"enclosingScope":null,"file":"src/normal.js","kind":"CONSTRUCTOR","line":22,"name":"constructor","qualifiedName":"Rectangle"}}
 {"id":"def-Rectangle.area","result":{"column":5,"enclosingScope":null,"file":"src/normal.js","kind":"METHOD","line":27,"name":"area","qualifiedName":"Rectangle.area"}}
 {"id":"def-makeDefaultShapes","result":{"column":10,"enclosingScope":null,"file":"src/normal.js","kind":"FUNCTION","line":56,"name":"makeDefaultShapes","qualifiedName":"makeDefaultShapes"}}
+{"id":"def-qBind","result":{"column":10,"enclosingScope":null,"file":"src/quirks.js","kind":"FUNCTION","line":47,"name":"qBind","qualifiedName":"qBind"}}
+{"id":"def-qComputed","result":{"column":10,"enclosingScope":null,"file":"src/quirks.js","kind":"FUNCTION","line":10,"name":"qComputed","qualifiedName":"qComputed"}}
+{"id":"def-qCond","result":{"column":10,"enclosingScope":null,"file":"src/quirks.js","kind":"FUNCTION","line":20,"name":"qCond","qualifiedName":"qCond"}}

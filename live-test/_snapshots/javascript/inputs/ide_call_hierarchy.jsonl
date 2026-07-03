@@ -5,8 +5,10 @@
 {"id":"hier-callee-totalArea","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/normal.js","line":42,"maxDepth":2}}
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/normal.js","line":8,"maxDepth":2}}
 {"id":"hier-caller-describe","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/normal.js","line":9,"maxDepth":2}}
+{"id":"hier-caller-freeProdCaller","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callers","file":"src/probes.js","line":13,"maxDepth":2}}
 {"id":"hier-caller-target-all","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.js","line":4,"scope":"all"}}
 {"id":"hier-caller-target-production","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.js","line":4,"scope":"production"}}
 {"id":"hier-caller-target-test","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.js","line":4,"scope":"test"}}
 {"id":"hier-caller-target-this-class","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.js","line":4,"scope":"this_class"}}
 {"id":"hier-caller-target-this-module","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.js","line":4,"scope":"this_module"}}
+{"id":"hier-caller-totalArea-d1","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/normal.js","line":42,"maxDepth":1}}
