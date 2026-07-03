@@ -1,0 +1,15 @@
+{"id":"hier-sub-Shape","tool":"ide_type_hierarchy","params":{"column":16,"direction":"subtypes","file":"src/main/java/demo/Normal.java","line":10}}
+{"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/main/java/demo/Normal.java","line":56}}
+{"id":"hier-super-Square-d1","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/main/java/demo/Normal.java","line":56,"maxDepth":1}}
+{"id":"hier-type-Animal","tool":"ide_type_hierarchy","params":{"column":29,"file":"src/main/java/demo/Modern.java","line":8}}
+{"id":"hier-type-Circle","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/main/java/demo/Normal.java","line":18}}
+{"id":"hier-type-CoerceMode","tool":"ide_type_hierarchy","params":{"column":10,"file":"src/main/java/demo/Quirks.java","line":71}}
+{"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":11,"file":"src/main/java/demo/Normal.java","line":6}}
+{"id":"hier-type-Point","tool":"ide_type_hierarchy","params":{"column":19,"file":"src/main/java/demo/Modern.java","line":4}}
+{"id":"hier-type-Probe-sub-all","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/main/java/demo/Probes.java","line":3,"scope":"all"}}
+{"id":"hier-type-Probe-sub-production","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/main/java/demo/Probes.java","line":3,"scope":"production"}}
+{"id":"hier-type-Probe-sub-test","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/main/java/demo/Probes.java","line":3,"scope":"test"}}
+{"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/main/java/demo/Normal.java","line":36}}
+{"id":"hier-type-Shape","tool":"ide_type_hierarchy","params":{"column":16,"file":"src/main/java/demo/Normal.java","line":10}}
+{"id":"hier-type-Shape-byname","tool":"ide_type_hierarchy","params":{"className":"demo.Shape"}}
+{"id":"hier-type-Square","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/main/java/demo/Normal.java","line":56}}

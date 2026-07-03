@@ -1,0 +1,9 @@
+{"id":"def-Circle.area","tool":"ide_find_definition","params":{"column":18,"file":"normal.go","line":23}}
+{"id":"def-Drawable.draw","tool":"ide_find_definition","params":{"column":2,"file":"normal.go","line":6}}
+{"id":"def-MakeDefaultShapes","tool":"ide_find_definition","params":{"column":6,"file":"normal.go","line":72}}
+{"id":"def-Quirks-fnvar-resolve","tool":"ide_find_definition","params":{"column":10,"file":"quirks.go","line":12}}
+{"id":"def-Quirks-iface-dispatch","tool":"ide_find_definition","params":{"column":11,"file":"quirks.go","line":66}}
+{"id":"def-Quirks-method-expr","tool":"ide_find_definition","params":{"column":19,"file":"quirks.go","line":97}}
+{"id":"def-Quirks-method-value","tool":"ide_find_definition","params":{"column":10,"file":"quirks.go","line":91}}
+{"id":"def-Quirks-type-switch-s","tool":"ide_find_definition","params":{"column":24,"file":"quirks.go","line":121}}
+{"id":"def-Rectangle.area","tool":"ide_find_definition","params":{"column":20,"file":"normal.go","line":34}}

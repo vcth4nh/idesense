@@ -1,0 +1,14 @@
+{"id":"find-symbol-Direction","tool":"ide_find_symbol","params":{"query":"Direction"}}
+{"id":"find-symbol-Geometry","tool":"ide_find_symbol","params":{"query":"Geometry"}}
+{"id":"find-symbol-Shape.area-qualified","tool":"ide_find_symbol","params":{"query":"Shape.area"}}
+{"id":"find-symbol-area","tool":"ide_find_symbol","params":{"query":"area"}}
+{"id":"find-symbol-area-fuzzy","tool":"ide_find_symbol","params":{"fuzzySearch":true,"query":"area"}}
+{"id":"find-symbol-area-paged","tool":"ide_find_symbol","params":{"pageSize":2,"query":"area"}}
+{"id":"find-symbol-describe","tool":"ide_find_symbol","params":{"query":"describe"}}
+{"id":"find-symbol-draw","tool":"ide_find_symbol","params":{"query":"draw"}}
+{"id":"find-symbol-largest","tool":"ide_find_symbol","params":{"query":"largest"}}
+{"id":"find-symbol-no-match","tool":"ide_find_symbol","params":{"query":"noSuchSymbolXyz"}}
+{"id":"find-symbol-origin","tool":"ide_find_symbol","params":{"query":"origin"}}
+{"id":"find-symbol-qLambda","tool":"ide_find_symbol","params":{"query":"qLambda"}}
+{"id":"find-symbol-totalArea","tool":"ide_find_symbol","params":{"query":"totalArea"}}
+{"id":"find-symbol-traced","tool":"ide_find_symbol","params":{"query":"traced"}}

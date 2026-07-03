@@ -1,0 +1,15 @@
+{"id":"def-Circle-from-constructor-call","tool":"ide_find_definition","params":{"column":13,"file":"src/normal.py","line":64}}
+{"id":"def-Rectangle.area-decl","tool":"ide_find_definition","params":{"column":9,"file":"src/normal.py","line":35}}
+{"id":"def-Shape.describe-decl","tool":"ide_find_definition","params":{"column":9,"file":"src/normal.py","line":15}}
+{"id":"def-abstractmethod-decorator","tool":"ide_find_definition","params":{"column":6,"file":"src/normal.py","line":11}}
+{"id":"def-classify-Shape-kind","tool":"ide_find_definition","params":{"column":9,"file":"src/quirks.py","line":107}}
+{"id":"def-dict-dispatch-int","tool":"ide_find_definition","params":{"column":26,"file":"src/quirks.py","line":27}}
+{"id":"def-int-builtin-via-rebinding-rhs","tool":"ide_find_definition","params":{"column":10,"file":"src/quirks.py","line":12}}
+{"id":"def-lambda-wrap-int","tool":"ide_find_definition","params":{"column":24,"file":"src/quirks.py","line":32}}
+{"id":"def-list-indexing-int","tool":"ide_find_definition","params":{"column":14,"file":"src/quirks.py","line":37}}
+{"id":"def-make-default-shapes-decl","tool":"ide_find_definition","params":{"column":5,"file":"src/normal.py","line":63}}
+{"id":"def-multiple-assign-b","tool":"ide_find_definition","params":{"column":19,"file":"src/quirks.py","line":100}}
+{"id":"def-nested-return-fn","tool":"ide_find_definition","params":{"column":12,"file":"src/quirks.py","line":82}}
+{"id":"def-quirk-rebound-fn","tool":"ide_find_definition","params":{"column":12,"file":"src/quirks.py","line":13}}
+{"id":"def-super-init","tool":"ide_find_definition","params":{"column":9,"file":"src/normal.py","line":44}}
+{"id":"def-walrus-result","tool":"ide_find_definition","params":{"column":16,"file":"src/quirks.py","line":70}}

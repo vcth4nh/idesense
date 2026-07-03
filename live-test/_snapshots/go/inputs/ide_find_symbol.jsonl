@@ -1,0 +1,10 @@
+{"id":"find-symbol-Area","tool":"ide_find_symbol","params":{"query":"Area"}}
+{"id":"find-symbol-Area-fuzzy","tool":"ide_find_symbol","params":{"fuzzySearch":true,"query":"Area"}}
+{"id":"find-symbol-Describe","tool":"ide_find_symbol","params":{"query":"Describe"}}
+{"id":"find-symbol-Draw","tool":"ide_find_symbol","params":{"query":"Draw"}}
+{"id":"find-symbol-IntCoercer.Coerce-qualified","tool":"ide_find_symbol","params":{"query":"IntCoercer.Coerce"}}
+{"id":"find-symbol-Largest","tool":"ide_find_symbol","params":{"query":"Largest"}}
+{"id":"find-symbol-TotalArea","tool":"ide_find_symbol","params":{"query":"TotalArea"}}
+{"id":"find-symbol-area-paged","tool":"ide_find_symbol","params":{"pageSize":2,"query":"Area"}}
+{"id":"find-symbol-no-match","tool":"ide_find_symbol","params":{"query":"noSuchSymbolXyz"}}
+{"id":"find-symbol-qFnVar","tool":"ide_find_symbol","params":{"query":"qFnVar"}}

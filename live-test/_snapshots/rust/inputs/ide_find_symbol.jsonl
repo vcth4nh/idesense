@@ -1,0 +1,11 @@
+{"id":"find-symbol-IntCoercer.coerce-qualified","tool":"ide_find_symbol","params":{"query":"IntCoercer::coerce"}}
+{"id":"find-symbol-area","tool":"ide_find_symbol","params":{"query":"area"}}
+{"id":"find-symbol-area-fuzzy","tool":"ide_find_symbol","params":{"fuzzySearch":true,"query":"area"}}
+{"id":"find-symbol-area-paged","tool":"ide_find_symbol","params":{"pageSize":2,"query":"area"}}
+{"id":"find-symbol-describe","tool":"ide_find_symbol","params":{"query":"describe"}}
+{"id":"find-symbol-draw","tool":"ide_find_symbol","params":{"query":"draw"}}
+{"id":"find-symbol-extra-function","tool":"ide_find_symbol","params":{"query":"extra_function"}}
+{"id":"find-symbol-no-match","tool":"ide_find_symbol","params":{"query":"noSuchSymbolXyz"}}
+{"id":"find-symbol-q_closure","tool":"ide_find_symbol","params":{"query":"q_closure"}}
+{"id":"find-symbol-square","tool":"ide_find_symbol","params":{"query":"square"}}
+{"id":"find-symbol-total_area","tool":"ide_find_symbol","params":{"query":"total_area"}}

@@ -1,0 +1,12 @@
+{"id":"hier-callee-computeTotal","tool":"ide_call_hierarchy","params":{"column":13,"direction":"callees","file":"src/main/kotlin/demo/Modern.kt","line":16,"maxDepth":2}}
+{"id":"hier-callee-makeDefault","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/main/kotlin/demo/Normal.kt","line":37,"maxDepth":2}}
+{"id":"hier-callee-makeDefault-d3","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/main/kotlin/demo/Normal.kt","line":37,"maxDepth":3}}
+{"id":"hier-callee-quirkApply","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/main/kotlin/demo/Quirks.kt","line":13,"maxDepth":2}}
+{"id":"hier-callee-quirkLet","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/main/kotlin/demo/Quirks.kt","line":17,"maxDepth":2}}
+{"id":"hier-callee-quirkWith","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/main/kotlin/demo/Quirks.kt","line":21,"maxDepth":2}}
+{"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":18,"direction":"callers","file":"src/main/kotlin/demo/Normal.kt","line":8,"maxDepth":2}}
+{"id":"hier-caller-target-all","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/main/kotlin/demo/Probes.kt","line":4,"scope":"all"}}
+{"id":"hier-caller-target-production","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/main/kotlin/demo/Probes.kt","line":4,"scope":"production"}}
+{"id":"hier-caller-target-test","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/main/kotlin/demo/Probes.kt","line":4,"scope":"test"}}
+{"id":"hier-caller-target-this-class","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/main/kotlin/demo/Probes.kt","line":4,"scope":"this_class"}}
+{"id":"hier-caller-target-this-module","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/main/kotlin/demo/Probes.kt","line":4,"scope":"this_module"}}

@@ -1,0 +1,3 @@
+{"id":"file-structure-Modern","tool":"ide_file_structure","params":{"file":"src/main/java/demo/Modern.java"}}
+{"id":"file-structure-Normal","tool":"ide_file_structure","params":{"file":"src/main/java/demo/Normal.java"}}
+{"id":"file-structure-Quirks","tool":"ide_file_structure","params":{"file":"src/main/java/demo/Quirks.java"}}

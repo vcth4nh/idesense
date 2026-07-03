@@ -1,0 +1,10 @@
+{"id":"usage-Circle-ctor","tool":"ide_find_usages","params":{"column":5,"file":"src/main/java/demo/Normal.java","line":21}}
+{"id":"usage-Circle-via-new-call-site","tool":"ide_find_usages","params":{"column":24,"file":"src/main/java/demo/Normal.java","line":89}}
+{"id":"usage-Drawable-interface","tool":"ide_find_usages","params":{"column":11,"file":"src/main/java/demo/Normal.java","line":6}}
+{"id":"usage-Point.x-component","tool":"ide_find_usages","params":{"column":29,"file":"src/main/java/demo/Modern.java","line":4}}
+{"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":7,"file":"src/main/java/demo/Normal.java","line":36}}
+{"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":16,"file":"src/main/java/demo/Normal.java","line":10}}
+{"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":22,"file":"src/main/java/demo/Normal.java","line":72}}
+{"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":21,"file":"src/main/java/demo/Normal.java","line":11,"scope":"project_and_libraries"}}
+{"id":"usage-classifyShape-kind","tool":"ide_find_usages","params":{"column":13,"file":"src/main/java/demo/Normal.java","line":97}}
+{"id":"usage-shapes-field","tool":"ide_find_usages","params":{"column":33,"file":"src/main/java/demo/Normal.java","line":63}}

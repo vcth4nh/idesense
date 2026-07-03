@@ -1,0 +1,10 @@
+{"id":"usage-Circle-struct","tool":"ide_find_usages","params":{"column":6,"file":"normal.go","line":18}}
+{"id":"usage-Drawable-iface","tool":"ide_find_usages","params":{"column":6,"file":"normal.go","line":5}}
+{"id":"usage-Drawable.draw","tool":"ide_find_usages","params":{"column":2,"file":"normal.go","line":6}}
+{"id":"usage-Shape-iface","tool":"ide_find_usages","params":{"column":11,"file":"normal.go","line":47}}
+{"id":"usage-ShapeCollection.add","tool":"ide_find_usages","params":{"column":28,"file":"normal.go","line":50}}
+{"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":12,"file":"normal.go","line":57}}
+{"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":18,"file":"normal.go","line":23,"scope":"project_and_libraries"}}
+{"id":"usage-baseShape-embed","tool":"ide_find_usages","params":{"column":2,"file":"embed.go","line":6}}
+{"id":"usage-baseShape.Describe-promoted","tool":"ide_find_usages","params":{"column":20,"file":"normal.go","line":16}}
+{"id":"usage-shapes-field","tool":"ide_find_usages","params":{"column":2,"file":"normal.go","line":47}}

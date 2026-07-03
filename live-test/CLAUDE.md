@@ -4,16 +4,42 @@ Working notes for the snapshot harness. See `README.md` for user-facing docs.
 
 ## Snapshot file format
 
-Both `input.jsonl` and `expected.jsonl` are id-keyed JSONL.
+Snapshots are split per tool and live under `live-test/_snapshots/<lang>/`:
 
-- **input row**: `{"id": "<unique-id>", "tool": "ide_X", "params": {...}}` — one per line.
+```
+live-test/_snapshots/<lang>/
+  inputs/<tool>.jsonl      # e.g. inputs/ide_find_usages.jsonl — rows sorted by id
+  expected/<tool>.jsonl    # mirrors its input file 1:1, same order (bless-written)
+  output.jsonl             # per-language run artifact (gitignored)
+live-test/<lang>/          # fixture SOURCES only — the IDE-indexed project
+```
+
+- **input row**: `{"id":…,"tool":"ide_X","params":{…}}` — canonical compact
+  serialization (params keys recursively sorted, no spaces), e.g.
+  `{"id":"find-class-Circle","tool":"ide_find_class","params":{"query":"Circle"}}`
 - **expected row**: `{"id": "<input-id>", "result": <normalized-output>}` — one per line.
 - **output row** (produced by `run.py`): same shape as expected.
 
-Rows are matched by `id`, not position. Reordering, inserting, or deleting
-rows in `input.jsonl` does not shift the rest of the snapshot. The strict
-loader in `run.py` (`_load_expected_by_id`) fails on malformed JSON, missing
-`id`/`result`, non-string ids, or duplicate ids.
+Rules, all enforced by `--check-fixtures`:
+- `tool` field must equal the filename stem (`inputs/ide_find_class.jsonl`
+  holds only `"tool":"ide_find_class"` rows).
+- Ids unique globally per language (across all tool files).
+- Rows id-sorted within each file; bless mirrors input-file order, so
+  expected files are id-sorted too. New rows insert at their sorted position.
+- Every input line must byte-equal its canonical serialization
+  (`serialize_input_row` in `run.py`).
+
+Rows are matched by `id`, not position — reordering/inserting/deleting never
+shifts the rest of the snapshot. The strict loaders (`_load_inputs`,
+`_load_expected`) fail on malformed JSON, missing/duplicate ids, or
+tool≠filename.
+
+Snapshots sit **outside** the fixture project roots on purpose: their text
+mentions every fixture symbol, and once a symbol's name occurs in >10 files
+of the project IntelliJ's unused-symbol inspection silently gives up
+(`PsiSearchHelperImpl.isCheapEnoughToSearch` → `TOO_MANY_OCCURRENCES`),
+which flips "Class 'X' is never used" warnings out of diagnostics
+snapshots. Never move harness artifacts into `live-test/<lang>/`.
 
 ## ID convention
 
@@ -89,8 +115,8 @@ hyphen, don't dot. E.g. `usage-Drawable-trait`, `impls-Shape-struct`,
 1. Bless rows whose result is `tool_error_text` / `transport_error` /
    `jsonrpc_error`. Override with `--bless-errors` (rare; usually fix the
    probe first).
-2. Drop orphan expected ids (ids in `expected.jsonl` no longer in
-   `input.jsonl`). Override with `--prune`.
+2. Drop orphan expected ids (ids in `expected/` no longer in any
+   `inputs/<tool>.jsonl`). Override with `--prune`.
 3. Run with `--tool` filter matching zero rows.
 
 Writes are atomic (temp file + `os.replace`) — SIGINT-safe but not concurrency-
@@ -130,8 +156,9 @@ redundant with `file`.
 ## Fixture-edit safety
 
 - `./run.py --check-fixtures` runs offline validation (no IDE calls):
-  - input ids are unique non-empty strings
-  - expected.jsonl parses strictly
+  - input ids are unique non-empty strings, globally per language
+  - `tool` == filename stem, rows id-sorted, canonical serialization
+  - expected/*.jsonl parse strictly, no cross-file duplicate ids
   - no orphan or missing expected ids
   - each `file+line+column` probe targets an existing file, a line within
     bounds, and a non-whitespace character.
@@ -144,11 +171,12 @@ redundant with `file`.
 ## Workflow for adding new probes
 
 1. Pick an `id` following the convention above.
-2. Add the row to `<lang>/input.jsonl`.
+2. Add the row at its id-sorted position in
+   `_snapshots/<lang>/inputs/<tool>.jsonl` (canonical compact serialization).
 3. `./run.py --check-fixtures` — verify the new probe is offline-valid.
 4. `./run.py --language <lang>` — see the new row reported as MISSING.
-5. Inspect the IDE response in `<lang>/output.jsonl` for that id. Confirm
-   it looks like the truth you expected.
+5. Inspect the IDE response in `_snapshots/<lang>/output.jsonl` for that id.
+   Confirm it looks like the truth you expected.
 6. Ask the user to bless.
 7. On approval: `./run.py --bless --language <lang>`. The new row's
    expected entry is added; pre-existing expected rows are preserved.
@@ -162,9 +190,10 @@ redundant with `file`.
   in that file at or after the edit point breaks. Re-run probes; either
   re-bless if the new behavior is correct, or update the probe's `line`/
   `column` to point at the original target.
-- Renaming a class: every ID referencing that name in the suite should
-  also be renamed. Use the rename script pattern from `/tmp/rename_ids.py`
-  (preserves alignment in input.jsonl).
+- Renaming a class: rename every ID referencing it in `inputs/` **and**
+  `expected/` in lockstep (script it; ids are the join key), then run
+  `--check-fixtures` and a full language run — results are unchanged so no
+  re-bless.
 
 ## Captured ground truth (don't re-bless these as "fixes")
 

@@ -1,0 +1,12 @@
+{"id":"usage-Drawable-interface","tool":"ide_find_usages","params":{"column":11,"file":"src/Normal.php","line":4}}
+{"id":"usage-Labeled-interface","tool":"ide_find_usages","params":{"column":11,"file":"src/EnumSuper.php","line":4}}
+{"id":"usage-Quirks-class","tool":"ide_find_usages","params":{"column":7,"file":"src/Quirks.php","line":4}}
+{"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":7,"file":"src/Normal.php","line":28}}
+{"id":"usage-RequiresImpl-trait","tool":"ide_find_usages","params":{"column":7,"file":"src/AbstractTraitSuper.php","line":4}}
+{"id":"usage-Severity.Low-enum","tool":"ide_find_usages","params":{"column":10,"file":"src/EnumSuper.php","line":9}}
+{"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":16,"file":"src/Normal.php","line":8}}
+{"id":"usage-Status-enum","tool":"ide_find_usages","params":{"column":6,"file":"src/Modern.php","line":4}}
+{"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":30,"file":"src/Normal.php","line":9}}
+{"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":30,"file":"src/Normal.php","line":9,"scope":"project_and_libraries"}}
+{"id":"usage-qNameRebind-callable-array","tool":"ide_find_usages","params":{"column":28,"file":"src/Quirks.php","line":6}}
+{"id":"usage-shapes-field","tool":"ide_find_usages","params":{"column":18,"file":"src/Normal.php","line":48}}

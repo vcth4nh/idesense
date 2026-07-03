@@ -1,0 +1,4 @@
+{"id":"file-structure-Macros","tool":"ide_file_structure","params":{"file":"src/macros.rs"}}
+{"id":"file-structure-Normal","tool":"ide_file_structure","params":{"file":"src/normal.rs"}}
+{"id":"file-structure-Quirks","tool":"ide_file_structure","params":{"file":"src/quirks.rs"}}
+{"id":"file-structure-extra","tool":"ide_file_structure","params":{"file":"src/extra.rs"}}

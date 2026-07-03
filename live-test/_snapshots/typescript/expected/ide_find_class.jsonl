@@ -1,0 +1,13 @@
+{"id":"find-class-Circle","result":{"classes":[{"column":14,"file":"src/normal.ts","kind":"CLASS","line":13,"name":"Circle","qualifiedName":"Circle"}],"query":"Circle","totalCount":1}}
+{"id":"find-class-Circle-exact","result":{"classes":[{"column":14,"file":"src/normal.ts","kind":"CLASS","line":13,"name":"Circle","qualifiedName":"Circle"}],"query":"Circle","totalCount":1}}
+{"id":"find-class-Coercer","result":{"classes":[{"column":18,"file":"src/quirks.ts","kind":"INTERFACE","line":42,"name":"Coercer","qualifiedName":"Coercer"}],"query":"Coercer","totalCount":1}}
+{"id":"find-class-Direction","result":{"classes":[{"column":13,"file":"src/enums.ts","kind":"ENUM","line":1,"name":"Direction","qualifiedName":"Direction"}],"query":"Direction","totalCount":1}}
+{"id":"find-class-Drawable","result":{"classes":[{"column":18,"file":"src/normal.ts","kind":"INTERFACE","line":1,"name":"Drawable","qualifiedName":"Drawable"}],"query":"Drawable","totalCount":1}}
+{"id":"find-class-Point","result":{"classes":[{"column":18,"file":"src/namespaces.ts","kind":"CLASS","line":2,"name":"Point","qualifiedName":"Geometry.Point"}],"query":"Point","totalCount":1}}
+{"id":"find-class-SC-fuzzy","result":{"classes":[{"column":14,"file":"src/normal.ts","kind":"CLASS","line":35,"name":"ShapeCollection","qualifiedName":"ShapeCollection"}],"query":"SC","totalCount":1}}
+{"id":"find-class-Sh-fuzzy","result":{"classes":[{"column":23,"file":"src/normal.ts","kind":"CLASS","line":5,"name":"Shape","qualifiedName":"Shape"},{"column":14,"file":"src/normal.ts","kind":"CLASS","line":35,"name":"ShapeCollection","qualifiedName":"ShapeCollection"}],"query":"Sh","totalCount":2}}
+{"id":"find-class-Shape","result":{"classes":[{"column":23,"file":"src/normal.ts","kind":"CLASS","line":5,"name":"Shape","qualifiedName":"Shape"}],"query":"Shape","totalCount":1}}
+{"id":"find-class-Shape-fuzzy","result":{"classes":[{"column":23,"file":"src/normal.ts","kind":"CLASS","line":5,"name":"Shape","qualifiedName":"Shape"},{"column":14,"file":"src/normal.ts","kind":"CLASS","line":35,"name":"ShapeCollection","qualifiedName":"ShapeCollection"}],"query":"Sh","totalCount":2}}
+{"id":"find-class-ShapeCollection","result":{"classes":[{"column":14,"file":"src/normal.ts","kind":"CLASS","line":35,"name":"ShapeCollection","qualifiedName":"ShapeCollection"}],"query":"ShapeCollection","totalCount":1}}
+{"id":"find-class-Square","result":{"classes":[{"column":14,"file":"src/normal.ts","kind":"CLASS","line":29,"name":"Square","qualifiedName":"Square"}],"query":"Square","totalCount":1}}
+{"id":"find-class-no-match","result":{"classes":[],"query":"NoSuchClassXyz","totalCount":0}}

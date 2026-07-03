@@ -1,0 +1,10 @@
+{"id":"usage-Circle.radius","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.rs","line":14}}
+{"id":"usage-Coercer-trait","tool":"ide_find_usages","params":{"column":11,"file":"src/quirks.rs","line":28}}
+{"id":"usage-Drawable-trait","tool":"ide_find_usages","params":{"column":11,"file":"src/normal.rs","line":1}}
+{"id":"usage-Point-derived","tool":"ide_find_usages","params":{"column":12,"file":"src/macros.rs","line":8}}
+{"id":"usage-Rectangle-struct","tool":"ide_find_usages","params":{"column":12,"file":"src/normal.rs","line":33}}
+{"id":"usage-Shape-trait","tool":"ide_find_usages","params":{"column":11,"file":"src/normal.rs","line":5}}
+{"id":"usage-area-from-total","tool":"ide_find_usages","params":{"column":38,"file":"src/normal.rs","line":84}}
+{"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":8,"file":"src/normal.rs","line":18,"scope":"project_and_libraries"}}
+{"id":"usage-shapes-field","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.rs","line":71}}
+{"id":"usage-square-macro","tool":"ide_find_usages","params":{"column":14,"file":"src/macros.rs","line":1}}

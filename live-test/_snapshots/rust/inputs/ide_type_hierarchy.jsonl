@@ -1,0 +1,11 @@
+{"id":"hier-sub-Shape","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"src/normal.rs","line":5}}
+{"id":"hier-sub-Shape-all","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"src/normal.rs","line":5,"scope":"all"}}
+{"id":"hier-sub-Shape-production","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"src/normal.rs","line":5,"scope":"production"}}
+{"id":"hier-sub-Shape-test","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"src/normal.rs","line":5,"scope":"test"}}
+{"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":12,"direction":"supertypes","file":"src/normal.rs","line":54}}
+{"id":"hier-type-Circle","tool":"ide_type_hierarchy","params":{"column":12,"file":"src/normal.rs","line":13}}
+{"id":"hier-type-CoerceMode","tool":"ide_type_hierarchy","params":{"column":10,"file":"src/quirks.rs","line":66}}
+{"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":11,"file":"src/normal.rs","line":1}}
+{"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":12,"file":"src/normal.rs","line":33}}
+{"id":"hier-type-Shape-trait","tool":"ide_type_hierarchy","params":{"column":11,"file":"src/normal.rs","line":5}}
+{"id":"hier-type-Square","tool":"ide_type_hierarchy","params":{"column":12,"file":"src/normal.rs","line":54}}
