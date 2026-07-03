@@ -8,6 +8,13 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
+    groups:
+      # Kotlin compiler plugins and Kover must move in lockstep: bumping either
+      # Kotlin plugin alone breaks the build (see PRs #6/#9), and Kotlin bumps
+      # need a Kover version compatible with the new KGP.
+      kotlin:
+        patterns:
+          - "org.jetbrains.kotlin*"
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
