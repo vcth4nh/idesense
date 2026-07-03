@@ -120,14 +120,6 @@ Move a file to a new directory. Language-aware reference, import, and package/na
 
 Supports IDE undo (Ctrl+Z).
 
-### ide_refactor_safe_delete (Java/Kotlin only)
-Delete a symbol or file, checking for usages first.
-
-**Returns (success)**: `{ success, affectedFiles, changesCount, message }`
-**Returns (blocked)**: `{ canDelete: false, elementName, elementType, usageCount, blockingUsages: [{file, line, column, context}], message }`
-
-**Availability**: IntelliJ IDEA, Android Studio (requires Java plugin).
-
 ---
 
 ## Project Tools
@@ -151,8 +143,7 @@ Call when files were created or modified outside the IDE and search tools miss t
 ## Other tools
 
 The full tool set also includes `ide_read_file`,
-`ide_reformat_code`, `ide_optimize_imports`, `ide_convert_java_to_kotlin`, `ide_build_project`,
-`ide_install_plugin`, `ide_restart`, `ide_open_file`, and `ide_get_active_file`. Any tool can be
+`ide_install_plugin`, and `ide_restart`. Any tool can be
 enabled or disabled in **Settings → Tools → IdeSense**, so `tools/list` is the source of
 truth for what is callable right now. If a tool documented here is missing from `tools/list`, it is
 disabled in this configuration — ask the user to enable it rather than falling back to a worse approach.

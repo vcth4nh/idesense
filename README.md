@@ -2,7 +2,7 @@
 
 ![Build](https://github.com/vcth4nh/idesense/workflows/Build/badge.svg)
 
-A JetBrains IDE plugin that exposes an **MCP (Model Context Protocol) server**, enabling AI coding assistants like Claude, Codex, Cursor, and Windsurf to leverage the IDE's powerful indexing and refactoring capabilities.
+A JetBrains IDE plugin that exposes an **MCP (Model Context Protocol) server**, giving AI coding assistants like Claude, Codex, Cursor, and Windsurf the IDE's code-analysis engines — indexing, navigation, and diagnostics — with no human interaction with the IDE required.
 
 **Fully tested**: IntelliJ IDEA, PyCharm, WebStorm, GoLand, RustRover, Android Studio, PhpStorm
 **May work** (untested): RubyMine, CLion, DataGrip
@@ -10,7 +10,7 @@ A JetBrains IDE plugin that exposes an **MCP (Model Context Protocol) server**, 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/vcth4nh)
 
 <!-- Plugin description -->
-**IdeSense** is an MCP server for JetBrains IDEs (IntelliJ IDEA, PyCharm, WebStorm, GoLand, PhpStorm, RustRover, and more) that gives AI coding assistants the IDE's own indexing, navigation, and refactoring engines through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io).
+**IdeSense** is an MCP server for JetBrains IDEs (IntelliJ IDEA, PyCharm, WebStorm, GoLand, PhpStorm, RustRover, and more) that gives AI coding assistants the IDE's own code-analysis engines — indexing, navigation, cross-references, diagnostics — through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io), with no human-in-the-IDE interaction required. A minimal set of index-backed refactorings (rename, move file) is retained.
 
 ### Features
 
@@ -30,14 +30,11 @@ Advanced tools work across multiple languages based on available plugins:
 - **Code Diagnostics** - Access errors, warnings, and quick fixes
 - **Index Status** - Check if code intelligence is ready
 - **Sync Files** - Force sync VFS/PSI cache after external file changes
-- **Build Project** - Trigger IDE build with structured error/warning output (disabled by default)
 - **Find Class** - Fast class/interface search by name (exact by default; opt into camelCase/substring matching with `fuzzySearch`)
 - **Find File** - Fast file search by name using IDE's file index
 - **Symbol Search** - Find code symbols by name with IntelliJ Go to Symbol matching (disabled by default)
 - **Search Text** - Text search using IDE's pre-built word index
 - **Read File** - Read file content by path or qualified name, including library sources (disabled by default)
-- **Open File** - Open a file in the editor with optional navigation (disabled by default)
-- **Get Active File** - Get currently active editor file(s) with cursor position (disabled by default)
 
 **Extended Tools (Language-Aware)**
 These tools activate based on installed language plugins:
@@ -49,9 +46,7 @@ These tools activate based on installed language plugins:
 
 **Refactoring Tools**
 - **Rename Refactoring** - Safe renaming with automatic related element renaming (getters/setters, overriding methods) - works across ALL languages, fully headless
-- **Reformat Code** - Reformat using project code style with import optimization (disabled by default)
-- **Safe Delete** - Remove code with usage checking (Java/Kotlin only)
-- **Java to Kotlin Conversion** - Convert Java to Kotlin using IntelliJ's built-in converter (Java only)
+- **Move File** - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend
 
 ### Why Use This Plugin?
 
@@ -88,7 +83,7 @@ Perfect for AI-assisted development workflows where accuracy and safety matter.
 
 ## Available Tools
 
-The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](docs/USAGE.md)**.
+The plugin provides **19 MCP tools** — 14 enabled by default, 5 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](docs/USAGE.md)**.
 
 **Legend:**
 - **✅** supported & tested
@@ -128,12 +123,8 @@ The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggl
 |------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | `ide_refactor_rename` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 | `ide_move_file` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
-| `ide_reformat_code` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
-| `ide_optimize_imports` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
-| `ide_refactor_safe_delete` | ⚠️ | ⚠️ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
-| `ide_convert_java_to_kotlin` | ⚠️ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ | ⛔ |
 
-**Project & editor** — language-agnostic (operate on the project/IDE, not language-specific code)
+**Project** — language-agnostic (operate on the project/IDE, not language-specific code)
 
 | Tool | Java | Kotlin | Python | JS | TS | Go | PHP | Rust |
 |------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
@@ -141,14 +132,10 @@ The plugin provides **26 MCP tools** — 15 enabled by default, 11 opt-in (toggl
 | `ide_install_plugin` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `ide_restart` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | `ide_sync_files` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ide_build_project` | ✅ | ✅ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
 | `ide_read_file` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ide_get_active_file` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ide_open_file` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 > **Notes:**
-> - `ide_refactor_safe_delete` and `ide_convert_java_to_kotlin` require the Java plugin; refactoring tools are supported but not yet live-tested here (⚠️).
-> - `ide_build_project` does a real build on JVM projects (Java/Kotlin, via JPS — ✅). It's build-system-driven (JPS/Gradle/Maven), so on non-JVM projects with no such build it returns trivial success without compiling — those stay ⚠️.
+> - Refactoring tools (`ide_refactor_rename`, `ide_move_file`) are supported but not yet live-tested here (⚠️).
 > - `ide_search_text` is backed by the IDE's word index, so language keywords (e.g. Kotlin `fun`) may not be matched even though identifiers and most words are.
 
 ## Requirements
@@ -417,7 +404,7 @@ Configure the plugin at <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</
 | Max History Size | 100 | Maximum number of commands to keep in history |
 | Project List in Error Responses | Expanded | Controls `available_projects` detail for invalid/missing `project_path` errors. `Expanded` includes workspace sub-projects; `Compact` returns only top-level project roots |
 | Sync External Changes | false | Sync external file changes before operations (**WARNING: significant performance impact**) |
-| Disabled Tools | 11 tools | Per-tool enable/disable toggles. Some tools are disabled by default to keep the tool list focused |
+| Disabled Tools | 5 tools | Per-tool enable/disable toggles. Some tools are disabled by default to keep the tool list focused |
 | Response Format | `JSON` | Format for tool result text content block: `JSON` (default) mirrors the structured JSON; `TOON` converts it to a compact text-object notation for older clients |
 
 ## Community Integrations

@@ -481,21 +481,13 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             // Intelligence tools
             ToolNames.DIAGNOSTICS,
             // Project tools
-            ToolNames.BUILD_PROJECT,
             ToolNames.INSTALL_PLUGIN,
             ToolNames.RESTART_IDE,
             ToolNames.INDEX_STATUS,
             ToolNames.SYNC_FILES,
             // Refactoring tools
             ToolNames.REFACTOR_RENAME,
-            ToolNames.REFACTOR_MOVE,
-            ToolNames.REFACTOR_SAFE_DELETE,
-            ToolNames.REFORMAT_CODE,
-            ToolNames.OPTIMIZE_IMPORTS,
-            ToolNames.CONVERT_JAVA_TO_KOTLIN,
-            // Editor tools
-            ToolNames.GET_ACTIVE_FILE,
-            ToolNames.OPEN_FILE
+            ToolNames.REFACTOR_MOVE
         )
 
         assertEquals("Should have correct number of tools", expectedTools.size, registry.getAllTools().size)

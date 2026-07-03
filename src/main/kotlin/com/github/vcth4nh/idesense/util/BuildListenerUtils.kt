@@ -10,9 +10,9 @@ import com.intellij.util.messages.MessageBusConnection
 /**
  * Utility for subscribing to IDE build events via reflection.
  *
- * Extracts the shared reflection-based listener setup so that both
- * [com.github.vcth4nh.idesense.tools.project.BuildProjectTool]
- * and other services can reuse it without duplication.
+ * Provides the reflection-based listener setup used by
+ * [com.github.vcth4nh.idesense.server.BuildDiagnosticsCacheService] to passively
+ * capture build diagnostics for `ide_diagnostics`.
  */
 object BuildListenerUtils {
 
@@ -24,9 +24,6 @@ object BuildListenerUtils {
     }
     private val fileMessageEventClass: Class<*>? by lazy {
         try { Class.forName("com.intellij.build.events.FileMessageEvent") } catch (_: ClassNotFoundException) { null }
-    }
-    private val outputEventClass: Class<*>? by lazy {
-        try { Class.forName("com.intellij.build.events.OutputBuildEvent") } catch (_: ClassNotFoundException) { null }
     }
 
     /**
@@ -178,22 +175,6 @@ object BuildListenerUtils {
     }
 
     /**
-     * Extracts raw text from an OutputBuildEvent.
-     *
-     * @param event The build event object
-     * @return The output text if the event is an OutputBuildEvent, null otherwise
-     */
-    fun extractRawOutput(event: Any): String? {
-        val outEventClass = outputEventClass ?: return null
-        if (!outEventClass.isInstance(event)) return null
-
-        return try {
-            val text = event.javaClass.getMethod("getMessage").invoke(event) as? String
-            if (text.isNullOrBlank()) null else text
-        } catch (_: Exception) { null }
-    }
-
-    /**
      * Extracts ERROR and WARNING messages from a CompileContext.
      *
      * @param compileContext The CompileContext object from JPS compilation
@@ -248,38 +229,5 @@ object BuildListenerUtils {
             LOG.warn("Failed to extract compiler messages", e)
         }
         return result
-    }
-
-    /**
-     * Extracts raw INFORMATION and STATISTICS output from a CompileContext.
-     *
-     * @param compileContext The CompileContext object from JPS compilation
-     * @return Concatenated raw output string
-     */
-    @Suppress("UNCHECKED_CAST")
-    fun extractCompilerRawOutput(compileContext: Any): String {
-        val rawOutput = StringBuilder()
-        try {
-            val categoryClass = Class.forName("com.intellij.openapi.compiler.CompilerMessageCategory")
-            val getMessagesMethod = compileContext.javaClass.getMethod("getMessages", categoryClass)
-
-            for (categoryName in listOf("INFORMATION", "STATISTICS")) {
-                try {
-                    val category = java.lang.Enum.valueOf(
-                        categoryClass as Class<out Enum<*>>,
-                        categoryName
-                    )
-                    val infoMessages = getMessagesMethod.invoke(compileContext, category) as? Array<*> ?: continue
-                    for (msg in infoMessages) {
-                        if (msg == null) continue
-                        val text = msg.javaClass.getMethod("getMessage").invoke(msg) as? String ?: continue
-                        rawOutput.append(text).append('\n')
-                    }
-                } catch (_: Exception) { }
-            }
-        } catch (e: Exception) {
-            LOG.warn("Failed to extract compiler raw output", e)
-        }
-        return rawOutput.toString()
     }
 }

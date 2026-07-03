@@ -172,34 +172,6 @@ object PsiUtils {
         return false
     }
 
-    fun findElementAtPosition(
-        project: Project,
-        file: String,
-        line: Int,
-        column: Int
-    ): PsiElement? {
-        val psiFile = getPsiFile(project, file) ?: return null
-        val document = PsiDocumentManager.getInstance(project).getDocument(psiFile) ?: return null
-
-        val lineIndex = line - 1
-        if (lineIndex < 0 || lineIndex >= document.lineCount) return null
-
-        val lineStartOffset = document.getLineStartOffset(lineIndex)
-        val lineEndOffset = document.getLineEndOffset(lineIndex)
-        val offset = lineStartOffset + (column - 1)
-
-        return if (offset <= lineEndOffset) {
-            psiFile.findElementAt(offset)
-        } else {
-            null
-        }
-    }
-
-    fun getPsiFile(project: Project, relativePath: String): PsiFile? {
-        val virtualFile = getVirtualFile(project, relativePath) ?: return null
-        return PsiManager.getInstance(project).findFile(virtualFile)
-    }
-
     fun getVirtualFile(project: Project, relativePath: String): VirtualFile? {
         val basePath = project.basePath ?: return null
         return resolveLocalFile(relativePath, sequenceOf(basePath))
@@ -391,8 +363,8 @@ object PsiUtils {
     fun findNamedElement(element: PsiElement): PsiNamedElement? {
         var current: PsiElement? = element
         while (current != null) {
-            // Exclude PsiFile (too high-level; would cause file-level side effects in safe_delete —
-            // issue #47) and PsiFileSystemItem (parent chain continues past PsiFile to PsiDirectory,
+            // Exclude PsiFile (too high-level; a file-level match would make callers act on the
+            // whole file) and PsiFileSystemItem (parent chain continues past PsiFile to PsiDirectory,
             // which is a PsiNamedElement; returning it leaks the containing directory as
             // "Package directory: …" from find_definition — bug B.2).
             if (current is PsiNamedElement

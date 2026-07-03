@@ -32,10 +32,7 @@
     <li><b>Code Diagnostics</b> - Access errors, warnings, and available quick fixes</li>
     <li><b>Index Status</b> - Check if the IDE is ready for code intelligence</li>
     <li><b>Sync Files</b> - Force-sync IDE state with external file changes on demand</li>
-    <li><b>Build Project</b> - Trigger IDE build with structured error/warning output (disabled by default)</li>
     <li><b>Read File</b> - Read file content by path or qualified name, including library sources (disabled by default)</li>
-    <li><b>Open File</b> - Open a file in the editor with optional navigation (disabled by default)</li>
-    <li><b>Get Active File</b> - Get currently active editor file(s) with cursor position (disabled by default)</li>
     <li><b>File Structure</b> - View hierarchical file structure like IDE's Structure view, for any language with a registered structure-view factory (disabled by default)</li>
 </ul>
 
@@ -51,9 +48,7 @@
 <h3>Refactoring Tools</h3>
 <ul>
     <li><b>Rename Refactoring</b> - Safe symbol renaming with automatic reference updates - works across ALL languages, fully headless</li>
-    <li><b>Reformat Code</b> - Reformat using project code style with import optimization (disabled by default)</li>
-    <li><b>Optimize Imports</b> - Remove unused imports and organize remaining imports without reformatting (disabled by default)</li>
-    <li><b>Safe Delete</b> - Remove code safely with usage checking (Java/Kotlin only)</li>
+    <li><b>Move File</b> - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend</li>
 </ul>
 
 <h3>Why This Plugin?</h3>

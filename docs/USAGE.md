@@ -21,14 +21,9 @@ These tools work in every supported JetBrains IDE:
 | `ide_diagnostics` | Analyze file problems with fresh IDE diagnostics, plus optional build/test results | Enabled |
 | `ide_index_status` | Check indexing status | Enabled |
 | `ide_sync_files` | Force sync VFS/PSI cache | Enabled |
-| `ide_build_project` | Build project with structured errors | Disabled |
 | `ide_read_file` | Read file content by path or qualified name | Disabled |
-| `ide_get_active_file` | Get currently active editor file(s) | Disabled |
-| `ide_open_file` | Open file in editor with navigation | Disabled |
 | `ide_refactor_rename` | Rename symbol with reference updates (all languages) | Enabled |
 | `ide_move_file` | Move file to new directory with IDE-aware move semantics | Enabled |
-| `ide_reformat_code` | Reformat code using project code style | Disabled |
-| `ide_optimize_imports` | Remove unused imports and organize remaining imports | Disabled |
 | `ide_install_plugin` | Install a locally built plugin `.zip` into this IDE (dev loop) | Disabled |
 | `ide_restart` | Restart this IDE (pair with `ide_install_plugin`) | Disabled |
 
@@ -43,13 +38,6 @@ These tools activate based on available language plugins:
 | `ide_find_implementations` | Find interface implementations | Java, Kotlin, Python, JS/TS, Go, PHP, Rust |
 | `ide_find_super_methods` | Find overridden methods | Java, Kotlin, Python, JS/TS, PHP, Go, Rust |
 | `ide_file_structure` | Hierarchical file structure *(disabled by default)* | Java, Kotlin, Python, JS/TS, Go, PHP, Rust, Markdown |
-
-### Java-Specific Refactoring Tools
-
-| Tool | Description |
-|------|-------------|
-| `ide_convert_java_to_kotlin` | Convert Java files to Kotlin using the IDE converter *(disabled by default)* |
-| `ide_refactor_safe_delete` | Safely delete with usage check |
 
 ---
 
@@ -66,26 +54,18 @@ These tools activate based on available language plugins:
   - [ide_diagnostics](#ide_diagnostics)
   - [ide_index_status](#ide_index_status)
   - [ide_sync_files](#ide_sync_files)
-  - [ide_build_project](#ide_build_project)
   - [ide_install_plugin](#ide_install_plugin)
   - [ide_restart](#ide_restart)
   - [ide_read_file](#ide_read_file)
-  - [ide_get_active_file](#ide_get_active_file)
-  - [ide_open_file](#ide_open_file)
 - [Refactoring Tools](#refactoring-tools)
-  - [ide_optimize_imports](#ide_optimize_imports)
   - [ide_refactor_rename](#ide_refactor_rename)
   - [ide_move_file](#ide_move_file)
-  - [ide_reformat_code](#ide_reformat_code)
 - [Extended Tools (Language-Aware)](#extended-tools-language-aware)
   - [ide_type_hierarchy](#ide_type_hierarchy)
   - [ide_call_hierarchy](#ide_call_hierarchy)
   - [ide_find_implementations](#ide_find_implementations)
   - [ide_find_super_methods](#ide_find_super_methods)
   - [ide_file_structure](#ide_file_structure)
-- [Java-Specific Refactoring Tools](#java-specific-refactoring-tools)
-  - [ide_convert_java_to_kotlin](#ide_convert_java_to_kotlin)
-  - [ide_refactor_safe_delete](#ide_refactor_safe_delete)
 - [Error Handling](#error-handling)
 
 ---
@@ -587,61 +567,6 @@ Force the IDE to synchronize its virtual file system and PSI cache with external
 
 ---
 
-### ide_build_project
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Build the project using the IDE's build system (supports JPS, Gradle, Maven).
-
-**Use when:**
-- Checking for compilation errors after code changes
-- Verifying that refactoring didn't break anything
-- Getting structured error messages with file locations
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `rebuild` | boolean | No | Full rebuild instead of incremental build (default: false) |
-| `includeRawOutput` | boolean | No | Include raw build output log (default: false) |
-| `timeoutSeconds` | integer | No | Timeout in seconds. No timeout if omitted |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_build_project",
-    "arguments": {}
-  }
-}
-```
-
-**Example Response:**
-
-```json
-{
-  "success": false,
-  "aborted": false,
-  "errors": 1,
-  "warnings": 2,
-  "buildMessages": [
-    {
-      "category": "ERROR",
-      "message": "Unresolved reference: fooBar",
-      "file": "src/main/kotlin/com/example/App.kt",
-      "line": 15,
-      "column": 10
-    }
-  ],
-  "truncated": false,
-  "durationMs": 3200
-}
-```
-
----
-
 ### ide_read_file
 
 > **Default**: Disabled - enable in Settings > Tools > IdeSense
@@ -691,98 +616,6 @@ Read file content by file path or fully qualified class name.
   "startLine": 1,
   "endLine": 50,
   "isLibraryFile": true
-}
-```
-
----
-
-### ide_get_active_file
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Get the currently active file(s) open in the IDE editor, including split panes.
-
-**Use when:**
-- Understanding what the user is currently looking at
-- Getting cursor position and selected text
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| (none) | | | Only `project_path` if multiple projects are open |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_get_active_file",
-    "arguments": {}
-  }
-}
-```
-
-**Example Response:**
-
-```json
-{
-  "activeFiles": [
-    {
-      "file": "src/main/kotlin/com/example/UserService.kt",
-      "line": 25,
-      "column": 10,
-      "selectedText": null,
-      "hasSelection": false,
-      "language": "Kotlin"
-    }
-  ]
-}
-```
-
----
-
-### ide_open_file
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Open a file in the IDE editor with optional line/column navigation.
-
-**Use when:**
-- Directing the user's attention to a specific file and location
-- Opening a file after finding it via search
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `file` | string | Yes | File path relative to project root, or absolute path |
-| `line` | integer | No | 1-based line number to navigate to |
-| `column` | integer | No | 1-based column number (requires `line`) |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_open_file",
-    "arguments": {
-      "file": "src/main/kotlin/com/example/UserService.kt",
-      "line": 25
-    }
-  }
-}
-```
-
-**Example Response:**
-
-```json
-{
-  "file": "src/main/kotlin/com/example/UserService.kt",
-  "opened": true,
-  "message": "Opened file at line 25"
 }
 ```
 
@@ -975,42 +808,6 @@ The restart is scheduled after this tool's response is flushed (default 2 s dela
 ## Refactoring Tools
 
 > **Note**: All refactoring tools modify source files. Changes can be undone with Ctrl/Cmd+Z.
-
-### ide_optimize_imports
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Optimize imports in a file: remove unused imports and organize remaining imports according to project code style. Equivalent to the IDE's "Optimize Imports" action (<kbd>Ctrl+Alt+O</kbd> / <kbd>Cmd+Opt+O</kbd>). Does NOT reformat code. Supports undo (Ctrl/Cmd+Z).
-
-**Use when:**
-- Removing unused imports after editing or refactoring
-- Organizing imports without changing any formatting
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `file` | string | Yes | File path relative to project root |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_optimize_imports",
-    "arguments": {
-      "file": "src/main/kotlin/com/example/UserService.kt"
-    }
-  }
-}
-```
-
-**Returns**: `{ "success": true, "affectedFiles": ["src/…"], "changesCount": 1, "message": "Optimized imports in …" }`
-
-> **Disabled by default.** Enable in Settings > Tools > IdeSense.
-
----
 
 ### ide_refactor_rename (Universal - All Languages)
 
@@ -1206,56 +1003,6 @@ Move a file to a new directory using the IDE's refactoring engine. Applies langu
   ],
   "changesCount": 2,
   "message": "Successfully moved 'src/main/java/com/old/MyService.java' to 'src/main/java/com/new/services/MyService.java' using IDE file move semantics"
-}
-```
-
----
-
-### ide_reformat_code
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Reformat code according to the project's code style settings. Equivalent to the IDE's "Reformat Code" action (<kbd>Ctrl+Alt+L</kbd> / <kbd>Cmd+Opt+L</kbd>).
-
-**Use when:**
-- Applying consistent formatting after code changes
-- Organizing imports
-- Rearranging code members according to project rules
-
-**Respects:** `.editorconfig`, project code style, language-specific formatting rules.
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `file` | string | Yes | File path relative to project root |
-| `startLine` | integer | No | Start line for partial formatting (1-based). Requires `endLine` |
-| `endLine` | integer | No | End line for partial formatting (1-based). Requires `startLine` |
-| `optimizeImports` | boolean | No | Optimize imports (default: true) |
-| `rearrangeCode` | boolean | No | Rearrange code members (default: true) |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_reformat_code",
-    "arguments": {
-      "file": "src/main/kotlin/com/example/UserService.kt"
-    }
-  }
-}
-```
-
-**Example Response:**
-
-```json
-{
-  "success": true,
-  "affectedFiles": ["src/main/kotlin/com/example/UserService.kt"],
-  "changesCount": 1,
-  "message": "Reformatted code (optimized imports, rearranged code)"
 }
 ```
 
@@ -1655,178 +1402,6 @@ Get the hierarchical structure of a source file, similar to the IDE's Structure 
   "file": "src/main/kotlin/com/example/UserService.kt",
   "language": "Kotlin",
   "structure": "interface UserService :15\n  fun findUser(id: String): User :16\n  fun deleteUser(id: String) :17\n\nclass UserServiceImpl :20\n  val repository: UserRepository :21\n  override fun findUser(id: String): User :23\n  override fun deleteUser(id: String) :30\n  private fun validate(id: String) :37"
-}
-```
-
----
-
-## Java-Specific Refactoring Tools
-
-These tools require the Java plugin and are only available in **IntelliJ IDEA** and **Android Studio**.
-
-`ide_convert_java_to_kotlin` also requires the Kotlin plugin and is disabled by default.
-
-### ide_convert_java_to_kotlin
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
-Convert one or more Java files to Kotlin using IntelliJ's built-in J2K (Java-to-Kotlin) converter.
-
-**Use when:**
-- Migrating Java source files to Kotlin
-- Converting a batch of related Java files in one request
-- Letting the IDE handle syntax conversion, formatting, and import cleanup
-
-**Features:**
-- Supports batch conversion via a `files` array
-- Uses the IDE's built-in converter instead of text transformation
-- Automatically formats converted Kotlin files and optimizes imports
-- Deletes original `.java` files after successful conversion
-- Returns per-file results plus a summary of converted, skipped, and failed files
-
-**Requirements:**
-- Java plugin available
-- Kotlin plugin enabled
-- Files must belong to a module with Kotlin support enabled
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `files` | array of strings | Yes | Java file paths relative to project root |
-
-**Example Request:**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_convert_java_to_kotlin",
-    "arguments": {
-      "files": [
-        "src/main/java/com/example/User.java",
-        "src/main/java/com/example/UserService.java"
-      ]
-    }
-  }
-}
-```
-
-**Example Response:**
-
-```json
-{
-  "files": [
-    {
-      "requestedPath": "src/main/java/com/example/User.java",
-      "status": "CONVERTED",
-      "kotlinFile": "src/main/java/com/example/User.kt",
-      "linesConverted": 42,
-      "javaFileDeleted": true
-    },
-    {
-      "requestedPath": "src/main/java/com/example/UserService.java",
-      "status": "SKIPPED",
-      "reason": "Module 'app' does not have Kotlin plugin enabled"
-    }
-  ],
-  "summary": {
-    "totalRequested": 2,
-    "converted": 1,
-    "skipped": 1,
-    "failed": 0
-  }
-}
-```
-
-**Status Values:**
-- `CONVERTED` - Successfully converted to a new `.kt` file
-- `SKIPPED` - File could not be attempted (for example not found, not a Java file, or no Kotlin-enabled module)
-- `FAILED` - Conversion was attempted but did not produce a Kotlin file or hit a converter error
-
-**Notes:**
-- The tool returns structured per-file results in the same order as the input list
-- Duplicate paths are reported separately
-- Some advanced Java constructs may still need manual cleanup after conversion
-
-### ide_refactor_safe_delete
-
-Safely deletes a symbol or file, first checking for usages.
-
-**Two modes:**
-- **Symbol delete** (`target_type="symbol"`, default): deletes the symbol at the given position. Requires `file`, `line`, and `column`.
-- **File delete** (`target_type="file"`): deletes the entire file if no symbols have external usages. Requires `file` only; internal call chains don't block deletion.
-
-If usages exist and `force=false`, returns the blocking usage list instead of deleting.
-
-**Use when:**
-- Removing unused code
-- Cleaning up dead code
-- Safely removing methods, classes, or entire files
-
-**Parameters:**
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `file` | string | Yes | Path to the file relative to project root |
-| `target_type` | string | No | What to delete: `"symbol"` (default, requires `line`+`column`) or `"file"` (deletes entire file if no external usages) |
-| `line` | integer | No | 1-based line number. Required when `target_type="symbol"` (the default). |
-| `column` | integer | No | 1-based column number. Required when `target_type="symbol"` (the default). |
-| `force` | boolean | No | Force deletion even if usages exist (default: false) |
-
-**Example Request (symbol delete):**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_refactor_safe_delete",
-    "arguments": {
-      "file": "src/main/java/com/example/LegacyHelper.java",
-      "line": 8,
-      "column": 14
-    }
-  }
-}
-```
-
-**Example Request (file delete):**
-
-```json
-{
-  "method": "tools/call",
-  "params": {
-    "name": "ide_refactor_safe_delete",
-    "arguments": {
-      "file": "src/main/java/com/example/OldUtil.java",
-      "target_type": "file"
-    }
-  }
-}
-```
-
-**Example Response (safe to delete):**
-
-```json
-{
-  "success": true,
-  "message": "Successfully deleted 'LegacyHelper'"
-}
-```
-
-**Example Response (blocked by usages):**
-
-```json
-{
-  "success": false,
-  "message": "Cannot safely delete: 3 usages found",
-  "blockingUsages": [
-    {
-      "file": "src/main/java/com/example/App.java",
-      "line": 25,
-      "context": "LegacyHelper.convert(data)"
-    }
-  ]
 }
 ```
 

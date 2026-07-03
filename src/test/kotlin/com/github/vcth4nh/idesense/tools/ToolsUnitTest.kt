@@ -4,8 +4,6 @@ import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.SchemaConstants
 import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
-import com.github.vcth4nh.idesense.tools.editor.GetActiveFileTool
-import com.github.vcth4nh.idesense.tools.editor.OpenFileTool
 import com.github.vcth4nh.idesense.tools.intelligence.GetDiagnosticsTool
 import com.github.vcth4nh.idesense.tools.navigation.CallHierarchyTool
 import com.github.vcth4nh.idesense.tools.navigation.FileStructureTool
@@ -19,15 +17,11 @@ import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.SearchTextTool
 import com.github.vcth4nh.idesense.tools.navigation.TypeHierarchyTool
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
-import com.github.vcth4nh.idesense.tools.project.BuildProjectTool
 import com.github.vcth4nh.idesense.tools.project.InstallPluginTool
 import com.github.vcth4nh.idesense.tools.project.RestartIdeTool
 import com.github.vcth4nh.idesense.tools.project.SyncFilesTool
 import com.github.vcth4nh.idesense.tools.refactoring.MoveFileTool
-import com.github.vcth4nh.idesense.tools.refactoring.OptimizeImportsTool
-import com.github.vcth4nh.idesense.tools.refactoring.ReformatCodeTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
-import com.github.vcth4nh.idesense.tools.refactoring.SafeDeleteTool
 import com.github.vcth4nh.idesense.handlers.isExcludedPath
 import junit.framework.TestCase
 import kotlinx.serialization.json.jsonArray
@@ -93,35 +87,6 @@ class ToolsUnitTest : TestCase() {
         val tool = registry.getTool(ToolNames.SYNC_FILES)
         assertNotNull("ide_sync_files should be registered", tool)
         assertEquals(ToolNames.SYNC_FILES, tool?.name)
-    }
-
-    fun testBuildProjectToolSchema() {
-        val tool = BuildProjectTool()
-
-        assertEquals(ToolNames.BUILD_PROJECT, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have rebuild property", properties?.get(ParamNames.REBUILD))
-        assertNotNull("Should have includeRawOutput property", properties?.get(ParamNames.INCLUDE_RAW_OUTPUT))
-        assertNotNull("Should have timeoutSeconds property", properties?.get(ParamNames.TIMEOUT_SECONDS))
-
-        assertNull("Should not have required array", schema[SchemaConstants.REQUIRED])
-    }
-
-    fun testBuildProjectToolIsRegistered() {
-        val registry = ToolRegistry()
-        registry.registerBuiltInTools()
-
-        val tool = registry.getTool(ToolNames.BUILD_PROJECT)
-        assertNotNull("ide_build_project should be registered", tool)
-        assertEquals(ToolNames.BUILD_PROJECT, tool?.name)
     }
 
     fun testInstallPluginToolSchema() {
@@ -374,7 +339,6 @@ class ToolsUnitTest : TestCase() {
      * Note: The number of tools registered depends on available language plugins:
      * - Universal tools: Always registered in all IDEs
      * - Navigation tools: Registered when language handlers are available (Java, Python, JS/TS)
-     * - Refactoring tools: Registered only when Java plugin is available
      *
      * In a unit test environment without the full IntelliJ Platform, only universal tools
      * may be registered since plugin detection may fail.
@@ -390,8 +354,7 @@ class ToolsUnitTest : TestCase() {
             ToolNames.FIND_SYMBOL,
             ToolNames.DIAGNOSTICS,
             ToolNames.INDEX_STATUS,
-            ToolNames.SYNC_FILES,
-            ToolNames.BUILD_PROJECT
+            ToolNames.SYNC_FILES
         )
 
         // Universal tools should always be registered
@@ -400,26 +363,13 @@ class ToolsUnitTest : TestCase() {
             assertNotNull("Universal tool $toolName should be registered", tool)
         }
 
-        // Editor tools (universal, disabled by default)
-        val editorTools = listOf(
-            ToolNames.GET_ACTIVE_FILE,
-            ToolNames.OPEN_FILE
-        )
-        for (toolName in editorTools) {
-            val tool = registry.getTool(toolName)
-            assertNotNull("Editor tool $toolName should be registered", tool)
-        }
-
         assertTrue("Should have at least 9 universal tools", registry.getAllTools().size >= 9)
     }
 
     /**
-     * Tests tool registration in a fully initialized IntelliJ Platform environment.
+     * Tests tool registration for language-specific navigation tools.
      *
-     * This test verifies that when Java plugin is available (as in IntelliJ IDEA platform tests),
-     * all 11 tools are registered including navigation and refactoring tools.
-     *
-     * Note: This test may register fewer tools in unit test mode since plugin detection
+     * Note: This test may register fewer tools in unit test mode since handler detection
      * depends on the IntelliJ Platform being fully initialized.
      */
     fun testToolRegistryRegistersLanguageToolsWhenAvailable() {
@@ -435,42 +385,21 @@ class ToolsUnitTest : TestCase() {
             ToolNames.FILE_STRUCTURE
         )
 
-        // Java-specific refactoring tools
-        val refactoringTools = listOf(
-            ToolNames.REFACTOR_RENAME,
-            ToolNames.REFACTOR_SAFE_DELETE
-        )
-
-        // Check if language navigation tools are registered (depends on platform initialization)
         val registeredNavTools = navigationTools.count { registry.getTool(it) != null }
-        val registeredRefTools = refactoringTools.count { registry.getTool(it) != null }
 
-        // Check if SafeDeleteTool is specifically registered (indicates Java plugin is available)
-        val safeDeleteRegistered = registry.getTool(ToolNames.REFACTOR_SAFE_DELETE) != null
-
-        // In IntelliJ platform tests with Java plugin, all navigation and refactoring tools should be available.
-        // In unit tests, individual handler availability drives registration: the bundled Markdown plugin
-        // registers a structure handler (so FILE_STRUCTURE is expected), while Java-backed hierarchy/super
-        // tools require the Java plugin to be fully initialised. Assert at least one nav tool is registered
-        // when any handler loads, and that FILE_STRUCTURE is among them.
+        // In unit tests, individual handler availability drives registration: the bundled Markdown
+        // plugin registers a structure handler, so FILE_STRUCTURE is expected whenever any handler loads.
         if (registeredNavTools > 0) {
             assertTrue("FILE_STRUCTURE should be registered when the Markdown structure handler is available",
                 registry.getTool(ToolNames.FILE_STRUCTURE) != null)
         }
 
-        if (safeDeleteRegistered) {
-            // If SafeDeleteTool is registered, Java plugin is available and both refactoring tools should be registered
-            assertEquals("When Java plugin available, both refactoring tools should be registered",
-                2, registeredRefTools)
-        } else {
-            // SafeDeleteTool requires Java plugin, but RenameSymbolTool is universal and should always be registered
-            assertTrue("RenameSymbolTool should always be registered (universal tool)",
-                registry.getTool(ToolNames.REFACTOR_RENAME) != null)
-        }
+        // RenameSymbolTool is universal and should always be registered
+        assertTrue("RenameSymbolTool should always be registered (universal tool)",
+            registry.getTool(ToolNames.REFACTOR_RENAME) != null)
 
-        // Log the actual tool count for debugging
         val totalTools = registry.getAllTools().size
-        println("Tool registry test: $totalTools tools registered ($registeredNavTools navigation + $registeredRefTools refactoring)")
+        println("Tool registry test: $totalTools tools registered ($registeredNavTools navigation)")
     }
 
     /**
@@ -523,53 +452,6 @@ class ToolsUnitTest : TestCase() {
         assertEquals(listOf("all", "none", "accessors_and_tests", "ask"), enumValues)
     }
 
-    fun testSafeDeleteToolSchema() {
-        val tool = SafeDeleteTool()
-
-        assertEquals(ToolNames.REFACTOR_SAFE_DELETE, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
-        assertNotNull("Should have line property", properties?.get(ParamNames.LINE))
-        assertNotNull("Should have column property", properties?.get(ParamNames.COLUMN))
-        assertNotNull("Should have force property", properties?.get(ParamNames.FORCE))
-        assertNotNull("Should have target_type property", properties?.get(ParamNames.TARGET_TYPE))
-
-        // Verify target_type has enum values and default
-        val targetTypeProp = properties?.get(ParamNames.TARGET_TYPE)?.jsonObject
-        assertNotNull("target_type should have enum", targetTypeProp?.get("enum"))
-        assertEquals("target_type default should be 'symbol'", "symbol", targetTypeProp?.get("default")?.jsonPrimitive?.content)
-    }
-
-    fun testSafeDeleteToolSchemaHasRequiredFile() {
-        val tool = SafeDeleteTool()
-        val schema = tool.inputSchema
-
-        // Verify required array includes "file" (conditional line/column requirements are validated at runtime)
-        // Note: We don't use oneOf/allOf/anyOf because Anthropic's API doesn't support them
-        val required = schema["required"]
-        assertNotNull("Schema should have required array", required)
-        assertTrue("Required should include 'file'", required.toString().contains("file"))
-    }
-
-    fun testSafeDeleteToolDescriptionIncludesTargetTypes() {
-        val tool = SafeDeleteTool()
-        val description = tool.description
-
-        assertTrue("Description should mention target_type='symbol'", description.contains("target_type='symbol'"))
-        assertTrue("Description should mention target_type='file'", description.contains("target_type='file'"))
-        assertTrue("Description should mention external usages", description.contains("external usages"))
-        assertTrue("Description should mention line/column required for symbol", description.contains("REQUIRED: file, line, column"))
-        assertTrue("Description should mention only file required for file mode", description.contains("REQUIRED: file only"))
-    }
-
     // New navigation tools
 
     fun testFindSymbolToolSchema() {
@@ -611,68 +493,6 @@ class ToolsUnitTest : TestCase() {
         assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
         assertNotNull("Should have line property", properties?.get(ParamNames.LINE))
         assertNotNull("Should have column property", properties?.get(ParamNames.COLUMN))
-    }
-
-    fun testReformatCodeToolSchema() {
-        val tool = ReformatCodeTool()
-
-        assertEquals(ToolNames.REFORMAT_CODE, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
-        assertNotNull("Should have startLine property", properties?.get(ParamNames.START_LINE))
-        assertNotNull("Should have endLine property", properties?.get(ParamNames.END_LINE))
-        assertNotNull("Should have optimizeImports property", properties?.get(ParamNames.OPTIMIZE_IMPORTS))
-        assertNotNull("Should have rearrangeCode property", properties?.get(ParamNames.REARRANGE_CODE))
-
-        val required = schema[SchemaConstants.REQUIRED]
-        assertNotNull("Should have required array", required)
-        assertTrue("Required should include 'file'", required.toString().contains("file"))
-    }
-
-    fun testOptimizeImportsToolSchema() {
-        val tool = OptimizeImportsTool()
-
-        assertEquals(ToolNames.OPTIMIZE_IMPORTS, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
-
-        val required = schema[SchemaConstants.REQUIRED]
-        assertNotNull("Should have required array", required)
-        assertTrue("Required should include 'file'", required.toString().contains("file"))
-    }
-
-    fun testOptimizeImportsToolIsRegistered() {
-        val registry = ToolRegistry()
-        registry.registerBuiltInTools()
-
-        val tool = registry.getTool(ToolNames.OPTIMIZE_IMPORTS)
-        assertNotNull("ide_optimize_imports should be registered", tool)
-        assertEquals(ToolNames.OPTIMIZE_IMPORTS, tool?.name)
-    }
-
-    fun testReformatCodeToolIsRegistered() {
-        val registry = ToolRegistry()
-        registry.registerBuiltInTools()
-
-        val tool = registry.getTool(ToolNames.REFORMAT_CODE)
-        assertNotNull("ide_reformat_code should be registered", tool)
-        assertEquals(ToolNames.REFORMAT_CODE, tool?.name)
     }
 
     fun testAllRegisteredToolNamesAreInToolNamesAll() {
@@ -791,58 +611,6 @@ class ToolsUnitTest : TestCase() {
 
         assertNull("Should not have anyOf (incompatible with Anthropic API)", schema["anyOf"])
         assertNull("Should not have required array (all params optional for pagination)", schema[SchemaConstants.REQUIRED])
-    }
-
-    fun testGetActiveFileToolSchema() {
-        val tool = GetActiveFileTool()
-
-        assertEquals(ToolNames.GET_ACTIVE_FILE, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-
-        assertNull("Should not have required array (no required fields)", schema[SchemaConstants.REQUIRED])
-    }
-
-    fun testOpenFileToolSchema() {
-        val tool = OpenFileTool()
-
-        assertEquals(ToolNames.OPEN_FILE, tool.name)
-        assertNotNull(tool.description)
-
-        val schema = tool.inputSchema
-        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
-
-        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
-        assertNotNull(properties)
-
-        assertNotNull("Should have project_path property", properties?.get(ParamNames.PROJECT_PATH))
-        assertNotNull("Should have file property", properties?.get(ParamNames.FILE))
-        assertNotNull("Should have line property", properties?.get(ParamNames.LINE))
-        assertNotNull("Should have column property", properties?.get(ParamNames.COLUMN))
-
-        val required = schema[SchemaConstants.REQUIRED]
-        assertNotNull("Should have required array", required)
-        assertTrue("Required should include 'file'", required.toString().contains("file"))
-    }
-
-    fun testEditorToolsAreRegistered() {
-        val registry = ToolRegistry()
-        registry.registerBuiltInTools()
-
-        val getActiveFileTool = registry.getTool(ToolNames.GET_ACTIVE_FILE)
-        assertNotNull("ide_get_active_file should be registered", getActiveFileTool)
-        assertEquals(ToolNames.GET_ACTIVE_FILE, getActiveFileTool?.name)
-
-        val openFileTool = registry.getTool(ToolNames.OPEN_FILE)
-        assertNotNull("ide_open_file should be registered", openFileTool)
-        assertEquals(ToolNames.OPEN_FILE, openFileTool?.name)
     }
 
     fun testNewSearchToolsAreRegistered() {

@@ -22,21 +22,13 @@ class ConstantsUnitTest : TestCase() {
 
     fun testToolNamesProjectTools() {
         assertEquals("ide_index_status", ToolNames.INDEX_STATUS)
-        assertEquals("ide_build_project", ToolNames.BUILD_PROJECT)
         assertEquals("ide_install_plugin", ToolNames.INSTALL_PLUGIN)
         assertEquals("ide_restart", ToolNames.RESTART_IDE)
     }
 
     fun testToolNamesRefactoringTools() {
         assertEquals("ide_refactor_rename", ToolNames.REFACTOR_RENAME)
-        assertEquals("ide_refactor_safe_delete", ToolNames.REFACTOR_SAFE_DELETE)
         assertEquals("ide_move_file", ToolNames.REFACTOR_MOVE)
-        assertEquals("ide_reformat_code", ToolNames.REFORMAT_CODE)
-    }
-
-    fun testToolNamesEditorTools() {
-        assertEquals("ide_get_active_file", ToolNames.GET_ACTIVE_FILE)
-        assertEquals("ide_open_file", ToolNames.OPEN_FILE)
     }
 
     fun testToolNamesHaveIdePrefix() {
@@ -62,17 +54,10 @@ class ConstantsUnitTest : TestCase() {
             ToolNames.DIAGNOSTICS,
             ToolNames.INDEX_STATUS,
             ToolNames.SYNC_FILES,
-            ToolNames.BUILD_PROJECT,
             ToolNames.INSTALL_PLUGIN,
             ToolNames.RESTART_IDE,
             ToolNames.REFACTOR_RENAME,
-            ToolNames.REFACTOR_SAFE_DELETE,
-            ToolNames.REFACTOR_MOVE,
-            ToolNames.REFORMAT_CODE,
-            ToolNames.OPTIMIZE_IMPORTS,
-            ToolNames.CONVERT_JAVA_TO_KOTLIN,
-            ToolNames.GET_ACTIVE_FILE,
-            ToolNames.OPEN_FILE
+            ToolNames.REFACTOR_MOVE
         )
 
         for (name in expectedNames) {
@@ -116,9 +101,6 @@ class ConstantsUnitTest : TestCase() {
         assertEquals("variableName", ParamNames.VARIABLE_NAME)
         assertEquals("startLine", ParamNames.START_LINE)
         assertEquals("endLine", ParamNames.END_LINE)
-        assertEquals("force", ParamNames.FORCE)
-        assertEquals("optimizeImports", ParamNames.OPTIMIZE_IMPORTS)
-        assertEquals("rearrangeCode", ParamNames.REARRANGE_CODE)
     }
 
     fun testParamNamesNavigation() {
@@ -130,12 +112,6 @@ class ConstantsUnitTest : TestCase() {
     fun testParamNamesSymbolSearch() {
         assertEquals("query", ParamNames.QUERY)
         assertEquals("limit", ParamNames.LIMIT)
-    }
-
-    fun testParamNamesBuild() {
-        assertEquals("rebuild", ParamNames.REBUILD)
-        assertEquals("includeRawOutput", ParamNames.INCLUDE_RAW_OUTPUT)
-        assertEquals("timeoutSeconds", ParamNames.TIMEOUT_SECONDS)
     }
 
     // UsageTypes tests

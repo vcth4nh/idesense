@@ -23,17 +23,10 @@ The "verified against" column cites the exact call site so a future reader can r
 | `ide_diagnostics` | multiple: `DaemonCodeAnalyzerEx` (open files) + `CodeSmellDetector` (closed files) + `BuildDiagnosticsCacheService` + `TestResultsCollector` | `GetDiagnosticsTool.kt` / `DiagnosticsAnalysisService.kt` |
 | `ide_index_status` | service: `DumbService.getInstance(project).isDumb` | `GetIndexStatusTool.kt` |
 | `ide_sync_files` | none — `VfsUtil.markDirtyAndRefresh` + `LocalFileSystem` + `PsiDocumentManager.commitAllDocuments` | `SyncFilesTool.kt` |
-| `ide_build_project` | service: `ProjectTaskManager.getInstance(project)` + `ProjectTaskListener.TOPIC` message bus | `BuildProjectTool.kt` |
 | `ide_install_plugin` | none — `PathManager.getPluginsDir()` + JDK `ZipInputStream` (zip-slip guarded) | `InstallPluginTool.kt` |
 | `ide_restart` | none — `ApplicationManagerEx.getApplicationEx().restart(true)` (scheduled via `AppExecutorUtil`) | `RestartIdeTool.kt` |
 | `ide_refactor_rename` | `RenameProcessor` + `RenamePsiElementProcessor` EP + `AutomaticRenamerFactory` EP iteration | `RenameSymbolTool.kt` |
-| `ide_refactor_safe_delete` | none — `ReferencesSearch` usage check + `WriteCommandAction` PSI delete (Java plugin required for gating) | `SafeDeleteTool.kt` |
 | `ide_move_file` | `MoveFilesOrDirectoriesProcessor` (delegates to `MoveFileHandler` EP per language; PHP class files route through PhpStorm's class-move processor) | `MoveFileTool.kt` |
-| `ide_reformat_code` | `ReformatCodeProcessor` + optional `OptimizeImportsProcessor` + `RearrangeCodeProcessor` (Ctrl+Alt+L) | `ReformatCodeTool.kt` |
-| `ide_optimize_imports` | `OptimizeImportsProcessor` (Ctrl+Alt+O) | `OptimizeImportsTool.kt` |
-| `ide_convert_java_to_kotlin` | reflection: `JavaToKotlinAction.Handler.convertFiles()` (2025.x) / `JavaToKotlinActionHandler.convertFiles()` (2026.1+) | `ConvertJavaToKotlinTool.kt` |
-| `ide_get_active_file` | none — `FileEditorManager.getInstance(project).selectedEditors` | `GetActiveFileTool.kt` |
-| `ide_open_file` | none — `OpenFileDescriptor` + `FileEditorManager.openTextEditor` | `OpenFileTool.kt` |
 
 ## Core Design Principle: Mimic the IDE
 
@@ -97,7 +90,7 @@ Package map under `src/main/kotlin/com/github/vcth4nh/idesense/`
   extend this and implement `doExecute()`), `ToolRegistry` (data-driven registration),
   `schema/SchemaBuilder` (all tool input schemas). Subpackages: `navigation/`,
   `intelligence/`, `project/` (incl. `InstallPluginTool`/`RestartIdeTool` dev-loop),
-  `editor/`, `refactoring/`
+  `refactoring/`
 - `tools/navigation/hierarchy/` — **IDE extension-point delegation** for
   `ide_call_hierarchy`/`ide_type_hierarchy`. `HierarchyTreeWalker` drives the IDE's own
   `HierarchyProvider` browser/tree-structure headlessly; `ClassLikePsi` is the cross-IDE
@@ -240,7 +233,6 @@ Works for all languages (each plugin registers its own `QueryExecutor`).
    `ide_install_plugin`/`ide_restart`)
 2. `registerLanguageNavigationTools()` — `ide_find_super_methods` (gated by
    `LanguageServices.hasAnySuperMethodsProvider()`), hierarchy tools
-3. `registerJavaRefactoringTools()` — `ide_refactor_safe_delete` if Java plugin present
 
 ## Hierarchy Tools (IDE Extension-Point Delegation)
 

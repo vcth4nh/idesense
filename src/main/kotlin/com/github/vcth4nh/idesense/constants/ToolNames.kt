@@ -21,30 +21,19 @@ object ToolNames {
     // Project tools
     const val INDEX_STATUS = "ide_index_status"
     const val SYNC_FILES = "ide_sync_files"
-    const val BUILD_PROJECT = "ide_build_project"
     const val INSTALL_PLUGIN = "ide_install_plugin"
     const val RESTART_IDE = "ide_restart"
 
     // Refactoring tools
     const val REFACTOR_RENAME = "ide_refactor_rename"
-    const val REFACTOR_SAFE_DELETE = "ide_refactor_safe_delete"
     const val REFACTOR_MOVE = "ide_move_file"
-    const val REFORMAT_CODE = "ide_reformat_code"
-    const val OPTIMIZE_IMPORTS = "ide_optimize_imports"
-    const val CONVERT_JAVA_TO_KOTLIN = "ide_convert_java_to_kotlin"
-
-    // Editor tools
-    const val GET_ACTIVE_FILE = "ide_get_active_file"
-    const val OPEN_FILE = "ide_open_file"
 
     /**
      * All known tool names, sorted alphabetically.
      * Keep this list in sync when adding or removing tool name constants.
      */
     val ALL: List<String> = listOf(
-        BUILD_PROJECT,
         CALL_HIERARCHY,
-        CONVERT_JAVA_TO_KOTLIN,
         DIAGNOSTICS,
         FILE_STRUCTURE,
         FIND_CLASS,
@@ -54,16 +43,11 @@ object ToolNames {
         FIND_SUPER_METHODS,
         FIND_SYMBOL,
         FIND_USAGES,
-        GET_ACTIVE_FILE,
         INDEX_STATUS,
         INSTALL_PLUGIN,
         REFACTOR_MOVE,
-        OPEN_FILE,
-        OPTIMIZE_IMPORTS,
         READ_FILE,
         REFACTOR_RENAME,
-        REFACTOR_SAFE_DELETE,
-        REFORMAT_CODE,
         RESTART_IDE,
         SEARCH_TEXT,
         SYNC_FILES,

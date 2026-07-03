@@ -23,10 +23,6 @@ object ParamNames {
     const val TARGET_CLASS = "targetClass"
     const val TARGET_DIRECTORY = "targetDirectory"
     const val REPLACE_ALL = "replaceAll"
-    const val FORCE = "force"
-    const val TARGET_TYPE = "target_type"
-    const val OPTIMIZE_IMPORTS = "optimizeImports"
-    const val REARRANGE_CODE = "rearrangeCode"
 
     // Type hierarchy parameters
     const val CLASS_NAME = "className"
@@ -56,11 +52,6 @@ object ParamNames {
     // Filter parameters
     const val LANGUAGE = "language"
     const val FUZZY_SEARCH = "fuzzySearch"
-
-    // Build parameters
-    const val REBUILD = "rebuild"
-    const val INCLUDE_RAW_OUTPUT = "includeRawOutput"
-    const val TIMEOUT_SECONDS = "timeoutSeconds"
 
     // Lifecycle parameters (install plugin / restart IDE)
     const val DELAY_SECONDS = "delaySeconds"

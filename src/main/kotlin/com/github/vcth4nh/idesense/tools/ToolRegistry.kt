@@ -4,8 +4,6 @@ import com.github.vcth4nh.idesense.handlers.LanguageServices
 import com.github.vcth4nh.idesense.server.McpServerService
 import com.github.vcth4nh.idesense.server.models.ToolDefinition
 import com.github.vcth4nh.idesense.settings.McpSettings
-import com.github.vcth4nh.idesense.tools.editor.GetActiveFileTool
-import com.github.vcth4nh.idesense.tools.editor.OpenFileTool
 import com.github.vcth4nh.idesense.tools.intelligence.GetDiagnosticsTool
 import com.github.vcth4nh.idesense.tools.navigation.FileStructureTool
 import com.github.vcth4nh.idesense.tools.navigation.FindClassTool
@@ -16,16 +14,12 @@ import com.github.vcth4nh.idesense.tools.navigation.FindSymbolTool
 import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.ReadFileTool
 import com.github.vcth4nh.idesense.tools.navigation.SearchTextTool
-import com.github.vcth4nh.idesense.tools.project.BuildProjectTool
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
 import com.github.vcth4nh.idesense.tools.project.InstallPluginTool
 import com.github.vcth4nh.idesense.tools.project.RestartIdeTool
 import com.github.vcth4nh.idesense.tools.project.SyncFilesTool
 import com.github.vcth4nh.idesense.tools.refactoring.MoveFileTool
-import com.github.vcth4nh.idesense.tools.refactoring.OptimizeImportsTool
-import com.github.vcth4nh.idesense.tools.refactoring.ReformatCodeTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
-import com.github.vcth4nh.idesense.util.PluginDetectors
 import com.intellij.openapi.diagnostic.logger
 import java.util.concurrent.ConcurrentHashMap
 
@@ -50,12 +44,9 @@ import java.util.concurrent.ConcurrentHashMap
  * - `ide_find_symbol` - Search for symbols by name (universal, popup-backed)
  * - `ide_search_text` - Text search using word index
  * - `ide_diagnostics` - Analyze code for problems and available intentions
- * - `ide_build_project` - Build project using IDE's build system (disabled by default)
  * - `ide_install_plugin` - Install a locally built plugin .zip into this IDE (disabled by default)
  * - `ide_restart` - Restart this IDE to load a freshly installed plugin (disabled by default)
  * - `ide_index_status` - Check indexing status
- * - `ide_get_active_file` - Get the currently active file(s) in the editor (disabled by default)
- * - `ide_open_file` - Open a file in the editor (disabled by default)
  *
  * ### Language-Specific Navigation Tools
  *
@@ -71,16 +62,6 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * - `ide_refactor_rename` - Rename symbol (works across ALL languages via RenameProcessor)
  * - `ide_move_file` - Move file to a new directory using the IDE move backend appropriate for that file type
- * - `ide_reformat_code` - Reformat code using project code style (disabled by default)
- * - `ide_optimize_imports` - Optimize imports without reformatting (disabled by default)
- *
- * ### Java-Specific Refactoring Tools (IntelliJ IDEA & Android Studio Only)
- *
- * - `ide_refactor_safe_delete` - Safely delete element (requires Java plugin)
- *
- * ### Kotlin Conversion Tools (IntelliJ IDEA with Java & Kotlin Plugins)
- *
- * - `ide_convert_java_to_kotlin` - Convert Java files to Kotlin (requires both Java and Kotlin plugins, disabled by default)
  *
  * ## Custom Tool Registration
  *
@@ -88,7 +69,6 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @see McpTool
  * @see McpServerService
- * @see PluginDetectors
  */
 class ToolRegistry {
 
@@ -181,7 +161,6 @@ class ToolRegistry {
      * Tools are registered conditionally based on IDE capabilities:
      * - Universal tools are always registered
      * - Language-specific navigation tools are registered when any language handler is available
-     * - Refactoring tools are only registered when the Java plugin is available
      */
     fun registerBuiltInTools() {
         // Universal tools - work in all JetBrains IDEs
@@ -189,16 +168,6 @@ class ToolRegistry {
 
         // Language-specific navigation tools - registered when handlers are available
         registerLanguageNavigationTools()
-
-        // Java-specific refactoring tools - only available when Java plugin is present
-        if (PluginDetectors.java.isAvailable) {
-            registerJavaRefactoringTools()
-        }
-
-        // Kotlin conversion tools - only available when both Java and Kotlin plugins are present
-        if (PluginDetectors.java.isAvailable && PluginDetectors.kotlin.isAvailable) {
-            registerKotlinConversionTools()
-        }
 
         LOG.info("Registered ${tools.size} built-in MCP tools")
         logAvailableLanguages()
@@ -226,15 +195,12 @@ class ToolRegistry {
         // Project tools
         register(GetIndexStatusTool())
         register(SyncFilesTool())
-        register(BuildProjectTool())
         register(InstallPluginTool())
         register(RestartIdeTool())
 
         // Refactoring tools (universal - uses platform APIs)
         register(RenameSymbolTool())
         register(MoveFileTool())
-        register(ReformatCodeTool())
-        register(OptimizeImportsTool())
 
         // Fast search tools (universal)
         register(FindClassTool())
@@ -245,10 +211,6 @@ class ToolRegistry {
 
         // Navigation tools (EP-delegated, universal)
         register(FindImplementationsTool())
-
-        // Editor tools (universal, disabled by default)
-        register(GetActiveFileTool())
-        register(OpenFileTool())
 
         LOG.info("Registered universal tools (available in all JetBrains IDEs)")
     }
@@ -282,58 +244,6 @@ class ToolRegistry {
                 }
             } catch (e: Exception) {
                 LOG.warn("Failed to register language navigation tool ${tool.className}: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Registers Java-specific refactoring tools.
-     *
-     * These tools use Java-specific refactoring APIs and are only available
-     * when the Java plugin is present (IntelliJ IDEA, Android Studio).
-     *
-     * Note: RenameSymbolTool has been moved to registerUniversalTools() as it
-     * now uses the platform-level RenameProcessor which works across all languages.
-     *
-     * IMPORTANT: This method must only be called after checking [PluginDetectors.java.isAvailable]
-     */
-    private fun registerJavaRefactoringTools() {
-        val refactoringToolClasses = listOf(
-            "com.github.vcth4nh.idesense.tools.refactoring.SafeDeleteTool"
-        )
-
-        for (className in refactoringToolClasses) {
-            try {
-                val toolClass = Class.forName(className)
-                val tool = toolClass.getDeclaredConstructor().newInstance() as McpTool
-                register(tool)
-            } catch (e: Exception) {
-                LOG.warn("Failed to register Java refactoring tool $className: ${e.message}")
-            }
-        }
-    }
-
-    /**
-     * Registers Kotlin conversion tools.
-     *
-     * These tools use the Kotlin plugin's J2K (Java-to-Kotlin) converter APIs
-     * and are only available when both Java and Kotlin plugins are present.
-     *
-     * IMPORTANT: This method must only be called after checking that both
-     * [PluginDetectors.java.isAvailable] and [PluginDetectors.kotlin.isAvailable] are true.
-     */
-    private fun registerKotlinConversionTools() {
-        val conversionToolClasses = listOf(
-            "com.github.vcth4nh.idesense.tools.refactoring.ConvertJavaToKotlinTool"
-        )
-
-        for (className in conversionToolClasses) {
-            try {
-                val toolClass = Class.forName(className)
-                val tool = toolClass.getDeclaredConstructor().newInstance() as McpTool
-                register(tool)
-            } catch (e: Exception) {
-                LOG.warn("Failed to register Kotlin conversion tool $className: ${e.message}")
             }
         }
     }
