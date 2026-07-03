@@ -140,17 +140,29 @@ jobs:
       - name: Run Tests
         run: |
           set +e
-          timeout 900 ./gradlew check --console=plain
-          EXIT=$?
-          if [ "$EXIT" = "124" ]; then
-            echo "=== gradlew check timed out after 15m; dumping stacks of all JVMs ==="
+          ./gradlew check --console=plain &
+          GRADLE_PID=$!
+          for i in $(seq 1 84); do
+            sleep 10
+            kill -0 "$GRADLE_PID" 2>/dev/null || break
+          done
+          if kill -0 "$GRADLE_PID" 2>/dev/null; then
+            echo "=== still running after 14m; dumping stacks of ALL live JVMs before any kill ==="
+            free -m
+            ps aux --sort=-rss | head -15
             for p in $(pgrep java); do
               echo "===== jstack pid $p ====="
-              ps -o pid,args -p "$p" | tail -1
+              ps -o pid,args -p "$p" | tail -1 | cut -c1-300
               jstack -l "$p" || true
             done
+            echo "===== sandbox idea.log tails ====="
+            find . -name "idea.log" -path "*sandbox*" 2>/dev/null | while read -r f; do echo "--- $f ---"; tail -80 "$f"; done
+            find . -name "hs_err_pid*.log" 2>/dev/null | while read -r f; do echo "--- $f ---"; head -60 "$f"; done
+            kill "$GRADLE_PID"; sleep 10; kill -9 "$GRADLE_PID" 2>/dev/null
+            exit 124
           fi
-          exit $EXIT
+          wait "$GRADLE_PID"
+          exit $?
 
       # Collect Tests Result of failed tests
       - name: Collect Tests Result
