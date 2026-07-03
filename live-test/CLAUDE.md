@@ -86,7 +86,10 @@ Append to disambiguate parameter shapes or behaviors of the same probe:
   the hier-* prefix, never as a suffix.
 - depth: `-d1`, `-d2`, `-d3`.
 - fuzzySearch: `-fuzzy` (fuzzySearch:true). Exact is the default — omit the suffix, or use `-exact` to be explicit.
-- scope: `-libraries-scope`, `-files-scope`.
+- scope: `-libraries-scope`, `-files-scope`, `-production-scope`, `-test-scope`,
+  `-class-scope` (hierarchy scope:"this_class").
+- explicit type-hierarchy direction "both": `-both` (default-direction rows omit it).
+- language filter: `-lang-<language>` (e.g. `-lang-java`, `-lang-kotlin-empty`).
 - pagination: `-paged`, `-page1`, `-page2`.
 - query shape: `-qualified` (e.g. `find-symbol-Shape.area-qualified`).
 - result shape: `-no-match`, `-empty`, `-direct-overrides-only`.
@@ -96,6 +99,65 @@ Append to disambiguate parameter shapes or behaviors of the same probe:
 Kind descriptors that follow a class but are NOT member access: keep the
 hyphen, don't dot. E.g. `usage-Drawable-trait`, `impls-Shape-struct`,
 `def-Status-enum-decl`.
+
+## Fixture taxonomy
+
+What each source file hosts, per language. Files are named after the campaign
+that added them — do not rename or move; anchors and expected paths depend on
+them. Fixture edits are append-only at EOF or brand-new files (see
+Fixture-edit safety), and check the file's `file_structure`/`diagnostics`
+pins first — appending to a pinned file drifts its blessed row.
+
+| Language | File | Hosts |
+|---|---|---|
+| java | Normal.java | Shape/Circle/Rectangle/Square hierarchy, Drawable, ShapeCollection, Normal |
+| java | Quirks.java | Quirks (overloads incl. parse ×2, dispatch), Coercer, CoerceMode enum, Coerce interface |
+| java | Modern.java | record Point, sealed Animal + Cat/Dog |
+| java | MultiSuper.java | diamond/chain interfaces (DiamondTop…), Named/Tagged/Identified + record LabelPoint, sealed shapes, Op enum |
+| java | Probes.java | Probe/ProbeAux/ProbeProdChild (scope fixtures) |
+| java | GenericSuper.java, LambdaSuper.java, StaticSuper.java, NegativeSuper.java | super-methods campaign fixtures (BaseRepo/Repo, LambdaHost, StaticBase/Derived, Standalone) |
+| java | Broken.java | deliberate compile errors (ERROR-diagnostics probe; this pass) |
+| java | Extras.java | Plain (toString override → library super; this pass) |
+| kotlin | Normal.kt | Shape hierarchy, Drawable, ShapeCollection |
+| kotlin | Quirks.kt | Coercer/Coercion/AbsCoerce/IntCoerce, quirk* dispatch fns (incl. quirkDispatchMap) |
+| kotlin | Modern.kt | Counter (+ this pass: Printer delegation trio, Channel enum, Plain toString) |
+| kotlin | MultiSuper.kt, GenericSuper.kt, CompanionSuper.kt, AsyncSuper.kt, OperatorSuper.kt, SetterSuper.kt, NegativeSuper.kt | super-methods campaign fixtures |
+| kotlin | Probes.kt | Probe/ProbeProdChild (scope fixtures) |
+| javascript | src/normal.js | Shape hierarchy, Drawable, ShapeCollection, makeDefaultShapes |
+| javascript | src/quirks.js | q* dispatch functions (qBind/qCond/qComputed/…) |
+| javascript | src/probes.js | Probe, freeProdCaller, ProbeProdChild |
+| javascript | test/probe.test.js | ProbeTest, ProbeTestChild (cross-file CommonJS extends) |
+| javascript | src/setter_super.js | Base/Derived accessors (+ this pass: writeProbe WRITE-usage site) |
+| javascript | src/accessors.js, mixin_super.js, multisuper.js, triple_super.js, async_super.js, static_super…, negative_super.js, consumer.js | super-methods/mixin campaign fixtures |
+| typescript | src/normal.ts | Shape hierarchy, Drawable, ShapeCollection |
+| typescript | src/multisuper.ts | diamond (DiamondTop/DiamondBottom), AbstractCombo/ConcreteCombo (readonly p), accessor/static supers |
+| typescript | src/quirks.ts | q* dispatch, TypedCoercer |
+| typescript | src/enums.ts, namespaces.ts, decorators.ts | Color/Direction enums, Geometry namespace, Service + traced decorator |
+| typescript | src/decorators_caller.ts | useService — cross-file caller of decorated method (this pass) |
+| typescript | src/probes.ts, test/probe.test.ts | scope fixtures |
+| typescript | src/setter_super.ts, const_super.ts, generic_super.ts, static_super.ts, async_super.ts, negative_super.ts | super-methods campaign fixtures |
+| php | src/Normal.php | Shape hierarchy, ShapeCollection, area/add |
+| php | src/Quirks.php | Quirks static dispatch (qMatch/…), IntCoercer/LenCoercer |
+| php | src/Modern.php | Color/Status enums |
+| php | src/MultiSuper.php, AbstractTraitSuper.php, EnumSuper.php, ConstructorSuper.php, StaticSuper.php, NegativeSuper.php | super-methods campaign fixtures (traits, backed enums, ctor supers) |
+| php | src/Probes.php, tests/ProbeTest.php | scope fixtures |
+| php | src/Php8.php | Php8/Php8Helper: nullsafe `?->`, first-class callable, const+property (this pass) |
+| go | normal.go (+normal_test.go) | Shape/Drawable interfaces, baseShape, Circle/Rectangle/Square, MakeDefaultShapes |
+| go | quirks.go | q* dispatch fns, IntCoercer (+ this pass: CoerceLimit iota consts) |
+| go | embed.go | Labeled embed (+ this pass: IBase/IMid/ILeaf embedding chain) |
+| go | multisuper.go, generic_super.go, negative_super.go, wedge_test.go | interface-satisfaction fixtures (IFull/ChainImpl, Storage[T]/IntStore, Standalone, wedge) |
+| rust | src/normal.rs | Shape trait hierarchy, ShapeCollection, area/largest |
+| rust | src/quirks.rs | q* dispatch fns, CoerceMode enum, parse_or_zero (fn-pointer) |
+| rust | src/macros.rs | square! macro_rules, derive Point |
+| rust | src/supertrait_super.rs, generic_super.rs, default_super.rs, multisuper.rs, negative_super.rs, extra.rs | trait-super fixtures (Sub supertrait, Storage generic, Inherent, MyTrait family) |
+| rust | src/scopes.rs, tests/scope_probe.rs | Probe/target scope fixtures, TestShape |
+| python | src/normal.py | Shape hierarchy, Drawable protocol, ShapeCollection, make_default_shapes |
+| python | src/quirks.py | quirk_* dispatch fns (incl. function-local Coercer) |
+| python | src/multi_super.py | diamond MRO (DiamondBottom…), ConcreteShape, deep chains |
+| python | src/dataclass_super.py | ParentDC/ChildDC `__post_init__` |
+| python | src/probes.py, test/probes_test.py | Probe/target scope fixtures |
+| python | src/async_super.py, generic_super.py, setter_super.py, negative_super.py | super-methods campaign fixtures |
+| python | src/enums.py | Channel(Enum) + member access (this pass) |
 
 ### Anti-examples (don't do this)
 
