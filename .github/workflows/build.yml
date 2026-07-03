@@ -138,7 +138,19 @@ jobs:
 
       # Run tests
       - name: Run Tests
-        run: ./gradlew check
+        run: |
+          set +e
+          timeout 900 ./gradlew check --console=plain
+          EXIT=$?
+          if [ "$EXIT" = "124" ]; then
+            echo "=== gradlew check timed out after 15m; dumping stacks of all JVMs ==="
+            for p in $(pgrep java); do
+              echo "===== jstack pid $p ====="
+              ps -o pid,args -p "$p" | tail -1
+              jstack -l "$p" || true
+            done
+          fi
+          exit $EXIT
 
       # Collect Tests Result of failed tests
       - name: Collect Tests Result
