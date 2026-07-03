@@ -116,7 +116,7 @@ def post_jsonrpc(url: str, request: dict, timeout: float = 60.0) -> Any:
 
     Possible return shapes:
     - parsed JSON dict/list — happy path; the tool's payload
-    - {"transport_error": "..."} — curl-level failure
+    - {"transport_error": "..."} — HTTP/transport-level failure
     - {"jsonrpc_error": {...}} — JSON-RPC envelope-level error
     - {"tool_error_text": "..."} — text payload that wasn't valid JSON
     """
@@ -363,7 +363,7 @@ def run_language(
             if len(error_ids) > 5:
                 print(f"    ... and {len(error_ids) - 5} more")
             print(f"  Use --bless-errors to override.")
-            return passed, len(error_ids)
+            return passed - len(error_ids), len(error_ids)
         # Merge fresh results into existing expected, then write in input order.
         merged: dict[str, Any] = dict(expected_by_id)
         merged.update(fresh_results)
