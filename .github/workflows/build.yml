@@ -1,10 +1,10 @@
 # GitHub Actions Workflow is created for testing and preparing the plugin release in the following steps:
-# - Validate Gradle Wrapper.
-# - Run 'test' and 'verifyPlugin' tasks.
-# - Run Qodana inspections.
-# - Run the 'buildPlugin' task and prepare artifact for further tests.
-# - Run the 'runPluginVerifier' task.
-# - Create a draft release.
+# - Classify changed paths (pull requests): only code changes need the full build; docs-only PRs run just 'test'.
+# - Run the 'buildPlugin' task and prepare artifact for further tests (code PRs and pushes to main).
+# - Run the 'test' task (every PR and push to main — docs changes can fail tests via DocsDriftUnitTest).
+# - Run Qodana inspections (pushes to main only).
+# - Run the 'runPluginVerifier' task (pushes to main only).
+# - Create a draft release (pushes to main only).
 #
 # The workflow is triggered on push and pull_request events.
 #
@@ -26,9 +26,38 @@ concurrency:
   
 jobs:
 
+  # Classify the changed paths of a pull request: 'code' selects which jobs are worth running.
+  # On pushes to main the filter step is skipped and the output falls back to 'true' (run everything).
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code || 'true' }}
+    steps:
+
+      # Detect changed files via the GitHub API (no checkout needed on pull_request events)
+      - name: Filter Changed Paths
+        if: github.event_name == 'pull_request'
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'build.gradle.kts'
+              - 'settings.gradle.kts'
+              - 'gradle.properties'
+              - 'gradle/**'
+              - 'gradlew'
+              - 'gradlew.bat'
+              - 'qodana.yml'
+              - '.github/workflows/**'
+
   # Prepare the environment and build the plugin
   build:
     name: Build
+    needs: [ changes ]
+    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
 
@@ -79,7 +108,7 @@ jobs:
   # Run tests and upload a code coverage report
   test:
     name: Test
-    needs: [ build ]
+    needs: [ changes ]
     runs-on: ubuntu-latest
     steps:
 
@@ -130,6 +159,7 @@ jobs:
   inspectCode:
     name: Inspect code
     needs: [ build ]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -168,6 +198,7 @@ jobs:
   verify:
     name: Verify plugin
     needs: [ build ]
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
 
