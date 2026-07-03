@@ -166,6 +166,12 @@ changelog {
 
 // Configure Gradle Kover Plugin - read more: https://github.com/Kotlin/kotlinx-kover#configuration
 kover {
+    currentProject {
+        instrumentation {
+            // ci experiment: keep the coverage agent out of the test JVM entirely
+            disabledForAll = true
+        }
+    }
     reports {
         total {
             xml {
