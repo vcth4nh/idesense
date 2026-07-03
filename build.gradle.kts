@@ -166,6 +166,8 @@ changelog {
 
 // Configure Gradle Kover Plugin - read more: https://github.com/Kotlin/kotlinx-kover#configuration
 kover {
+    // ci experiment: swap the intellij-coverage agent for JaCoCo
+    useJacoco()
     reports {
         total {
             xml {
