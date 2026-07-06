@@ -10,5 +10,6 @@
 {"id":"def-Rectangle.area","tool":"ide_find_definition","params":{"column":5,"file":"src/normal.ts","line":25}}
 {"id":"def-T-typeparam-use","tool":"ide_find_definition","params":{"column":15,"file":"src/quirks.ts","line":53}}
 {"id":"def-TypedCoercer-via-new-generic","tool":"ide_find_definition","params":{"column":16,"file":"src/quirks.ts","line":57}}
+{"id":"def-WithSetter.value-getter","tool":"ide_find_definition","params":{"column":9,"file":"src/setter_super.ts","line":8}}
 {"id":"def-makeDefaultShapes","tool":"ide_find_definition","params":{"column":17,"file":"src/normal.ts","line":55}}
 {"id":"def-traced-decorator","tool":"ide_find_definition","params":{"column":6,"file":"src/decorators.ts","line":7}}

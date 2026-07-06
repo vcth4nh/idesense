@@ -10,5 +10,6 @@
 {"id":"def-Rectangle.area","result":{"column":5,"enclosingScope":null,"file":"src/normal.ts","kind":"METHOD","line":25,"name":"area","qualifiedName":"Rectangle.area"}}
 {"id":"def-T-typeparam-use","result":{"column":27,"enclosingScope":null,"file":"src/quirks.ts","kind":"TYPE_PARAMETER","line":52,"name":"T","qualifiedName":"TypedCoercer"}}
 {"id":"def-TypedCoercer-via-new-generic","result":{"column":14,"enclosingScope":null,"file":"src/quirks.ts","kind":"CLASS","line":52,"name":"TypedCoercer","qualifiedName":"TypedCoercer"}}
+{"id":"def-WithSetter.value-getter","result":{"column":9,"enclosingScope":null,"file":"src/setter_super.ts","kind":"PROPERTY","line":8,"name":"value","qualifiedName":"WithSetter.value"}}
 {"id":"def-makeDefaultShapes","result":{"column":17,"enclosingScope":null,"file":"src/normal.ts","kind":"FUNCTION","line":55,"name":"makeDefaultShapes","qualifiedName":"makeDefaultShapes"}}
 {"id":"def-traced-decorator","result":{"column":17,"enclosingScope":null,"file":"src/decorators.ts","kind":"FUNCTION","line":1,"name":"traced","qualifiedName":"traced"}}

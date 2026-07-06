@@ -1,3 +1,4 @@
+{"id":"hier-sub-DiamondTop","tool":"ide_type_hierarchy","params":{"column":18,"direction":"subtypes","file":"src/multisuper.ts","line":43}}
 {"id":"hier-sub-Probe-all","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"src/probes.ts","line":1,"scope":"all"}}
 {"id":"hier-sub-Probe-production","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"src/probes.ts","line":1,"scope":"production"}}
 {"id":"hier-sub-Probe-test","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"src/probes.ts","line":1,"scope":"test"}}
@@ -10,6 +11,7 @@
 {"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":18,"file":"src/normal.ts","line":1}}
 {"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":14,"file":"src/normal.ts","line":21}}
 {"id":"hier-type-Shape","tool":"ide_type_hierarchy","params":{"column":23,"file":"src/normal.ts","line":5}}
+{"id":"hier-type-Shape-both","tool":"ide_type_hierarchy","params":{"column":23,"direction":"both","file":"src/normal.ts","line":5}}
 {"id":"hier-type-Shape-byname","tool":"ide_type_hierarchy","params":{"className":"Shape"}}
 {"id":"hier-type-ShapeCollection","tool":"ide_type_hierarchy","params":{"column":14,"file":"src/normal.ts","line":35}}
 {"id":"hier-type-Square","tool":"ide_type_hierarchy","params":{"column":14,"file":"src/normal.ts","line":29}}

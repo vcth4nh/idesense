@@ -7,6 +7,7 @@
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":14,"direction":"callers","file":"src/normal.ts","line":6,"maxDepth":2}}
 {"id":"hier-caller-describe","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/normal.ts","line":8,"maxDepth":2}}
 {"id":"hier-caller-draw","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/normal.ts","line":2,"maxDepth":2}}
+{"id":"hier-caller-greet-decorated","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/decorators.ts","line":8,"maxDepth":2}}
 {"id":"hier-caller-target-all","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.ts","line":2,"scope":"all"}}
 {"id":"hier-caller-target-production","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.ts","line":2,"scope":"production"}}
 {"id":"hier-caller-target-test","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.ts","line":2,"scope":"test"}}

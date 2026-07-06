@@ -3,6 +3,7 @@
 {"id":"super-Child.factory-static","tool":"ide_find_super_methods","params":{"column":12,"file":"src/static_super.ts","line":6}}
 {"id":"super-Circle.area","tool":"ide_find_super_methods","params":{"column":5,"file":"src/normal.ts","line":17}}
 {"id":"super-Circle.draw","tool":"ide_find_super_methods","params":{"column":5,"file":"src/normal.ts","line":18}}
+{"id":"super-ConcreteCombo.p-readonly","tool":"ide_find_super_methods","params":{"column":23,"file":"src/multisuper.ts","line":100}}
 {"id":"super-ConstChild.KIND-const","tool":"ide_find_super_methods","params":{"column":21,"file":"src/const_super.ts","line":6}}
 {"id":"super-DeepLeaf.m","tool":"ide_find_super_methods","params":{"column":5,"file":"src/multisuper.ts","line":35}}
 {"id":"super-DeepMid2.m","tool":"ide_find_super_methods","params":{"column":5,"file":"src/multisuper.ts","line":31}}
