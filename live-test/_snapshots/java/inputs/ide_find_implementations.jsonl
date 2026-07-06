@@ -2,6 +2,7 @@
 {"id":"impls-Coerce-via-lambda","tool":"ide_find_implementations","params":{"column":18,"file":"src/main/java/demo/Quirks.java","line":68}}
 {"id":"impls-CoerceMode.apply","tool":"ide_find_implementations","params":{"column":22,"file":"src/main/java/demo/Quirks.java","line":74}}
 {"id":"impls-Drawable.draw","tool":"ide_find_implementations","params":{"column":12,"file":"src/main/java/demo/Normal.java","line":7}}
+{"id":"impls-Named-record","tool":"ide_find_implementations","params":{"column":11,"file":"src/main/java/demo/MultiSuper.java","line":121}}
 {"id":"impls-Shape.area","tool":"ide_find_implementations","params":{"column":21,"file":"src/main/java/demo/Normal.java","line":11}}
 {"id":"impls-coerce-run","tool":"ide_find_implementations","params":{"column":28,"file":"src/main/java/demo/Quirks.java","line":64}}
 {"id":"impls-functional-Coerce","tool":"ide_find_implementations","params":{"column":15,"file":"src/main/java/demo/Quirks.java","line":64}}

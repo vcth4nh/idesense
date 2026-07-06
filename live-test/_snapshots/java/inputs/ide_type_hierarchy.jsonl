@@ -11,5 +11,6 @@
 {"id":"hier-type-Point","tool":"ide_type_hierarchy","params":{"column":19,"file":"src/main/java/demo/Modern.java","line":4}}
 {"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/main/java/demo/Normal.java","line":36}}
 {"id":"hier-type-Shape","tool":"ide_type_hierarchy","params":{"column":16,"file":"src/main/java/demo/Normal.java","line":10}}
+{"id":"hier-type-Shape-both","tool":"ide_type_hierarchy","params":{"column":16,"direction":"both","file":"src/main/java/demo/Normal.java","line":10}}
 {"id":"hier-type-Shape-byname","tool":"ide_type_hierarchy","params":{"className":"demo.Shape"}}
 {"id":"hier-type-Square","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/main/java/demo/Normal.java","line":56}}

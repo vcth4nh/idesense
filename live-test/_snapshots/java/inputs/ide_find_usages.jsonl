@@ -2,6 +2,9 @@
 {"id":"usage-Circle-via-new-call-site","tool":"ide_find_usages","params":{"column":24,"file":"src/main/java/demo/Normal.java","line":89}}
 {"id":"usage-Drawable-interface","tool":"ide_find_usages","params":{"column":11,"file":"src/main/java/demo/Normal.java","line":6}}
 {"id":"usage-Point.x-component","tool":"ide_find_usages","params":{"column":29,"file":"src/main/java/demo/Modern.java","line":4}}
+{"id":"usage-Probe.target-files-scope","tool":"ide_find_usages","params":{"column":9,"file":"src/main/java/demo/Probes.java","line":4,"scope":"project_files"}}
+{"id":"usage-Quirks.parse-string-int-overload","tool":"ide_find_usages","params":{"column":23,"file":"src/main/java/demo/Quirks.java","line":90}}
+{"id":"usage-Quirks.parse-string-overload","tool":"ide_find_usages","params":{"column":23,"file":"src/main/java/demo/Quirks.java","line":86}}
 {"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":7,"file":"src/main/java/demo/Normal.java","line":36}}
 {"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":16,"file":"src/main/java/demo/Normal.java","line":10}}
 {"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":22,"file":"src/main/java/demo/Normal.java","line":72}}

@@ -3,6 +3,7 @@
 {"id":"hier-callee-makeDefault-d3","tool":"ide_call_hierarchy","params":{"column":31,"direction":"callees","file":"src/main/java/demo/Normal.java","line":87,"maxDepth":3}}
 {"id":"hier-callee-totalArea","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callees","file":"src/main/java/demo/Normal.java","line":69,"maxDepth":2}}
 {"id":"hier-callee-totalArea-d1","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callees","file":"src/main/java/demo/Normal.java","line":69,"maxDepth":1}}
+{"id":"hier-caller-Circle-ctor","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/main/java/demo/Normal.java","line":21,"maxDepth":2}}
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callers","file":"src/main/java/demo/Normal.java","line":11,"maxDepth":2}}
 {"id":"hier-caller-describe","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callers","file":"src/main/java/demo/Normal.java","line":13,"maxDepth":2}}
 {"id":"hier-caller-parse-string","tool":"ide_call_hierarchy","params":{"column":23,"direction":"callers","file":"src/main/java/demo/Quirks.java","line":86,"maxDepth":2}}

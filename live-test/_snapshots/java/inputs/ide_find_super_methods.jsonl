@@ -9,6 +9,7 @@
 {"id":"super-LambdaHost-lambda.run-sam","tool":"ide_find_super_methods","params":{"column":19,"file":"src/main/java/demo/LambdaSuper.java","line":5}}
 {"id":"super-LoudGreeter.greet","tool":"ide_find_super_methods","params":{"column":19,"file":"src/main/java/demo/MultiSuper.java","line":90}}
 {"id":"super-Op.ADD.apply","tool":"ide_find_super_methods","params":{"column":20,"file":"src/main/java/demo/MultiSuper.java","line":147}}
+{"id":"super-Plain.toString-library","tool":"ide_find_super_methods","params":{"column":19,"file":"src/main/java/demo/Extras.java","line":5}}
 {"id":"super-Rectangle.area","tool":"ide_find_super_methods","params":{"column":12,"file":"src/main/java/demo/Normal.java","line":46}}
 {"id":"super-Rectangle.draw","tool":"ide_find_super_methods","params":{"column":19,"file":"src/main/java/demo/Normal.java","line":51}}
 {"id":"super-Repo.find-generic","tool":"ide_find_super_methods","params":{"column":7,"file":"src/main/java/demo/GenericSuper.java","line":9}}

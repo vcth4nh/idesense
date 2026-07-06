@@ -53,6 +53,10 @@ def _is_library(file_path: str, project_root: str) -> bool:
     host-specific to maintain: a relative path is always project; an absolute
     path is library unless it resolves back under the project root.
     """
+    if file_path.startswith("jar:"):
+        # Zip/jar entries (jar:///…/src.zip!/java/util/List.java) are always
+        # library refs; os.path.isabs is False for URL forms, so check first.
+        return True
     if not os.path.isabs(file_path):
         return False
     rel = os.path.relpath(file_path, project_root)
