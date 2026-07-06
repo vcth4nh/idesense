@@ -1,6 +1,9 @@
+{"id":"usage-Channel.ALPHA-member","tool":"ide_find_usages","params":{"column":5,"file":"src/enums.py","line":5}}
 {"id":"usage-Circle.radius","tool":"ide_find_usages","params":{"column":14,"file":"src/normal.py","line":21}}
+{"id":"usage-Coercer.coerce-nested","tool":"ide_find_usages","params":{"column":13,"file":"src/quirks.py","line":63}}
 {"id":"usage-Drawable-protocol","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.py","line":6}}
 {"id":"usage-ParentDC-dataclass","tool":"ide_find_usages","params":{"column":7,"file":"src/dataclass_super.py","line":6}}
+{"id":"usage-Probe.target-files-scope","tool":"ide_find_usages","params":{"column":9,"file":"src/probes.py","line":2,"scope":"project_files"}}
 {"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.py","line":30}}
 {"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.py","line":10}}
 {"id":"usage-area-from-describe","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.py","line":12}}

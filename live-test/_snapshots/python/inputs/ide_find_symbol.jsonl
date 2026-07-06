@@ -1,4 +1,5 @@
 {"id":"find-symbol-Coercer.coerce-qualified","tool":"ide_find_symbol","params":{"query":"Coercer.coerce"}}
+{"id":"find-symbol-__post_init__-dunder","tool":"ide_find_symbol","params":{"query":"__post_init__"}}
 {"id":"find-symbol-area","tool":"ide_find_symbol","params":{"query":"area"}}
 {"id":"find-symbol-area-fuzzy","tool":"ide_find_symbol","params":{"fuzzySearch":true,"query":"area"}}
 {"id":"find-symbol-area-paged","tool":"ide_find_symbol","params":{"pageSize":2,"query":"area"}}

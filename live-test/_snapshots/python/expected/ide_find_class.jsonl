@@ -1,3 +1,4 @@
+{"id":"find-class-Channel-enum","result":{"classes":[{"column":7,"file":"src/enums.py","kind":"CLASS","line":4,"name":"Channel","qualifiedName":"enums.Channel"}],"query":"Channel","totalCount":1}}
 {"id":"find-class-Circle","result":{"classes":[{"column":7,"file":"src/normal.py","kind":"CLASS","line":19,"name":"Circle","qualifiedName":"normal.Circle"}],"query":"Circle","totalCount":1}}
 {"id":"find-class-Circle-exact","result":{"classes":[{"column":7,"file":"src/normal.py","kind":"CLASS","line":19,"name":"Circle","qualifiedName":"normal.Circle"}],"query":"Circle","totalCount":1}}
 {"id":"find-class-Drawable","result":{"classes":[{"column":7,"file":"src/normal.py","kind":"CLASS","line":6,"name":"Drawable","qualifiedName":"normal.Drawable"}],"query":"Drawable","totalCount":1}}
