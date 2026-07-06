@@ -2,6 +2,7 @@
 {"id":"hier-sub-Probe-production","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/main/java/demo/Probes.java","line":3,"scope":"production"}}
 {"id":"hier-sub-Probe-test","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/main/java/demo/Probes.java","line":3,"scope":"test"}}
 {"id":"hier-sub-Shape","tool":"ide_type_hierarchy","params":{"column":16,"direction":"subtypes","file":"src/main/java/demo/Normal.java","line":10}}
+{"id":"hier-super-LabelPoint","tool":"ide_type_hierarchy","params":{"column":8,"direction":"supertypes","file":"src/main/java/demo/MultiSuper.java","line":133}}
 {"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/main/java/demo/Normal.java","line":56}}
 {"id":"hier-super-Square-d1","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/main/java/demo/Normal.java","line":56,"maxDepth":1}}
 {"id":"hier-type-Animal","tool":"ide_type_hierarchy","params":{"column":29,"file":"src/main/java/demo/Modern.java","line":8}}
