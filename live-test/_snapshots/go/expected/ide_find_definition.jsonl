@@ -1,0 +1,10 @@
+{"id":"def-Circle.area","result":{"column":17,"enclosingScope":null,"file":"normal.go","kind":"METHOD","line":23,"name":"Area","qualifiedName":"main.Circle.Area"}}
+{"id":"def-CoerceLimitA-const","result":{"column":2,"enclosingScope":null,"file":"quirks.go","kind":"CONSTANT","line":134,"name":"CoerceLimitA","qualifiedName":"main.CoerceLimitA"}}
+{"id":"def-Drawable.draw","result":{"column":2,"enclosingScope":null,"file":"normal.go","kind":"METHOD","line":6,"name":"Draw","qualifiedName":"main.Drawable.Draw"}}
+{"id":"def-MakeDefaultShapes","result":{"column":6,"enclosingScope":null,"file":"normal.go","kind":"FUNCTION","line":72,"name":"MakeDefaultShapes","qualifiedName":"main.MakeDefaultShapes"}}
+{"id":"def-Quirks-fnvar-resolve","result":{"column":2,"enclosingScope":null,"file":"quirks.go","kind":"VARIABLE","line":11,"name":"fn","qualifiedName":"main.fn"}}
+{"id":"def-Quirks-iface-dispatch","result":{"column":2,"enclosingScope":null,"file":"quirks.go","kind":"METHOD","line":51,"name":"Coerce","qualifiedName":"main.Coercer.Coerce"}}
+{"id":"def-Quirks-method-expr","result":{"column":19,"enclosingScope":null,"file":"quirks.go","kind":"METHOD","line":56,"name":"Coerce","qualifiedName":"main.IntCoercer.Coerce"}}
+{"id":"def-Quirks-method-value","result":{"column":19,"enclosingScope":null,"file":"quirks.go","kind":"METHOD","line":56,"name":"Coerce","qualifiedName":"main.IntCoercer.Coerce"}}
+{"id":"def-Quirks-type-switch-s","result":{"column":9,"enclosingScope":null,"file":"quirks.go","kind":"VARIABLE","line":119,"name":"s","qualifiedName":"main.s"}}
+{"id":"def-Rectangle.area","result":{"column":20,"enclosingScope":null,"file":"normal.go","kind":"METHOD","line":34,"name":"Area","qualifiedName":"main.Rectangle.Area"}}

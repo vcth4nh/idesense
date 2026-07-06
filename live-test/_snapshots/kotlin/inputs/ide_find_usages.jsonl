@@ -1,0 +1,9 @@
+{"id":"usage-Circle.radius","tool":"ide_find_usages","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":13}}
+{"id":"usage-CompParent-companion","tool":"ide_find_usages","params":{"column":16,"file":"src/main/kotlin/demo/CompanionSuper.kt","line":11}}
+{"id":"usage-Drawable-interface","tool":"ide_find_usages","params":{"column":11,"file":"src/main/kotlin/demo/Normal.kt","line":3}}
+{"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":12,"file":"src/main/kotlin/demo/Normal.kt","line":18}}
+{"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":16,"file":"src/main/kotlin/demo/Normal.kt","line":7}}
+{"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":49,"file":"src/main/kotlin/demo/Normal.kt","line":32}}
+{"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":14,"scope":"project_and_libraries"}}
+{"id":"usage-coerceFirst-callsite","tool":"ide_find_usages","params":{"column":29,"file":"src/main/kotlin/demo/Quirks.kt","line":61}}
+{"id":"usage-shapes-field","tool":"ide_find_usages","params":{"column":9,"file":"src/main/kotlin/demo/Normal.kt","line":26}}

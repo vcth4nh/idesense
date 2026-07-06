@@ -4,16 +4,42 @@ Working notes for the snapshot harness. See `README.md` for user-facing docs.
 
 ## Snapshot file format
 
-Both `input.jsonl` and `expected.jsonl` are id-keyed JSONL.
+Snapshots are split per tool and live under `live-test/_snapshots/<lang>/`:
 
-- **input row**: `{"id": "<unique-id>", "tool": "ide_X", "params": {...}}` — one per line.
+```
+live-test/_snapshots/<lang>/
+  inputs/<tool>.jsonl      # e.g. inputs/ide_find_usages.jsonl — rows sorted by id
+  expected/<tool>.jsonl    # mirrors its input file 1:1, same order (bless-written)
+  output.jsonl             # per-language run artifact (gitignored)
+live-test/<lang>/          # fixture SOURCES only — the IDE-indexed project
+```
+
+- **input row**: `{"id":…,"tool":"ide_X","params":{…}}` — canonical compact
+  serialization (params keys recursively sorted, no spaces), e.g.
+  `{"id":"find-class-Circle","tool":"ide_find_class","params":{"query":"Circle"}}`
 - **expected row**: `{"id": "<input-id>", "result": <normalized-output>}` — one per line.
 - **output row** (produced by `run.py`): same shape as expected.
 
-Rows are matched by `id`, not position. Reordering, inserting, or deleting
-rows in `input.jsonl` does not shift the rest of the snapshot. The strict
-loader in `run.py` (`_load_expected_by_id`) fails on malformed JSON, missing
-`id`/`result`, non-string ids, or duplicate ids.
+Rules, all enforced by `--check-fixtures`:
+- `tool` field must equal the filename stem (`inputs/ide_find_class.jsonl`
+  holds only `"tool":"ide_find_class"` rows).
+- Ids unique globally per language (across all tool files).
+- Rows id-sorted within each file; bless mirrors input-file order, so
+  expected files are id-sorted too. New rows insert at their sorted position.
+- Every input line must byte-equal its canonical serialization
+  (`serialize_input_row` in `run.py`).
+
+Rows are matched by `id`, not position — reordering/inserting/deleting never
+shifts the rest of the snapshot. The strict loaders (`_load_inputs`,
+`_load_expected`) fail on malformed JSON, missing/duplicate ids, or
+tool≠filename.
+
+Snapshots sit **outside** the fixture project roots on purpose: their text
+mentions every fixture symbol, and once a symbol's name occurs in >10 files
+of the project IntelliJ's unused-symbol inspection silently gives up
+(`PsiSearchHelperImpl.isCheapEnoughToSearch` → `TOO_MANY_OCCURRENCES`),
+which flips "Class 'X' is never used" warnings out of diagnostics
+snapshots. Never move harness artifacts into `live-test/<lang>/`.
 
 ## ID convention
 
@@ -60,7 +86,10 @@ Append to disambiguate parameter shapes or behaviors of the same probe:
   the hier-* prefix, never as a suffix.
 - depth: `-d1`, `-d2`, `-d3`.
 - fuzzySearch: `-fuzzy` (fuzzySearch:true). Exact is the default — omit the suffix, or use `-exact` to be explicit.
-- scope: `-libraries-scope`, `-files-scope`.
+- scope: `-libraries-scope`, `-files-scope`, `-production-scope`, `-test-scope`,
+  `-class-scope` (hierarchy scope:"this_class").
+- explicit type-hierarchy direction "both": `-both` (default-direction rows omit it).
+- language filter: `-lang-<language>` (e.g. `-lang-java`, `-lang-kotlin-empty`).
 - pagination: `-paged`, `-page1`, `-page2`.
 - query shape: `-qualified` (e.g. `find-symbol-Shape.area-qualified`).
 - result shape: `-no-match`, `-empty`, `-direct-overrides-only`.
@@ -70,6 +99,65 @@ Append to disambiguate parameter shapes or behaviors of the same probe:
 Kind descriptors that follow a class but are NOT member access: keep the
 hyphen, don't dot. E.g. `usage-Drawable-trait`, `impls-Shape-struct`,
 `def-Status-enum-decl`.
+
+## Fixture taxonomy
+
+What each source file hosts, per language. Files are named after the campaign
+that added them — do not rename or move; anchors and expected paths depend on
+them. Fixture edits are append-only at EOF or brand-new files (see
+Fixture-edit safety), and check the file's `file_structure`/`diagnostics`
+pins first — appending to a pinned file drifts its blessed row.
+
+| Language | File | Hosts |
+|---|---|---|
+| java | Normal.java | Shape/Circle/Rectangle/Square hierarchy, Drawable, ShapeCollection, Normal |
+| java | Quirks.java | Quirks (overloads incl. parse ×2, dispatch), Coercer, CoerceMode enum, Coerce interface |
+| java | Modern.java | record Point, sealed Animal + Cat/Dog |
+| java | MultiSuper.java | diamond/chain interfaces (DiamondTop…), Named/Tagged/Identified + record LabelPoint, sealed shapes, Op enum |
+| java | Probes.java | Probe/ProbeAux/ProbeProdChild (scope fixtures) |
+| java | GenericSuper.java, LambdaSuper.java, StaticSuper.java, NegativeSuper.java | super-methods campaign fixtures (BaseRepo/Repo, LambdaHost, StaticBase/Derived, Standalone) |
+| java | Broken.java | deliberate compile errors (ERROR-diagnostics probe; this pass) |
+| java | Extras.java | Plain (toString override → library super; this pass) |
+| kotlin | Normal.kt | Shape hierarchy, Drawable, ShapeCollection |
+| kotlin | Quirks.kt | Coercer/Coercion/AbsCoerce/IntCoerce, quirk* dispatch fns (incl. quirkDispatchMap) |
+| kotlin | Modern.kt | Counter (+ this pass: Printer delegation trio, Channel enum, Plain toString) |
+| kotlin | MultiSuper.kt, GenericSuper.kt, CompanionSuper.kt, AsyncSuper.kt, OperatorSuper.kt, SetterSuper.kt, NegativeSuper.kt | super-methods campaign fixtures |
+| kotlin | Probes.kt | Probe/ProbeProdChild (scope fixtures) |
+| javascript | src/normal.js | Shape hierarchy, Drawable, ShapeCollection, makeDefaultShapes |
+| javascript | src/quirks.js | q* dispatch functions (qBind/qCond/qComputed/…) |
+| javascript | src/probes.js | Probe, freeProdCaller, ProbeProdChild |
+| javascript | test/probe.test.js | ProbeTest, ProbeTestChild (cross-file CommonJS extends) |
+| javascript | src/setter_super.js | Base/Derived accessors (+ this pass: writeProbe WRITE-usage site) |
+| javascript | src/accessors.js, mixin_super.js, multisuper.js, triple_super.js, async_super.js, static_super…, negative_super.js, consumer.js | super-methods/mixin campaign fixtures |
+| typescript | src/normal.ts | Shape hierarchy, Drawable, ShapeCollection |
+| typescript | src/multisuper.ts | diamond (DiamondTop/DiamondBottom), AbstractCombo/ConcreteCombo (readonly p), accessor/static supers |
+| typescript | src/quirks.ts | q* dispatch, TypedCoercer |
+| typescript | src/enums.ts, namespaces.ts, decorators.ts | Color/Direction enums, Geometry namespace, Service + traced decorator |
+| typescript | src/decorators_caller.ts | useService — cross-file caller of decorated method (this pass) |
+| typescript | src/probes.ts, test/probe.test.ts | scope fixtures |
+| typescript | src/setter_super.ts, const_super.ts, generic_super.ts, static_super.ts, async_super.ts, negative_super.ts | super-methods campaign fixtures |
+| php | src/Normal.php | Shape hierarchy, ShapeCollection, area/add |
+| php | src/Quirks.php | Quirks static dispatch (qMatch/…), IntCoercer/LenCoercer |
+| php | src/Modern.php | Color/Status enums |
+| php | src/MultiSuper.php, AbstractTraitSuper.php, EnumSuper.php, ConstructorSuper.php, StaticSuper.php, NegativeSuper.php | super-methods campaign fixtures (traits, backed enums, ctor supers) |
+| php | src/Probes.php, tests/ProbeTest.php | scope fixtures |
+| php | src/Php8.php | Php8/Php8Helper: nullsafe `?->`, first-class callable, const+property (this pass) |
+| go | normal.go (+normal_test.go) | Shape/Drawable interfaces, baseShape, Circle/Rectangle/Square, MakeDefaultShapes |
+| go | quirks.go | q* dispatch fns, IntCoercer (+ this pass: CoerceLimit iota consts) |
+| go | embed.go | Labeled embed (+ this pass: IBase/IMid/ILeaf embedding chain) |
+| go | multisuper.go, generic_super.go, negative_super.go, wedge_test.go | interface-satisfaction fixtures (IFull/ChainImpl, Storage[T]/IntStore, Standalone, wedge) |
+| rust | src/normal.rs | Shape trait hierarchy, ShapeCollection, area/largest |
+| rust | src/quirks.rs | q* dispatch fns, CoerceMode enum, parse_or_zero (fn-pointer) |
+| rust | src/macros.rs | square! macro_rules, derive Point |
+| rust | src/supertrait_super.rs, generic_super.rs, default_super.rs, multisuper.rs, negative_super.rs, extra.rs | trait-super fixtures (Sub supertrait, Storage generic, Inherent, MyTrait family) |
+| rust | src/scopes.rs, tests/scope_probe.rs | Probe/target scope fixtures, TestShape |
+| python | src/normal.py | Shape hierarchy, Drawable protocol, ShapeCollection, make_default_shapes |
+| python | src/quirks.py | quirk_* dispatch fns (incl. function-local Coercer) |
+| python | src/multi_super.py | diamond MRO (DiamondBottom…), ConcreteShape, deep chains |
+| python | src/dataclass_super.py | ParentDC/ChildDC `__post_init__` |
+| python | src/probes.py, test/probes_test.py | Probe/target scope fixtures |
+| python | src/async_super.py, generic_super.py, setter_super.py, negative_super.py | super-methods campaign fixtures |
+| python | src/enums.py | Channel(Enum) + member access (this pass) |
 
 ### Anti-examples (don't do this)
 
@@ -89,8 +177,8 @@ hyphen, don't dot. E.g. `usage-Drawable-trait`, `impls-Shape-struct`,
 1. Bless rows whose result is `tool_error_text` / `transport_error` /
    `jsonrpc_error`. Override with `--bless-errors` (rare; usually fix the
    probe first).
-2. Drop orphan expected ids (ids in `expected.jsonl` no longer in
-   `input.jsonl`). Override with `--prune`.
+2. Drop orphan expected ids (ids in `expected/` no longer in any
+   `inputs/<tool>.jsonl`). Override with `--prune`.
 3. Run with `--tool` filter matching zero rows.
 
 Writes are atomic (temp file + `os.replace`) — SIGINT-safe but not concurrency-
@@ -130,8 +218,9 @@ redundant with `file`.
 ## Fixture-edit safety
 
 - `./run.py --check-fixtures` runs offline validation (no IDE calls):
-  - input ids are unique non-empty strings
-  - expected.jsonl parses strictly
+  - input ids are unique non-empty strings, globally per language
+  - `tool` == filename stem, rows id-sorted, canonical serialization
+  - expected/*.jsonl parse strictly, no cross-file duplicate ids
   - no orphan or missing expected ids
   - each `file+line+column` probe targets an existing file, a line within
     bounds, and a non-whitespace character.
@@ -144,11 +233,12 @@ redundant with `file`.
 ## Workflow for adding new probes
 
 1. Pick an `id` following the convention above.
-2. Add the row to `<lang>/input.jsonl`.
+2. Add the row at its id-sorted position in
+   `_snapshots/<lang>/inputs/<tool>.jsonl` (canonical compact serialization).
 3. `./run.py --check-fixtures` — verify the new probe is offline-valid.
 4. `./run.py --language <lang>` — see the new row reported as MISSING.
-5. Inspect the IDE response in `<lang>/output.jsonl` for that id. Confirm
-   it looks like the truth you expected.
+5. Inspect the IDE response in `_snapshots/<lang>/output.jsonl` for that id.
+   Confirm it looks like the truth you expected.
 6. Ask the user to bless.
 7. On approval: `./run.py --bless --language <lang>`. The new row's
    expected entry is added; pre-existing expected rows are preserved.
@@ -162,9 +252,10 @@ redundant with `file`.
   in that file at or after the edit point breaks. Re-run probes; either
   re-bless if the new behavior is correct, or update the probe's `line`/
   `column` to point at the original target.
-- Renaming a class: every ID referencing that name in the suite should
-  also be renamed. Use the rename script pattern from `/tmp/rename_ids.py`
-  (preserves alignment in input.jsonl).
+- Renaming a class: rename every ID referencing it in `inputs/` **and**
+  `expected/` in lockstep (script it; ids are the join key), then run
+  `--check-fixtures` and a full language run — results are unchanged so no
+  re-bless.
 
 ## Captured ground truth (don't re-bless these as "fixes")
 
@@ -191,7 +282,7 @@ will just snapshot a different empty/odd result.
   suite currently has no probe capturing this, so it's an observation, not a blessed row.
 - **TypeScript `impls-` via object literal**: classes/objects satisfying an
   interface structurally (no `implements` clause) are not surfaced.
-- **JS `hier-type-Probe-sub-*` subtypes omit a cross-file child that `extends` a
+- **JS `hier-sub-Probe-*` subtypes omit a cross-file child that `extends` a
   `require()`-imported base.** `ProbeTestChild` (in `test/probe.test.js`,
   `class ProbeTestChild extends Probe` with `Probe` `require()`-imported from
   `src/probes.js`) does NOT appear under Subtypes of `Probe`; only the same-file

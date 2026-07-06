@@ -1,0 +1,15 @@
+{"id":"hier-callee-largest","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/normal.ts","line":46,"maxDepth":2}}
+{"id":"hier-callee-makeDefault","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callees","file":"src/normal.ts","line":55,"maxDepth":2}}
+{"id":"hier-callee-makeDefault-d3","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callees","file":"src/normal.ts","line":55,"maxDepth":3}}
+{"id":"hier-callee-span","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callees","file":"src/namespaces.ts","line":22,"maxDepth":2}}
+{"id":"hier-callee-totalArea","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/normal.ts","line":40,"maxDepth":2}}
+{"id":"hier-callee-totalArea-d1","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/normal.ts","line":40,"maxDepth":1}}
+{"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":14,"direction":"callers","file":"src/normal.ts","line":6,"maxDepth":2}}
+{"id":"hier-caller-describe","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/normal.ts","line":8,"maxDepth":2}}
+{"id":"hier-caller-draw","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/normal.ts","line":2,"maxDepth":2}}
+{"id":"hier-caller-greet-decorated","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/decorators.ts","line":8,"maxDepth":2}}
+{"id":"hier-caller-target-all","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.ts","line":2,"scope":"all"}}
+{"id":"hier-caller-target-production","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.ts","line":2,"scope":"production"}}
+{"id":"hier-caller-target-test","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.ts","line":2,"scope":"test"}}
+{"id":"hier-caller-target-this-class","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.ts","line":2,"scope":"this_class"}}
+{"id":"hier-caller-target-this-module","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/probes.ts","line":2,"scope":"this_module"}}

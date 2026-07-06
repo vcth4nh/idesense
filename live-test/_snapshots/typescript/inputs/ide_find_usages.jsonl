@@ -1,0 +1,14 @@
+{"id":"usage-Circle-via-new-call-site","tool":"ide_find_usages","params":{"column":17,"file":"src/normal.ts","line":56}}
+{"id":"usage-Circle.radius-paramprop","tool":"ide_find_usages","params":{"column":33,"file":"src/normal.ts","line":14}}
+{"id":"usage-Coercer-interface","tool":"ide_find_usages","params":{"column":18,"file":"src/quirks.ts","line":42}}
+{"id":"usage-Direction-enum","tool":"ide_find_usages","params":{"column":13,"file":"src/enums.ts","line":1}}
+{"id":"usage-Direction.North-enum","tool":"ide_find_usages","params":{"column":5,"file":"src/enums.ts","line":2}}
+{"id":"usage-Drawable-class","tool":"ide_find_usages","params":{"column":18,"file":"src/normal.ts","line":1}}
+{"id":"usage-Geometry-namespace","tool":"ide_find_usages","params":{"column":18,"file":"src/namespaces.ts","line":1}}
+{"id":"usage-Point-namespace","tool":"ide_find_usages","params":{"column":18,"file":"src/namespaces.ts","line":2}}
+{"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":23,"file":"src/normal.ts","line":5}}
+{"id":"usage-aliasedCoerce","tool":"ide_find_usages","params":{"column":14,"file":"src/quirks.ts","line":62}}
+{"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":14,"file":"src/normal.ts","line":6}}
+{"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":14,"file":"src/normal.ts","line":6,"scope":"project_and_libraries"}}
+{"id":"usage-shapes-field","tool":"ide_find_usages","params":{"column":14,"file":"src/normal.ts","line":36}}
+{"id":"usage-traced-decorator","tool":"ide_find_usages","params":{"column":17,"file":"src/decorators.ts","line":1}}

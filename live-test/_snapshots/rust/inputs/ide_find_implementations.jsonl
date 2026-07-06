@@ -1,0 +1,7 @@
+{"id":"impls-Coercer","tool":"ide_find_implementations","params":{"column":11,"file":"src/quirks.rs","line":29}}
+{"id":"impls-Drawable.draw","tool":"ide_find_implementations","params":{"column":8,"file":"src/normal.rs","line":2}}
+{"id":"impls-Shape-trait","tool":"ide_find_implementations","params":{"column":11,"file":"src/normal.rs","line":5}}
+{"id":"impls-Shape.area","tool":"ide_find_implementations","params":{"column":8,"file":"src/normal.rs","line":6}}
+{"id":"impls-Shape.describe","tool":"ide_find_implementations","params":{"column":8,"file":"src/normal.rs","line":8}}
+{"id":"impls-Storage-generic","tool":"ide_find_implementations","params":{"column":11,"file":"src/generic_super.rs","line":2}}
+{"id":"impls-generic-bound-Coercer","tool":"ide_find_implementations","params":{"column":27,"file":"src/quirks.rs","line":50}}

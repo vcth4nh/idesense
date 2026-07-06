@@ -1,0 +1,4 @@
+{"id":"diagnostics-Broken-errors","tool":"ide_diagnostics","params":{"file":"src/main/java/demo/Broken.java","severity":"errors"}}
+{"id":"diagnostics-Quirks-all","tool":"ide_diagnostics","params":{"file":"src/main/java/demo/Quirks.java","severity":"all"}}
+{"id":"diagnostics-Quirks-errors","tool":"ide_diagnostics","params":{"file":"src/main/java/demo/Quirks.java","severity":"errors"}}
+{"id":"diagnostics-warnings","tool":"ide_diagnostics","params":{"file":"src/main/java/demo/Normal.java","severity":"warnings"}}

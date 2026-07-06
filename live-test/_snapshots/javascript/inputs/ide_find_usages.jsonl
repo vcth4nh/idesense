@@ -1,0 +1,11 @@
+{"id":"usage-Circle-cross-file","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.js","line":12}}
+{"id":"usage-Circle-via-new-call-site","tool":"ide_find_usages","params":{"column":17,"file":"src/normal.js","line":57}}
+{"id":"usage-Derived.value-write","tool":"ide_find_usages","params":{"column":9,"file":"src/setter_super.js","line":9}}
+{"id":"usage-Drawable-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.js","line":3}}
+{"id":"usage-Probe.target-production-scope","tool":"ide_find_usages","params":{"column":5,"file":"src/probes.js","line":4,"scope":"project_production_files"}}
+{"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.js","line":21}}
+{"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.js","line":7}}
+{"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":5,"file":"src/normal.js","line":8}}
+{"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":5,"file":"src/normal.js","line":17,"scope":"project_and_libraries"}}
+{"id":"usage-describe-method","tool":"ide_find_usages","params":{"column":5,"file":"src/normal.js","line":9}}
+{"id":"usage-shapes-field","tool":"ide_find_usages","params":{"column":14,"file":"src/normal.js","line":39}}

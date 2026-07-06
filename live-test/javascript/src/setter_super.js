@@ -11,3 +11,9 @@ class Derived extends Base {
 }
 
 module.exports = { Base, Derived };
+
+function writeProbe() {
+    const d = new Derived();
+    d.value = 'w';
+    return d.value;
+}

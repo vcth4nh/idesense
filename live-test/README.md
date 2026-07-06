@@ -2,7 +2,7 @@
 
 Snapshot-based regression suite for the IdeSense plugin. Drives real
 HTTP POST requests against running JetBrains IDEs and diffs the responses
-against committed `expected.jsonl` files.
+against committed `_snapshots/<lang>/expected/<tool>.jsonl` files.
 
 Run after every plugin version bump.
 
@@ -30,11 +30,17 @@ Run after every plugin version bump.
 Each fixture is a real IDE-openable project. Open it, wait for indexing,
 then run the harness.
 
+Snapshots (`inputs/`, `expected/`, `output.jsonl`) live under
+`live-test/_snapshots/<lang>/`, deliberately **outside** the fixture
+project roots: snapshot text mentions every fixture symbol, and past
+IntelliJ's 10-file text-occurrence threshold the unused-symbol inspection
+silently stops reporting — which would change diagnostics snapshots.
+
 ## Quick start
 
 ```bash
 ./run.py                                 # runs every language, fails on diff
-./run.py --bless                         # rewrite expected.jsonl from server output
+./run.py --bless                         # rewrite _snapshots/<lang>/expected/<tool>.jsonl from server output
 ./run.py --bless --bless-errors          # allow blessing rows that returned tool errors (rare)
 ./run.py --bless --prune                 # allow bless to drop orphan expected ids
 ./run.py --language python               # one language only
@@ -43,7 +49,7 @@ then run the harness.
 ./run.py --check-fixtures                # validate input/expected files offline (no IDE calls)
 ```
 
-Each run writes `live-test/<lang>/output.jsonl` (gitignored) with the raw
+Each run writes `live-test/_snapshots/<lang>/output.jsonl` (gitignored) with the raw
 normalized response per entry. Useful for inspecting current responses
 without re-blessing.
 
@@ -82,12 +88,12 @@ without re-blessing.
   configured a non-default value in Settings → Tools → IdeSense.
 - **`PRECHECK: project is in dumb mode`** — wait for indexing to finish
   in the IDE, then retry.
-- **`MISSING (no expected entry for this id)`** — `expected.jsonl` doesn't
-  have an entry for this input id. Likely you added a new input row and
-  haven't blessed yet. Run `--bless` to add it.
+- **`MISSING (no expected entry for this id)`** — the tool's
+  `expected/<tool>.jsonl` doesn't have an entry for this input id. Likely
+  you added a new input row and haven't blessed yet. Run `--bless` to add it.
 - **`ORPHAN expected id …`** — an expected entry whose id is no longer in
-  `input.jsonl`. Either restore the input row or run `--bless --prune` to
-  drop the orphan.
+  any `inputs/<tool>.jsonl`. Either restore the input row or run
+  `--bless --prune` to drop the orphan.
 - **All entries `FAIL` after a JDK / language toolchain update** — the
   toolchain change shifted JDK source line numbers. Re-bless once
   intentionally.

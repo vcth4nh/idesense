@@ -1,0 +1,15 @@
+{"id":"def-Circle-via-new-call","result":{"column":5,"enclosingScope":null,"file":"src/normal.ts","kind":"CONSTRUCTOR","line":14,"name":"constructor","qualifiedName":"Circle"}}
+{"id":"def-Circle.area","result":{"column":5,"enclosingScope":null,"file":"src/normal.ts","kind":"METHOD","line":17,"name":"area","qualifiedName":"Circle.area"}}
+{"id":"def-Circle.radius-paramprop","result":{"column":33,"enclosingScope":null,"file":"src/normal.ts","kind":"READONLY_FIELD","line":14,"name":"radius","qualifiedName":"radius"}}
+{"id":"def-Color.Red-enum","result":{"column":5,"enclosingScope":null,"file":"src/enums.ts","kind":"READONLY_FIELD","line":9,"name":"Red","qualifiedName":"Color.Red"}}
+{"id":"def-Direction.North-enum","result":{"column":5,"enclosingScope":null,"file":"src/enums.ts","kind":"READONLY_FIELD","line":2,"name":"North","qualifiedName":"Direction.North"}}
+{"id":"def-Geometry.origin-call","result":{"column":21,"enclosingScope":null,"file":"src/namespaces.ts","kind":"FUNCTION","line":10,"name":"origin","qualifiedName":"Geometry.origin"}}
+{"id":"def-Quirks-parseint-arg-cast","result":{"enclosingScope":null,"file":"lib.es2015.core.d.ts","kind":"METHOD","name":"parseInt","qualifiedName":"NumberConstructor.parseInt"}}
+{"id":"def-Quirks-parseint-from-typed-lambda","result":{"column":11,"enclosingScope":null,"file":"src/quirks.ts","kind":"FUNCTION","line":2,"name":"fn","qualifiedName":"fn"}}
+{"id":"def-Rectangle-via-new-call","result":{"column":5,"enclosingScope":null,"file":"src/normal.ts","kind":"CONSTRUCTOR","line":22,"name":"constructor","qualifiedName":"Rectangle"}}
+{"id":"def-Rectangle.area","result":{"column":5,"enclosingScope":null,"file":"src/normal.ts","kind":"METHOD","line":25,"name":"area","qualifiedName":"Rectangle.area"}}
+{"id":"def-T-typeparam-use","result":{"column":27,"enclosingScope":null,"file":"src/quirks.ts","kind":"TYPE_PARAMETER","line":52,"name":"T","qualifiedName":"TypedCoercer"}}
+{"id":"def-TypedCoercer-via-new-generic","result":{"column":14,"enclosingScope":null,"file":"src/quirks.ts","kind":"CLASS","line":52,"name":"TypedCoercer","qualifiedName":"TypedCoercer"}}
+{"id":"def-WithSetter.value-getter","result":{"column":9,"enclosingScope":null,"file":"src/setter_super.ts","kind":"PROPERTY","line":8,"name":"value","qualifiedName":"WithSetter.value"}}
+{"id":"def-makeDefaultShapes","result":{"column":17,"enclosingScope":null,"file":"src/normal.ts","kind":"FUNCTION","line":55,"name":"makeDefaultShapes","qualifiedName":"makeDefaultShapes"}}
+{"id":"def-traced-decorator","result":{"column":17,"enclosingScope":null,"file":"src/decorators.ts","kind":"FUNCTION","line":1,"name":"traced","qualifiedName":"traced"}}

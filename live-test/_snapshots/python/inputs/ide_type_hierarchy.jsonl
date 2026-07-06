@@ -1,0 +1,16 @@
+{"id":"hier-sub-Probe-all","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/probes.py","line":1,"scope":"all"}}
+{"id":"hier-sub-Probe-production","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/probes.py","line":1,"scope":"production"}}
+{"id":"hier-sub-Probe-test","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/probes.py","line":1,"scope":"test"}}
+{"id":"hier-sub-Shape","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"src/normal.py","line":10}}
+{"id":"hier-super-Channel-enum","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/enums.py","line":4}}
+{"id":"hier-super-DiamondBottom-mro","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/multi_super.py","line":77}}
+{"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/normal.py","line":42}}
+{"id":"hier-type-ChildDC-dataclass","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/dataclass_super.py","line":14}}
+{"id":"hier-type-Circle","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":19}}
+{"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":6}}
+{"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":30}}
+{"id":"hier-type-Shape","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":10}}
+{"id":"hier-type-Shape-both","tool":"ide_type_hierarchy","params":{"column":7,"direction":"both","file":"src/normal.py","line":10}}
+{"id":"hier-type-Shape-byname","tool":"ide_type_hierarchy","params":{"className":"normal.Shape"}}
+{"id":"hier-type-ShapeCollection","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":47}}
+{"id":"hier-type-Square","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/normal.py","line":42}}

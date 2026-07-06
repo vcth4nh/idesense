@@ -1,0 +1,6 @@
+{"id":"impls-Coercer","tool":"ide_find_implementations","params":{"column":18,"file":"src/quirks.ts","line":42}}
+{"id":"impls-Drawable-interface","tool":"ide_find_implementations","params":{"column":18,"file":"src/normal.ts","line":1}}
+{"id":"impls-Drawable.draw","tool":"ide_find_implementations","params":{"column":5,"file":"src/normal.ts","line":2}}
+{"id":"impls-Shape-class","tool":"ide_find_implementations","params":{"column":23,"file":"src/normal.ts","line":5}}
+{"id":"impls-Shape.area","tool":"ide_find_implementations","params":{"column":14,"file":"src/normal.ts","line":6}}
+{"id":"impls-Shape.describe","tool":"ide_find_implementations","params":{"column":5,"file":"src/normal.ts","line":8}}

@@ -1,0 +1,15 @@
+{"id":"def-Circle-via-new-call","tool":"ide_find_definition","params":{"column":17,"file":"src/normal.ts","line":56}}
+{"id":"def-Circle.area","tool":"ide_find_definition","params":{"column":5,"file":"src/normal.ts","line":17}}
+{"id":"def-Circle.radius-paramprop","tool":"ide_find_definition","params":{"column":44,"file":"src/normal.ts","line":17}}
+{"id":"def-Color.Red-enum","tool":"ide_find_definition","params":{"column":24,"file":"src/enums.ts","line":22}}
+{"id":"def-Direction.North-enum","tool":"ide_find_definition","params":{"column":25,"file":"src/enums.ts","line":15}}
+{"id":"def-Geometry.origin-call","tool":"ide_find_definition","params":{"column":21,"file":"src/namespaces.ts","line":23}}
+{"id":"def-Quirks-parseint-arg-cast","tool":"ide_find_definition","params":{"column":19,"file":"src/quirks.ts","line":39}}
+{"id":"def-Quirks-parseint-from-typed-lambda","tool":"ide_find_definition","params":{"column":12,"file":"src/quirks.ts","line":3}}
+{"id":"def-Rectangle-via-new-call","tool":"ide_find_definition","params":{"column":34,"file":"src/normal.ts","line":56}}
+{"id":"def-Rectangle.area","tool":"ide_find_definition","params":{"column":5,"file":"src/normal.ts","line":25}}
+{"id":"def-T-typeparam-use","tool":"ide_find_definition","params":{"column":15,"file":"src/quirks.ts","line":53}}
+{"id":"def-TypedCoercer-via-new-generic","tool":"ide_find_definition","params":{"column":16,"file":"src/quirks.ts","line":57}}
+{"id":"def-WithSetter.value-getter","tool":"ide_find_definition","params":{"column":9,"file":"src/setter_super.ts","line":8}}
+{"id":"def-makeDefaultShapes","tool":"ide_find_definition","params":{"column":17,"file":"src/normal.ts","line":55}}
+{"id":"def-traced-decorator","tool":"ide_find_definition","params":{"column":6,"file":"src/decorators.ts","line":7}}

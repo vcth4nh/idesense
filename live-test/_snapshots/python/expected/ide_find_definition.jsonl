@@ -1,0 +1,15 @@
+{"id":"def-Circle-from-constructor-call","result":{"column":9,"enclosingScope":null,"file":"src/normal.py","kind":"METHOD","line":20,"name":"__init__","qualifiedName":"normal.Circle.__init__"}}
+{"id":"def-Rectangle.area-decl","result":{"column":9,"enclosingScope":null,"file":"src/normal.py","kind":"METHOD","line":35,"name":"area","qualifiedName":"normal.Rectangle.area"}}
+{"id":"def-Shape.describe-decl","result":{"column":9,"enclosingScope":null,"file":"src/normal.py","kind":"METHOD","line":15,"name":"describe","qualifiedName":"normal.Shape.describe"}}
+{"id":"def-abstractmethod-decorator","result":{"enclosingScope":null,"file":"abc.py","kind":"FUNCTION","name":"abstractmethod","qualifiedName":"abc.abstractmethod"}}
+{"id":"def-classify-Shape-kind","result":{"column":9,"enclosingScope":null,"file":"src/quirks.py","kind":"VARIABLE","line":107,"name":"kind","qualifiedName":"quirks.classify_shape"}}
+{"id":"def-dict-dispatch-int","result":{"enclosingScope":null,"file":"builtins.pyi","kind":"CLASS","name":"int","qualifiedName":"int"}}
+{"id":"def-int-builtin-via-rebinding-rhs","result":{"enclosingScope":null,"file":"builtins.pyi","kind":"CLASS","name":"int","qualifiedName":"int"}}
+{"id":"def-lambda-wrap-int","result":{"enclosingScope":null,"file":"builtins.pyi","kind":"METHOD","name":"__new__","qualifiedName":"int.__new__"}}
+{"id":"def-list-indexing-int","result":{"enclosingScope":null,"file":"builtins.pyi","kind":"CLASS","name":"int","qualifiedName":"int"}}
+{"id":"def-make-default-shapes-decl","result":{"column":5,"enclosingScope":null,"file":"src/normal.py","kind":"FUNCTION","line":63,"name":"make_default_shapes","qualifiedName":"normal.make_default_shapes"}}
+{"id":"def-multiple-assign-b","result":{"enclosingScope":null,"file":"builtins.pyi","kind":"METHOD","name":"__new__","qualifiedName":"int.__new__"}}
+{"id":"def-nested-return-fn","result":{"column":9,"enclosingScope":null,"file":"src/quirks.py","kind":"FUNCTION","line":80,"name":"get_coercer","qualifiedName":"quirks.quirk_nested_return"}}
+{"id":"def-quirk-rebound-fn","result":{"enclosingScope":null,"file":"builtins.pyi","kind":"METHOD","name":"__new__","qualifiedName":"int.__new__"}}
+{"id":"def-super-init","result":{"enclosingScope":null,"file":"builtins.pyi","kind":"METHOD","name":"__init__","qualifiedName":"super.__init__"}}
+{"id":"def-walrus-result","result":{"column":9,"enclosingScope":null,"file":"src/quirks.py","kind":"VARIABLE","line":69,"name":"result","qualifiedName":"quirks.quirk_walrus"}}

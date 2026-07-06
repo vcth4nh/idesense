@@ -2,8 +2,8 @@
 """Live MCP test harness runner.
 
 Drives HTTP POST requests against running JetBrains IDEs and either diffs the
-responses against committed expected.jsonl files (default) or rewrites them
-(--bless).
+responses against committed expected/<tool>.jsonl files (default) or rewrites
+them (--bless).
 
 Usage:
     ./run.py [--language LANG] [--tool TOOL] [--url URL] [--bless]
@@ -53,6 +53,10 @@ def _is_library(file_path: str, project_root: str) -> bool:
     host-specific to maintain: a relative path is always project; an absolute
     path is library unless it resolves back under the project root.
     """
+    if file_path.startswith("jar:"):
+        # Zip/jar entries (jar:///…/src.zip!/java/util/List.java) are always
+        # library refs; os.path.isabs is False for URL forms, so check first.
+        return True
     if not os.path.isabs(file_path):
         return False
     rel = os.path.relpath(file_path, project_root)
@@ -116,7 +120,7 @@ def post_jsonrpc(url: str, request: dict, timeout: float = 60.0) -> Any:
 
     Possible return shapes:
     - parsed JSON dict/list — happy path; the tool's payload
-    - {"transport_error": "..."} — curl-level failure
+    - {"transport_error": "..."} — HTTP/transport-level failure
     - {"jsonrpc_error": {...}} — JSON-RPC envelope-level error
     - {"tool_error_text": "..."} — text payload that wasn't valid JSON
     """
@@ -202,7 +206,7 @@ def diff_lines(expected: Any, actual: Any) -> str:
 
 
 def _load_expected_by_id(expected_path: Path) -> dict[str, Any]:
-    """Read expected.jsonl into an id → result dict. Strict: raises on
+    """Read one expected/<tool>.jsonl into an id → result dict. Strict: raises on
     malformed JSON, missing fields, or duplicate ids — those signal a corrupt
     snapshot, not a soft MISSING.
     """
@@ -231,6 +235,68 @@ def _serialize_row(eid: str, result: Any) -> str:
     return json.dumps({"id": eid, "result": result}, sort_keys=True, separators=(",", ":"))
 
 
+def _canon_params(v: Any) -> Any:
+    if isinstance(v, dict):
+        return {k: _canon_params(v[k]) for k in sorted(v)}
+    if isinstance(v, list):
+        return [_canon_params(x) for x in v]
+    return v
+
+
+def serialize_input_row(row: dict) -> str:
+    """Canonical input-row serialization: {"id":…,"tool":…,"params":{…}} with
+    params keys recursively sorted, compact separators. --check-fixtures
+    enforces that every committed input line equals this exactly."""
+    obj: dict[str, Any] = {"id": row["id"], "tool": row["tool"]}
+    if "params" in row:
+        obj["params"] = _canon_params(row["params"])
+    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+
+
+def _input_files(snap_dir: Path) -> list[Path]:
+    return sorted((snap_dir / "inputs").glob("*.jsonl"))
+
+
+def _load_inputs(snap_dir: Path) -> list[dict]:
+    """All input rows across inputs/*.jsonl in (file, row) order, each tagged
+    with its source stem under "_stem". Raises ValueError on invalid JSON,
+    missing/empty/duplicate id (global), or tool != filename stem."""
+    rows: list[dict] = []
+    seen: dict[str, str] = {}
+    for f in _input_files(snap_dir):
+        for i, line in enumerate(f.read_text().splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"{f}:{i}: invalid JSON ({e})")
+            eid = row.get("id")
+            if not isinstance(eid, str) or not eid:
+                raise ValueError(f"{f}:{i}: missing/empty id")
+            if eid in seen:
+                raise ValueError(f"{f}:{i}: duplicate id '{eid}' (also at {seen[eid]})")
+            seen[eid] = f"{f.name}:{i}"
+            if row.get("tool") != f.stem:
+                raise ValueError(f"{f}:{i}: tool {row.get('tool')!r} != filename stem {f.stem!r}")
+            row["_stem"] = f.stem
+            rows.append(row)
+    return rows
+
+
+def _load_expected(snap_dir: Path) -> dict[str, Any]:
+    """Merge expected/*.jsonl via the strict per-file loader; duplicate ids
+    across files are corruption."""
+    out: dict[str, Any] = {}
+    for f in sorted((snap_dir / "expected").glob("*.jsonl")):
+        part = _load_expected_by_id(f)
+        dup = sorted(set(part) & set(out))
+        if dup:
+            raise ValueError(f"{f}: expected ids duplicated across files: {dup[:5]}")
+        out.update(part)
+    return out
+
+
 def _atomic_write(path: Path, content: str) -> None:
     """Write content atomically: temp file + os.replace. Protects against
     SIGINT, crashes, and concurrent writers truncating the snapshot."""
@@ -256,6 +322,7 @@ def _result_has_error(result: Any) -> bool:
 def run_language(
     lang: str,
     project_path: Path,
+    snap_dir: Path,
     url: str,
     tool_filter: str | None,
     bless: bool,
@@ -264,9 +331,14 @@ def run_language(
 ) -> tuple[int, int]:
     """Returns (passed, failed).
 
-    Rows are matched by `id`, not by position. Output and expected both store
-    `{"id": ..., "result": ...}` per line so the snapshot survives row
-    insertions, reorderings, and `--tool` filtered blesses.
+    `project_path` is the IDE-indexed fixture project (anchors resolve there);
+    snapshots live outside it under `snap_dir` (_snapshots/<lang>/) so their
+    text never pollutes the fixture project's word index — IntelliJ inspections
+    like unused-class silently give up past a text-occurrence threshold.
+    Inputs are per-tool files (inputs/<tool>.jsonl); expected snapshots mirror
+    them 1:1 in expected/<tool>.jsonl. Rows are matched by `id`, not by
+    position, so the snapshot survives row insertions, reorderings, and
+    `--tool` filtered blesses.
     """
     print(f"[{lang}] {url}")
 
@@ -276,36 +348,25 @@ def run_language(
         print(f"[{lang}] SKIPPED (precheck failed)")
         return 0, 1
 
-    input_path = project_path / "input.jsonl"
-    expected_path = project_path / "expected.jsonl"
-    output_path = project_path / "output.jsonl"
-    inputs = [
-        json.loads(line)
-        for line in input_path.read_text().splitlines()
-        if line.strip()
-    ]
-
-    # Detect duplicate input ids — id-keyed matching requires uniqueness.
-    seen: dict[str, int] = {}
-    for i, entry in enumerate(inputs):
-        eid = entry.get("id")
-        if not isinstance(eid, str) or not eid:
-            print(f"  ERROR: input row {i + 1} has no id; fix before running.")
-            return 0, 1
-        if eid in seen:
-            print(f"  ERROR: duplicate input id '{eid}' at rows {seen[eid] + 1} and {i + 1}.")
-            return 0, 1
-        seen[eid] = i
+    output_path = snap_dir / "output.jsonl"
+    try:
+        inputs = _load_inputs(snap_dir)
+    except ValueError as e:
+        print(f"  ERROR: {e}")
+        return 0, 1
+    if not inputs:
+        print(f"  ERROR: no input rows under {snap_dir / 'inputs'}")
+        return 0, 1
 
     filtered_inputs = inputs
     if tool_filter:
-        filtered_inputs = [e for e in inputs if e["tool"] == tool_filter]
+        filtered_inputs = [e for e in inputs if e["_stem"] == tool_filter]
         if not filtered_inputs:
             print(f"  ERROR: --tool '{tool_filter}' matched no inputs.")
             return 0, 1
 
     try:
-        expected_by_id = _load_expected_by_id(expected_path)
+        expected_by_id = _load_expected(snap_dir)
     except ValueError as e:
         print(f"  ERROR: {e}")
         return 0, 1
@@ -363,8 +424,9 @@ def run_language(
             if len(error_ids) > 5:
                 print(f"    ... and {len(error_ids) - 5} more")
             print(f"  Use --bless-errors to override.")
-            return passed, len(error_ids)
-        # Merge fresh results into existing expected, then write in input order.
+            return passed - len(error_ids), len(error_ids)
+        # Merge fresh results into existing expected, then write per-tool
+        # files mirroring input-file order.
         merged: dict[str, Any] = dict(expected_by_id)
         merged.update(fresh_results)
         # Detect orphans (would be dropped). Require --prune to discard.
@@ -375,13 +437,21 @@ def run_language(
             return passed, len(orphan_ids)
         if prune:
             merged = {k: v for k, v in merged.items() if k in input_ids}
-        new_lines = [
-            _serialize_row(e["id"], merged[e["id"]])
-            for e in inputs
-            if e["id"] in merged
-        ]
-        _atomic_write(expected_path, "\n".join(new_lines) + ("\n" if new_lines else ""))
-        print(f"[{lang}] BLESSED {expected_path}")
+        by_stem: dict[str, list[dict]] = {}
+        for e in inputs:
+            by_stem.setdefault(e["_stem"], []).append(e)
+        exp_dir = snap_dir / "expected"
+        exp_dir.mkdir(exist_ok=True)
+        for stem, stem_rows in by_stem.items():
+            if tool_filter and stem != tool_filter:
+                continue
+            lines = [_serialize_row(e["id"], merged[e["id"]]) for e in stem_rows if e["id"] in merged]
+            _atomic_write(exp_dir / f"{stem}.jsonl", "\n".join(lines) + ("\n" if lines else ""))
+        if prune and tool_filter is None:
+            for f in exp_dir.glob("*.jsonl"):
+                if f.stem not in by_stem:
+                    f.unlink()
+        print(f"[{lang}] BLESSED {exp_dir}/")
     else:
         print(f"[{lang}] {passed} passed, {failed} failed")
     return passed, failed
@@ -390,47 +460,46 @@ def run_language(
 def check_fixtures(root: Path, langs: list[str]) -> int:
     """Offline validation: no IDE contact. Returns failure count.
 
-    Verifies per-language:
-      - input.jsonl: valid JSON, every row has a unique non-empty id.
-      - expected.jsonl: parses cleanly via _load_expected_by_id (strict).
-      - Orphan expected ids (id in expected but not in input).
-      - Anchor sanity: file+line+column probes target an existing file, a
-        line within bounds, and a non-whitespace character.
+    Per language: every inputs/<tool>.jsonl row is valid JSON with a unique
+    (global) id, tool == filename stem, rows id-sorted, and each line exactly
+    equals its canonical serialization. expected/*.jsonl parse strictly with
+    no cross-file duplicate ids; no orphan or missing expected ids. Anchor
+    sanity: file+line+column probes target an existing file, an in-bounds
+    line, and a non-whitespace character.
     """
     failures = 0
     for lang in langs:
         lang_dir = root / lang
-        input_path = lang_dir / "input.jsonl"
-        if not input_path.is_file():
-            print(f"[{lang}] no input.jsonl")
+        snap_dir = root / "_snapshots" / lang
+        per_lang_fail = 0
+        if not (snap_dir / "inputs").is_dir():
+            print(f"[{lang}] no {snap_dir / 'inputs'} directory")
             failures += 1
             continue
 
         inputs: list[dict] = []
-        seen: dict[str, int] = {}
-        per_lang_fail = 0
-        for i, line in enumerate(input_path.read_text().splitlines(), 1):
-            if not line.strip():
-                continue
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError as e:
-                print(f"[{lang}] input.jsonl:{i}: invalid JSON ({e})")
-                per_lang_fail += 1
-                continue
-            eid = row.get("id")
-            if not isinstance(eid, str) or not eid:
-                print(f"[{lang}] input.jsonl:{i}: missing/empty id")
-                per_lang_fail += 1
-                continue
-            if eid in seen:
-                print(f"[{lang}] input.jsonl:{i}: duplicate id '{eid}' (also row {seen[eid]})")
-                per_lang_fail += 1
-                continue
-            seen[eid] = i
-            inputs.append(row)
+        try:
+            inputs = _load_inputs(snap_dir)
+        except ValueError as e:
+            print(f"[{lang}] {e}")
+            per_lang_fail += 1
 
-        # Anchor sanity
+        for f in _input_files(snap_dir):
+            lines = [l for l in f.read_text().splitlines() if l.strip()]
+            try:
+                rows = [json.loads(l) for l in lines]
+            except json.JSONDecodeError:
+                continue  # already reported via _load_inputs
+            ids = [r.get("id") for r in rows]
+            if ids != sorted(ids):
+                print(f"[{lang}] {f.name}: rows not id-sorted")
+                per_lang_fail += 1
+            for i, (line, row) in enumerate(zip(lines, rows), 1):
+                canon = serialize_input_row(row) if isinstance(row, dict) and "id" in row and "tool" in row else None
+                if canon is not None and line != canon:
+                    print(f"[{lang}] {f.name}:{i}: not canonical serialization")
+                    per_lang_fail += 1
+
         for entry in inputs:
             params = entry.get("params", {})
             file_rel = params.get("file")
@@ -453,26 +522,21 @@ def check_fixtures(root: Path, langs: list[str]) -> int:
                 print(f"[{lang}] {entry['id']}: column {col} beyond line length ({len(line_text)})")
                 per_lang_fail += 1
                 continue
-            char = line_text[col - 1]
-            if char.isspace():
+            if line_text[col - 1].isspace():
                 print(f"[{lang}] {entry['id']}: column {col} on line {line_no} of '{file_rel}' is whitespace")
                 per_lang_fail += 1
 
-        # Expected.jsonl strict load + orphan check
-        expected_path = lang_dir / "expected.jsonl"
         expected: dict[str, Any] = {}
         try:
-            expected = _load_expected_by_id(expected_path)
+            expected = _load_expected(snap_dir)
         except ValueError as e:
             print(f"[{lang}] {e}")
             per_lang_fail += 1
         input_ids = {e["id"] for e in inputs}
-        orphans = sorted(set(expected) - input_ids)
-        for eid in orphans:
+        for eid in sorted(set(expected) - input_ids):
             print(f"[{lang}] orphan expected id '{eid}'")
             per_lang_fail += 1
-        missing = sorted(input_ids - set(expected))
-        for eid in missing:
+        for eid in sorted(input_ids - set(expected)):
             print(f"[{lang}] input id '{eid}' has no expected entry — bless needed")
             per_lang_fail += 1
 
@@ -482,15 +546,18 @@ def check_fixtures(root: Path, langs: list[str]) -> int:
 
 
 def discover_languages(root: Path, only: str | None) -> list[str]:
+    snaps = root / "_snapshots"
     if only is not None:
-        if not (root / only / "input.jsonl").is_file():
-            print(f"No input.jsonl for language '{only}'", file=sys.stderr)
+        if not (snaps / only / "inputs").is_dir():
+            print(f"No inputs/ directory for language '{only}'", file=sys.stderr)
             sys.exit(1)
         return [only]
+    if not snaps.is_dir():
+        return []
     return sorted(
         d.name
-        for d in root.iterdir()
-        if d.is_dir() and (d / "input.jsonl").is_file()
+        for d in snaps.iterdir()
+        if d.is_dir() and (d / "inputs").is_dir()
     )
 
 
@@ -501,7 +568,7 @@ def main() -> int:
         epilog=(
             "Examples:\n"
             "  ./run.py                          # diff every language\n"
-            "  ./run.py --bless                  # rewrite expected.jsonl\n"
+            "  ./run.py --bless                  # rewrite expected/<tool>.jsonl\n"
             "  ./run.py --language java          # one language\n"
             "  ./run.py --tool ide_find_definition\n"
             "  ./run.py --url http://127.0.0.1:29170/mcp/streamable-http"
@@ -513,7 +580,7 @@ def main() -> int:
     parser.add_argument(
         "--bless",
         action="store_true",
-        help="Rewrite expected.jsonl from server output instead of diffing.",
+        help="Rewrite expected/<tool>.jsonl files from server output instead of diffing.",
     )
     parser.add_argument(
         "--bless-errors",
@@ -554,7 +621,7 @@ def main() -> int:
                 return 1
             url = f"http://127.0.0.1:{port}/mcp/streamable-http"
         passed, failed = run_language(
-            lang, root / lang, url, args.tool, args.bless,
+            lang, root / lang, root / "_snapshots" / lang, url, args.tool, args.bless,
             bless_errors=args.bless_errors, prune=args.prune,
         )
         total_pass += passed

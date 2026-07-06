@@ -129,3 +129,12 @@ func qTypeSwitch(x interface{}) int {
 func qPrintToUpper(x string) {
 	fmt.Println(strings.ToUpper(x))
 }
+
+const (
+	CoerceLimitA = iota
+	CoerceLimitB
+)
+
+func coerceLimitUse() int {
+	return CoerceLimitA + CoerceLimitB
+}

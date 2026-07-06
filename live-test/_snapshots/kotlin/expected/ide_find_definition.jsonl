@@ -1,0 +1,8 @@
+{"id":"def-Circle.area","result":{"column":18,"enclosingScope":null,"file":"src/main/kotlin/demo/Normal.kt","kind":"FUNCTION","line":14,"name":"area","qualifiedName":"demo.Circle#area"}}
+{"id":"def-Rectangle.area","result":{"column":18,"enclosingScope":null,"file":"src/main/kotlin/demo/Normal.kt","kind":"FUNCTION","line":19,"name":"area","qualifiedName":"demo.Rectangle#area"}}
+{"id":"def-companion-DEFAULT-LIMIT","result":{"column":19,"enclosingScope":null,"file":"src/main/kotlin/demo/Modern.kt","kind":"PROPERTY","line":9,"name":"DEFAULT_LIMIT","qualifiedName":"demo.Counter#DEFAULT_LIMIT"}}
+{"id":"def-companion-create-call","result":{"column":13,"enclosingScope":null,"file":"src/main/kotlin/demo/Modern.kt","kind":"FUNCTION","line":10,"name":"create","qualifiedName":"demo.Counter.Companion#create"}}
+{"id":"def-extension-coerceTo","result":{"column":12,"enclosingScope":null,"file":"src/main/kotlin/demo/Quirks.kt","kind":"FUNCTION","line":27,"name":"coerceTo","qualifiedName":"demo.QuirksKt#coerceTo"}}
+{"id":"def-infix-coerceFirst","result":{"column":29,"enclosingScope":null,"file":"src/main/kotlin/demo/Quirks.kt","kind":"FUNCTION","line":61,"name":"coerceFirst","qualifiedName":"demo.QuirksKt#coerceFirst"}}
+{"id":"def-makeDefaultShapes","result":{"column":5,"enclosingScope":null,"file":"src/main/kotlin/demo/Normal.kt","kind":"FUNCTION","line":37,"name":"makeDefaultShapes","qualifiedName":"demo.NormalKt#makeDefaultShapes"}}
+{"id":"def-suspend-fetchValue-call","result":{"column":13,"enclosingScope":null,"file":"src/main/kotlin/demo/Modern.kt","kind":"FUNCTION","line":14,"name":"fetchValue","qualifiedName":"demo.ModernKt#fetchValue"}}

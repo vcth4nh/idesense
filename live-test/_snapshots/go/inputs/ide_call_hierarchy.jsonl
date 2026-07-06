@@ -1,0 +1,11 @@
+{"id":"hier-callee-Largest","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callees","file":"normal.go","line":62,"maxDepth":2}}
+{"id":"hier-callee-MakeDefault","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callees","file":"normal.go","line":72,"maxDepth":2}}
+{"id":"hier-callee-MakeDefault-d3","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callees","file":"normal.go","line":72,"maxDepth":3}}
+{"id":"hier-callee-TotalArea","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callees","file":"normal.go","line":54,"maxDepth":2}}
+{"id":"hier-caller-Describe","tool":"ide_call_hierarchy","params":{"column":2,"direction":"callers","file":"normal.go","line":11,"maxDepth":2}}
+{"id":"hier-caller-Draw","tool":"ide_call_hierarchy","params":{"column":2,"direction":"callers","file":"normal.go","line":6,"maxDepth":2}}
+{"id":"hier-caller-Rectangle.Area-all","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":34,"scope":"all"}}
+{"id":"hier-caller-Rectangle.Area-class-scope","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":34,"scope":"this_class"}}
+{"id":"hier-caller-Rectangle.Area-test","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":34,"scope":"test"}}
+{"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":18,"direction":"callers","file":"normal.go","line":23,"maxDepth":2}}
+{"id":"hier-caller-baseShape.Describe-cross-file","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":16,"maxDepth":2}}
