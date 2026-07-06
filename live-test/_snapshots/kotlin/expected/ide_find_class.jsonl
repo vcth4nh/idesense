@@ -1,3 +1,4 @@
+{"id":"find-class-Channel-enum","result":{"classes":[{"column":12,"file":"src/main/kotlin/demo/Modern.kt","kind":"ENUM","line":38,"name":"Channel","qualifiedName":"demo.Channel"}],"query":"Channel","totalCount":1}}
 {"id":"find-class-Circle","result":{"classes":[{"column":7,"file":"src/main/kotlin/demo/Normal.kt","kind":"CLASS","line":13,"name":"Circle","qualifiedName":"demo.Circle"}],"query":"Circle","totalCount":1}}
 {"id":"find-class-Circle-exact","result":{"classes":[{"column":7,"file":"src/main/kotlin/demo/Normal.kt","kind":"CLASS","line":13,"name":"Circle","qualifiedName":"demo.Circle"}],"query":"Circle","totalCount":1}}
 {"id":"find-class-Coercer","result":{"classes":[{"column":12,"file":"src/main/kotlin/demo/Quirks.kt","kind":"DATA_CLASS","line":45,"name":"Coercer","qualifiedName":"demo.Coercer"}],"query":"Coercer","totalCount":1}}

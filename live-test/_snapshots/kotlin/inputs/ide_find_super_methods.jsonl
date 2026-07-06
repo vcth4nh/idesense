@@ -12,6 +12,7 @@
 {"id":"super-Leaf.m","tool":"ide_find_super_methods","params":{"column":18,"file":"src/main/kotlin/demo/MultiSuper.kt","line":38}}
 {"id":"super-LoudGreeter.greet","tool":"ide_find_super_methods","params":{"column":18,"file":"src/main/kotlin/demo/MultiSuper.kt","line":72}}
 {"id":"super-Mid2.m","tool":"ide_find_super_methods","params":{"column":18,"file":"src/main/kotlin/demo/MultiSuper.kt","line":34}}
+{"id":"super-Plain.toString-library","tool":"ide_find_super_methods","params":{"column":18,"file":"src/main/kotlin/demo/Modern.kt","line":41}}
 {"id":"super-Point.name","tool":"ide_find_super_methods","params":{"column":31,"file":"src/main/kotlin/demo/MultiSuper.kt","line":141}}
 {"id":"super-Rectangle.area","tool":"ide_find_super_methods","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":19}}
 {"id":"super-Rectangle.draw","tool":"ide_find_super_methods","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":20}}

@@ -24,3 +24,19 @@ fun useCounter(): Int {
     c.increment()
     return Counter.DEFAULT_LIMIT + c.value()
 }
+
+interface Printer {
+    fun print(): String
+}
+
+class RealPrinter : Printer {
+    override fun print(): String = "real"
+}
+
+class DelegatingPrinter(private val p: Printer) : Printer by p
+
+enum class Channel { ALPHA, BETA }
+
+class Plain {
+    override fun toString(): String = "plain"
+}
