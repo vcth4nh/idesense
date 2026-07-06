@@ -1,4 +1,5 @@
 {"id":"def-Circle.area","tool":"ide_find_definition","params":{"column":18,"file":"normal.go","line":23}}
+{"id":"def-CoerceLimitA-const","tool":"ide_find_definition","params":{"column":9,"file":"quirks.go","line":139}}
 {"id":"def-Drawable.draw","tool":"ide_find_definition","params":{"column":2,"file":"normal.go","line":6}}
 {"id":"def-MakeDefaultShapes","tool":"ide_find_definition","params":{"column":6,"file":"normal.go","line":72}}
 {"id":"def-Quirks-fnvar-resolve","tool":"ide_find_definition","params":{"column":10,"file":"quirks.go","line":12}}

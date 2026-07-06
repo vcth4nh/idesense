@@ -6,6 +6,7 @@
 {"id":"super-IFull-type","tool":"ide_find_super_methods","params":{"column":6,"file":"multisuper.go","line":42}}
 {"id":"super-Implementer.Run-compose-dedup","tool":"ide_find_super_methods","params":{"column":23,"file":"generic_super.go","line":32}}
 {"id":"super-IntCoercer.Coerce","tool":"ide_find_super_methods","params":{"column":19,"file":"quirks.go","line":56}}
+{"id":"super-IntStore-type-generic","tool":"ide_find_super_methods","params":{"column":6,"file":"generic_super.go","line":8}}
 {"id":"super-IntStore.Get-generic","tool":"ide_find_super_methods","params":{"column":20,"file":"generic_super.go","line":10}}
 {"id":"super-Outer-type","tool":"ide_find_super_methods","params":{"column":6,"file":"multisuper.go","line":58}}
 {"id":"super-Outer.Hello","tool":"ide_find_super_methods","params":{"column":16,"file":"multisuper.go","line":60}}

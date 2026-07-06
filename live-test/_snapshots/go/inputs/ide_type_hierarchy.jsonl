@@ -1,6 +1,8 @@
+{"id":"hier-sub-IBase-embedded","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"multisuper.go","line":16}}
 {"id":"hier-sub-Shape","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"normal.go","line":9}}
 {"id":"hier-sub-Shape-all","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"normal.go","line":9,"scope":"all"}}
 {"id":"hier-sub-Shape-test","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"normal.go","line":9,"scope":"test"}}
+{"id":"hier-super-ILeaf-embedded","tool":"ide_type_hierarchy","params":{"column":6,"direction":"supertypes","file":"multisuper.go","line":24}}
 {"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"normal.go","line":40}}
 {"id":"hier-type-Circle","tool":"ide_type_hierarchy","params":{"column":6,"file":"normal.go","line":18}}
 {"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":6,"file":"normal.go","line":5}}
