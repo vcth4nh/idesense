@@ -1,13 +1,20 @@
+// Core fixture: a small shape hierarchy anchoring most definition, usage, and
+// hierarchy probes for this language. The warnings this file produces are
+// pinned as the warning level diagnostics baseline.
 package demo;
 
 import java.util.ArrayList;
 import java.util.List;
 
+// Drawable plus the abstract Shape base give each concrete shape two parents:
+// an interface method to implement and an abstract method to override.
 interface Drawable {
     String draw();
 }
 
 abstract class Shape {
+    // Symbol search collapses overrides onto this topmost declaration; the
+    // subclass versions are not listed separately.
     abstract double area();
 
     String describe() {
@@ -53,12 +60,16 @@ class Rectangle extends Shape implements Drawable {
     }
 }
 
+// A second level of extension, so upward hierarchy walks have depth two and
+// the base class has both direct and indirect subtypes.
 class Square extends Rectangle {
     Square(double side) {
         super(side, side);
     }
 }
 
+// Gives the area method a fan of callers: totalArea() and largest() both
+// call it through the base type.
 class ShapeCollection {
     private final List<Shape> shapes = new ArrayList<>();
 
@@ -84,6 +95,8 @@ class ShapeCollection {
 }
 
 public class Normal {
+    // Builds one of each shape. Ground truth: in Java these constructor calls
+    // do surface as outgoing calls in the call tree of this method.
     public static List<Shape> makeDefaultShapes() {
         List<Shape> shapes = new ArrayList<>();
         shapes.add(new Circle(1.0));

@@ -1,4 +1,7 @@
 <?php
+// Primary navigation fixture: the Drawable/Shape/Circle/Rectangle/Square
+// hierarchy plus ShapeCollection and makeDefaultShapes() anchor most PHP
+// definition, usage, implementation, and hierarchy probes.
 namespace Demo;
 
 interface Drawable {
@@ -37,12 +40,15 @@ class Rectangle extends Shape implements Drawable {
     }
 }
 
+// Second-level subclass: supertype-direction hierarchy and ctor-super target.
 class Square extends Rectangle {
     public function __construct(float $side) {
         parent::__construct($side, $side);
     }
 }
 
+// Aggregation host: totalArea() and largest() give area() its callers and
+// serve as callee-direction call-hierarchy roots.
 class ShapeCollection {
     /** @var Shape[] */
     public array $shapes = [];
@@ -70,6 +76,9 @@ class ShapeCollection {
     }
 }
 
+// Ground truth: PhpStorm reports NO callees for makeDefaultShapes() — the
+// Circle/Rectangle/Square constructor invocations don't surface in a PHP
+// callee hierarchy (Java and TypeScript differ). Empty is correct here.
 function makeDefaultShapes(): array {
     return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];
 }

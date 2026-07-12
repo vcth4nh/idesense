@@ -1,3 +1,6 @@
+# Super-method fixture for property setters: with the anchor on WithSetter's
+# value setter, the super resolves to WithSetterBase's setter — the paired
+# getter overload is not the answer.
 """Setter override across base/derived class hierarchy."""
 
 

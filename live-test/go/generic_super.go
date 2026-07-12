@@ -1,5 +1,8 @@
 package main
 
+// Super-method fixtures for parameterized and composed interfaces: what a
+// method's implicit super set looks like under generics, and how supers
+// dedup when embedded interfaces repeat an identical signature.
 // Go 1.18+ generic interface — IntStore satisfies Storage[int].
 type Storage[T any] interface {
 	Get(key string) T

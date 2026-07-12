@@ -1,5 +1,8 @@
 package main
 
+// Interface-satisfaction topology: the shapes a Go method's super set and a
+// type's hierarchy can take — same-signature interfaces, embedding chains,
+// struct-embedding promotion, and stdlib-interface satisfaction.
 type IRender interface {
 	Name() string
 }
@@ -8,11 +11,15 @@ type IDisplay interface {
 	Name() string
 }
 
+// Triple's single Name method implicitly satisfies both IRender and IDisplay
+// — one method with two same-signature interface supers.
 type Triple struct{}
 
 func (t *Triple) Name() string { return "triple" }
 
 // Pattern 1: Interface embedding chain (3 levels, no new methods)
+// The chain is exercised from both ends — subtypes looking down from IBase,
+// supertypes looking up from ILeaf; ChainImpl's Chain satisfies all three.
 type IBase interface {
 	Chain() string
 }

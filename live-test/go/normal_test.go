@@ -1,5 +1,9 @@
 package main
 
+// Generated-style table tests over this package's shape types; the case
+// tables are intentionally empty. Their references (field types, composite-
+// literal keys, method calls) give the production symbols test-scope hits,
+// so scope-filtered usage and caller lookups can split test from production.
 import (
 	"reflect"
 	"testing"

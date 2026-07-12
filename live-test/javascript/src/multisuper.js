@@ -1,3 +1,5 @@
+// Super-method families over plain class inheritance: a three-level
+// method chain, a getter override, and a static method override.
 'use strict';
 
 // Deep override chain (3 levels): Leaf extends Mid extends Base.
@@ -10,6 +12,8 @@ class Mid extends Base {
     m() { return "mid"; }
 }
 
+// The Leaf class-name line is itself probed: super lookup on a class name
+// resolves the superclass (Mid, as a CLASS result), not a method.
 class Leaf extends Mid {
     m() { return "leaf"; }
 }

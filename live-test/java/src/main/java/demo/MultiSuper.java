@@ -1,5 +1,10 @@
+// Multi-super fixtures: each block below gives one method several direct
+// supers (abstract class plus interfaces) in a different shape — flat triple,
+// deep chain, diamond, competing defaults, sealed set, record, and enum.
 package demo;
 
+// Flat triple: Triple has three direct supers (Base, IRender, IDisplay), all
+// declaring name(). Probing the class name itself lists those supertypes.
 interface IRender {
     String name();
 }
@@ -19,6 +24,9 @@ class Triple extends Base implements IRender, IDisplay {
     }
 }
 
+// Deep override chain: ChainBase -> ChainMid1 -> ChainMid2 -> ChainLeaf, with
+// ITaggable joining at ChainMid2. Supers of tag() accumulate transitively —
+// ChainLeaf reports the whole chain, not just its immediate parent.
 abstract class ChainBase {
     abstract String tag();
 }
@@ -48,6 +56,9 @@ class ChainLeaf extends ChainMid2 {
     }
 }
 
+// Diamond: DiamondLeft and DiamondRight both extend DiamondTop; DiamondBottom
+// joins them with the abstract DiamondLegacy. Supers of pick() report
+// DiamondTop only once — the two diamond paths are merged.
 interface DiamondTop {
     String pick();
 }
@@ -69,6 +80,8 @@ class DiamondBottom extends DiamondLegacy implements DiamondLeft, DiamondRight {
     }
 }
 
+// Competing default methods: Greeter and FriendlyGreeter both provide greet()
+// defaults, so LoudGreeter must override; all three supers are reported.
 interface Greeter {
     default String greet() {
         return "hello";
@@ -92,6 +105,8 @@ class LoudGreeter extends AbstractGreeter implements Greeter, FriendlyGreeter {
     }
 }
 
+// Sealed interface mixed with plain interfaces: SealedSquare.sides() has
+// three interface supers, SealedTriangle two.
 sealed interface SealedShape permits SealedSquare, SealedTriangle {
     int sides();
 }
@@ -118,6 +133,9 @@ final class SealedTriangle implements SealedShape, Polygon {
     }
 }
 
+// Record implementing three interfaces that all declare label(): the accessor
+// generated for the label component satisfies all three at once, and the
+// record's supertype chain climbs through the library's record base class.
 interface Named {
     String label();
 }
@@ -133,6 +151,9 @@ interface Identified {
 record LabelPoint(String label, int x, int y) implements Named, Tagged, Identified {
 }
 
+// Enum constant bodies: each constant overrides the enum's own abstract
+// apply(), which itself implements IntFn and IntOp — a constant's apply()
+// reports all three supers.
 interface IntFn {
     int apply(int x);
 }

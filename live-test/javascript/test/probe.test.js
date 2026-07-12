@@ -1,3 +1,6 @@
+// Test-side half of the scope fixture: ProbeTest.testCaller() calls into
+// the required Probe from test scope, and ProbeTestChild extends it across
+// the CommonJS module boundary (see the ground-truth note below).
 'use strict';
 
 const { Probe } = require('../src/probes');

@@ -1,3 +1,5 @@
+// Custom-accessor super resolution: WithSetter.value has hand-written get/set
+// and must still resolve to the var declared in WithProp.
 package demo
 
 interface WithProp {

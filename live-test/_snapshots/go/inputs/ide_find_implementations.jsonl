@@ -1,2 +1,2 @@
-{"id":"impls-Drawable","tool":"ide_find_implementations","params":{"column":6,"file":"normal.go","line":5}}
-{"id":"impls-Shape","tool":"ide_find_implementations","params":{"column":6,"file":"normal.go","line":9}}
+{"id":"impls-Drawable","tool":"ide_find_implementations","params":{"column":6,"file":"normal.go","line":16}}
+{"id":"impls-Shape","tool":"ide_find_implementations","params":{"column":6,"file":"normal.go","line":20}}

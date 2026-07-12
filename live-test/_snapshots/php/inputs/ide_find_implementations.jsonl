@@ -1,6 +1,6 @@
-{"id":"impls-Coercer","tool":"ide_find_implementations","params":{"column":11,"file":"src/Quirks.php","line":79}}
-{"id":"impls-Drawable.draw","tool":"ide_find_implementations","params":{"column":21,"file":"src/Normal.php","line":5}}
-{"id":"impls-Shape-class","tool":"ide_find_implementations","params":{"column":16,"file":"src/Normal.php","line":8}}
-{"id":"impls-Shape.area","tool":"ide_find_implementations","params":{"column":30,"file":"src/Normal.php","line":9}}
-{"id":"impls-Shape.describe","tool":"ide_find_implementations","params":{"column":21,"file":"src/Normal.php","line":11}}
-{"id":"impls-coerce-at-usage","tool":"ide_find_implementations","params":{"column":20,"file":"src/Quirks.php","line":71}}
+{"id":"impls-Coercer","tool":"ide_find_implementations","params":{"column":11,"file":"src/Quirks.php","line":104}}
+{"id":"impls-Drawable.draw","tool":"ide_find_implementations","params":{"column":21,"file":"src/Normal.php","line":8}}
+{"id":"impls-Shape-class","tool":"ide_find_implementations","params":{"column":16,"file":"src/Normal.php","line":11}}
+{"id":"impls-Shape.area","tool":"ide_find_implementations","params":{"column":30,"file":"src/Normal.php","line":12}}
+{"id":"impls-Shape.describe","tool":"ide_find_implementations","params":{"column":21,"file":"src/Normal.php","line":14}}
+{"id":"impls-coerce-at-usage","tool":"ide_find_implementations","params":{"column":20,"file":"src/Quirks.php","line":92}}

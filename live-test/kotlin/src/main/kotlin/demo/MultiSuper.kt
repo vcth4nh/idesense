@@ -1,5 +1,9 @@
+// Super-method resolution stress file: nine override shapes mixing class-side
+// and interface-side supers that declare the same member.
 package demo
 
+// Three-way direct supers: Triple overrides name(), which is declared by the
+// Base class and by both IRender and IDisplay.
 interface IRender {
     fun name(): String
 }
