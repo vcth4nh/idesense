@@ -170,6 +170,36 @@ pins first — appending to a pinned file drifts its blessed row.
 - ❌ `def-circle-area-decl` — preserve class casing: `def-Circle.area-decl`
 - ❌ `super-Circle-draw` — dot member access: `super-Circle.draw`
 
+## Fixture comment standard (how to read a fixture)
+
+Every fixture source file carries comments that make it readable cold:
+
+- **File header** (1–3 comment lines at top): what the file hosts and why it exists.
+- **Per-construct block comments** in multi-family files (`MultiSuper.kt` style:
+  "Diamond + abstract base: … -> Bottom").
+- **Ground-truth notes** where a construct pins surprising IDE behavior (e.g.
+  `writeProbe` in `setter_super.js` pins WebStorm reporting setter write-sites
+  as REFERENCE, not WRITE).
+
+The per-probe join lives in `_snapshots/<lang>/ANCHORS.md` (regenerate:
+`./run.py --write-anchors`; `--check-fixtures` fails while stale). Comments
+never enumerate probe ids — they explain intent; the map owns the inventory.
+
+Hard rules (they keep the pinned snapshots stable):
+
+- **Whole-line comments only** — never trailing/same-line; columns must not move.
+- **Plain `//` only** (`#` in Python). Banned: JSDoc `/** */` (feeds WebStorm
+  type inference), Python docstrings (become structure nodes), Rust `///`,
+  phpdoc, `/* */` blocks.
+- **Only name symbols declared in the same file** (10-file word-occurrence
+  threshold — see "Fixture-edit safety").
+- **Dictionary words only** in the diagnostics-pinned java files
+  (`Broken.java`, `Quirks.java`, `Normal.java`) — a typo can spawn a
+  spell-check inspection row.
+- New fixture code ships **with** its header + construct comments. Inserting a
+  comment into an already-pinned file shifts every anchor below it: re-anchor
+  the affected input rows and re-bless (see "When fixtures change").
+
 ## Bless safety
 
 `./run.py --bless` is gated. By default it refuses to:
@@ -242,6 +272,9 @@ redundant with `file`.
 6. Ask the user to bless.
 7. On approval: `./run.py --bless --language <lang>`. The new row's
    expected entry is added; pre-existing expected rows are preserved.
+8. New/edited fixture files follow the "Fixture comment standard" above, and
+   ANCHORS.md must be regenerated after input changes (`./run.py
+   --write-anchors`) — `--check-fixtures` enforces both freshness and anchors.
 
 ## When fixtures change
 

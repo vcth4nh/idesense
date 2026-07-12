@@ -53,6 +53,10 @@ Each run writes `live-test/_snapshots/<lang>/output.jsonl` (gitignored) with the
 normalized response per entry. Useful for inspecting current responses
 without re-blessing.
 
+Per-language anchor maps live at `_snapshots/<lang>/ANCHORS.md` — a generated
+index mapping every probe id to the fixture line it anchors (regenerate with
+`./run.py --write-anchors`; `--check-fixtures` fails while the map is stale).
+
 ## Version-bump workflow
 
 1. Bump `pluginVersion` in `gradle.properties`.
