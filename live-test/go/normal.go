@@ -66,8 +66,8 @@ func NewSquare(side float64) Square {
 	return Square{Rectangle: Rectangle{Width: side, Height: side}}
 }
 
-// ShapeCollection dispatches through the interface: TotalArea and Largest
-// call the area method on interface values, giving it callers. The struct
+// ShapeCollection dispatches through the interface: callee walks on TotalArea
+// and Largest surface the interface area method as a callee. The struct
 // satisfies no interface, so its own type hierarchy is empty.
 type ShapeCollection struct {
 	Shapes []Shape

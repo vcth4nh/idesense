@@ -1,6 +1,6 @@
-// Production side of the scope-discrimination pair: callers of target() and
-// subtypes of Probe are probed under production, test, this-class and
-// this-module scopes; the test-only hits live in the test source tree.
+// Production side of the scope-discrimination pair: callers of target() are
+// probed under production, test, this-class and this-module scopes; subtypes
+// of Probe under all, production and test. Test-only hits live in test code.
 package demo
 
 open class Probe {

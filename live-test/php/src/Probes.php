@@ -1,7 +1,7 @@
 <?php
-// Production half of the scope fixtures: Probe::target() has callers, and
-// Probe has subtypes, both here and in the test tree — so production/test
-// scope filters must return different sets.
+// Production half of the scope fixtures: Probe::target() has callers here
+// and in the test tree, so production/test scope filters return different
+// caller sets. Ground truth: subtype queries ignore the scope filter.
 namespace Demo;
 
 class Probe

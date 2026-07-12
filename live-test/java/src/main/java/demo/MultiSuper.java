@@ -1,4 +1,4 @@
-// Multi-super fixtures: each block below gives one method several direct
+// Multi-super fixtures: most blocks below give one method several direct
 // supers (abstract class plus interfaces) in a different shape — flat triple,
 // deep chain, diamond, competing defaults, sealed set, record, and enum.
 package demo;

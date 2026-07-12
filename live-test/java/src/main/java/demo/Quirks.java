@@ -1,6 +1,6 @@
 // Dispatch vehicles: each quirk method funnels the same standard library
-// parse call through a different syntactic wrapper, so resolution is probed
-// once per wrapper. This file's warning diagnostics are pinned in full.
+// parse call through a different syntactic wrapper, so resolution can be
+// probed per wrapper. This file's warning diagnostics are pinned in full.
 package demo;
 
 import java.util.*;
@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 public class Quirks {
 
-    // Plain lambda wrapper.
+    // A plain lambda wrapper.
     public static int quirkLambda(String x) {
         Function<String, Integer> fn = s -> Integer.parseInt(s);
         return fn.apply(x);

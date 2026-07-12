@@ -19,7 +19,7 @@ class Shape {
 
 // Concrete subclasses. area() overrides Shape.area; draw() is new here --
 // no super, despite Drawable's like-named method. Constructor call sites
-// live in makeDefaultShapes and in a separate consumer file.
+// live in makeDefaultShapes and, for Circle, in a separate consumer file.
 class Circle extends Shape {
     constructor(radius) {
         super();

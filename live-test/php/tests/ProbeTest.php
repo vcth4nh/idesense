@@ -1,7 +1,7 @@
 <?php
 // Test-tree half of the scope fixtures: a caller and a subclass of the
-// production-side class under test live here — test-scope queries include
-// them, production-scope queries must exclude them.
+// production-side class under test live here. Test-scope queries include
+// the caller; subtype queries list the subclass under every scope.
 namespace Demo\Tests;
 
 use Demo\Probe;

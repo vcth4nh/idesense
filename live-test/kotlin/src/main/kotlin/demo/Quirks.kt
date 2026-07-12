@@ -20,12 +20,12 @@ fun quirkApply(x: String): Int {
     return StringBuilder().apply { append(x) }.toString().toInt()
 }
 
-// Callees reached through a let block behind a safe call.
+// A let block behind a safe call: ground truth — no callees surface.
 fun quirkLet(x: String?): Int {
     return x?.let { it.toInt() } ?: 0
 }
 
-// Callees reached through a with block.
+// A with block: ground truth — no callees surface here either.
 fun quirkWith(x: String): Int {
     return with(x) { toInt() }
 }

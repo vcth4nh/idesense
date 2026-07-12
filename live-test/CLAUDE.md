@@ -192,7 +192,9 @@ Hard rules (they keep the pinned snapshots stable):
   type inference), Python docstrings (become structure nodes), Rust `///`,
   phpdoc, `/* */` blocks.
 - **Only name symbols declared in the same file** (10-file word-occurrence
-  threshold — see "Fixture-edit safety").
+  threshold — see "Snapshot file format"). In Go, prefer lowercase paraphrase
+  over capitalized exported names: GoLand counts comment text occurrences as
+  usages under the libraries scope.
 - **Dictionary words only** in the diagnostics-pinned java files
   (`Broken.java`, `Quirks.java`, `Normal.java`) — a typo can spawn a
   spell-check inspection row.
@@ -253,7 +255,9 @@ redundant with `file`.
   - expected/*.jsonl parse strictly, no cross-file duplicate ids
   - no orphan or missing expected ids
   - each `file+line+column` probe targets an existing file, a line within
-    bounds, and a non-whitespace character.
+    bounds, and a non-whitespace character
+  - each committed `ANCHORS.md` byte-matches regeneration from current
+    inputs + sources (stale map = failure; run `--write-anchors`).
 - Run it before any branch with fixture edits — line-shift bugs surface
   here instead of as silent IDE empty responses during a live run.
 - When inserting lines into a fixture, every position-based probe with a

@@ -17,7 +17,7 @@ export abstract class Shape {
 
 // Circle and Rectangle: area overrides the abstract class side, draw implements
 // the interface side; radius, width and height are constructor parameter
-// properties whose reads are probed.
+// properties, with radius's reads probed.
 export class Circle extends Shape implements Drawable {
     constructor(public readonly radius: number) {
         super();

@@ -60,9 +60,9 @@ class Square(Rectangle):
         super().__init__(side, side)
 
 
-# Call-tree host: callees of total_area and largest mix project code (area)
-# with builtin stub overloads (sum, max); add is deliberately never called,
-# pinning an empty caller tree.
+# Call-tree host: total_area's callees mix project code (area) with builtin
+# stubs (sum); largest attributes only the max overloads, since its area call
+# sits in a key lambda. add is deliberately never called: empty caller tree.
 class ShapeCollection:
     def __init__(self) -> None:
         self.shapes: list[Shape] = []

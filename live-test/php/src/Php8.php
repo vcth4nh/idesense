@@ -15,7 +15,7 @@ class Php8Helper
 class Php8
 {
     // The constant and the private property below feed the file-structure
-    // view's constants/properties filters.
+    // filters; a show list replaces the defaults, hiding the private one.
     public const VERSION = 8;
 
     private ?Php8Helper $helper;

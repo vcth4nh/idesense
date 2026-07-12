@@ -1,4 +1,4 @@
-// Multi-super fixtures: six patterns give one member several candidate supers.
+// Multi-super fixtures: several patterns give one member candidate supers.
 // Ground truth: super chains are transitive — every ancestor override is
 // returned, not just the immediate parent.
 export interface IRender {
