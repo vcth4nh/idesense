@@ -143,9 +143,9 @@ pins first — appending to a pinned file drifts its blessed row.
 | php | src/Probes.php, tests/ProbeTest.php | scope fixtures |
 | php | src/Php8.php | Php8/Php8Helper: nullsafe `?->`, first-class callable, const+property (this pass) |
 | go | normal.go (+normal_test.go) | Shape/Drawable interfaces, baseShape, Circle/Rectangle/Square, MakeDefaultShapes |
-| go | quirks.go | q* dispatch fns, IntCoercer (+ this pass: CoerceLimit iota consts) |
-| go | embed.go | Labeled embed (+ this pass: IBase/IMid/ILeaf embedding chain) |
-| go | multisuper.go, generic_super.go, negative_super.go, wedge_test.go | interface-satisfaction fixtures (IFull/ChainImpl, Storage[T]/IntStore, Standalone, wedge) |
+| go | quirks.go | q* dispatch fns, IntCoercer, CoerceLimit iota consts |
+| go | embed.go | Labeled embed (cross-file baseShape embed + promoted method) |
+| go | multisuper.go, generic_super.go, negative_super.go, wedge_test.go | interface-satisfaction fixtures (IFull/ChainImpl, IBase/IMid/ILeaf embedding chain, Storage[T]/IntStore, Standalone, wedge) |
 | rust | src/normal.rs | Shape trait hierarchy, ShapeCollection, area/largest |
 | rust | src/quirks.rs | q* dispatch fns, CoerceMode enum, parse_or_zero (fn-pointer) |
 | rust | src/macros.rs | square! macro_rules, derive Point |

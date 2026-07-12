@@ -1,9 +1,9 @@
 // Integration test crate: lives under tests/, which Cargo's standard layout
 // marks as a test-source root (intellij-rust: CargoConstants.ProjectLayout.tests).
 // TestShape implements the library crate's Shape trait, so it appears as a
-// Shape subtype only under the "test" hierarchy scope.
-// Nuance: TestShape also shows up under the default and "all" scopes —
+// Shape subtype under the default, "all", and "test" hierarchy scopes —
 // production is the one scope that filters it out, per the pinned snapshots.
+// Type hierarchy honors scope here, unlike call hierarchy (a Rust no-op).
 use live_test_rust::normal::Shape;
 
 struct TestShape;
