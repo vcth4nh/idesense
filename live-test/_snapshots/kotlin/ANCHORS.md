@@ -8,139 +8,139 @@ fails when this file is stale.
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 8:26 | super-AsyncImpl.fetch-suspend | find_super_methods | `override suspend fun fetch(): String = "fetched"` |
+| 10:26 | super-AsyncImpl.fetch-suspend | find_super_methods | `override suspend fun fetch(): String = "fetched"` |
 
 ## src/main/kotlin/demo/CompanionSuper.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-CompanionSuper | file_structure | — |
-| 3:11 | hier-type-CompFactory | type_hierarchy | `interface CompFactory {` |
-| 11:16 | usage-CompParent-companion | find_usages | `abstract class CompParent {` |
-| 18:7 | hier-type-CompChild-companion | type_hierarchy | `class CompChild : CompParent() {` |
-| 20:22 | super-CompChild.Companion.make-companion | find_super_methods | `override fun make(): String = "child"` |
-| 21:22 | super-CompChild.Companion.KIND-companion-val | find_super_methods | `override val KIND: String = "child"` |
+| 6:11 | hier-type-CompFactory | type_hierarchy | `interface CompFactory {` |
+| 17:16 | usage-CompParent-companion | find_usages | `abstract class CompParent {` |
+| 24:7 | hier-type-CompChild-companion | type_hierarchy | `class CompChild : CompParent() {` |
+| 26:22 | super-CompChild.Companion.make-companion | find_super_methods | `override fun make(): String = "child"` |
+| 27:22 | super-CompChild.Companion.KIND-companion-val | find_super_methods | `override val KIND: String = "child"` |
 
 ## src/main/kotlin/demo/GenericSuper.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 8:18 | super-Repo.find-generic | find_super_methods | `override fun find(id: Int): T {` |
+| 10:18 | super-Repo.find-generic | find_super_methods | `override fun find(id: Int): T {` |
 
 ## src/main/kotlin/demo/Modern.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 16:13 | hier-callee-computeTotal | call_hierarchy | `suspend fun computeTotal(): Int {` |
-| 17:13 | def-suspend-fetchValue-call | find_definition | `val a = fetchValue()` |
-| 23:21 | def-companion-create-call | find_definition | `val c = Counter.create()` |
-| 25:20 | def-companion-DEFAULT-LIMIT | find_definition | `return Counter.DEFAULT_LIMIT + c.value()` |
-| 28:11 | hier-sub-Printer-delegation | type_hierarchy | `interface Printer {` |
-| 28:11 | impls-Printer-delegation | find_implementations | `interface Printer {` |
-| 38:12 | hier-super-Channel-enum | type_hierarchy | `enum class Channel { ALPHA, BETA }` |
-| 41:18 | super-Plain.toString-library | find_super_methods | `override fun toString(): String = "plain"` |
+| 23:13 | hier-callee-computeTotal | call_hierarchy | `suspend fun computeTotal(): Int {` |
+| 24:13 | def-suspend-fetchValue-call | find_definition | `val a = fetchValue()` |
+| 32:21 | def-companion-create-call | find_definition | `val c = Counter.create()` |
+| 34:20 | def-companion-DEFAULT-LIMIT | find_definition | `return Counter.DEFAULT_LIMIT + c.value()` |
+| 40:11 | hier-sub-Printer-delegation | type_hierarchy | `interface Printer {` |
+| 40:11 | impls-Printer-delegation | find_implementations | `interface Printer {` |
+| 52:12 | hier-super-Channel-enum | type_hierarchy | `enum class Channel { ALPHA, BETA }` |
+| 57:18 | super-Plain.toString-library | find_super_methods | `override fun toString(): String = "plain"` |
 
 ## src/main/kotlin/demo/MultiSuper.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 15:7 | super-Triple-class | find_super_methods | `class Triple : Base(), IRender, IDisplay {` |
-| 16:18 | super-Triple.name | find_super_methods | `override fun name(): String = "triple"` |
-| 34:18 | super-Mid2.m | find_super_methods | `override fun m(): String = "mid2"` |
-| 38:18 | super-Leaf.m | find_super_methods | `override fun m(): String = "leaf"` |
-| 55:18 | super-Bottom.m | find_super_methods | `override fun m(): String = "bottom"` |
-| 72:18 | super-LoudGreeter.greet | find_super_methods | `override fun greet(): String = "LOUD"` |
-| 89:18 | super-Tagged.label | find_super_methods | `override val label: String = "tag"` |
-| 102:18 | super-CustomHolder.holder | find_super_methods | `override var holder: String = "custom"` |
-| 121:18 | super-Active.status | find_super_methods | `override fun status(): String = "active"` |
-| 141:31 | super-Point.name | find_super_methods | `data class Point(override val name: String) : Named, Identifiable, Labelable` |
-| 145:18 | super-Singleton.name | find_super_methods | `override val name: String = "singleton"` |
+| 19:7 | super-Triple-class | find_super_methods | `class Triple : Base(), IRender, IDisplay {` |
+| 20:18 | super-Triple.name | find_super_methods | `override fun name(): String = "triple"` |
+| 38:18 | super-Mid2.m | find_super_methods | `override fun m(): String = "mid2"` |
+| 42:18 | super-Leaf.m | find_super_methods | `override fun m(): String = "leaf"` |
+| 59:18 | super-Bottom.m | find_super_methods | `override fun m(): String = "bottom"` |
+| 76:18 | super-LoudGreeter.greet | find_super_methods | `override fun greet(): String = "LOUD"` |
+| 93:18 | super-Tagged.label | find_super_methods | `override val label: String = "tag"` |
+| 106:18 | super-CustomHolder.holder | find_super_methods | `override var holder: String = "custom"` |
+| 125:18 | super-Active.status | find_super_methods | `override fun status(): String = "active"` |
+| 145:31 | super-Point.name | find_super_methods | `data class Point(override val name: String) : Named, Identifiable, Labelable` |
+| 149:18 | super-Singleton.name | find_super_methods | `override val name: String = "singleton"` |
 
 ## src/main/kotlin/demo/NegativeSuper.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 4:9 | super-Standalone.compute-negative | find_super_methods | `fun compute(): String = "standalone"` |
+| 6:9 | super-Standalone.compute-negative | find_super_methods | `fun compute(): String = "standalone"` |
 
 ## src/main/kotlin/demo/Normal.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Normal | file_structure | — |
-| 3:11 | hier-type-Drawable | type_hierarchy | `interface Drawable {` |
-| 3:11 | usage-Drawable-interface | find_usages | `interface Drawable {` |
-| 4:9 | impls-Drawable.draw | find_implementations | `fun draw(): String` |
-| 7:16 | hier-sub-Shape | type_hierarchy | `abstract class Shape {` |
-| 7:16 | hier-type-Shape | type_hierarchy | `abstract class Shape {` |
-| 7:16 | impls-Shape-class | find_implementations | `abstract class Shape {` |
-| 7:16 | usage-Shape-class | find_usages | `abstract class Shape {` |
-| 8:18 | hier-caller-area | call_hierarchy | `abstract fun area(): Double` |
-| 8:18 | impls-Shape.area | find_implementations | `abstract fun area(): Double` |
-| 13:7 | hier-type-Circle | type_hierarchy | `class Circle(val radius: Double) : Shape(), Drawable {` |
-| 13:18 | usage-Circle.radius | find_usages | `class Circle(val radius: Double) : Shape(), Drawable {` |
-| 14:18 | def-Circle.area | find_definition | `override fun area(): Double = 3.14159 * radius * radius` |
-| 14:18 | super-Circle.area | find_super_methods | `override fun area(): Double = 3.14159 * radius * radius` |
-| 14:18 | usage-area-libraries-scope | find_usages | `override fun area(): Double = 3.14159 * radius * radius` |
-| 15:18 | super-Circle.draw-from-Drawable | find_super_methods | `override fun draw(): String = "circle r=$radius"` |
-| 18:12 | hier-type-Rectangle | type_hierarchy | `open class Rectangle(val width: Double, val height: Double) : Shape(), Drawable {` |
-| 18:12 | impls-Rectangle-class | find_implementations | `open class Rectangle(val width: Double, val height: Double) : Shape(), Drawable {` |
-| 18:12 | usage-Rectangle-class | find_usages | `open class Rectangle(val width: Double, val height: Double) : Shape(), Drawable {` |
-| 19:18 | def-Rectangle.area | find_definition | `override fun area(): Double = width * height` |
-| 19:18 | super-Rectangle.area | find_super_methods | `override fun area(): Double = width * height` |
-| 20:18 | super-Rectangle.draw | find_super_methods | `override fun draw(): String = "rect ${width}x$height"` |
-| 23:7 | hier-super-Square | type_hierarchy | `class Square(side: Double) : Rectangle(side, side)` |
-| 23:7 | hier-super-Square-d1 | type_hierarchy | `class Square(side: Double) : Rectangle(side, side)` |
-| 23:7 | hier-type-Square | type_hierarchy | `class Square(side: Double) : Rectangle(side, side)` |
-| 25:7 | hier-type-ShapeCollection | type_hierarchy | `class ShapeCollection {` |
-| 26:9 | usage-shapes-field | find_usages | `val shapes: MutableList<Shape> = mutableListOf()` |
-| 32:9 | hier-caller-totalArea-d1 | call_hierarchy | `fun totalArea(): Double = shapes.sumOf { it.area() }` |
-| 32:49 | usage-area-from-totalArea | find_usages | `fun totalArea(): Double = shapes.sumOf { it.area() }` |
-| 37:5 | def-makeDefaultShapes | find_definition | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
-| 37:5 | hier-callee-makeDefault | call_hierarchy | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
-| 37:5 | hier-callee-makeDefault-d3 | call_hierarchy | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
+| 8:11 | hier-type-Drawable | type_hierarchy | `interface Drawable {` |
+| 8:11 | usage-Drawable-interface | find_usages | `interface Drawable {` |
+| 9:9 | impls-Drawable.draw | find_implementations | `fun draw(): String` |
+| 12:16 | hier-sub-Shape | type_hierarchy | `abstract class Shape {` |
+| 12:16 | hier-type-Shape | type_hierarchy | `abstract class Shape {` |
+| 12:16 | impls-Shape-class | find_implementations | `abstract class Shape {` |
+| 12:16 | usage-Shape-class | find_usages | `abstract class Shape {` |
+| 13:18 | hier-caller-area | call_hierarchy | `abstract fun area(): Double` |
+| 13:18 | impls-Shape.area | find_implementations | `abstract fun area(): Double` |
+| 19:7 | hier-type-Circle | type_hierarchy | `class Circle(val radius: Double) : Shape(), Drawable {` |
+| 19:18 | usage-Circle.radius | find_usages | `class Circle(val radius: Double) : Shape(), Drawable {` |
+| 20:18 | def-Circle.area | find_definition | `override fun area(): Double = 3.14159 * radius * radius` |
+| 20:18 | super-Circle.area | find_super_methods | `override fun area(): Double = 3.14159 * radius * radius` |
+| 20:18 | usage-area-libraries-scope | find_usages | `override fun area(): Double = 3.14159 * radius * radius` |
+| 21:18 | super-Circle.draw-from-Drawable | find_super_methods | `override fun draw(): String = "circle r=$radius"` |
+| 24:12 | hier-type-Rectangle | type_hierarchy | `open class Rectangle(val width: Double, val height: Double) : Shape(), Drawable {` |
+| 24:12 | impls-Rectangle-class | find_implementations | `open class Rectangle(val width: Double, val height: Double) : Shape(), Drawable {` |
+| 24:12 | usage-Rectangle-class | find_usages | `open class Rectangle(val width: Double, val height: Double) : Shape(), Drawable {` |
+| 25:18 | def-Rectangle.area | find_definition | `override fun area(): Double = width * height` |
+| 25:18 | super-Rectangle.area | find_super_methods | `override fun area(): Double = width * height` |
+| 26:18 | super-Rectangle.draw | find_super_methods | `override fun draw(): String = "rect ${width}x$height"` |
+| 31:7 | hier-super-Square | type_hierarchy | `class Square(side: Double) : Rectangle(side, side)` |
+| 31:7 | hier-super-Square-d1 | type_hierarchy | `class Square(side: Double) : Rectangle(side, side)` |
+| 31:7 | hier-type-Square | type_hierarchy | `class Square(side: Double) : Rectangle(side, side)` |
+| 35:7 | hier-type-ShapeCollection | type_hierarchy | `class ShapeCollection {` |
+| 36:9 | usage-shapes-field | find_usages | `val shapes: MutableList<Shape> = mutableListOf()` |
+| 42:9 | hier-caller-totalArea-d1 | call_hierarchy | `fun totalArea(): Double = shapes.sumOf { it.area() }` |
+| 42:49 | usage-area-from-totalArea | find_usages | `fun totalArea(): Double = shapes.sumOf { it.area() }` |
+| 49:5 | def-makeDefaultShapes | find_definition | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
+| 49:5 | hier-callee-makeDefault | call_hierarchy | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
+| 49:5 | hier-callee-makeDefault-d3 | call_hierarchy | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
 
 ## src/main/kotlin/demo/OperatorSuper.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 8:27 | super-Caller.invoke-operator | find_super_methods | `override operator fun invoke(): String = "called"` |
+| 10:27 | super-Caller.invoke-operator | find_super_methods | `override operator fun invoke(): String = "called"` |
 
 ## src/main/kotlin/demo/Probes.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 3:12 | hier-sub-Probe-all | type_hierarchy | `open class Probe {` |
-| 3:12 | hier-sub-Probe-production | type_hierarchy | `open class Probe {` |
-| 3:12 | hier-sub-Probe-test | type_hierarchy | `open class Probe {` |
-| 4:9 | hier-caller-target-all | call_hierarchy | `fun target(): Int = 42` |
-| 4:9 | hier-caller-target-production | call_hierarchy | `fun target(): Int = 42` |
-| 4:9 | hier-caller-target-test | call_hierarchy | `fun target(): Int = 42` |
-| 4:9 | hier-caller-target-this-class | call_hierarchy | `fun target(): Int = 42` |
-| 4:9 | hier-caller-target-this-module | call_hierarchy | `fun target(): Int = 42` |
+| 6:12 | hier-sub-Probe-all | type_hierarchy | `open class Probe {` |
+| 6:12 | hier-sub-Probe-production | type_hierarchy | `open class Probe {` |
+| 6:12 | hier-sub-Probe-test | type_hierarchy | `open class Probe {` |
+| 7:9 | hier-caller-target-all | call_hierarchy | `fun target(): Int = 42` |
+| 7:9 | hier-caller-target-production | call_hierarchy | `fun target(): Int = 42` |
+| 7:9 | hier-caller-target-test | call_hierarchy | `fun target(): Int = 42` |
+| 7:9 | hier-caller-target-this-class | call_hierarchy | `fun target(): Int = 42` |
+| 7:9 | hier-caller-target-this-module | call_hierarchy | `fun target(): Int = 42` |
 
 ## src/main/kotlin/demo/Quirks.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Quirks | file_structure | — |
-| 13:5 | hier-callee-quirkApply | call_hierarchy | `fun quirkApply(x: String): Int {` |
-| 17:5 | hier-callee-quirkLet | call_hierarchy | `fun quirkLet(x: String?): Int {` |
-| 21:5 | hier-callee-quirkWith | call_hierarchy | `fun quirkWith(x: String): Int {` |
-| 29:42 | def-extension-coerceTo | find_definition | `fun quirkExtensionFn(x: String): Int = x.coerceTo(0)` |
-| 37:14 | hier-type-Coercion-sealed | type_hierarchy | `sealed class Coercion {` |
-| 37:14 | impls-Coercion | find_implementations | `sealed class Coercion {` |
-| 38:18 | impls-Coercion.apply | find_implementations | `abstract fun apply(x: String): Int` |
-| 39:50 | super-IntCoerce.apply | find_super_methods | `object IntCoerce : Coercion() { override fun apply(x: String): Int = x.toInt() }` |
-| 40:50 | super-AbsCoerce.apply | find_super_methods | `object AbsCoerce : Coercion() { override fun apply(x: String): Int = Math.abs(x.toInt()) }` |
-| 51:5 | hier-callee-quirkDispatchMap | call_hierarchy | `fun quirkDispatchMap(key: String, x: String): Int {` |
-| 59:43 | def-infix-coerceFirst | find_definition | `fun quirkInfix(x: String): Int = (x to 0).coerceFirst()` |
-| 61:29 | usage-coerceFirst-callsite | find_usages | `infix fun Pair<String, Int>.coerceFirst(): Int = this.first.toIntOrNull() ?: this.second` |
+| 19:5 | hier-callee-quirkApply | call_hierarchy | `fun quirkApply(x: String): Int {` |
+| 24:5 | hier-callee-quirkLet | call_hierarchy | `fun quirkLet(x: String?): Int {` |
+| 29:5 | hier-callee-quirkWith | call_hierarchy | `fun quirkWith(x: String): Int {` |
+| 39:42 | def-extension-coerceTo | find_definition | `fun quirkExtensionFn(x: String): Int = x.coerceTo(0)` |
+| 50:14 | hier-type-Coercion-sealed | type_hierarchy | `sealed class Coercion {` |
+| 50:14 | impls-Coercion | find_implementations | `sealed class Coercion {` |
+| 51:18 | impls-Coercion.apply | find_implementations | `abstract fun apply(x: String): Int` |
+| 52:50 | super-IntCoerce.apply | find_super_methods | `object IntCoerce : Coercion() { override fun apply(x: String): Int = x.toInt() }` |
+| 53:50 | super-AbsCoerce.apply | find_super_methods | `object AbsCoerce : Coercion() { override fun apply(x: String): Int = Math.abs(x.toInt()) }` |
+| 69:5 | hier-callee-quirkDispatchMap | call_hierarchy | `fun quirkDispatchMap(key: String, x: String): Int {` |
+| 78:43 | def-infix-coerceFirst | find_definition | `fun quirkInfix(x: String): Int = (x to 0).coerceFirst()` |
+| 81:29 | usage-coerceFirst-callsite | find_usages | `infix fun Pair<String, Int>.coerceFirst(): Int = this.first.toIntOrNull() ?: this.second` |
 
 ## src/main/kotlin/demo/SetterSuper.kt
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 8:18 | super-WithSetter.value-setter | find_super_methods | `override var value: String = "init"` |
+| 10:18 | super-WithSetter.value-setter | find_super_methods | `override var value: String = "init"` |
 
 ## Query-only probes (no file anchor)
 

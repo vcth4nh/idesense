@@ -8,139 +8,139 @@ fails when this file is stale.
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 12:15 | super-AsyncImpl.fetch-async | find_super_methods | `async def fetch(self) -> str:` |
+| 14:15 | super-AsyncImpl.fetch-async | find_super_methods | `async def fetch(self) -> str:` |
 
 ## src/dataclass_super.py
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-dataclass_super | file_structure | — |
-| 6:7 | usage-ParentDC-dataclass | find_usages | `class ParentDC:` |
-| 7:5 | usage-name-field-dataclass | find_usages | `name: str` |
-| 14:7 | hier-type-ChildDC-dataclass | type_hierarchy | `class ChildDC(ParentDC):` |
-| 17:9 | super-ChildDC.__post_init__-dataclass | find_super_methods | `def __post_init__(self) -> None:` |
+| 11:7 | usage-ParentDC-dataclass | find_usages | `class ParentDC:` |
+| 12:5 | usage-name-field-dataclass | find_usages | `name: str` |
+| 19:7 | hier-type-ChildDC-dataclass | type_hierarchy | `class ChildDC(ParentDC):` |
+| 22:9 | super-ChildDC.__post_init__-dataclass | find_super_methods | `def __post_init__(self) -> None:` |
 
 ## src/enums.py
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 4:7 | hier-super-Channel-enum | type_hierarchy | `class Channel(Enum):` |
-| 5:5 | usage-Channel.ALPHA-member | find_usages | `ALPHA = 1` |
+| 7:7 | hier-super-Channel-enum | type_hierarchy | `class Channel(Enum):` |
+| 8:5 | usage-Channel.ALPHA-member | find_usages | `ALPHA = 1` |
 
 ## src/generic_super.py
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 13:9 | super-Repo.find-generic | find_super_methods | `def find(self, id: int) -> T:` |
+| 15:9 | super-Repo.find-generic | find_super_methods | `def find(self, id: int) -> T:` |
 
 ## src/multi_super.py
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 24:7 | super-Triple-class | find_super_methods | `class Triple(Base, IRender, IDisplay):` |
-| 25:9 | super-Triple.name | find_super_methods | `def name(self) -> str:` |
-| 47:9 | super-DeepMid2.m | find_super_methods | `def m(self) -> str:` |
-| 52:9 | super-DeepLeaf.m | find_super_methods | `def m(self) -> str:` |
-| 77:7 | hier-super-DiamondBottom-mro | type_hierarchy | `class DiamondBottom(DiamondLeft, DiamondRight, DiamondCenter):` |
-| 78:9 | super-DiamondBottom.m | find_super_methods | `def m(self) -> str:` |
-| 99:9 | super-ConcreteShape.draw | find_super_methods | `def draw(self) -> str:` |
-| 119:9 | super-MixedClass.log | find_super_methods | `def log(self, x: object) -> None:` |
-| 143:9 | super-PropDerived.value | find_super_methods | `def value(self) -> int:` |
-| 167:9 | super-FactoryDerived.factory | find_super_methods | `def factory(cls) -> "FactoryBase":` |
-| 191:9 | super-StaticDerived.helper | find_super_methods | `def helper() -> str:` |
+| 31:7 | super-Triple-class | find_super_methods | `class Triple(Base, IRender, IDisplay):` |
+| 32:9 | super-Triple.name | find_super_methods | `def name(self) -> str:` |
+| 57:9 | super-DeepMid2.m | find_super_methods | `def m(self) -> str:` |
+| 62:9 | super-DeepLeaf.m | find_super_methods | `def m(self) -> str:` |
+| 91:7 | hier-super-DiamondBottom-mro | type_hierarchy | `class DiamondBottom(DiamondLeft, DiamondRight, DiamondCenter):` |
+| 92:9 | super-DiamondBottom.m | find_super_methods | `def m(self) -> str:` |
+| 116:9 | super-ConcreteShape.draw | find_super_methods | `def draw(self) -> str:` |
+| 138:9 | super-MixedClass.log | find_super_methods | `def log(self, x: object) -> None:` |
+| 163:9 | super-PropDerived.value | find_super_methods | `def value(self) -> int:` |
+| 188:9 | super-FactoryDerived.factory | find_super_methods | `def factory(cls) -> "FactoryBase":` |
+| 213:9 | super-StaticDerived.helper | find_super_methods | `def helper() -> str:` |
 
 ## src/negative_super.py
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 5:9 | super-Standalone.compute-negative | find_super_methods | `def compute(self) -> str:` |
+| 7:9 | super-Standalone.compute-negative | find_super_methods | `def compute(self) -> str:` |
 
 ## src/normal.py
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Normal | file_structure | — |
-| 6:7 | hier-type-Drawable | type_hierarchy | `class Drawable(Protocol):` |
-| 6:7 | usage-Drawable-protocol | find_usages | `class Drawable(Protocol):` |
-| 7:9 | impls-Drawable.draw | find_implementations | `def draw(self) -> str: ...` |
-| 10:7 | hier-sub-Shape | type_hierarchy | `class Shape(ABC):` |
-| 10:7 | hier-type-Shape | type_hierarchy | `class Shape(ABC):` |
-| 10:7 | hier-type-Shape-both | type_hierarchy | `class Shape(ABC):` |
-| 10:7 | impls-Shape-class | find_implementations | `class Shape(ABC):` |
-| 10:7 | usage-Shape-class | find_usages | `class Shape(ABC):` |
-| 11:6 | def-abstractmethod-decorator | find_definition | `@abstractmethod` |
-| 12:9 | hier-caller-area | call_hierarchy | `def area(self) -> float:` |
-| 12:9 | impls-Shape.area | find_implementations | `def area(self) -> float:` |
-| 12:9 | usage-area-from-describe | find_usages | `def area(self) -> float:` |
-| 12:9 | usage-area-libraries-scope | find_usages | `def area(self) -> float:` |
-| 15:9 | def-Shape.describe-decl | find_definition | `def describe(self) -> str:` |
-| 15:9 | hier-caller-describe | call_hierarchy | `def describe(self) -> str:` |
-| 15:9 | impls-Shape.describe | find_implementations | `def describe(self) -> str:` |
-| 19:7 | hier-type-Circle | type_hierarchy | `class Circle(Shape):` |
-| 19:7 | impls-Circle-class | find_implementations | `class Circle(Shape):` |
-| 21:14 | usage-Circle.radius | find_usages | `self.radius = radius` |
-| 23:9 | hier-caller-Circle.area | call_hierarchy | `def area(self) -> float:` |
-| 23:9 | super-Circle.area | find_super_methods | `def area(self) -> float:` |
-| 26:9 | super-Circle.draw | find_super_methods | `def draw(self) -> str:` |
-| 30:7 | hier-type-Rectangle | type_hierarchy | `class Rectangle(Shape):` |
-| 30:7 | impls-Rectangle-class | find_implementations | `class Rectangle(Shape):` |
-| 30:7 | usage-Rectangle-class | find_usages | `class Rectangle(Shape):` |
-| 35:9 | def-Rectangle.area-decl | find_definition | `def area(self) -> float:` |
-| 35:9 | super-Rectangle.area | find_super_methods | `def area(self) -> float:` |
-| 38:9 | super-Rectangle.draw | find_super_methods | `def draw(self) -> str:` |
-| 42:7 | hier-super-Square | type_hierarchy | `class Square(Rectangle):` |
-| 42:7 | hier-type-Square | type_hierarchy | `class Square(Rectangle):` |
-| 43:9 | super-Square.__init__ | find_super_methods | `def __init__(self, side: float) -> None:` |
-| 44:9 | def-super-init | find_definition | `super().__init__(side, side)` |
-| 47:7 | hier-type-ShapeCollection | type_hierarchy | `class ShapeCollection:` |
-| 49:14 | usage-shapes-field | find_usages | `self.shapes: list[Shape] = []` |
-| 51:9 | hier-caller-add | call_hierarchy | `def add(self, shape: Shape) -> None:` |
-| 54:9 | hier-callee-total-area | call_hierarchy | `def total_area(self) -> float:` |
-| 57:9 | hier-callee-largest | call_hierarchy | `def largest(self) -> Shape \| None:` |
-| 63:5 | def-make-default-shapes-decl | find_definition | `def make_default_shapes() -> list[Shape]:` |
-| 63:5 | hier-callee-make-default | call_hierarchy | `def make_default_shapes() -> list[Shape]:` |
-| 63:5 | hier-callee-make-default-d3 | call_hierarchy | `def make_default_shapes() -> list[Shape]:` |
-| 63:5 | hier-caller-make_default_shapes-d1 | call_hierarchy | `def make_default_shapes() -> list[Shape]:` |
-| 64:13 | def-Circle-from-constructor-call | find_definition | `return [Circle(1.0), Rectangle(2.0, 3.0), Square(4.0)]` |
+| 14:7 | hier-type-Drawable | type_hierarchy | `class Drawable(Protocol):` |
+| 14:7 | usage-Drawable-protocol | find_usages | `class Drawable(Protocol):` |
+| 15:9 | impls-Drawable.draw | find_implementations | `def draw(self) -> str: ...` |
+| 23:7 | hier-sub-Shape | type_hierarchy | `class Shape(ABC):` |
+| 23:7 | hier-type-Shape | type_hierarchy | `class Shape(ABC):` |
+| 23:7 | hier-type-Shape-both | type_hierarchy | `class Shape(ABC):` |
+| 23:7 | impls-Shape-class | find_implementations | `class Shape(ABC):` |
+| 23:7 | usage-Shape-class | find_usages | `class Shape(ABC):` |
+| 24:6 | def-abstractmethod-decorator | find_definition | `@abstractmethod` |
+| 25:9 | hier-caller-area | call_hierarchy | `def area(self) -> float:` |
+| 25:9 | impls-Shape.area | find_implementations | `def area(self) -> float:` |
+| 25:9 | usage-area-from-describe | find_usages | `def area(self) -> float:` |
+| 25:9 | usage-area-libraries-scope | find_usages | `def area(self) -> float:` |
+| 28:9 | def-Shape.describe-decl | find_definition | `def describe(self) -> str:` |
+| 28:9 | hier-caller-describe | call_hierarchy | `def describe(self) -> str:` |
+| 28:9 | impls-Shape.describe | find_implementations | `def describe(self) -> str:` |
+| 32:7 | hier-type-Circle | type_hierarchy | `class Circle(Shape):` |
+| 32:7 | impls-Circle-class | find_implementations | `class Circle(Shape):` |
+| 34:14 | usage-Circle.radius | find_usages | `self.radius = radius` |
+| 36:9 | hier-caller-Circle.area | call_hierarchy | `def area(self) -> float:` |
+| 36:9 | super-Circle.area | find_super_methods | `def area(self) -> float:` |
+| 39:9 | super-Circle.draw | find_super_methods | `def draw(self) -> str:` |
+| 43:7 | hier-type-Rectangle | type_hierarchy | `class Rectangle(Shape):` |
+| 43:7 | impls-Rectangle-class | find_implementations | `class Rectangle(Shape):` |
+| 43:7 | usage-Rectangle-class | find_usages | `class Rectangle(Shape):` |
+| 48:9 | def-Rectangle.area-decl | find_definition | `def area(self) -> float:` |
+| 48:9 | super-Rectangle.area | find_super_methods | `def area(self) -> float:` |
+| 51:9 | super-Rectangle.draw | find_super_methods | `def draw(self) -> str:` |
+| 58:7 | hier-super-Square | type_hierarchy | `class Square(Rectangle):` |
+| 58:7 | hier-type-Square | type_hierarchy | `class Square(Rectangle):` |
+| 59:9 | super-Square.__init__ | find_super_methods | `def __init__(self, side: float) -> None:` |
+| 60:9 | def-super-init | find_definition | `super().__init__(side, side)` |
+| 66:7 | hier-type-ShapeCollection | type_hierarchy | `class ShapeCollection:` |
+| 68:14 | usage-shapes-field | find_usages | `self.shapes: list[Shape] = []` |
+| 70:9 | hier-caller-add | call_hierarchy | `def add(self, shape: Shape) -> None:` |
+| 73:9 | hier-callee-total-area | call_hierarchy | `def total_area(self) -> float:` |
+| 76:9 | hier-callee-largest | call_hierarchy | `def largest(self) -> Shape \| None:` |
+| 84:5 | def-make-default-shapes-decl | find_definition | `def make_default_shapes() -> list[Shape]:` |
+| 84:5 | hier-callee-make-default | call_hierarchy | `def make_default_shapes() -> list[Shape]:` |
+| 84:5 | hier-callee-make-default-d3 | call_hierarchy | `def make_default_shapes() -> list[Shape]:` |
+| 84:5 | hier-caller-make_default_shapes-d1 | call_hierarchy | `def make_default_shapes() -> list[Shape]:` |
+| 85:13 | def-Circle-from-constructor-call | find_definition | `return [Circle(1.0), Rectangle(2.0, 3.0), Square(4.0)]` |
 
 ## src/probes.py
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 1:7 | hier-sub-Probe-all | type_hierarchy | `class Probe:` |
-| 1:7 | hier-sub-Probe-production | type_hierarchy | `class Probe:` |
-| 1:7 | hier-sub-Probe-test | type_hierarchy | `class Probe:` |
-| 2:9 | hier-caller-target-all | call_hierarchy | `def target(self):` |
-| 2:9 | hier-caller-target-production | call_hierarchy | `def target(self):` |
-| 2:9 | hier-caller-target-test | call_hierarchy | `def target(self):` |
-| 2:9 | hier-caller-target-this-class | call_hierarchy | `def target(self):` |
-| 2:9 | hier-caller-target-this-module | call_hierarchy | `def target(self):` |
-| 2:9 | usage-Probe.target-files-scope | find_usages | `def target(self):` |
+| 7:7 | hier-sub-Probe-all | type_hierarchy | `class Probe:` |
+| 7:7 | hier-sub-Probe-production | type_hierarchy | `class Probe:` |
+| 7:7 | hier-sub-Probe-test | type_hierarchy | `class Probe:` |
+| 8:9 | hier-caller-target-all | call_hierarchy | `def target(self):` |
+| 8:9 | hier-caller-target-production | call_hierarchy | `def target(self):` |
+| 8:9 | hier-caller-target-test | call_hierarchy | `def target(self):` |
+| 8:9 | hier-caller-target-this-class | call_hierarchy | `def target(self):` |
+| 8:9 | hier-caller-target-this-module | call_hierarchy | `def target(self):` |
+| 8:9 | usage-Probe.target-files-scope | find_usages | `def target(self):` |
 
 ## src/quirks.py
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Quirks | file_structure | — |
-| 12:10 | def-int-builtin-via-rebinding-rhs | find_definition | `fn = int` |
-| 13:12 | def-quirk-rebound-fn | find_definition | `return fn(x)` |
-| 27:26 | def-dict-dispatch-int | find_definition | `dispatch = {"int": int, "abs": lambda v: abs(int(v))}` |
-| 32:24 | def-lambda-wrap-int | find_definition | `coerce = lambda v: int(v)` |
-| 37:14 | def-list-indexing-int | find_definition | `funcs = [int, str, float]` |
-| 47:33 | usage-import-alias-a | find_usages | `from operator import abs as a` |
-| 63:13 | usage-Coercer.coerce-nested | find_usages | `def coerce(self, raw: str) -> int:` |
-| 64:20 | usage-int-builtin-in-Quirks | find_usages | `return int(raw)` |
-| 70:16 | def-walrus-result | find_definition | `return result` |
-| 82:12 | def-nested-return-fn | find_definition | `return get_coercer()(x)` |
-| 100:19 | def-multiple-assign-b | find_definition | `return a(x) + b(x)` |
-| 107:9 | def-classify-Shape-kind | find_definition | `kind = 1` |
-| 107:9 | usage-classify-Shape-kind | find_usages | `kind = 1` |
+| 17:10 | def-int-builtin-via-rebinding-rhs | find_definition | `fn = int` |
+| 18:12 | def-quirk-rebound-fn | find_definition | `return fn(x)` |
+| 35:26 | def-dict-dispatch-int | find_definition | `dispatch = {"int": int, "abs": lambda v: abs(int(v))}` |
+| 41:24 | def-lambda-wrap-int | find_definition | `coerce = lambda v: int(v)` |
+| 47:14 | def-list-indexing-int | find_definition | `funcs = [int, str, float]` |
+| 60:33 | usage-import-alias-a | find_usages | `from operator import abs as a` |
+| 79:13 | usage-Coercer.coerce-nested | find_usages | `def coerce(self, raw: str) -> int:` |
+| 80:20 | usage-int-builtin-in-Quirks | find_usages | `return int(raw)` |
+| 87:16 | def-walrus-result | find_definition | `return result` |
+| 101:12 | def-nested-return-fn | find_definition | `return get_coercer()(x)` |
+| 124:19 | def-multiple-assign-b | find_definition | `return a(x) + b(x)` |
+| 133:9 | def-classify-Shape-kind | find_definition | `kind = 1` |
+| 133:9 | usage-classify-Shape-kind | find_usages | `kind = 1` |
 
 ## src/setter_super.py
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 20:9 | super-WithSetter.value-setter | find_super_methods | `def value(self, v: str) -> None:` |
+| 23:9 | super-WithSetter.value-setter | find_super_methods | `def value(self, v: str) -> None:` |
 
 ## Query-only probes (no file anchor)
 

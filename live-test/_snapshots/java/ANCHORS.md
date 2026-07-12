@@ -14,56 +14,56 @@ fails when this file is stale.
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 5:19 | super-Plain.toString-library | find_super_methods | `public String toString() {` |
+| 8:19 | super-Plain.toString-library | find_super_methods | `public String toString() {` |
 
 ## src/main/java/demo/GenericSuper.java
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 9:7 | super-Repo.find-generic | find_super_methods | `T find(int id) {` |
+| 12:7 | super-Repo.find-generic | find_super_methods | `T find(int id) {` |
 
 ## src/main/java/demo/LambdaSuper.java
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 5:19 | super-LambdaHost-lambda.run-sam | find_super_methods | `return () -> System.out.println("lambda");` |
+| 8:19 | super-LambdaHost-lambda.run-sam | find_super_methods | `return () -> System.out.println("lambda");` |
 
 ## src/main/java/demo/Modern.java
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Modern | file_structure | — |
-| 4:19 | def-Point-record-decl | find_definition | `public record Point(int x, int y) {` |
-| 4:19 | hier-type-Point | type_hierarchy | `public record Point(int x, int y) {` |
-| 4:29 | usage-Point.x-component | find_usages | `public record Point(int x, int y) {` |
-| 8:29 | def-Animal-sealed-decl | find_definition | `public sealed interface Animal permits Cat, Dog {` |
-| 8:29 | hier-type-Animal | type_hierarchy | `public sealed interface Animal permits Cat, Dog {` |
-| 9:16 | impls-Animal.name | find_implementations | `String name();` |
-| 13:33 | super-Cat.name | find_super_methods | `@Override public String name() { return "cat"; }` |
-| 17:33 | super-Dog.name | find_super_methods | `@Override public String name() { return "dog"; }` |
-| 21:23 | def-Point-via-new-record-call | find_definition | `Point p = new Point(3, 4);` |
+| 9:19 | def-Point-record-decl | find_definition | `public record Point(int x, int y) {` |
+| 9:19 | hier-type-Point | type_hierarchy | `public record Point(int x, int y) {` |
+| 9:29 | usage-Point.x-component | find_usages | `public record Point(int x, int y) {` |
+| 15:29 | def-Animal-sealed-decl | find_definition | `public sealed interface Animal permits Cat, Dog {` |
+| 15:29 | hier-type-Animal | type_hierarchy | `public sealed interface Animal permits Cat, Dog {` |
+| 16:16 | impls-Animal.name | find_implementations | `String name();` |
+| 20:33 | super-Cat.name | find_super_methods | `@Override public String name() { return "cat"; }` |
+| 24:33 | super-Dog.name | find_super_methods | `@Override public String name() { return "dog"; }` |
+| 30:23 | def-Point-via-new-record-call | find_definition | `Point p = new Point(3, 4);` |
 
 ## src/main/java/demo/MultiSuper.java
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 15:7 | super-Triple-class | find_super_methods | `class Triple extends Base implements IRender, IDisplay {` |
-| 17:19 | super-Triple.name | find_super_methods | `public String name() {` |
-| 39:19 | super-ChainMid2.tag | find_super_methods | `public String tag() {` |
-| 46:19 | super-ChainLeaf.tag | find_super_methods | `public String tag() {` |
-| 67:19 | super-DiamondBottom.pick | find_super_methods | `public String pick() {` |
-| 90:19 | super-LoudGreeter.greet | find_super_methods | `public String greet() {` |
-| 109:16 | super-SealedSquare.sides | find_super_methods | `public int sides() {` |
-| 121:11 | impls-Named-record | find_implementations | `interface Named {` |
-| 133:8 | hier-super-LabelPoint | type_hierarchy | `record LabelPoint(String label, int x, int y) implements Named, Tagged, Identified {` |
-| 147:20 | super-Op.ADD.apply | find_super_methods | `public int apply(int x) {` |
-| 166:25 | super-AnonHost-anon.run | find_super_methods | `public void run() {` |
+| 20:7 | super-Triple-class | find_super_methods | `class Triple extends Base implements IRender, IDisplay {` |
+| 22:19 | super-Triple.name | find_super_methods | `public String name() {` |
+| 47:19 | super-ChainMid2.tag | find_super_methods | `public String tag() {` |
+| 54:19 | super-ChainLeaf.tag | find_super_methods | `public String tag() {` |
+| 78:19 | super-DiamondBottom.pick | find_super_methods | `public String pick() {` |
+| 103:19 | super-LoudGreeter.greet | find_super_methods | `public String greet() {` |
+| 124:16 | super-SealedSquare.sides | find_super_methods | `public int sides() {` |
+| 139:11 | impls-Named-record | find_implementations | `interface Named {` |
+| 151:8 | hier-super-LabelPoint | type_hierarchy | `record LabelPoint(String label, int x, int y) implements Named, Tagged, Identified {` |
+| 168:20 | super-Op.ADD.apply | find_super_methods | `public int apply(int x) {` |
+| 187:25 | super-AnonHost-anon.run | find_super_methods | `public void run() {` |
 
 ## src/main/java/demo/NegativeSuper.java
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 4:12 | super-Standalone.compute-negative | find_super_methods | `String compute() {` |
+| 6:12 | super-Standalone.compute-negative | find_super_methods | `String compute() {` |
 
 ## src/main/java/demo/Normal.java
 
@@ -71,59 +71,59 @@ fails when this file is stale.
 |---|---|---|---|
 | — | diagnostics-warnings | diagnostics | — |
 | — | file-structure-Normal | file_structure | — |
-| 6:11 | hier-type-Drawable | type_hierarchy | `interface Drawable {` |
-| 6:11 | usage-Drawable-interface | find_usages | `interface Drawable {` |
-| 7:12 | impls-Drawable.draw | find_implementations | `String draw();` |
-| 10:16 | hier-sub-Shape | type_hierarchy | `abstract class Shape {` |
-| 10:16 | hier-type-Shape | type_hierarchy | `abstract class Shape {` |
-| 10:16 | hier-type-Shape-both | type_hierarchy | `abstract class Shape {` |
-| 10:16 | usage-Shape-class | find_usages | `abstract class Shape {` |
-| 11:21 | hier-caller-area | call_hierarchy | `abstract double area();` |
-| 11:21 | impls-Shape.area | find_implementations | `abstract double area();` |
-| 11:21 | usage-area-libraries-scope | find_usages | `abstract double area();` |
-| 13:12 | hier-caller-describe | call_hierarchy | `String describe() {` |
-| 18:7 | hier-type-Circle | type_hierarchy | `class Circle extends Shape implements Drawable {` |
-| 21:5 | hier-caller-Circle-ctor | call_hierarchy | `Circle(double radius) {` |
-| 21:5 | usage-Circle-ctor | find_usages | `Circle(double radius) {` |
-| 26:12 | def-Circle.area-decl | find_definition | `double area() {` |
-| 26:12 | super-Circle.area | find_super_methods | `double area() {` |
-| 31:19 | super-Circle.draw | find_super_methods | `public String draw() {` |
-| 36:7 | hier-type-Rectangle | type_hierarchy | `class Rectangle extends Shape implements Drawable {` |
-| 36:7 | usage-Rectangle-class | find_usages | `class Rectangle extends Shape implements Drawable {` |
-| 46:12 | def-Rectangle.area-decl | find_definition | `double area() {` |
-| 46:12 | super-Rectangle.area | find_super_methods | `double area() {` |
-| 51:19 | super-Rectangle.draw | find_super_methods | `public String draw() {` |
-| 56:7 | hier-super-Square | type_hierarchy | `class Square extends Rectangle {` |
-| 56:7 | hier-super-Square-d1 | type_hierarchy | `class Square extends Rectangle {` |
-| 56:7 | hier-type-Square | type_hierarchy | `class Square extends Rectangle {` |
-| 63:33 | usage-shapes-field | find_usages | `private final List<Shape> shapes = new ArrayList<>();` |
-| 69:12 | hier-callee-totalArea | call_hierarchy | `double totalArea() {` |
-| 69:12 | hier-callee-totalArea-d1 | call_hierarchy | `double totalArea() {` |
-| 72:22 | usage-area-from-totalArea | find_usages | `sum += s.area();` |
-| 77:11 | hier-callee-largest | call_hierarchy | `Shape largest() {` |
-| 87:31 | def-makeDefaultShapes-decl | find_definition | `public static List<Shape> makeDefaultShapes() {` |
-| 87:31 | hier-callee-makeDefault | call_hierarchy | `public static List<Shape> makeDefaultShapes() {` |
-| 87:31 | hier-callee-makeDefault-d3 | call_hierarchy | `public static List<Shape> makeDefaultShapes() {` |
-| 88:34 | def-ArrayList-via-new-jdk-call | find_definition | `List<Shape> shapes = new ArrayList<>();` |
-| 89:24 | def-Circle-via-new-call | find_definition | `shapes.add(new Circle(1.0));` |
-| 89:24 | usage-Circle-via-new-call-site | find_usages | `shapes.add(new Circle(1.0));` |
-| 90:24 | def-Rectangle-via-new-call | find_definition | `shapes.add(new Rectangle(2.0, 3.0));` |
-| 97:13 | def-classifyShape-kind-decl | find_definition | `int kind;` |
-| 97:13 | usage-classifyShape-kind | find_usages | `int kind;` |
+| 11:11 | hier-type-Drawable | type_hierarchy | `interface Drawable {` |
+| 11:11 | usage-Drawable-interface | find_usages | `interface Drawable {` |
+| 12:12 | impls-Drawable.draw | find_implementations | `String draw();` |
+| 15:16 | hier-sub-Shape | type_hierarchy | `abstract class Shape {` |
+| 15:16 | hier-type-Shape | type_hierarchy | `abstract class Shape {` |
+| 15:16 | hier-type-Shape-both | type_hierarchy | `abstract class Shape {` |
+| 15:16 | usage-Shape-class | find_usages | `abstract class Shape {` |
+| 18:21 | hier-caller-area | call_hierarchy | `abstract double area();` |
+| 18:21 | impls-Shape.area | find_implementations | `abstract double area();` |
+| 18:21 | usage-area-libraries-scope | find_usages | `abstract double area();` |
+| 20:12 | hier-caller-describe | call_hierarchy | `String describe() {` |
+| 25:7 | hier-type-Circle | type_hierarchy | `class Circle extends Shape implements Drawable {` |
+| 28:5 | hier-caller-Circle-ctor | call_hierarchy | `Circle(double radius) {` |
+| 28:5 | usage-Circle-ctor | find_usages | `Circle(double radius) {` |
+| 33:12 | def-Circle.area-decl | find_definition | `double area() {` |
+| 33:12 | super-Circle.area | find_super_methods | `double area() {` |
+| 38:19 | super-Circle.draw | find_super_methods | `public String draw() {` |
+| 43:7 | hier-type-Rectangle | type_hierarchy | `class Rectangle extends Shape implements Drawable {` |
+| 43:7 | usage-Rectangle-class | find_usages | `class Rectangle extends Shape implements Drawable {` |
+| 53:12 | def-Rectangle.area-decl | find_definition | `double area() {` |
+| 53:12 | super-Rectangle.area | find_super_methods | `double area() {` |
+| 58:19 | super-Rectangle.draw | find_super_methods | `public String draw() {` |
+| 65:7 | hier-super-Square | type_hierarchy | `class Square extends Rectangle {` |
+| 65:7 | hier-super-Square-d1 | type_hierarchy | `class Square extends Rectangle {` |
+| 65:7 | hier-type-Square | type_hierarchy | `class Square extends Rectangle {` |
+| 74:33 | usage-shapes-field | find_usages | `private final List<Shape> shapes = new ArrayList<>();` |
+| 80:12 | hier-callee-totalArea | call_hierarchy | `double totalArea() {` |
+| 80:12 | hier-callee-totalArea-d1 | call_hierarchy | `double totalArea() {` |
+| 83:22 | usage-area-from-totalArea | find_usages | `sum += s.area();` |
+| 88:11 | hier-callee-largest | call_hierarchy | `Shape largest() {` |
+| 100:31 | def-makeDefaultShapes-decl | find_definition | `public static List<Shape> makeDefaultShapes() {` |
+| 100:31 | hier-callee-makeDefault | call_hierarchy | `public static List<Shape> makeDefaultShapes() {` |
+| 100:31 | hier-callee-makeDefault-d3 | call_hierarchy | `public static List<Shape> makeDefaultShapes() {` |
+| 101:34 | def-ArrayList-via-new-jdk-call | find_definition | `List<Shape> shapes = new ArrayList<>();` |
+| 102:24 | def-Circle-via-new-call | find_definition | `shapes.add(new Circle(1.0));` |
+| 102:24 | usage-Circle-via-new-call-site | find_usages | `shapes.add(new Circle(1.0));` |
+| 103:24 | def-Rectangle-via-new-call | find_definition | `shapes.add(new Rectangle(2.0, 3.0));` |
+| 110:13 | def-classifyShape-kind-decl | find_definition | `int kind;` |
+| 110:13 | usage-classifyShape-kind | find_usages | `int kind;` |
 
 ## src/main/java/demo/Probes.java
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 3:7 | hier-sub-Probe-all | type_hierarchy | `class Probe {` |
-| 3:7 | hier-sub-Probe-production | type_hierarchy | `class Probe {` |
-| 3:7 | hier-sub-Probe-test | type_hierarchy | `class Probe {` |
-| 4:9 | hier-caller-target-all | call_hierarchy | `int target() {` |
-| 4:9 | hier-caller-target-production | call_hierarchy | `int target() {` |
-| 4:9 | hier-caller-target-test | call_hierarchy | `int target() {` |
-| 4:9 | hier-caller-target-this-class | call_hierarchy | `int target() {` |
-| 4:9 | hier-caller-target-this-module | call_hierarchy | `int target() {` |
-| 4:9 | usage-Probe.target-files-scope | find_usages | `int target() {` |
+| 6:7 | hier-sub-Probe-all | type_hierarchy | `class Probe {` |
+| 6:7 | hier-sub-Probe-production | type_hierarchy | `class Probe {` |
+| 6:7 | hier-sub-Probe-test | type_hierarchy | `class Probe {` |
+| 7:9 | hier-caller-target-all | call_hierarchy | `int target() {` |
+| 7:9 | hier-caller-target-production | call_hierarchy | `int target() {` |
+| 7:9 | hier-caller-target-test | call_hierarchy | `int target() {` |
+| 7:9 | hier-caller-target-this-class | call_hierarchy | `int target() {` |
+| 7:9 | hier-caller-target-this-module | call_hierarchy | `int target() {` |
+| 7:9 | usage-Probe.target-files-scope | find_usages | `int target() {` |
 
 ## src/main/java/demo/Quirks.java
 
@@ -133,26 +133,26 @@ fails when this file is stale.
 | — | diagnostics-Quirks-errors | diagnostics | — |
 | — | file-structure-Quirks | file_structure | — |
 | — | file-structure-Quirks-visibility | file_structure | — |
-| 17:59 | def-Integer.parseInt-methodref | find_definition | `var coerce = (Function<String, Integer>) Integer::parseInt;` |
-| 18:16 | def-quirkVar-coerce | find_definition | `return coerce.apply(x);` |
-| 24:28 | super-anon-apply | find_super_methods | `public Integer apply(String s) {` |
-| 64:15 | impls-functional-Coerce | find_implementations | `interface Coerce { int run(String s); }` |
-| 64:28 | impls-coerce-run | find_implementations | `interface Coerce { int run(String s); }` |
-| 68:18 | impls-Coerce-via-lambda | find_implementations | `return c.run(x);` |
-| 71:10 | hier-type-CoerceMode | type_hierarchy | `enum CoerceMode {` |
-| 74:22 | impls-CoerceMode.apply | find_implementations | `abstract int apply(String s);` |
-| 78:31 | def-CoerceMode.INT.apply | find_definition | `return CoerceMode.INT.apply(x);` |
-| 86:23 | hier-caller-parse-string | call_hierarchy | `public static int parse(String s) {` |
-| 86:23 | usage-Quirks.parse-string-overload | find_usages | `public static int parse(String s) {` |
-| 90:23 | usage-Quirks.parse-string-int-overload | find_usages | `public static int parse(String s, int radix) {` |
-| 95:16 | def-parse-string-overload | find_definition | `return parse("42") + parse("ff", 16);` |
-| 95:30 | def-parse-stringint-overload | find_definition | `return parse("42") + parse("ff", 16);` |
+| 22:59 | def-Integer.parseInt-methodref | find_definition | `var coerce = (Function<String, Integer>) Integer::parseInt;` |
+| 23:16 | def-quirkVar-coerce | find_definition | `return coerce.apply(x);` |
+| 31:28 | super-anon-apply | find_super_methods | `public Integer apply(String s) {` |
+| 79:15 | impls-functional-Coerce | find_implementations | `interface Coerce { int run(String s); }` |
+| 79:28 | impls-coerce-run | find_implementations | `interface Coerce { int run(String s); }` |
+| 83:18 | impls-Coerce-via-lambda | find_implementations | `return c.run(x);` |
+| 88:10 | hier-type-CoerceMode | type_hierarchy | `enum CoerceMode {` |
+| 91:22 | impls-CoerceMode.apply | find_implementations | `abstract int apply(String s);` |
+| 97:31 | def-CoerceMode.INT.apply | find_definition | `return CoerceMode.INT.apply(x);` |
+| 108:23 | hier-caller-parse-string | call_hierarchy | `public static int parse(String s) {` |
+| 108:23 | usage-Quirks.parse-string-overload | find_usages | `public static int parse(String s) {` |
+| 112:23 | usage-Quirks.parse-string-int-overload | find_usages | `public static int parse(String s, int radix) {` |
+| 117:16 | def-parse-string-overload | find_definition | `return parse("42") + parse("ff", 16);` |
+| 117:30 | def-parse-stringint-overload | find_definition | `return parse("42") + parse("ff", 16);` |
 
 ## src/main/java/demo/StaticSuper.java
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 10:19 | super-StaticDerived.factory-static-hiding | find_super_methods | `static String factory() {` |
+| 13:19 | super-StaticDerived.factory-static-hiding | find_super_methods | `static String factory() {` |
 
 ## Query-only probes (no file anchor)
 

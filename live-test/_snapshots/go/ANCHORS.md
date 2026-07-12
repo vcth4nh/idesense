@@ -8,97 +8,97 @@ fails when this file is stale.
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 6:2 | usage-baseShape-embed | find_usages | `baseShape` |
+| 9:2 | usage-baseShape-embed | find_usages | `baseShape` |
 
 ## generic_super.go
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 8:6 | super-IntStore-type-generic | find_super_methods | `type IntStore struct{}` |
-| 10:20 | super-IntStore.Get-generic | find_super_methods | `func (s *IntStore) Get(key string) int {` |
-| 32:23 | super-Implementer.Run-compose-dedup | find_super_methods | `func (i *Implementer) Run() string {` |
+| 11:6 | super-IntStore-type-generic | find_super_methods | `type IntStore struct{}` |
+| 13:20 | super-IntStore.Get-generic | find_super_methods | `func (s *IntStore) Get(key string) int {` |
+| 35:23 | super-Implementer.Run-compose-dedup | find_super_methods | `func (i *Implementer) Run() string {` |
 
 ## multisuper.go
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 11:6 | super-Triple-type | find_super_methods | `type Triple struct{}` |
-| 13:18 | super-Triple.Name | find_super_methods | `func (t *Triple) Name() string { return "triple" }` |
-| 16:6 | hier-sub-IBase-embedded | type_hierarchy | `type IBase interface {` |
-| 24:6 | hier-super-ILeaf-embedded | type_hierarchy | `type ILeaf interface {` |
-| 30:21 | super-ChainImpl.Chain | find_super_methods | `func (c *ChainImpl) Chain() string { return "chain" }` |
-| 42:6 | super-IFull-type | find_super_methods | `type IFull interface {` |
-| 49:20 | super-FullImpl.Base | find_super_methods | `func (f *FullImpl) Base() string { return "base" }` |
-| 51:20 | super-FullImpl.Full | find_super_methods | `func (f *FullImpl) Full() string { return "full" }` |
-| 58:6 | super-Outer-type | find_super_methods | `type Outer struct{ Inner }` |
-| 60:16 | super-Outer.Hello | find_super_methods | `func (o Outer) Hello() string { return "outer" }` |
-| 65:18 | super-Greeter.String | find_super_methods | `func (g Greeter) String() string { return "greeter" }` |
+| 16:6 | super-Triple-type | find_super_methods | `type Triple struct{}` |
+| 18:18 | super-Triple.Name | find_super_methods | `func (t *Triple) Name() string { return "triple" }` |
+| 23:6 | hier-sub-IBase-embedded | type_hierarchy | `type IBase interface {` |
+| 31:6 | hier-super-ILeaf-embedded | type_hierarchy | `type ILeaf interface {` |
+| 37:21 | super-ChainImpl.Chain | find_super_methods | `func (c *ChainImpl) Chain() string { return "chain" }` |
+| 49:6 | super-IFull-type | find_super_methods | `type IFull interface {` |
+| 56:20 | super-FullImpl.Base | find_super_methods | `func (f *FullImpl) Base() string { return "base" }` |
+| 58:20 | super-FullImpl.Full | find_super_methods | `func (f *FullImpl) Full() string { return "full" }` |
+| 65:6 | super-Outer-type | find_super_methods | `type Outer struct{ Inner }` |
+| 67:16 | super-Outer.Hello | find_super_methods | `func (o Outer) Hello() string { return "outer" }` |
+| 72:18 | super-Greeter.String | find_super_methods | `func (g Greeter) String() string { return "greeter" }` |
 
 ## negative_super.go
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 7:22 | super-Standalone.Compute-negative | find_super_methods | `func (s *Standalone) Compute() string {` |
+| 9:22 | super-Standalone.Compute-negative | find_super_methods | `func (s *Standalone) Compute() string {` |
 
 ## normal.go
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Normal | file_structure | — |
-| 5:6 | hier-type-Drawable | type_hierarchy | `type Drawable interface {` |
-| 5:6 | impls-Drawable | find_implementations | `type Drawable interface {` |
-| 5:6 | usage-Drawable-iface | find_usages | `type Drawable interface {` |
-| 6:2 | def-Drawable.draw | find_definition | `Draw() string` |
-| 6:2 | hier-caller-Draw | call_hierarchy | `Draw() string` |
-| 6:2 | usage-Drawable.draw | find_usages | `Draw() string` |
-| 9:6 | hier-sub-Shape | type_hierarchy | `type Shape interface {` |
-| 9:6 | hier-sub-Shape-all | type_hierarchy | `type Shape interface {` |
-| 9:6 | hier-sub-Shape-test | type_hierarchy | `type Shape interface {` |
-| 9:6 | impls-Shape | find_implementations | `type Shape interface {` |
-| 11:2 | hier-caller-Describe | call_hierarchy | `Describe() string` |
-| 14:6 | hier-type-baseShape | type_hierarchy | `type baseShape struct{}` |
-| 16:20 | hier-caller-baseShape.Describe-cross-file | call_hierarchy | `func (b baseShape) Describe() string { return "shape with unknown area" }` |
-| 16:20 | usage-baseShape.Describe-promoted | find_usages | `func (b baseShape) Describe() string { return "shape with unknown area" }` |
-| 18:6 | hier-type-Circle | type_hierarchy | `type Circle struct {` |
-| 18:6 | usage-Circle-struct | find_usages | `type Circle struct {` |
-| 23:17 | super-Circle.Area | find_super_methods | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
-| 23:18 | def-Circle.area | find_definition | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
-| 23:18 | hier-caller-area | call_hierarchy | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
-| 23:18 | usage-area-libraries-scope | find_usages | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
-| 29:6 | hier-type-Rectangle | type_hierarchy | `type Rectangle struct {` |
-| 34:20 | def-Rectangle.area | find_definition | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
-| 34:20 | hier-caller-Rectangle.Area-all | call_hierarchy | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
-| 34:20 | hier-caller-Rectangle.Area-class-scope | call_hierarchy | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
-| 34:20 | hier-caller-Rectangle.Area-test | call_hierarchy | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
-| 34:20 | usage-Rectangle.Area-files-scope | find_usages | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
-| 40:6 | hier-type-Square | type_hierarchy | `type Square struct{ Rectangle }` |
-| 40:7 | hier-super-Square | type_hierarchy | `type Square struct{ Rectangle }` |
-| 46:6 | hier-type-ShapeCollection | type_hierarchy | `type ShapeCollection struct {` |
-| 47:2 | usage-shapes-field | find_usages | `Shapes []Shape` |
-| 47:11 | usage-Shape-iface | find_usages | `Shapes []Shape` |
-| 50:28 | usage-ShapeCollection.add | find_usages | `func (sc *ShapeCollection) Add(s Shape) {` |
-| 54:28 | hier-callee-TotalArea | call_hierarchy | `func (sc *ShapeCollection) TotalArea() float64 {` |
-| 57:12 | usage-area-from-totalArea | find_usages | `sum += s.Area()` |
-| 62:28 | hier-callee-Largest | call_hierarchy | `func (sc *ShapeCollection) Largest() Shape {` |
-| 72:6 | def-MakeDefaultShapes | find_definition | `func MakeDefaultShapes() []Shape {` |
-| 72:6 | hier-callee-MakeDefault | call_hierarchy | `func MakeDefaultShapes() []Shape {` |
-| 72:6 | hier-callee-MakeDefault-d3 | call_hierarchy | `func MakeDefaultShapes() []Shape {` |
+| 16:6 | hier-type-Drawable | type_hierarchy | `type Drawable interface {` |
+| 16:6 | impls-Drawable | find_implementations | `type Drawable interface {` |
+| 16:6 | usage-Drawable-iface | find_usages | `type Drawable interface {` |
+| 17:2 | def-Drawable.draw | find_definition | `Draw() string` |
+| 17:2 | hier-caller-Draw | call_hierarchy | `Draw() string` |
+| 17:2 | usage-Drawable.draw | find_usages | `Draw() string` |
+| 20:6 | hier-sub-Shape | type_hierarchy | `type Shape interface {` |
+| 20:6 | hier-sub-Shape-all | type_hierarchy | `type Shape interface {` |
+| 20:6 | hier-sub-Shape-test | type_hierarchy | `type Shape interface {` |
+| 20:6 | impls-Shape | find_implementations | `type Shape interface {` |
+| 22:2 | hier-caller-Describe | call_hierarchy | `Describe() string` |
+| 31:6 | hier-type-baseShape | type_hierarchy | `type baseShape struct{}` |
+| 33:20 | hier-caller-baseShape.Describe-cross-file | call_hierarchy | `func (b baseShape) Describe() string { return "shape with unknown area" }` |
+| 33:20 | usage-baseShape.Describe-promoted | find_usages | `func (b baseShape) Describe() string { return "shape with unknown area" }` |
+| 37:6 | hier-type-Circle | type_hierarchy | `type Circle struct {` |
+| 37:6 | usage-Circle-struct | find_usages | `type Circle struct {` |
+| 44:17 | super-Circle.Area | find_super_methods | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
+| 44:18 | def-Circle.area | find_definition | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
+| 44:18 | hier-caller-area | call_hierarchy | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
+| 44:18 | usage-area-libraries-scope | find_usages | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
+| 50:6 | hier-type-Rectangle | type_hierarchy | `type Rectangle struct {` |
+| 55:20 | def-Rectangle.area | find_definition | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
+| 55:20 | hier-caller-Rectangle.Area-all | call_hierarchy | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
+| 55:20 | hier-caller-Rectangle.Area-class-scope | call_hierarchy | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
+| 55:20 | hier-caller-Rectangle.Area-test | call_hierarchy | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
+| 55:20 | usage-Rectangle.Area-files-scope | find_usages | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
+| 63:6 | hier-type-Square | type_hierarchy | `type Square struct{ Rectangle }` |
+| 63:7 | hier-super-Square | type_hierarchy | `type Square struct{ Rectangle }` |
+| 72:6 | hier-type-ShapeCollection | type_hierarchy | `type ShapeCollection struct {` |
+| 73:2 | usage-shapes-field | find_usages | `Shapes []Shape` |
+| 73:11 | usage-Shape-iface | find_usages | `Shapes []Shape` |
+| 76:28 | usage-ShapeCollection.add | find_usages | `func (sc *ShapeCollection) Add(s Shape) {` |
+| 80:28 | hier-callee-TotalArea | call_hierarchy | `func (sc *ShapeCollection) TotalArea() float64 {` |
+| 83:12 | usage-area-from-totalArea | find_usages | `sum += s.Area()` |
+| 88:28 | hier-callee-Largest | call_hierarchy | `func (sc *ShapeCollection) Largest() Shape {` |
+| 100:6 | def-MakeDefaultShapes | find_definition | `func MakeDefaultShapes() []Shape {` |
+| 100:6 | hier-callee-MakeDefault | call_hierarchy | `func MakeDefaultShapes() []Shape {` |
+| 100:6 | hier-callee-MakeDefault-d3 | call_hierarchy | `func MakeDefaultShapes() []Shape {` |
 
 ## quirks.go
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Quirks | file_structure | — |
-| 12:10 | def-Quirks-fnvar-resolve | find_definition | `v, _ := fn(x)` |
-| 54:6 | usage-IntCoercer-struct | find_usages | `type IntCoercer struct{}` |
-| 56:19 | super-IntCoercer.Coerce | find_super_methods | `func (IntCoercer) Coerce(s string) int {` |
-| 66:11 | def-Quirks-iface-dispatch | find_definition | `return c.Coerce(x)` |
-| 90:2 | usage-c-local | find_usages | `c := IntCoercer{}` |
-| 91:10 | def-Quirks-method-value | find_definition | `fn := c.Coerce` |
-| 97:19 | def-Quirks-method-expr | find_definition | `fn := IntCoercer.Coerce` |
-| 121:24 | def-Quirks-type-switch-s | find_definition | `v, _ := strconv.Atoi(s)` |
-| 134:2 | usage-CoerceLimitA-iota | find_usages | `CoerceLimitA = iota` |
-| 139:9 | def-CoerceLimitA-const | find_definition | `return CoerceLimitA + CoerceLimitB` |
+| 18:10 | def-Quirks-fnvar-resolve | find_definition | `v, _ := fn(x)` |
+| 62:6 | usage-IntCoercer-struct | find_usages | `type IntCoercer struct{}` |
+| 64:19 | super-IntCoercer.Coerce | find_super_methods | `func (IntCoercer) Coerce(s string) int {` |
+| 74:11 | def-Quirks-iface-dispatch | find_definition | `return c.Coerce(x)` |
+| 98:2 | usage-c-local | find_usages | `c := IntCoercer{}` |
+| 99:10 | def-Quirks-method-value | find_definition | `fn := c.Coerce` |
+| 105:19 | def-Quirks-method-expr | find_definition | `fn := IntCoercer.Coerce` |
+| 129:24 | def-Quirks-type-switch-s | find_definition | `v, _ := strconv.Atoi(s)` |
+| 144:2 | usage-CoerceLimitA-iota | find_usages | `CoerceLimitA = iota` |
+| 149:9 | def-CoerceLimitA-const | find_definition | `return CoerceLimitA + CoerceLimitB` |
 
 ## Query-only probes (no file anchor)
 

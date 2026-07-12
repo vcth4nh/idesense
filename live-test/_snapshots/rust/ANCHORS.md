@@ -8,116 +8,116 @@ fails when this file is stale.
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 3:8 | super-Computable.compute-trait-default | find_super_methods | `fn compute(&self) -> String {` |
-| 11:8 | super-Overrider.compute-default-override | find_super_methods | `fn compute(&self) -> String {` |
+| 4:8 | super-Computable.compute-trait-default | find_super_methods | `fn compute(&self) -> String {` |
+| 13:8 | super-Overrider.compute-default-override | find_super_methods | `fn compute(&self) -> String {` |
 
 ## src/extra.rs
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-extra | file_structure | — |
-| 7:12 | def-cross-mod-helper | find_definition | `inner::nested_helper() + s.len() as i32` |
-| 11:20 | def-cross-file-Circle | find_definition | `crate::normal::Circle { radius: 1.0 }.radius` |
+| 12:12 | def-cross-mod-helper | find_definition | `inner::nested_helper() + s.len() as i32` |
+| 18:20 | def-cross-file-Circle | find_definition | `crate::normal::Circle { radius: 1.0 }.radius` |
 
 ## src/generic_super.rs
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | 2:11 | impls-Storage-generic | find_implementations | `pub trait Storage<T> {` |
-| 9:8 | super-IntStore.get-generic | find_super_methods | `fn get(&self, _key: &str) -> i32 {` |
+| 11:8 | super-IntStore.get-generic | find_super_methods | `fn get(&self, _key: &str) -> i32 {` |
 
 ## src/macros.rs
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Macros | file_structure | — |
-| 1:14 | usage-square-macro | find_usages | `macro_rules! square {` |
-| 8:12 | usage-Point-derived | find_usages | `pub struct Point {` |
-| 21:17 | def-Point.clone-derived | find_definition | `let q = p.clone();` |
-| 23:5 | def-square-macro | find_definition | `square!(p.x) + square!(q.y)` |
+| 6:14 | usage-square-macro | find_usages | `macro_rules! square {` |
+| 16:12 | usage-Point-derived | find_usages | `pub struct Point {` |
+| 30:17 | def-Point.clone-derived | find_definition | `let q = p.clone();` |
+| 32:5 | def-square-macro | find_definition | `square!(p.x) + square!(q.y)` |
 
 ## src/multisuper.rs
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 8:8 | super-MyStruct.m | find_super_methods | `fn m(&self) -> String {` |
-| 22:11 | super-MyStruct.KIND | find_super_methods | `const KIND: &'static str = "impl";` |
-| 26:10 | super-MyStruct.Output | find_super_methods | `type Output = String;` |
+| 11:8 | super-MyStruct.m | find_super_methods | `fn m(&self) -> String {` |
+| 27:11 | super-MyStruct.KIND | find_super_methods | `const KIND: &'static str = "impl";` |
+| 31:10 | super-MyStruct.Output | find_super_methods | `type Output = String;` |
 
 ## src/negative_super.rs
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 5:12 | super-Inherent.foo-inherent | find_super_methods | `pub fn foo(&self) -> String {` |
+| 9:12 | super-Inherent.foo-inherent | find_super_methods | `pub fn foo(&self) -> String {` |
 
 ## src/normal.rs
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Normal | file_structure | — |
-| 1:11 | hier-type-Drawable | type_hierarchy | `pub trait Drawable {` |
-| 1:11 | usage-Drawable-trait | find_usages | `pub trait Drawable {` |
-| 2:8 | def-Drawable.draw-decl | find_definition | `fn draw(&self) -> String;` |
-| 2:8 | hier-caller-draw | call_hierarchy | `fn draw(&self) -> String;` |
-| 2:8 | impls-Drawable.draw | find_implementations | `fn draw(&self) -> String;` |
-| 5:11 | hier-sub-Shape | type_hierarchy | `pub trait Shape {` |
-| 5:11 | hier-sub-Shape-all | type_hierarchy | `pub trait Shape {` |
-| 5:11 | hier-sub-Shape-production | type_hierarchy | `pub trait Shape {` |
-| 5:11 | hier-sub-Shape-test | type_hierarchy | `pub trait Shape {` |
-| 5:11 | hier-type-Shape-trait | type_hierarchy | `pub trait Shape {` |
-| 5:11 | impls-Shape-trait | find_implementations | `pub trait Shape {` |
-| 5:11 | usage-Shape-trait | find_usages | `pub trait Shape {` |
-| 6:8 | hier-caller-area | call_hierarchy | `fn area(&self) -> f64;` |
-| 6:8 | hier-caller-area-d1 | call_hierarchy | `fn area(&self) -> f64;` |
-| 6:8 | impls-Shape.area | find_implementations | `fn area(&self) -> f64;` |
-| 8:8 | hier-caller-describe | call_hierarchy | `fn describe(&self) -> String {` |
-| 8:8 | impls-Shape.describe | find_implementations | `fn describe(&self) -> String {` |
-| 13:12 | hier-type-Circle | type_hierarchy | `pub struct Circle {` |
-| 14:9 | usage-Circle.radius | find_usages | `pub radius: f64,` |
-| 18:8 | usage-area-libraries-scope | find_usages | `fn area(&self) -> f64 {` |
-| 23:48 | def-Circle.area | find_definition | `format!("Circle with area {}", self.area())` |
-| 33:12 | hier-type-Rectangle | type_hierarchy | `pub struct Rectangle {` |
-| 33:12 | usage-Rectangle-struct | find_usages | `pub struct Rectangle {` |
-| 44:48 | def-Rectangle.area | find_definition | `format!("Rectangle with area {}", self.area())` |
-| 54:12 | hier-super-Square | type_hierarchy | `pub struct Square {` |
-| 54:12 | hier-type-Square | type_hierarchy | `pub struct Square {` |
-| 71:9 | usage-shapes-field | find_usages | `pub shapes: Vec<Box<dyn Shape>>,` |
-| 83:12 | hier-callee-total-area | call_hierarchy | `pub fn total_area(&self) -> f64 {` |
-| 84:38 | usage-area-from-total | find_usages | `self.shapes.iter().map(\|s\| s.area()).sum()` |
-| 87:12 | hier-callee-largest | call_hierarchy | `pub fn largest(&self) -> Option<&Box<dyn Shape>> {` |
-| 94:8 | def-make-default-shapes-decl | find_definition | `pub fn make_default_shapes() -> Vec<Box<dyn Shape>> {` |
-| 94:8 | hier-callee-make-default | call_hierarchy | `pub fn make_default_shapes() -> Vec<Box<dyn Shape>> {` |
-| 94:8 | hier-callee-make-default-d3 | call_hierarchy | `pub fn make_default_shapes() -> Vec<Box<dyn Shape>> {` |
+| 6:11 | hier-type-Drawable | type_hierarchy | `pub trait Drawable {` |
+| 6:11 | usage-Drawable-trait | find_usages | `pub trait Drawable {` |
+| 7:8 | def-Drawable.draw-decl | find_definition | `fn draw(&self) -> String;` |
+| 7:8 | hier-caller-draw | call_hierarchy | `fn draw(&self) -> String;` |
+| 7:8 | impls-Drawable.draw | find_implementations | `fn draw(&self) -> String;` |
+| 12:11 | hier-sub-Shape | type_hierarchy | `pub trait Shape {` |
+| 12:11 | hier-sub-Shape-all | type_hierarchy | `pub trait Shape {` |
+| 12:11 | hier-sub-Shape-production | type_hierarchy | `pub trait Shape {` |
+| 12:11 | hier-sub-Shape-test | type_hierarchy | `pub trait Shape {` |
+| 12:11 | hier-type-Shape-trait | type_hierarchy | `pub trait Shape {` |
+| 12:11 | impls-Shape-trait | find_implementations | `pub trait Shape {` |
+| 12:11 | usage-Shape-trait | find_usages | `pub trait Shape {` |
+| 13:8 | hier-caller-area | call_hierarchy | `fn area(&self) -> f64;` |
+| 13:8 | hier-caller-area-d1 | call_hierarchy | `fn area(&self) -> f64;` |
+| 13:8 | impls-Shape.area | find_implementations | `fn area(&self) -> f64;` |
+| 15:8 | hier-caller-describe | call_hierarchy | `fn describe(&self) -> String {` |
+| 15:8 | impls-Shape.describe | find_implementations | `fn describe(&self) -> String {` |
+| 22:12 | hier-type-Circle | type_hierarchy | `pub struct Circle {` |
+| 23:9 | usage-Circle.radius | find_usages | `pub radius: f64,` |
+| 27:8 | usage-area-libraries-scope | find_usages | `fn area(&self) -> f64 {` |
+| 32:48 | def-Circle.area | find_definition | `format!("Circle with area {}", self.area())` |
+| 42:12 | hier-type-Rectangle | type_hierarchy | `pub struct Rectangle {` |
+| 42:12 | usage-Rectangle-struct | find_usages | `pub struct Rectangle {` |
+| 53:48 | def-Rectangle.area | find_definition | `format!("Rectangle with area {}", self.area())` |
+| 65:12 | hier-super-Square | type_hierarchy | `pub struct Square {` |
+| 65:12 | hier-type-Square | type_hierarchy | `pub struct Square {` |
+| 84:9 | usage-shapes-field | find_usages | `pub shapes: Vec<Box<dyn Shape>>,` |
+| 96:12 | hier-callee-total-area | call_hierarchy | `pub fn total_area(&self) -> f64 {` |
+| 97:38 | usage-area-from-total | find_usages | `self.shapes.iter().map(\|s\| s.area()).sum()` |
+| 100:12 | hier-callee-largest | call_hierarchy | `pub fn largest(&self) -> Option<&Box<dyn Shape>> {` |
+| 109:8 | def-make-default-shapes-decl | find_definition | `pub fn make_default_shapes() -> Vec<Box<dyn Shape>> {` |
+| 109:8 | hier-callee-make-default | call_hierarchy | `pub fn make_default_shapes() -> Vec<Box<dyn Shape>> {` |
+| 109:8 | hier-callee-make-default-d3 | call_hierarchy | `pub fn make_default_shapes() -> Vec<Box<dyn Shape>> {` |
 
 ## src/quirks.rs
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Quirks | file_structure | — |
-| 7:35 | def-q-fn-pointer | find_definition | `let coerce: fn(&str) -> i32 = parse_or_zero;` |
-| 11:4 | hier-caller-parse_or_zero-fnptr | call_hierarchy | `fn parse_or_zero(s: &str) -> i32 {` |
-| 16:25 | def-q-Box-dyn-fn | find_definition | `let coerce: Box<dyn Fn(&str) -> i32> = Box::new(\|s\| s.parse().unwrap_or(0));` |
-| 28:11 | usage-Coercer-trait | find_usages | `pub trait Coercer {` |
-| 29:11 | impls-Coercer | find_implementations | `fn coerce(&self, x: &str) -> i32;` |
-| 47:11 | def-trait-object-coerce | find_definition | `c.coerce(x)` |
-| 50:27 | impls-generic-bound-Coercer | find_implementations | `pub fn q_generic_bound<C: Coercer>(c: &C, x: &str) -> i32 {` |
-| 66:10 | hier-type-CoerceMode | type_hierarchy | `pub enum CoerceMode {` |
-| 67:5 | usage-CoerceMode.Int-variant | find_usages | `Int,` |
-| 74:25 | def-enum-variant-coerce-int | find_definition | `CoerceMode::Int => x.parse().unwrap_or(0),` |
-| 81:10 | def-CoerceMode.apply | find_definition | `mode.apply(x)` |
-| 85:25 | def-q-iter-parse | find_definition | `xs.iter().map(\|s\| s.parse().unwrap_or(0)).collect()` |
-| 97:21 | def-q-stdlib-parse | find_definition | `let v: i32 = x.parse()?;` |
+| 13:35 | def-q-fn-pointer | find_definition | `let coerce: fn(&str) -> i32 = parse_or_zero;` |
+| 19:4 | hier-caller-parse_or_zero-fnptr | call_hierarchy | `fn parse_or_zero(s: &str) -> i32 {` |
+| 26:25 | def-q-Box-dyn-fn | find_definition | `let coerce: Box<dyn Fn(&str) -> i32> = Box::new(\|s\| s.parse().unwrap_or(0));` |
+| 41:11 | usage-Coercer-trait | find_usages | `pub trait Coercer {` |
+| 42:11 | impls-Coercer | find_implementations | `fn coerce(&self, x: &str) -> i32;` |
+| 62:11 | def-trait-object-coerce | find_definition | `c.coerce(x)` |
+| 67:27 | impls-generic-bound-Coercer | find_implementations | `pub fn q_generic_bound<C: Coercer>(c: &C, x: &str) -> i32 {` |
+| 87:10 | hier-type-CoerceMode | type_hierarchy | `pub enum CoerceMode {` |
+| 88:5 | usage-CoerceMode.Int-variant | find_usages | `Int,` |
+| 95:25 | def-enum-variant-coerce-int | find_definition | `CoerceMode::Int => x.parse().unwrap_or(0),` |
+| 103:10 | def-CoerceMode.apply | find_definition | `mode.apply(x)` |
+| 108:25 | def-q-iter-parse | find_definition | `xs.iter().map(\|s\| s.parse().unwrap_or(0)).collect()` |
+| 121:21 | def-q-stdlib-parse | find_definition | `let v: i32 = x.parse()?;` |
 
 ## src/scopes.rs
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 4:12 | hier-caller-target-all | call_hierarchy | `pub fn target(&self) -> i32 {` |
-| 4:12 | hier-caller-target-production | call_hierarchy | `pub fn target(&self) -> i32 {` |
-| 4:12 | hier-caller-target-test | call_hierarchy | `pub fn target(&self) -> i32 {` |
-| 4:12 | hier-caller-target-this-class | call_hierarchy | `pub fn target(&self) -> i32 {` |
-| 4:12 | hier-caller-target-this-module | call_hierarchy | `pub fn target(&self) -> i32 {` |
-| 4:12 | usage-target-test-scope | find_usages | `pub fn target(&self) -> i32 {` |
+| 10:12 | hier-caller-target-all | call_hierarchy | `pub fn target(&self) -> i32 {` |
+| 10:12 | hier-caller-target-production | call_hierarchy | `pub fn target(&self) -> i32 {` |
+| 10:12 | hier-caller-target-test | call_hierarchy | `pub fn target(&self) -> i32 {` |
+| 10:12 | hier-caller-target-this-class | call_hierarchy | `pub fn target(&self) -> i32 {` |
+| 10:12 | hier-caller-target-this-module | call_hierarchy | `pub fn target(&self) -> i32 {` |
+| 10:12 | usage-target-test-scope | find_usages | `pub fn target(&self) -> i32 {` |
 
 ## src/supertrait_super.rs
 

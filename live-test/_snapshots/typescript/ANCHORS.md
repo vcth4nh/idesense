@@ -8,158 +8,158 @@ fails when this file is stale.
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 6:11 | super-AsyncImpl.fetch-async | find_super_methods | `async fetch(): Promise<string> { return "fetched"; }` |
+| 8:11 | super-AsyncImpl.fetch-async | find_super_methods | `async fetch(): Promise<string> { return "fetched"; }` |
 
 ## src/const_super.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 6:21 | super-ConstChild.KIND-const | find_super_methods | `static readonly KIND = "child";` |
+| 9:21 | super-ConstChild.KIND-const | find_super_methods | `static readonly KIND = "child";` |
 
 ## src/decorators.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Decorators | file_structure | — |
-| 1:17 | usage-traced-decorator | find_usages | `export function traced(target: Function, context: any): void {` |
-| 7:6 | def-traced-decorator | find_definition | `@traced` |
-| 8:5 | hier-caller-greet-decorated | call_hierarchy | `greet(name: string): string {` |
+| 4:17 | usage-traced-decorator | find_usages | `export function traced(target: Function, context: any): void {` |
+| 13:6 | def-traced-decorator | find_definition | `@traced` |
+| 14:5 | hier-caller-greet-decorated | call_hierarchy | `greet(name: string): string {` |
 
 ## src/enums.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Enums | file_structure | — |
-| 1:13 | hier-type-Direction | type_hierarchy | `export enum Direction {` |
-| 1:13 | usage-Direction-enum | find_usages | `export enum Direction {` |
-| 2:5 | usage-Direction.North-enum | find_usages | `North,` |
-| 15:25 | def-Direction.North-enum | find_definition | `if (d === Direction.North) return Direction.South;` |
-| 22:24 | def-Color.Red-enum | find_definition | `return c === Color.Red \|\| c === Color.Green;` |
+| 6:13 | hier-type-Direction | type_hierarchy | `export enum Direction {` |
+| 6:13 | usage-Direction-enum | find_usages | `export enum Direction {` |
+| 7:5 | usage-Direction.North-enum | find_usages | `North,` |
+| 20:25 | def-Direction.North-enum | find_definition | `if (d === Direction.North) return Direction.South;` |
+| 27:24 | def-Color.Red-enum | find_definition | `return c === Color.Red \|\| c === Color.Green;` |
 
 ## src/generic_super.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 6:5 | super-Repo.find-generic | find_super_methods | `find(id: number): T {` |
+| 8:5 | super-Repo.find-generic | find_super_methods | `find(id: number): T {` |
 
 ## src/multisuper.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 13:14 | super-Triple-class | find_super_methods | `export class Triple extends Base implements IRender, IDisplay {` |
-| 14:5 | super-Triple.name | find_super_methods | `name(): string { return "triple"; }` |
-| 31:5 | super-DeepMid2.m | find_super_methods | `m(): string { return "mid2"; }` |
-| 35:5 | super-DeepLeaf.m | find_super_methods | `m(): string { return "leaf"; }` |
-| 43:18 | hier-sub-DiamondTop | type_hierarchy | `export interface DiamondTop {` |
-| 52:5 | super-DiamondBottom.m | find_super_methods | `m(): string { return "bottom"; }` |
-| 67:5 | super-OptImpl.req | find_super_methods | `req(): string { return "req"; }` |
-| 68:5 | super-OptImpl.opt | find_super_methods | `opt(): string { return "opt"; }` |
-| 81:9 | super-AccessorImpl.value | find_super_methods | `get value(): string { return "accessor"; }` |
-| 100:23 | super-ConcreteCombo.p-readonly | find_super_methods | `override readonly p = "combo-prop";` |
-| 117:5 | super-Runner.run | find_super_methods | `run(): void { /* runs */ }` |
+| 20:14 | super-Triple-class | find_super_methods | `export class Triple extends Base implements IRender, IDisplay {` |
+| 21:5 | super-Triple.name | find_super_methods | `name(): string { return "triple"; }` |
+| 38:5 | super-DeepMid2.m | find_super_methods | `m(): string { return "mid2"; }` |
+| 42:5 | super-DeepLeaf.m | find_super_methods | `m(): string { return "leaf"; }` |
+| 52:18 | hier-sub-DiamondTop | type_hierarchy | `export interface DiamondTop {` |
+| 61:5 | super-DiamondBottom.m | find_super_methods | `m(): string { return "bottom"; }` |
+| 78:5 | super-OptImpl.req | find_super_methods | `req(): string { return "req"; }` |
+| 79:5 | super-OptImpl.opt | find_super_methods | `opt(): string { return "opt"; }` |
+| 92:9 | super-AccessorImpl.value | find_super_methods | `get value(): string { return "accessor"; }` |
+| 111:23 | super-ConcreteCombo.p-readonly | find_super_methods | `override readonly p = "combo-prop";` |
+| 128:5 | super-Runner.run | find_super_methods | `run(): void { /* runs */ }` |
 
 ## src/namespaces.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Namespaces | file_structure | — |
-| 1:18 | usage-Geometry-namespace | find_usages | `export namespace Geometry {` |
-| 2:18 | usage-Point-namespace | find_usages | `export class Point {` |
-| 22:17 | hier-callee-span | call_hierarchy | `export function span(): number {` |
-| 23:21 | def-Geometry.origin-call | find_definition | `return Geometry.origin().distanceTo(Geometry.unit());` |
+| 4:18 | usage-Geometry-namespace | find_usages | `export namespace Geometry {` |
+| 5:18 | usage-Point-namespace | find_usages | `export class Point {` |
+| 28:17 | hier-callee-span | call_hierarchy | `export function span(): number {` |
+| 29:21 | def-Geometry.origin-call | find_definition | `return Geometry.origin().distanceTo(Geometry.unit());` |
 
 ## src/negative_super.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 2:5 | super-Standalone.compute-negative | find_super_methods | `compute(): string { return "standalone"; }` |
+| 4:5 | super-Standalone.compute-negative | find_super_methods | `compute(): string { return "standalone"; }` |
 
 ## src/normal.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Normal | file_structure | — |
-| 1:18 | hier-type-Drawable | type_hierarchy | `export interface Drawable {` |
-| 1:18 | impls-Drawable-interface | find_implementations | `export interface Drawable {` |
-| 1:18 | usage-Drawable-class | find_usages | `export interface Drawable {` |
-| 2:5 | hier-caller-draw | call_hierarchy | `draw(): string;` |
-| 2:5 | impls-Drawable.draw | find_implementations | `draw(): string;` |
-| 5:23 | hier-sub-Shape | type_hierarchy | `export abstract class Shape {` |
-| 5:23 | hier-type-Shape | type_hierarchy | `export abstract class Shape {` |
-| 5:23 | hier-type-Shape-both | type_hierarchy | `export abstract class Shape {` |
-| 5:23 | impls-Shape-class | find_implementations | `export abstract class Shape {` |
-| 5:23 | usage-Shape-class | find_usages | `export abstract class Shape {` |
-| 6:14 | hier-caller-area | call_hierarchy | `abstract area(): number;` |
-| 6:14 | impls-Shape.area | find_implementations | `abstract area(): number;` |
-| 6:14 | usage-area-from-totalArea | find_usages | `abstract area(): number;` |
-| 6:14 | usage-area-libraries-scope | find_usages | `abstract area(): number;` |
-| 8:5 | hier-caller-describe | call_hierarchy | `describe(): string {` |
-| 8:5 | impls-Shape.describe | find_implementations | `describe(): string {` |
-| 13:14 | hier-type-Circle | type_hierarchy | `export class Circle extends Shape implements Drawable {` |
-| 14:33 | usage-Circle.radius-paramprop | find_usages | `constructor(public readonly radius: number) {` |
-| 17:5 | def-Circle.area | find_definition | `area(): number { return 3.14159 * this.radius * this.radius; }` |
-| 17:5 | super-Circle.area | find_super_methods | `area(): number { return 3.14159 * this.radius * this.radius; }` |
-| 17:44 | def-Circle.radius-paramprop | find_definition | `area(): number { return 3.14159 * this.radius * this.radius; }` |
-| 18:5 | super-Circle.draw | find_super_methods | draw(): string { return `circle r=${this.radius}`; } |
-| 21:14 | hier-type-Rectangle | type_hierarchy | `export class Rectangle extends Shape implements Drawable {` |
-| 25:5 | def-Rectangle.area | find_definition | `area(): number { return this.width * this.height; }` |
-| 25:5 | super-Rectangle.area | find_super_methods | `area(): number { return this.width * this.height; }` |
-| 26:5 | super-Rectangle.draw | find_super_methods | draw(): string { return `rect ${this.width}x${this.height}`; } |
-| 29:14 | hier-super-Square | type_hierarchy | `export class Square extends Rectangle {` |
-| 29:14 | hier-super-Square-d1 | type_hierarchy | `export class Square extends Rectangle {` |
-| 29:14 | hier-type-Square | type_hierarchy | `export class Square extends Rectangle {` |
-| 35:14 | hier-type-ShapeCollection | type_hierarchy | `export class ShapeCollection {` |
-| 36:14 | usage-shapes-field | find_usages | `readonly shapes: Shape[] = [];` |
-| 40:5 | hier-callee-totalArea | call_hierarchy | `totalArea(): number {` |
-| 40:5 | hier-callee-totalArea-d1 | call_hierarchy | `totalArea(): number {` |
-| 46:5 | hier-callee-largest | call_hierarchy | `largest(): Shape \| null {` |
-| 55:17 | def-makeDefaultShapes | find_definition | `export function makeDefaultShapes(): Shape[] {` |
-| 55:17 | hier-callee-makeDefault | call_hierarchy | `export function makeDefaultShapes(): Shape[] {` |
-| 55:17 | hier-callee-makeDefault-d3 | call_hierarchy | `export function makeDefaultShapes(): Shape[] {` |
-| 56:17 | def-Circle-via-new-call | find_definition | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
-| 56:17 | usage-Circle-via-new-call-site | find_usages | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
-| 56:34 | def-Rectangle-via-new-call | find_definition | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
+| 4:18 | hier-type-Drawable | type_hierarchy | `export interface Drawable {` |
+| 4:18 | impls-Drawable-interface | find_implementations | `export interface Drawable {` |
+| 4:18 | usage-Drawable-class | find_usages | `export interface Drawable {` |
+| 5:5 | hier-caller-draw | call_hierarchy | `draw(): string;` |
+| 5:5 | impls-Drawable.draw | find_implementations | `draw(): string;` |
+| 10:23 | hier-sub-Shape | type_hierarchy | `export abstract class Shape {` |
+| 10:23 | hier-type-Shape | type_hierarchy | `export abstract class Shape {` |
+| 10:23 | hier-type-Shape-both | type_hierarchy | `export abstract class Shape {` |
+| 10:23 | impls-Shape-class | find_implementations | `export abstract class Shape {` |
+| 10:23 | usage-Shape-class | find_usages | `export abstract class Shape {` |
+| 11:14 | hier-caller-area | call_hierarchy | `abstract area(): number;` |
+| 11:14 | impls-Shape.area | find_implementations | `abstract area(): number;` |
+| 11:14 | usage-area-from-totalArea | find_usages | `abstract area(): number;` |
+| 11:14 | usage-area-libraries-scope | find_usages | `abstract area(): number;` |
+| 13:5 | hier-caller-describe | call_hierarchy | `describe(): string {` |
+| 13:5 | impls-Shape.describe | find_implementations | `describe(): string {` |
+| 21:14 | hier-type-Circle | type_hierarchy | `export class Circle extends Shape implements Drawable {` |
+| 22:33 | usage-Circle.radius-paramprop | find_usages | `constructor(public readonly radius: number) {` |
+| 25:5 | def-Circle.area | find_definition | `area(): number { return 3.14159 * this.radius * this.radius; }` |
+| 25:5 | super-Circle.area | find_super_methods | `area(): number { return 3.14159 * this.radius * this.radius; }` |
+| 25:44 | def-Circle.radius-paramprop | find_definition | `area(): number { return 3.14159 * this.radius * this.radius; }` |
+| 26:5 | super-Circle.draw | find_super_methods | draw(): string { return `circle r=${this.radius}`; } |
+| 29:14 | hier-type-Rectangle | type_hierarchy | `export class Rectangle extends Shape implements Drawable {` |
+| 33:5 | def-Rectangle.area | find_definition | `area(): number { return this.width * this.height; }` |
+| 33:5 | super-Rectangle.area | find_super_methods | `area(): number { return this.width * this.height; }` |
+| 34:5 | super-Rectangle.draw | find_super_methods | draw(): string { return `rect ${this.width}x${this.height}`; } |
+| 39:14 | hier-super-Square | type_hierarchy | `export class Square extends Rectangle {` |
+| 39:14 | hier-super-Square-d1 | type_hierarchy | `export class Square extends Rectangle {` |
+| 39:14 | hier-type-Square | type_hierarchy | `export class Square extends Rectangle {` |
+| 47:14 | hier-type-ShapeCollection | type_hierarchy | `export class ShapeCollection {` |
+| 48:14 | usage-shapes-field | find_usages | `readonly shapes: Shape[] = [];` |
+| 52:5 | hier-callee-totalArea | call_hierarchy | `totalArea(): number {` |
+| 52:5 | hier-callee-totalArea-d1 | call_hierarchy | `totalArea(): number {` |
+| 58:5 | hier-callee-largest | call_hierarchy | `largest(): Shape \| null {` |
+| 69:17 | def-makeDefaultShapes | find_definition | `export function makeDefaultShapes(): Shape[] {` |
+| 69:17 | hier-callee-makeDefault | call_hierarchy | `export function makeDefaultShapes(): Shape[] {` |
+| 69:17 | hier-callee-makeDefault-d3 | call_hierarchy | `export function makeDefaultShapes(): Shape[] {` |
+| 70:17 | def-Circle-via-new-call | find_definition | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
+| 70:17 | usage-Circle-via-new-call-site | find_usages | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
+| 70:34 | def-Rectangle-via-new-call | find_definition | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
 
 ## src/probes.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 1:14 | hier-sub-Probe-all | type_hierarchy | `export class Probe {` |
-| 1:14 | hier-sub-Probe-production | type_hierarchy | `export class Probe {` |
-| 1:14 | hier-sub-Probe-test | type_hierarchy | `export class Probe {` |
-| 2:5 | hier-caller-target-all | call_hierarchy | `target(): number {` |
-| 2:5 | hier-caller-target-production | call_hierarchy | `target(): number {` |
-| 2:5 | hier-caller-target-test | call_hierarchy | `target(): number {` |
-| 2:5 | hier-caller-target-this-class | call_hierarchy | `target(): number {` |
-| 2:5 | hier-caller-target-this-module | call_hierarchy | `target(): number {` |
+| 4:14 | hier-sub-Probe-all | type_hierarchy | `export class Probe {` |
+| 4:14 | hier-sub-Probe-production | type_hierarchy | `export class Probe {` |
+| 4:14 | hier-sub-Probe-test | type_hierarchy | `export class Probe {` |
+| 5:5 | hier-caller-target-all | call_hierarchy | `target(): number {` |
+| 5:5 | hier-caller-target-production | call_hierarchy | `target(): number {` |
+| 5:5 | hier-caller-target-test | call_hierarchy | `target(): number {` |
+| 5:5 | hier-caller-target-this-class | call_hierarchy | `target(): number {` |
+| 5:5 | hier-caller-target-this-module | call_hierarchy | `target(): number {` |
 
 ## src/quirks.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Quirks | file_structure | — |
-| 3:12 | def-Quirks-parseint-from-typed-lambda | find_definition | `return fn(x);` |
-| 39:19 | def-Quirks-parseint-arg-cast | find_definition | `return Number.parseInt(x as string, 10);` |
-| 42:18 | impls-Coercer | find_implementations | `export interface Coercer { coerce(x: string): number; }` |
-| 42:18 | usage-Coercer-interface | find_usages | `export interface Coercer { coerce(x: string): number; }` |
-| 52:14 | hier-type-TypedCoercer | type_hierarchy | `export class TypedCoercer<T extends string> {` |
-| 53:15 | def-T-typeparam-use | find_definition | `coerce(x: T): number { return Number.parseInt(x, 10); }` |
-| 57:16 | def-TypedCoercer-via-new-generic | find_definition | `return new TypedCoercer<string>().coerce(x);` |
-| 60:13 | hier-type-Coerce-alias | type_hierarchy | `export type Coerce = (s: string) => number;` |
-| 62:14 | usage-aliasedCoerce | find_usages | `export const aliasedCoerce: Coerce = (s) => Number.parseInt(s, 10);` |
+| 7:12 | def-Quirks-parseint-from-typed-lambda | find_definition | `return fn(x);` |
+| 50:19 | def-Quirks-parseint-arg-cast | find_definition | `return Number.parseInt(x as string, 10);` |
+| 56:18 | impls-Coercer | find_implementations | `export interface Coercer { coerce(x: string): number; }` |
+| 56:18 | usage-Coercer-interface | find_usages | `export interface Coercer { coerce(x: string): number; }` |
+| 67:14 | hier-type-TypedCoercer | type_hierarchy | `export class TypedCoercer<T extends string> {` |
+| 68:15 | def-T-typeparam-use | find_definition | `coerce(x: T): number { return Number.parseInt(x, 10); }` |
+| 72:16 | def-TypedCoercer-via-new-generic | find_definition | `return new TypedCoercer<string>().coerce(x);` |
+| 78:13 | hier-type-Coerce-alias | type_hierarchy | `export type Coerce = (s: string) => number;` |
+| 80:14 | usage-aliasedCoerce | find_usages | `export const aliasedCoerce: Coerce = (s) => Number.parseInt(s, 10);` |
 
 ## src/setter_super.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 7:9 | super-WithSetter.value-setter | find_super_methods | `set value(v: string) { this._v = v.toUpperCase(); }` |
-| 8:9 | def-WithSetter.value-getter | find_definition | `get value(): string { return this._v; }` |
+| 10:9 | super-WithSetter.value-setter | find_super_methods | `set value(v: string) { this._v = v.toUpperCase(); }` |
+| 11:9 | def-WithSetter.value-getter | find_definition | `get value(): string { return this._v; }` |
 
 ## src/static_super.ts
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 6:12 | super-Child.factory-static | find_super_methods | `static factory(): string { return "child"; }` |
+| 9:12 | super-Child.factory-static | find_super_methods | `static factory(): string { return "child"; }` |
 
 ## Query-only probes (no file anchor)
 

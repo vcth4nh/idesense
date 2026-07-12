@@ -9,136 +9,136 @@ fails when this file is stale.
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-accessors | file_structure | — |
-| 9:9 | super-Box.area | find_super_methods | `get area() {` |
+| 12:9 | super-Box.area | find_super_methods | `get area() {` |
 
 ## src/async_super.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 8:11 | super-AsyncChild.fetch-async | find_super_methods | `async fetch() { return "child"; }` |
+| 10:11 | super-AsyncChild.fetch-async | find_super_methods | `async fetch() { return "child"; }` |
 
 ## src/mixin_super.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 12:5 | super-WithMixin.shout-mixin | find_super_methods | `shout() { return "with-mixin"; }` |
+| 17:5 | super-WithMixin.shout-mixin | find_super_methods | `shout() { return "with-mixin"; }` |
 
 ## src/multisuper.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 10:5 | super-Mid.m | find_super_methods | `m() { return "mid"; }` |
-| 13:7 | super-Leaf-class | find_super_methods | `class Leaf extends Mid {` |
-| 14:5 | super-Leaf.m | find_super_methods | `m() { return "leaf"; }` |
-| 23:9 | super-AccessorDerived.value | find_super_methods | `get value() { return "derived"; }` |
-| 32:12 | super-StaticDerived.factory | find_super_methods | `static factory() { return "derived"; }` |
+| 12:5 | super-Mid.m | find_super_methods | `m() { return "mid"; }` |
+| 17:7 | super-Leaf-class | find_super_methods | `class Leaf extends Mid {` |
+| 18:5 | super-Leaf.m | find_super_methods | `m() { return "leaf"; }` |
+| 27:9 | super-AccessorDerived.value | find_super_methods | `get value() { return "derived"; }` |
+| 36:12 | super-StaticDerived.factory | find_super_methods | `static factory() { return "derived"; }` |
 
 ## src/negative_super.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 4:5 | super-Standalone.compute-negative | find_super_methods | `compute() { return "standalone"; }` |
+| 7:5 | super-Standalone.compute-negative | find_super_methods | `compute() { return "standalone"; }` |
 
 ## src/normal.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Normal | file_structure | — |
-| 3:7 | hier-type-Drawable | type_hierarchy | `class Drawable {` |
-| 3:7 | usage-Drawable-class | find_usages | `class Drawable {` |
-| 4:5 | impls-Drawable.draw | find_implementations | `draw() { throw new Error('not implemented'); }` |
-| 7:7 | hier-sub-Shape | type_hierarchy | `class Shape {` |
-| 7:7 | hier-type-Shape | type_hierarchy | `class Shape {` |
-| 7:7 | impls-Shape-class | find_implementations | `class Shape {` |
-| 7:7 | usage-Shape-class | find_usages | `class Shape {` |
-| 8:5 | hier-caller-area | call_hierarchy | `area() { throw new Error('abstract'); }` |
-| 8:5 | impls-Shape.area-direct-overrides-only | find_implementations | `area() { throw new Error('abstract'); }` |
-| 8:5 | usage-area-from-totalArea | find_usages | `area() { throw new Error('abstract'); }` |
-| 9:5 | hier-caller-describe | call_hierarchy | describe() { return `${this.constructor.name} with area ${this.area()}`; } |
-| 9:5 | impls-Shape.describe | find_implementations | describe() { return `${this.constructor.name} with area ${this.area()}`; } |
-| 9:5 | usage-describe-method | find_usages | describe() { return `${this.constructor.name} with area ${this.area()}`; } |
-| 12:7 | hier-type-Circle | type_hierarchy | `class Circle extends Shape {` |
-| 12:7 | impls-Circle-class | find_implementations | `class Circle extends Shape {` |
-| 12:7 | usage-Circle-cross-file | find_usages | `class Circle extends Shape {` |
-| 17:5 | def-Circle.area | find_definition | `area() { return 3.14159 * this.radius * this.radius; }` |
-| 17:5 | super-Circle.area | find_super_methods | `area() { return 3.14159 * this.radius * this.radius; }` |
-| 17:5 | usage-area-libraries-scope | find_usages | `area() { return 3.14159 * this.radius * this.radius; }` |
-| 18:5 | super-Circle.draw | find_super_methods | draw() { return `circle r=${this.radius}`; } |
-| 21:7 | hier-type-Rectangle | type_hierarchy | `class Rectangle extends Shape {` |
-| 21:7 | impls-Rectangle-class | find_implementations | `class Rectangle extends Shape {` |
-| 21:7 | usage-Rectangle-class | find_usages | `class Rectangle extends Shape {` |
-| 27:5 | def-Rectangle.area | find_definition | `area() { return this.width * this.height; }` |
-| 27:5 | super-Rectangle.area | find_super_methods | `area() { return this.width * this.height; }` |
-| 28:5 | super-Rectangle.draw | find_super_methods | draw() { return `rect ${this.width}x${this.height}`; } |
-| 31:7 | hier-super-Square | type_hierarchy | `class Square extends Rectangle {` |
-| 31:7 | hier-type-Square | type_hierarchy | `class Square extends Rectangle {` |
-| 37:7 | hier-type-ShapeCollection | type_hierarchy | `class ShapeCollection {` |
-| 39:14 | usage-shapes-field | find_usages | `this.shapes = [];` |
-| 42:5 | hier-callee-totalArea | call_hierarchy | `totalArea() {` |
-| 42:5 | hier-caller-totalArea-d1 | call_hierarchy | `totalArea() {` |
-| 47:5 | hier-callee-largest | call_hierarchy | `largest() {` |
-| 56:10 | def-makeDefaultShapes | find_definition | `function makeDefaultShapes() {` |
-| 56:10 | hier-callee-makeDefault | call_hierarchy | `function makeDefaultShapes() {` |
-| 56:10 | hier-callee-makeDefault-d3 | call_hierarchy | `function makeDefaultShapes() {` |
-| 57:17 | def-Circle-via-new-call | find_definition | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
-| 57:17 | usage-Circle-via-new-call-site | find_usages | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
-| 57:34 | def-Rectangle-via-new-call | find_definition | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
+| 9:7 | hier-type-Drawable | type_hierarchy | `class Drawable {` |
+| 9:7 | usage-Drawable-class | find_usages | `class Drawable {` |
+| 10:5 | impls-Drawable.draw | find_implementations | `draw() { throw new Error('not implemented'); }` |
+| 15:7 | hier-sub-Shape | type_hierarchy | `class Shape {` |
+| 15:7 | hier-type-Shape | type_hierarchy | `class Shape {` |
+| 15:7 | impls-Shape-class | find_implementations | `class Shape {` |
+| 15:7 | usage-Shape-class | find_usages | `class Shape {` |
+| 16:5 | hier-caller-area | call_hierarchy | `area() { throw new Error('abstract'); }` |
+| 16:5 | impls-Shape.area-direct-overrides-only | find_implementations | `area() { throw new Error('abstract'); }` |
+| 16:5 | usage-area-from-totalArea | find_usages | `area() { throw new Error('abstract'); }` |
+| 17:5 | hier-caller-describe | call_hierarchy | describe() { return `${this.constructor.name} with area ${this.area()}`; } |
+| 17:5 | impls-Shape.describe | find_implementations | describe() { return `${this.constructor.name} with area ${this.area()}`; } |
+| 17:5 | usage-describe-method | find_usages | describe() { return `${this.constructor.name} with area ${this.area()}`; } |
+| 23:7 | hier-type-Circle | type_hierarchy | `class Circle extends Shape {` |
+| 23:7 | impls-Circle-class | find_implementations | `class Circle extends Shape {` |
+| 23:7 | usage-Circle-cross-file | find_usages | `class Circle extends Shape {` |
+| 28:5 | def-Circle.area | find_definition | `area() { return 3.14159 * this.radius * this.radius; }` |
+| 28:5 | super-Circle.area | find_super_methods | `area() { return 3.14159 * this.radius * this.radius; }` |
+| 28:5 | usage-area-libraries-scope | find_usages | `area() { return 3.14159 * this.radius * this.radius; }` |
+| 29:5 | super-Circle.draw | find_super_methods | draw() { return `circle r=${this.radius}`; } |
+| 32:7 | hier-type-Rectangle | type_hierarchy | `class Rectangle extends Shape {` |
+| 32:7 | impls-Rectangle-class | find_implementations | `class Rectangle extends Shape {` |
+| 32:7 | usage-Rectangle-class | find_usages | `class Rectangle extends Shape {` |
+| 38:5 | def-Rectangle.area | find_definition | `area() { return this.width * this.height; }` |
+| 38:5 | super-Rectangle.area | find_super_methods | `area() { return this.width * this.height; }` |
+| 39:5 | super-Rectangle.draw | find_super_methods | draw() { return `rect ${this.width}x${this.height}`; } |
+| 44:7 | hier-super-Square | type_hierarchy | `class Square extends Rectangle {` |
+| 44:7 | hier-type-Square | type_hierarchy | `class Square extends Rectangle {` |
+| 52:7 | hier-type-ShapeCollection | type_hierarchy | `class ShapeCollection {` |
+| 54:14 | usage-shapes-field | find_usages | `this.shapes = [];` |
+| 57:5 | hier-callee-totalArea | call_hierarchy | `totalArea() {` |
+| 57:5 | hier-caller-totalArea-d1 | call_hierarchy | `totalArea() {` |
+| 62:5 | hier-callee-largest | call_hierarchy | `largest() {` |
+| 74:10 | def-makeDefaultShapes | find_definition | `function makeDefaultShapes() {` |
+| 74:10 | hier-callee-makeDefault | call_hierarchy | `function makeDefaultShapes() {` |
+| 74:10 | hier-callee-makeDefault-d3 | call_hierarchy | `function makeDefaultShapes() {` |
+| 75:17 | def-Circle-via-new-call | find_definition | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
+| 75:17 | usage-Circle-via-new-call-site | find_usages | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
+| 75:34 | def-Rectangle-via-new-call | find_definition | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
 
 ## src/probes.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 3:7 | hier-sub-Probe-all | type_hierarchy | `class Probe {` |
-| 3:7 | hier-sub-Probe-production | type_hierarchy | `class Probe {` |
-| 3:7 | hier-sub-Probe-test | type_hierarchy | `class Probe {` |
-| 4:5 | hier-caller-target-all | call_hierarchy | `target() {` |
-| 4:5 | hier-caller-target-production | call_hierarchy | `target() {` |
-| 4:5 | hier-caller-target-test | call_hierarchy | `target() {` |
-| 4:5 | hier-caller-target-this-class | call_hierarchy | `target() {` |
-| 4:5 | hier-caller-target-this-module | call_hierarchy | `target() {` |
-| 4:5 | usage-Probe.target-production-scope | find_usages | `target() {` |
-| 13:10 | hier-caller-freeProdCaller | call_hierarchy | `function freeProdCaller() {` |
+| 9:7 | hier-sub-Probe-all | type_hierarchy | `class Probe {` |
+| 9:7 | hier-sub-Probe-production | type_hierarchy | `class Probe {` |
+| 9:7 | hier-sub-Probe-test | type_hierarchy | `class Probe {` |
+| 10:5 | hier-caller-target-all | call_hierarchy | `target() {` |
+| 10:5 | hier-caller-target-production | call_hierarchy | `target() {` |
+| 10:5 | hier-caller-target-test | call_hierarchy | `target() {` |
+| 10:5 | hier-caller-target-this-class | call_hierarchy | `target() {` |
+| 10:5 | hier-caller-target-this-module | call_hierarchy | `target() {` |
+| 10:5 | usage-Probe.target-production-scope | find_usages | `target() {` |
+| 22:10 | hier-caller-freeProdCaller | call_hierarchy | `function freeProdCaller() {` |
 
 ## src/quirks.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Quirks | file_structure | — |
-| 5:23 | def-Quirks-parseInt-property-on-Number | find_definition | `const fn = Number.parseInt;` |
-| 6:12 | def-Quirks-fn-localbind | find_definition | `return fn(x, 10);` |
-| 11:19 | def-Quirks-computed-key | find_definition | `return Number[name](x, 10);` |
-| 21:27 | def-Quirks-cond-parseint | find_definition | `return (flag ? Number.parseInt : Number.parseFloat)(x, 10);` |
-| 36:29 | def-Quirks-destructured-Number-receiver | find_definition | `const { parseInt: p } = Number;` |
-| 37:12 | def-Quirks-parseint-destructured | find_definition | `return p(x, 10);` |
-| 48:19 | def-Quirks-bind-parseint | find_definition | `return Number.parseInt.call(null, x, 10);` |
-| 48:28 | def-Quirks-bind-call | find_definition | `return Number.parseInt.call(null, x, 10);` |
-| 64:16 | hier-callee-qAwait | call_hierarchy | `async function qAwait(x) {` |
-| 71:20 | def-Quirks-parseint-optional | find_definition | `return Number?.parseInt(x, 10);` |
-| 80:31 | def-Quirks-proxy-call-source | find_definition | `const proxy = { parse: Number.parseInt };` |
-| 82:18 | def-Quirks-proxy-call | find_definition | `return proxy.parse(x, 10);` |
-| 86:14 | def-qComputed | find_definition | `qRebind, qComputed, qObjLit, qCond, qReturned, qArrayIdx,` |
-| 86:34 | def-qCond | find_definition | `qRebind, qComputed, qObjLit, qCond, qReturned, qArrayIdx,` |
-| 87:29 | def-qBind | find_definition | `qDestructured, qSpread, qBind, qForEach, qPromise, qAwait,` |
+| 8:23 | def-Quirks-parseInt-property-on-Number | find_definition | `const fn = Number.parseInt;` |
+| 9:12 | def-Quirks-fn-localbind | find_definition | `return fn(x, 10);` |
+| 14:19 | def-Quirks-computed-key | find_definition | `return Number[name](x, 10);` |
+| 24:27 | def-Quirks-cond-parseint | find_definition | `return (flag ? Number.parseInt : Number.parseFloat)(x, 10);` |
+| 39:29 | def-Quirks-destructured-Number-receiver | find_definition | `const { parseInt: p } = Number;` |
+| 40:12 | def-Quirks-parseint-destructured | find_definition | `return p(x, 10);` |
+| 51:19 | def-Quirks-bind-parseint | find_definition | `return Number.parseInt.call(null, x, 10);` |
+| 51:28 | def-Quirks-bind-call | find_definition | `return Number.parseInt.call(null, x, 10);` |
+| 67:16 | hier-callee-qAwait | call_hierarchy | `async function qAwait(x) {` |
+| 74:20 | def-Quirks-parseint-optional | find_definition | `return Number?.parseInt(x, 10);` |
+| 83:31 | def-Quirks-proxy-call-source | find_definition | `const proxy = { parse: Number.parseInt };` |
+| 85:18 | def-Quirks-proxy-call | find_definition | `return proxy.parse(x, 10);` |
+| 91:14 | def-qComputed | find_definition | `qRebind, qComputed, qObjLit, qCond, qReturned, qArrayIdx,` |
+| 91:34 | def-qCond | find_definition | `qRebind, qComputed, qObjLit, qCond, qReturned, qArrayIdx,` |
+| 92:29 | def-qBind | find_definition | `qDestructured, qSpread, qBind, qForEach, qPromise, qAwait,` |
 
 ## src/setter_super.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 9:9 | super-Derived.value-setter | find_super_methods | `set value(v) { this._v = v.toUpperCase(); }` |
-| 9:9 | usage-Derived.value-write | find_usages | `set value(v) { this._v = v.toUpperCase(); }` |
-| 10:9 | super-Derived.value-getter | find_super_methods | `get value() { return this._v; }` |
+| 12:9 | super-Derived.value-setter | find_super_methods | `set value(v) { this._v = v.toUpperCase(); }` |
+| 12:9 | usage-Derived.value-write | find_usages | `set value(v) { this._v = v.toUpperCase(); }` |
+| 13:9 | super-Derived.value-getter | find_super_methods | `get value() { return this._v; }` |
 
 ## src/triple_super.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 12:5 | super-LeafMix.greet-3level | find_super_methods | `greet() { return "leaf"; }` |
+| 15:5 | super-LeafMix.greet-3level | find_super_methods | `greet() { return "leaf"; }` |
 
 ## test/probe.test.js
 
 | line:col | probe id | tool | source |
 |---|---|---|---|
-| 16:7 | hier-super-ProbeTestChild | type_hierarchy | `class ProbeTestChild extends Probe {` |
+| 19:7 | hier-super-ProbeTestChild | type_hierarchy | `class ProbeTestChild extends Probe {` |
 
 ## Query-only probes (no file anchor)
 
