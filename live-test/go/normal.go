@@ -33,13 +33,13 @@ type baseShape struct{}
 func (b baseShape) Describe() string { return "shape with unknown area" }
 
 // Circle and Rectangle embed baseShape but override the promoted Describe;
-// each also defines Area and Draw, so both satisfy Shape and Drawable.
+// each also defines its own area and draw methods, satisfying both interfaces.
 type Circle struct {
 	baseShape
 	Radius float64
 }
 
-// The concrete Area methods double as scope-filter vehicles for usage and
+// The concrete area methods double as scope-filter vehicles for usage and
 // caller lookups; in Go the class scope is meaningful (receiver-scoped).
 func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }
 func (c Circle) Describe() string {
@@ -67,7 +67,7 @@ func NewSquare(side float64) Square {
 }
 
 // ShapeCollection dispatches through the interface: TotalArea and Largest
-// call Area on Shape values, giving Area interface-level callers. The struct
+// call the area method on interface values, giving it callers. The struct
 // satisfies no interface, so its own type hierarchy is empty.
 type ShapeCollection struct {
 	Shapes []Shape
