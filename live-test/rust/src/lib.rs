@@ -1,3 +1,5 @@
+// Crate root of the Rust live-test fixture: wires every fixture module into
+// one library crate so the IDE indexes them together.
 pub mod normal;
 pub mod quirks;
 pub mod extra;

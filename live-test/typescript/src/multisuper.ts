@@ -1,3 +1,6 @@
+// Multi-super fixtures: several patterns give one member candidate supers.
+// Ground truth: super chains are transitive — every ancestor override is
+// returned, not just the immediate parent.
 export interface IRender {
     name(): string;
 }
@@ -10,6 +13,10 @@ export abstract class Base {
     abstract name(): string;
 }
 
+// Triple: abstract Base plus two interfaces all declaring name(). Ground truth:
+// with both extends and implements, the method's super chain follows the class
+// side only (Base.name — IRender/IDisplay are not listed as supers of the
+// method); a super query on the class name itself returns all three supertypes.
 export class Triple extends Base implements IRender, IDisplay {
     name(): string { return "triple"; }
 }
@@ -40,6 +47,8 @@ export abstract class AbstractMethodHolder {
     abstract m(): string;
 }
 
+// Ground truth: subtypes of DiamondTop list DiamondBottom TWICE — once per
+// inheritance edge (via DiamondLeft, via DiamondRight); the IDE does not dedupe.
 export interface DiamondTop {
     m(): string;
 }
@@ -63,6 +72,8 @@ export interface WithOpt2 {
     opt?(): string;
 }
 
+// No extends here, so both interfaces' declarations are reported as supers —
+// the contrast to the class-side-only rule above.
 export class OptImpl implements WithOpt, WithOpt2 {
     req(): string { return "req"; }
     opt(): string { return "opt"; }

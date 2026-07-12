@@ -1,7 +1,7 @@
-{"id":"impls-Coercion","tool":"ide_find_implementations","params":{"column":14,"file":"src/main/kotlin/demo/Quirks.kt","line":37}}
-{"id":"impls-Coercion.apply","tool":"ide_find_implementations","params":{"column":18,"file":"src/main/kotlin/demo/Quirks.kt","line":38}}
-{"id":"impls-Drawable.draw","tool":"ide_find_implementations","params":{"column":9,"file":"src/main/kotlin/demo/Normal.kt","line":4}}
-{"id":"impls-Printer-delegation","tool":"ide_find_implementations","params":{"column":11,"file":"src/main/kotlin/demo/Modern.kt","line":28}}
-{"id":"impls-Rectangle-class","tool":"ide_find_implementations","params":{"column":12,"file":"src/main/kotlin/demo/Normal.kt","line":18}}
-{"id":"impls-Shape-class","tool":"ide_find_implementations","params":{"column":16,"file":"src/main/kotlin/demo/Normal.kt","line":7}}
-{"id":"impls-Shape.area","tool":"ide_find_implementations","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":8}}
+{"id":"impls-Coercion","tool":"ide_find_implementations","params":{"column":14,"file":"src/main/kotlin/demo/Quirks.kt","line":50}}
+{"id":"impls-Coercion.apply","tool":"ide_find_implementations","params":{"column":18,"file":"src/main/kotlin/demo/Quirks.kt","line":51}}
+{"id":"impls-Drawable.draw","tool":"ide_find_implementations","params":{"column":9,"file":"src/main/kotlin/demo/Normal.kt","line":9}}
+{"id":"impls-Printer-delegation","tool":"ide_find_implementations","params":{"column":11,"file":"src/main/kotlin/demo/Modern.kt","line":40}}
+{"id":"impls-Rectangle-class","tool":"ide_find_implementations","params":{"column":12,"file":"src/main/kotlin/demo/Normal.kt","line":24}}
+{"id":"impls-Shape-class","tool":"ide_find_implementations","params":{"column":16,"file":"src/main/kotlin/demo/Normal.kt","line":12}}
+{"id":"impls-Shape.area","tool":"ide_find_implementations","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":13}}

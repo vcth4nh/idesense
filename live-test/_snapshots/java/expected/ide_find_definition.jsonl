@@ -1,15 +1,15 @@
-{"id":"def-Animal-sealed-decl","result":{"column":29,"enclosingScope":null,"file":"src/main/java/demo/Modern.java","kind":"INTERFACE","line":8,"name":"Animal","qualifiedName":"demo.Modern.Animal"}}
+{"id":"def-Animal-sealed-decl","result":{"column":29,"enclosingScope":null,"file":"src/main/java/demo/Modern.java","kind":"INTERFACE","line":15,"name":"Animal","qualifiedName":"demo.Modern.Animal"}}
 {"id":"def-ArrayList-via-new-jdk-call","result":{"enclosingScope":null,"file":"ArrayList.java","kind":"CLASS","name":"ArrayList","qualifiedName":"java.util.ArrayList"}}
-{"id":"def-Circle-via-new-call","result":{"column":7,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"CLASS","line":18,"name":"Circle","qualifiedName":"demo.Circle"}}
-{"id":"def-Circle.area-decl","result":{"column":12,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"METHOD","line":26,"name":"area","qualifiedName":"demo.Circle#area"}}
-{"id":"def-CoerceMode.INT.apply","result":{"column":22,"enclosingScope":null,"file":"src/main/java/demo/Quirks.java","kind":"METHOD","line":74,"name":"apply","qualifiedName":"demo.Quirks.CoerceMode#apply"}}
+{"id":"def-Circle-via-new-call","result":{"column":7,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"CLASS","line":25,"name":"Circle","qualifiedName":"demo.Circle"}}
+{"id":"def-Circle.area-decl","result":{"column":12,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"METHOD","line":33,"name":"area","qualifiedName":"demo.Circle#area"}}
+{"id":"def-CoerceMode.INT.apply","result":{"column":22,"enclosingScope":null,"file":"src/main/java/demo/Quirks.java","kind":"METHOD","line":91,"name":"apply","qualifiedName":"demo.Quirks.CoerceMode#apply"}}
 {"id":"def-Integer.parseInt-methodref","result":{"enclosingScope":null,"file":"Integer.java","kind":"METHOD","name":"parseInt","qualifiedName":"java.lang.Integer#parseInt(java.lang.String)"}}
-{"id":"def-Point-record-decl","result":{"column":19,"enclosingScope":null,"file":"src/main/java/demo/Modern.java","kind":"RECORD","line":4,"name":"Point","qualifiedName":"demo.Modern.Point"}}
-{"id":"def-Point-via-new-record-call","result":{"column":19,"enclosingScope":null,"file":"src/main/java/demo/Modern.java","kind":"RECORD","line":4,"name":"Point","qualifiedName":"demo.Modern.Point"}}
-{"id":"def-Rectangle-via-new-call","result":{"column":7,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"CLASS","line":36,"name":"Rectangle","qualifiedName":"demo.Rectangle"}}
-{"id":"def-Rectangle.area-decl","result":{"column":12,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"METHOD","line":46,"name":"area","qualifiedName":"demo.Rectangle#area"}}
-{"id":"def-classifyShape-kind-decl","result":{"column":13,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"LOCAL_VARIABLE","line":97,"name":"kind","qualifiedName":"demo.Normal#classifyShape"}}
-{"id":"def-makeDefaultShapes-decl","result":{"column":31,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"METHOD","line":87,"name":"makeDefaultShapes","qualifiedName":"demo.Normal#makeDefaultShapes"}}
-{"id":"def-parse-string-overload","result":{"column":23,"enclosingScope":null,"file":"src/main/java/demo/Quirks.java","kind":"METHOD","line":86,"name":"parse","qualifiedName":"demo.Quirks#parse(java.lang.String)"}}
-{"id":"def-parse-stringint-overload","result":{"column":23,"enclosingScope":null,"file":"src/main/java/demo/Quirks.java","kind":"METHOD","line":90,"name":"parse","qualifiedName":"demo.Quirks#parse(java.lang.String, int)"}}
-{"id":"def-quirkVar-coerce","result":{"column":13,"enclosingScope":null,"file":"src/main/java/demo/Quirks.java","kind":"LOCAL_VARIABLE","line":17,"name":"coerce","qualifiedName":"demo.Quirks#quirkVar"}}
+{"id":"def-Point-record-decl","result":{"column":19,"enclosingScope":null,"file":"src/main/java/demo/Modern.java","kind":"RECORD","line":9,"name":"Point","qualifiedName":"demo.Modern.Point"}}
+{"id":"def-Point-via-new-record-call","result":{"column":19,"enclosingScope":null,"file":"src/main/java/demo/Modern.java","kind":"RECORD","line":9,"name":"Point","qualifiedName":"demo.Modern.Point"}}
+{"id":"def-Rectangle-via-new-call","result":{"column":7,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"CLASS","line":43,"name":"Rectangle","qualifiedName":"demo.Rectangle"}}
+{"id":"def-Rectangle.area-decl","result":{"column":12,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"METHOD","line":53,"name":"area","qualifiedName":"demo.Rectangle#area"}}
+{"id":"def-classifyShape-kind-decl","result":{"column":13,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"LOCAL_VARIABLE","line":110,"name":"kind","qualifiedName":"demo.Normal#classifyShape"}}
+{"id":"def-makeDefaultShapes-decl","result":{"column":31,"enclosingScope":null,"file":"src/main/java/demo/Normal.java","kind":"METHOD","line":100,"name":"makeDefaultShapes","qualifiedName":"demo.Normal#makeDefaultShapes"}}
+{"id":"def-parse-string-overload","result":{"column":23,"enclosingScope":null,"file":"src/main/java/demo/Quirks.java","kind":"METHOD","line":108,"name":"parse","qualifiedName":"demo.Quirks#parse(java.lang.String)"}}
+{"id":"def-parse-stringint-overload","result":{"column":23,"enclosingScope":null,"file":"src/main/java/demo/Quirks.java","kind":"METHOD","line":112,"name":"parse","qualifiedName":"demo.Quirks#parse(java.lang.String, int)"}}
+{"id":"def-quirkVar-coerce","result":{"column":13,"enclosingScope":null,"file":"src/main/java/demo/Quirks.java","kind":"LOCAL_VARIABLE","line":22,"name":"coerce","qualifiedName":"demo.Quirks#quirkVar"}}

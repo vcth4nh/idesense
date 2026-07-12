@@ -1,4 +1,6 @@
 <?php
+// Static-method super fixture: StaticDerived::make() overrides the abstract
+// static make() on StaticBase — static overrides super-resolve too.
 namespace Demo;
 
 abstract class StaticBase {

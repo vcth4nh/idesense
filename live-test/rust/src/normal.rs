@@ -1,7 +1,14 @@
+// Baseline fixture: the Shape trait family (Circle, Rectangle, Square), the
+// Drawable side trait, and the ShapeCollection aggregator — main host for
+// definition, usages, hierarchy, and implementations probes.
+// Drawable is implemented by Circle and Rectangle but never called, so
+// caller queries on draw() pin an empty result.
 pub trait Drawable {
     fn draw(&self) -> String;
 }
 
+// Shape: abstract area() plus describe() with a default body that calls
+// area() — so the trait itself contributes a caller of area().
 pub trait Shape {
     fn area(&self) -> f64;
 
@@ -10,6 +17,8 @@ pub trait Shape {
     }
 }
 
+// Circle and Rectangle implement both traits and override the defaulted
+// describe(); each override calls area() through self.
 pub struct Circle {
     pub radius: f64,
 }
@@ -51,6 +60,8 @@ impl Drawable for Rectangle {
     }
 }
 
+// Square implements only Shape, keeps the default describe(), and delegates
+// area() to a composed Rectangle.
 pub struct Square {
     inner: Rectangle,
 }
@@ -67,6 +78,8 @@ impl Shape for Square {
     }
 }
 
+// Aggregator over boxed trait objects: total_area() and largest() funnel
+// every stored shape through area() via dynamic dispatch.
 pub struct ShapeCollection {
     pub shapes: Vec<Box<dyn Shape>>,
 }
@@ -91,6 +104,8 @@ impl ShapeCollection {
     }
 }
 
+// Free factory building one of each shape — root for callee-direction call
+// hierarchy walks.
 pub fn make_default_shapes() -> Vec<Box<dyn Shape>> {
     vec![
         Box::new(Circle { radius: 1.0 }),

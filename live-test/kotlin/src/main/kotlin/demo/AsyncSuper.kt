@@ -1,3 +1,5 @@
+// Suspend-function super resolution: the suspend modifier must not stop
+// AsyncImpl.fetch from resolving to the suspend fun declared in AsyncFetcher.
 package demo
 
 interface AsyncFetcher {

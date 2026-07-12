@@ -1,6 +1,10 @@
 <?php
+// Super-method fixtures where one member has several direct parents at once:
+// base class + interfaces, deep chains, a diamond, traits with conflict
+// resolution, and overridden constants.
 namespace Demo;
 
+// Abstract base + 2 interfaces all declaring name(); Triple overrides all 3.
 interface IRender {
     public function name(): string;
 }

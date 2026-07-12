@@ -1,3 +1,5 @@
+// Generic super resolution: Repo<T>.find must resolve to BaseRepo<T>.find
+// through the type-parameter substitution.
 package demo
 
 abstract class BaseRepo<T> {

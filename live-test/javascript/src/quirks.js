@@ -1,3 +1,6 @@
+// Definition-resolution quirk host: every q* function reaches a built-in
+// number-parsing function through a different syntactic indirection, so
+// go-to-definition can be probed against each dispatch shape.
 'use strict';
 
 // Name rebinding
@@ -82,6 +85,8 @@ function qProxy(x) {
     return proxy.parse(x, 10);
 }
 
+// The shorthand names in this export list are themselves go-to-definition
+// anchors (reference back to the declarations above).
 module.exports = {
     qRebind, qComputed, qObjLit, qCond, qReturned, qArrayIdx,
     qDestructured, qSpread, qBind, qForEach, qPromise, qAwait,

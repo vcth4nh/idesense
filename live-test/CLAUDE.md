@@ -143,9 +143,9 @@ pins first — appending to a pinned file drifts its blessed row.
 | php | src/Probes.php, tests/ProbeTest.php | scope fixtures |
 | php | src/Php8.php | Php8/Php8Helper: nullsafe `?->`, first-class callable, const+property (this pass) |
 | go | normal.go (+normal_test.go) | Shape/Drawable interfaces, baseShape, Circle/Rectangle/Square, MakeDefaultShapes |
-| go | quirks.go | q* dispatch fns, IntCoercer (+ this pass: CoerceLimit iota consts) |
-| go | embed.go | Labeled embed (+ this pass: IBase/IMid/ILeaf embedding chain) |
-| go | multisuper.go, generic_super.go, negative_super.go, wedge_test.go | interface-satisfaction fixtures (IFull/ChainImpl, Storage[T]/IntStore, Standalone, wedge) |
+| go | quirks.go | q* dispatch fns, IntCoercer, CoerceLimit iota consts |
+| go | embed.go | Labeled embed (cross-file baseShape embed + promoted method) |
+| go | multisuper.go, generic_super.go, negative_super.go, wedge_test.go | interface-satisfaction fixtures (IFull/ChainImpl, IBase/IMid/ILeaf embedding chain, Storage[T]/IntStore, Standalone, wedge) |
 | rust | src/normal.rs | Shape trait hierarchy, ShapeCollection, area/largest |
 | rust | src/quirks.rs | q* dispatch fns, CoerceMode enum, parse_or_zero (fn-pointer) |
 | rust | src/macros.rs | square! macro_rules, derive Point |
@@ -169,6 +169,38 @@ pins first — appending to a pinned file drifts its blessed row.
 - ❌ `find-symbol-qualified-Shape-area` — variant at end: `find-symbol-Shape.area-qualified`
 - ❌ `def-circle-area-decl` — preserve class casing: `def-Circle.area-decl`
 - ❌ `super-Circle-draw` — dot member access: `super-Circle.draw`
+
+## Fixture comment standard (how to read a fixture)
+
+Every fixture source file carries comments that make it readable cold:
+
+- **File header** (1–3 comment lines at top): what the file hosts and why it exists.
+- **Per-construct block comments** in multi-family files (`MultiSuper.kt` style:
+  "Diamond + abstract base: … -> Bottom").
+- **Ground-truth notes** where a construct pins surprising IDE behavior (e.g.
+  `writeProbe` in `setter_super.js` pins WebStorm reporting setter write-sites
+  as REFERENCE, not WRITE).
+
+The per-probe join lives in `_snapshots/<lang>/ANCHORS.md` (regenerate:
+`./run.py --write-anchors`; `--check-fixtures` fails while stale). Comments
+never enumerate probe ids — they explain intent; the map owns the inventory.
+
+Hard rules (they keep the pinned snapshots stable):
+
+- **Whole-line comments only** — never trailing/same-line; columns must not move.
+- **Plain `//` only** (`#` in Python). Banned: JSDoc `/** */` (feeds WebStorm
+  type inference), Python docstrings (become structure nodes), Rust `///`,
+  phpdoc, `/* */` blocks.
+- **Only name symbols declared in the same file** (10-file word-occurrence
+  threshold — see "Snapshot file format"). In Go, prefer lowercase paraphrase
+  over capitalized exported names: GoLand counts comment text occurrences as
+  usages under the libraries scope.
+- **Dictionary words only** in the diagnostics-pinned java files
+  (`Broken.java`, `Quirks.java`, `Normal.java`) — a typo can spawn a
+  spell-check inspection row.
+- New fixture code ships **with** its header + construct comments. Inserting a
+  comment into an already-pinned file shifts every anchor below it: re-anchor
+  the affected input rows and re-bless (see "When fixtures change").
 
 ## Bless safety
 
@@ -223,7 +255,9 @@ redundant with `file`.
   - expected/*.jsonl parse strictly, no cross-file duplicate ids
   - no orphan or missing expected ids
   - each `file+line+column` probe targets an existing file, a line within
-    bounds, and a non-whitespace character.
+    bounds, and a non-whitespace character
+  - each committed `ANCHORS.md` byte-matches regeneration from current
+    inputs + sources (stale map = failure; run `--write-anchors`).
 - Run it before any branch with fixture edits — line-shift bugs surface
   here instead of as silent IDE empty responses during a live run.
 - When inserting lines into a fixture, every position-based probe with a
@@ -242,6 +276,9 @@ redundant with `file`.
 6. Ask the user to bless.
 7. On approval: `./run.py --bless --language <lang>`. The new row's
    expected entry is added; pre-existing expected rows are preserved.
+8. New/edited fixture files follow the "Fixture comment standard" above, and
+   ANCHORS.md must be regenerated after input changes (`./run.py
+   --write-anchors`) — `--check-fixtures` enforces both freshness and anchors.
 
 ## When fixtures change
 

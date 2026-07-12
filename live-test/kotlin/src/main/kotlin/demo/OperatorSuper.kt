@@ -1,3 +1,5 @@
+// Operator-function super resolution: Caller's operator invoke must resolve
+// to the operator fun declared in Invokable.
 package demo
 
 interface Invokable {

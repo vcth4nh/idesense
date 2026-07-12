@@ -1,3 +1,6 @@
+// Accessor super fixture: WithValue declares value as a plain property and
+// WithSetter implements it with a get/set pair. Ground truth: a super query on
+// the setter resolves the interface property (reported as property kind).
 export interface WithValue {
     value: string;
 }

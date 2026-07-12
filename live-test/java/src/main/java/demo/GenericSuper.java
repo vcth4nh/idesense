@@ -1,3 +1,6 @@
+// Super-method fixture, generic case: Repo.find overrides BaseRepo.find,
+// whose signature is declared with the type parameter T — the super must
+// resolve across the generic signature.
 package demo;
 
 abstract class BaseRepo<T> {

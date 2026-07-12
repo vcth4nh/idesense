@@ -1,5 +1,11 @@
 package main
 
+// Dispatch quirks: each q* function wraps a small string-to-int coercion in
+// a different indirection, pinning what definition lookup resolves at call
+// sites that are rebound, dispatched, or type-driven rather than direct.
+// Ground truth: GoLand's file structure is package-scoped — a structure query
+// on this file lists every type in package main (tagged with origin file), so
+// appending a declaration in ANY package file drifts this file's snapshot.
 import (
 	"fmt"
 	"strconv"
@@ -47,6 +53,8 @@ func qSliceIdx(x string) int {
 }
 
 // Interface dispatch
+// IntCoercer and LenCoercer satisfy Coercer implicitly; the interface's
+// Coerce is the super of both concrete Coerce methods.
 type Coercer interface {
 	Coerce(s string) int
 }
@@ -130,6 +138,8 @@ func qPrintToUpper(x string) {
 	fmt.Println(strings.ToUpper(x))
 }
 
+// Iota const pair plus one use site: coerceLimitUse resolves CoerceLimitA
+// and CoerceLimitB back to their declarations, pinning const/iota resolution.
 const (
 	CoerceLimitA = iota
 	CoerceLimitB
