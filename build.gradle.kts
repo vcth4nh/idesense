@@ -32,15 +32,6 @@ repositories {
 
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
-    // MCP Kotlin SDK - exclude kotlinx-coroutines to use IntelliJ Platform's bundled version
-    implementation(libs.mcp.kotlin.sdk) {
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-slf4j")
-        exclude(group = "org.slf4j")
-    }
-
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.jtoon)
