@@ -83,6 +83,11 @@ index mapping every probe id to the fixture line it anchors (regenerate with
 > IDE's port (see the table above). Pass a `project_path` argument when an IDE has multiple
 > fixtures open — IntelliJ IDEA (`java` + `kotlin`) and WebStorm (`javascript` +
 > `typescript`) — otherwise the call fails with `multiple_projects_open`.
+>
+> `ide_install_plugin` only accepts a zip **inside the open project** (out-of-root paths are
+> rejected), and the fixture projects are not the plugin repo — so first copy the built zip
+> into each fixture root (`cp build/distributions/*.zip live-test/<lang>/`) and pass that
+> in-project path. The copies are gitignored (`live-test/*/*.zip`); delete them afterwards.
 
 ## Troubleshooting
 

@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.server
 import com.github.vcth4nh.idesense.McpConstants
 import com.github.vcth4nh.idesense.constants.JsonRpcMethods
 import com.github.vcth4nh.idesense.constants.ParamNames
+import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.server.models.JsonRpcErrorCodes
 import com.github.vcth4nh.idesense.server.models.JsonRpcRequest
 import com.github.vcth4nh.idesense.server.models.JsonRpcResponse
@@ -219,6 +220,61 @@ class JsonRpcHandlerUnitTest : TestCase() {
         )
         val response = json.decodeFromString<JsonRpcResponse>(responseJson!!)
         assertEquals("2025-03-26", response.result!!.jsonObject["protocolVersion"]!!.jsonPrimitive.content)
+    }
+
+    fun testToolCallDisabledToolIsRejected() = runBlocking {
+        val gated = JsonRpcHandler(
+            toolRegistry,
+            isToolEnabled = { it != ToolNames.INSTALL_PLUGIN }
+        )
+        val request = JsonRpcRequest(
+            id = JsonPrimitive(9),
+            method = JsonRpcMethods.TOOLS_CALL,
+            params = buildJsonObject {
+                put(ParamNames.NAME, ToolNames.INSTALL_PLUGIN)
+                put(ParamNames.ARGUMENTS, buildJsonObject { })
+            }
+        )
+
+        val responseJson = gated.handleRequest(json.encodeToString(JsonRpcRequest.serializer(), request))
+        val response = json.decodeFromString<JsonRpcResponse>(responseJson!!)
+
+        assertNotNull("Disabled tool call should return an error", response.error)
+        assertEquals(JsonRpcErrorCodes.METHOD_NOT_FOUND, response.error?.code)
+        assertTrue(
+            "Error should say the tool is disabled, got: ${response.error?.message}",
+            response.error?.message?.contains("disabled", ignoreCase = true) == true
+        )
+    }
+
+    fun testToolCallEnabledToolIsNotRejectedAsDisabled() = runBlocking {
+        val gated = JsonRpcHandler(
+            toolRegistry,
+            isToolEnabled = { true }
+        )
+        val request = JsonRpcRequest(
+            id = JsonPrimitive(10),
+            method = JsonRpcMethods.TOOLS_CALL,
+            params = buildJsonObject {
+                put(ParamNames.NAME, ToolNames.INSTALL_PLUGIN)
+                put(ParamNames.ARGUMENTS, buildJsonObject { })
+            }
+        )
+
+        // Without a platform, an enabled call legitimately dies AFTER the gate (project
+        // resolution logs an error, which the test-mode logger rethrows). Reaching post-gate
+        // processing — whether it then returns or throws — must never be the disabled rejection.
+        val responseJson = try {
+            gated.handleRequest(json.encodeToString(JsonRpcRequest.serializer(), request))
+        } catch (e: AssertionError) {
+            return@runBlocking
+        }
+        val response = json.decodeFromString<JsonRpcResponse>(responseJson!!)
+
+        assertTrue(
+            "Enabled tool must not be rejected as disabled, got: ${response.error?.message}",
+            response.error?.message?.contains("disabled", ignoreCase = true) != true
+        )
     }
 
     fun testInitializeFallsBackForUnsupportedRequestedVersion() = runBlocking {

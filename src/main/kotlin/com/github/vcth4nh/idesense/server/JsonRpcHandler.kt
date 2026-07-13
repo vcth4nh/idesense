@@ -24,7 +24,8 @@ class JsonRpcHandler @JvmOverloads constructor(
     },
     private val updateHistory: (Project, String, CommandStatus, String?, Long?) -> Unit = { project, id, status, result, duration ->
         CommandHistoryService.getInstance(project).updateCommandStatus(id, status, result, duration)
-    }
+    },
+    private val isToolEnabled: (String) -> Boolean = { McpSettings.getInstance().isToolEnabled(it) }
 ) {
     private val projectResolver = ProjectResolver
     private val json = Json {
@@ -127,6 +128,12 @@ class JsonRpcHandler @JvmOverloads constructor(
 
         val tool = toolRegistry.getTool(toolName)
             ?: return createErrorResponse(request.id, JsonRpcErrorCodes.METHOD_NOT_FOUND, ErrorMessages.toolNotFound(toolName))
+
+        // Disabled tools are hidden from tools/list; enforce the same state here so a client
+        // that already knows the name cannot invoke them.
+        if (!isToolEnabled(toolName)) {
+            return createErrorResponse(request.id, JsonRpcErrorCodes.METHOD_NOT_FOUND, ErrorMessages.toolDisabled(toolName))
+        }
 
         // Extract optional project_path from arguments
         val projectPath = arguments[ParamNames.PROJECT_PATH]?.jsonPrimitive?.contentOrNull

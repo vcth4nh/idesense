@@ -6,6 +6,7 @@ import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
 import com.github.vcth4nh.idesense.tools.models.InstallPluginResult
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
+import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
@@ -39,6 +40,22 @@ class InstallPluginTool : AbstractMcpTool() {
         private val LOG = logger<InstallPluginTool>()
         private val PLUGIN_XML_ID = Regex("<id>([^<]+)</id>")
         private val PLUGIN_XML_VERSION = Regex("<version>([^<]+)</version>")
+
+        /**
+         * Resolves an explicit `path` argument (absolute, or relative to the first root) to its
+         * canonical file, requiring the result to stay inside one of [roots] — the same
+         * containment other file-taking tools apply via [AbstractMcpTool.resolveFile].
+         * Returns null when the path escapes every root (or there is no root to contain it).
+         */
+        internal fun resolveWithinProjectRoots(roots: List<String>, pathArg: String): File? {
+            val base = roots.firstOrNull() ?: return null
+            val f = File(pathArg)
+            val candidate = (if (f.isAbsolute) f else File(base, pathArg)).canonicalFile
+            val contained = roots.any { root ->
+                candidate.path.startsWith(File(root).canonicalPath + File.separator)
+            }
+            return candidate.takeIf { contained }
+        }
     }
 
     override val requiresPsiSync: Boolean = false
@@ -56,25 +73,37 @@ class InstallPluginTool : AbstractMcpTool() {
         (best-effort from META-INF/plugin.xml), restartRequired (always true).
 
         Gotchas: disabled by default — must be enabled in Settings → Tools → IdeSense. Plugin is
-        not dynamically reloadable; restart is mandatory.
+        not dynamically reloadable; restart is mandatory. The zip must live inside the open
+        project (out-of-root paths are rejected) — copy it into the project first if needed.
     """.trimIndent()
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
         .stringProperty(
             ParamNames.PATH,
-            "Path to the plugin .zip. Absolute, or relative to the project root. Default: newest *.zip in <project>/build/distributions/."
+            "Path to the plugin .zip. Absolute, or relative to the project root; must resolve inside the open project. Default: newest *.zip in <project>/build/distributions/."
         )
         .build()
 
     override suspend fun doExecute(project: Project, arguments: JsonObject): ToolCallResult {
         val pathArg = arguments[ParamNames.PATH]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
 
-        val sourceZip = resolveSourceZip(project, pathArg)
-            ?: return createErrorResult(
-                if (pathArg != null) "Plugin zip not found: $pathArg"
-                else "No *.zip found in <project>/build/distributions/. Build the plugin first (./gradlew buildPlugin) or pass an explicit \"path\"."
-            )
+        val sourceZip = if (pathArg != null) {
+            val roots = listOfNotNull(project.basePath) + ProjectUtils.getModuleContentRoots(project)
+            val contained = resolveWithinProjectRoots(roots, pathArg)
+                ?: return createErrorResult(
+                    "Plugin zip path is outside the project root: $pathArg. " +
+                        "Only a .zip inside the open project (e.g. build/distributions/) can be installed; " +
+                        "copy it into the project first."
+                )
+            contained.takeIf { it.isFile }
+        } else {
+            newestDistributionZip(project)
+        }
+        sourceZip ?: return createErrorResult(
+            if (pathArg != null) "Plugin zip not found: $pathArg"
+            else "No *.zip found in <project>/build/distributions/. Build the plugin first (./gradlew buildPlugin) or pass an explicit \"path\"."
+        )
 
         if (!sourceZip.isFile || !sourceZip.name.endsWith(".zip", ignoreCase = true)) {
             return createErrorResult("Not a .zip file: ${sourceZip.absolutePath}")
@@ -124,12 +153,7 @@ class InstallPluginTool : AbstractMcpTool() {
         }
     }
 
-    private fun resolveSourceZip(project: Project, pathArg: String?): File? {
-        if (pathArg != null) {
-            val f = File(pathArg)
-            val resolved = if (f.isAbsolute) f else File(project.basePath ?: ".", pathArg)
-            return resolved.takeIf { it.isFile }
-        }
+    private fun newestDistributionZip(project: Project): File? {
         val basePath = project.basePath ?: return null
         val dist = File(basePath, "build/distributions")
         if (!dist.isDirectory) return null
