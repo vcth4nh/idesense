@@ -13,7 +13,7 @@ jtoon = "2.0.1"
 mockk = "1.14.11"
 
 # plugins
-changelog = "2.4.0"
+changelog = "2.5.0"
 intelliJPlatform = "2.10.5"
 kotlin = "2.4.0"
 kotlinSerialization = "2.4.0"
