@@ -10,7 +10,7 @@ kotlinxCoroutines = "1.11.0"
 jtoon = "1.0.9"
 
 # Testing
-mockk = "1.14.6"
+mockk = "1.14.11"
 
 # plugins
 changelog = "2.4.0"
