@@ -1,6 +1,7 @@
 package com.github.vcth4nh.idesense.settings
 
 import com.github.vcth4nh.idesense.McpConstants
+import com.github.vcth4nh.idesense.server.ServerHostPolicy
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
@@ -36,7 +37,8 @@ class McpSettings : PersistentStateComponent<McpSettings.State> {
         var responseFormat: ResponseFormat = ResponseFormat.JSON,
         var disabledTools: MutableSet<String> = mutableSetOf("ide_install_plugin", "ide_restart", "ide_file_structure", "ide_find_symbol", "ide_read_file"),
         var serverPort: Int = -1, // -1 means use IDE-specific default
-        var serverHost: String = McpConstants.DEFAULT_SERVER_HOST
+        var serverHost: String = McpConstants.DEFAULT_SERVER_HOST,
+        var allowNonLoopbackBind: Boolean = false
     )
 
     private var state = State()
@@ -74,6 +76,15 @@ class McpSettings : PersistentStateComponent<McpSettings.State> {
     var serverHost: String
         get() = state.serverHost
         set(value) { state.serverHost = value }
+
+    /**
+     * User's explicit acknowledgement that binding a non-loopback host exposes every enabled
+     * tool to the network with no authentication. Without it, [ServerHostPolicy] refuses the
+     * bind and falls back to loopback.
+     */
+    var allowNonLoopbackBind: Boolean
+        get() = state.allowNonLoopbackBind
+        set(value) { state.allowNonLoopbackBind = value }
 
     fun isToolEnabled(toolName: String): Boolean = toolName !in state.disabledTools
 

@@ -741,6 +741,10 @@ Install a locally built plugin distribution (`.zip`) into THIS IDE's custom plug
 
 The new code only takes effect after an IDE restart — call `ide_restart` afterward.
 
+The zip must resolve inside the open project (symlinks followed); out-of-root paths are
+rejected. When the target IDE has a different project open than the one the zip was built in,
+copy the zip into that project first.
+
 **Use when:**
 - Deploying a freshly built plugin zip to the running IDE during development
 
@@ -748,7 +752,7 @@ The new code only takes effect after an IDE restart — call `ide_restart` after
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `path` | string | No | Path to the plugin `.zip`. Absolute, or relative to the project root. Default: newest `*.zip` in `<project>/build/distributions/`. |
+| `path` | string | No | Path to the plugin `.zip`. Absolute, or relative to the project root; must resolve inside the open project. Default: newest `*.zip` in `<project>/build/distributions/`. |
 
 **Example Request:**
 

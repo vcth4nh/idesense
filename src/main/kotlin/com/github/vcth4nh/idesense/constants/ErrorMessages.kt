@@ -62,6 +62,7 @@ object ErrorMessages {
 
     // Tool/method errors
     fun toolNotFound(name: String) = "Tool not found: $name"
+    fun toolDisabled(name: String) = "Tool disabled by user settings: $name. It can be enabled under Settings → Tools → IdeSense."
     fun resourceNotFound(uri: String) = "Resource not found: $uri"
     fun methodNotFound(method: String) = "Method not found: $method"
 

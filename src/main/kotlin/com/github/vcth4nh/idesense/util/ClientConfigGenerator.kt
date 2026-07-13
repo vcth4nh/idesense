@@ -2,6 +2,7 @@ package com.github.vcth4nh.idesense.util
 
 import com.github.vcth4nh.idesense.McpConstants
 import com.github.vcth4nh.idesense.server.McpServerService
+import com.github.vcth4nh.idesense.server.ServerHostPolicy
 import com.github.vcth4nh.idesense.settings.McpSettings
 
 
@@ -30,9 +31,17 @@ object ClientConfigGenerator {
         return McpServerService.getInstance().getServerUrl()
             ?: run {
                 val settings = McpSettings.getInstance()
-                "http://${settings.serverHost}:${settings.serverPort}${McpConstants.STREAMABLE_HTTP_ENDPOINT_PATH}"
+                "http://${plannedHost(settings)}:${settings.serverPort}${McpConstants.STREAMABLE_HTTP_ENDPOINT_PATH}"
             }
     }
+
+    /**
+     * The host the server *would* bind on next start. Not simply `settings.serverHost`: an
+     * unacknowledged non-loopback host falls back to loopback, and a config handed to a client
+     * must point where the server will actually listen.
+     */
+    private fun plannedHost(settings: McpSettings): String =
+        ServerHostPolicy.resolve(settings.serverHost, settings.allowNonLoopbackBind).effectiveHost
 
     /**
      * Gets the legacy SSE server URL, using the running server URL if available,
@@ -42,7 +51,7 @@ object ClientConfigGenerator {
         return McpServerService.getInstance().getLegacySseUrl()
             ?: run {
                 val settings = McpSettings.getInstance()
-                "http://${settings.serverHost}:${settings.serverPort}${McpConstants.SSE_ENDPOINT_PATH}"
+                "http://${plannedHost(settings)}:${settings.serverPort}${McpConstants.SSE_ENDPOINT_PATH}"
             }
     }
 

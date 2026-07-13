@@ -20,3 +20,6 @@ cache
 .project
 .settings
 live-test/run_*stderr*.txt
+
+# plugin zips copied into fixture roots for the headless install loop (see live-test/README.md)
+live-test/*/*.zip

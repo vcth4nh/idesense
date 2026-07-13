@@ -157,7 +157,8 @@ MCP servers expose:
 **Server Infrastructure:**
 - Custom embedded **Ktor CIO** HTTP server (not IntelliJ's built-in server)
 - Configurable port with IDE-specific defaults (e.g., IntelliJ: 29170, PyCharm: 29172) via Settings → Tools → IdeSense → Server Port
-- Binds to `127.0.0.1` (localhost) by default; configurable via **Server Host** setting. Change to `0.0.0.0` for remote/WSL access — **security note**: a non-local host exposes the server to all network interfaces
+- Binds to `127.0.0.1` (localhost) by default; configurable via **Server Host** setting
+- **Non-loopback bind is opt-in.** There is no auth token on any transport, so a non-loopback host (`0.0.0.0`, a LAN address, …) hands every enabled tool to anything that can reach the port. `ServerHostPolicy` is the single choke point on every bind path: a non-loopback host is honored only when the user has ticked **Allow non-loopback bind**; otherwise the server falls back to loopback, stays running (local agents keep working), and warns via notification. Every URL the plugin reports — status panel, generated client configs — is built from the host actually bound, never the configured one
 - Single server instance across all open projects
 - Auto-restart on port change
 

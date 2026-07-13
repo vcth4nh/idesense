@@ -113,6 +113,12 @@ edit → ./gradlew buildPlugin → ide_install_plugin → ide_restart
      → poll MCP until back → re-run live-test → compare
 ```
 
+**Zip containment.** `ide_install_plugin` only accepts a zip that resolves inside the target
+IDE's open project. When that IDE has this repo open, the default path (newest zip in
+`build/distributions/`) just works. When it has a *different* project open (e.g. the
+`live-test/<lang>` fixtures), copy the zip into that project root first and pass the
+in-project path — see [live-test/README.md](../live-test/README.md).
+
 **Dev versioning during iteration.** While iterating, set `pluginVersion` to a
 monotonic dev suffix: `5.3.5-dev.01`, `5.3.5-dev.02`, … (increment every build that
 will be installed). Rationale:

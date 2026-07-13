@@ -400,7 +400,8 @@ Configure the plugin at <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</
 | Setting | Default | Description |
 |---------|---------|-------------|
 | Server Port | IDE-specific | MCP server port (range: 1024-65535, auto-restart on change). See [IDE-Specific Defaults](#ide-specific-defaults) |
-| Server Host | `127.0.0.1` | Listening host. Change to `0.0.0.0` for remote/WSL access |
+| Server Host | `127.0.0.1` | Listening host. A non-loopback host (e.g. `0.0.0.0` for remote/WSL access) also requires **Allow non-loopback bind** — see below |
+| Allow non-loopback bind | false | Acknowledges that binding a non-loopback host exposes every enabled tool — including full read access to your projects — to any machine that can reach the port, with **no authentication**. Without it, a non-loopback host falls back to `127.0.0.1` and the server keeps running |
 | Max History Size | 100 | Maximum number of commands to keep in history |
 | Project List in Error Responses | Expanded | Controls `available_projects` detail for invalid/missing `project_path` errors. `Expanded` includes workspace sub-projects; `Compact` returns only top-level project roots |
 | Sync External Changes | false | Sync external file changes before operations (**WARNING: significant performance impact**) |
