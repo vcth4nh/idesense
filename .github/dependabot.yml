@@ -15,6 +15,14 @@ updates:
       kotlin:
         patterns:
           - "org.jetbrains.kotlin*"
+    ignore:
+      # ktor >= 3.5.0 requires kotlinx-coroutines 1.11.0 (EmbeddedServer calls
+      # runBlockingK, introduced in 1.11.0), but the plugin must run on the
+      # IDE-bundled coroutines, and no IntelliJ Platform release ships 1.11 yet
+      # (2025.1 test platform: 1.8.0-intellij; 2026.1 IDEs also lack it — see
+      # PR superseding #49). Lift this once the platform's coroutines catch up.
+      - dependency-name: "io.ktor:*"
+        versions: [">= 3.5.0"]
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
