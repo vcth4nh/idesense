@@ -4,6 +4,7 @@ import com.github.vcth4nh.idesense.McpBundle
 import com.github.vcth4nh.idesense.McpConstants
 import com.github.vcth4nh.idesense.server.transport.KtorMcpServer
 import com.github.vcth4nh.idesense.server.McpServerService
+import com.github.vcth4nh.idesense.server.ServerHostPolicy
 import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -48,6 +49,8 @@ class McpSettingsConfigurable : Configurable {
     private var maxHistorySizeSpinner: JSpinner? = null
     private var serverPortSpinner: JSpinner? = null
     private var syncExternalChangesCheckBox: JBCheckBox? = null
+    private var allowNonLoopbackBindCheckBox: JBCheckBox? = null
+    private var allowNonLoopbackBindPanel: JPanel? = null
     private var availableProjectsModeComboBox: ComboBox<McpSettings.AvailableProjectsMode>? = null
     private var responseFormatComboBox: ComboBox<McpSettings.ResponseFormat>? = null
     private val toolCheckBoxes = mutableMapOf<String, JBCheckBox>()
@@ -88,6 +91,24 @@ class McpSettingsConfigurable : Configurable {
             add(hostValidationIcon)
             add(hostValidIcon)
             add(hostValidationErrorLabel)
+        }
+
+        // Non-loopback exposure is opt-in: shown only when the typed host actually is non-loopback,
+        // so the common localhost setup never sees it.
+        allowNonLoopbackBindCheckBox = JBCheckBox(McpBundle.message("settings.allowNonLoopbackBind")).apply {
+            toolTipText = McpBundle.message("settings.allowNonLoopbackBind.tooltip")
+        }
+        allowNonLoopbackBindPanel = JPanel().apply {
+            layout = BoxLayout(this, BoxLayout.Y_AXIS)
+            isVisible = false
+            add(JPanel(FlowLayout(FlowLayout.LEFT, 0, 0)).apply {
+                add(allowNonLoopbackBindCheckBox)
+            })
+            add(JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(24), 0)).apply {
+                add(JBLabel(McpBundle.message("settings.allowNonLoopbackBind.warning")).apply {
+                    foreground = JBColor.RED
+                })
+            })
         }
 
         installHostValidator(serverHostField!!)
@@ -133,6 +154,7 @@ class McpSettingsConfigurable : Configurable {
         panel = FormBuilder.createFormBuilder()
             .addLabeledComponent(JBLabel(McpBundle.message("settings.serverHost") + ":"), serverHostInputRow, 1, false)
             .addComponentToRightColumn(hostWarningLabel!!)
+            .addComponentToRightColumn(allowNonLoopbackBindPanel!!)
             .addLabeledComponent(JBLabel(McpBundle.message("settings.serverPort") + ":"), serverPortSpinner!!, 1, false)
             .addLabeledComponent(JBLabel(McpBundle.message("settings.maxHistorySize") + ":"), maxHistorySizeSpinner!!, 1, false)
             .addLabeledComponent(JBLabel(McpBundle.message("settings.availableProjectsMode") + ":"), availableProjectsModeComboBox!!, 1, false)
@@ -182,6 +204,7 @@ class McpSettingsConfigurable : Configurable {
             serverPortSpinner?.value != settings.serverPort ||
             maxHistorySizeSpinner?.value != settings.maxHistorySize ||
             syncExternalChangesCheckBox?.isSelected != settings.syncExternalChanges ||
+            allowNonLoopbackBindCheckBox?.isSelected != settings.allowNonLoopbackBind ||
             availableProjectsModeComboBox?.selectedItem != settings.availableProjectsMode ||
             responseFormatComboBox?.selectedItem != settings.responseFormat) {
             return true
@@ -208,8 +231,10 @@ class McpSettingsConfigurable : Configurable {
         val settings = McpSettings.getInstance()
         val oldHost = settings.serverHost
         val oldPort = settings.serverPort
+        val oldAllowNonLoopback = settings.allowNonLoopbackBind
         val newHost = serverHostField?.text?.trim() ?: McpConstants.DEFAULT_SERVER_HOST
         val newPort = serverPortSpinner?.value as? Int ?: McpConstants.getDefaultServerPort()
+        val newAllowNonLoopback = allowNonLoopbackBindCheckBox?.isSelected ?: false
 
         if (newHost.isEmpty()) {
             throw ConfigurationException(
@@ -235,6 +260,7 @@ class McpSettingsConfigurable : Configurable {
 
         settings.serverHost = newHost
         settings.serverPort = newPort
+        settings.allowNonLoopbackBind = newAllowNonLoopback
         settings.maxHistorySize = maxHistorySizeSpinner?.value as? Int ?: 100
         settings.syncExternalChanges = syncExternalChangesCheckBox?.isSelected ?: false
         settings.availableProjectsMode =
@@ -252,8 +278,9 @@ class McpSettingsConfigurable : Configurable {
         }
         settings.disabledTools = disabledTools
 
-        // Auto-restart server if host/port changed
-        if (newHost != oldHost || newPort != oldPort) {
+        // Auto-restart if host/port changed — or if the exposure acknowledgement did, since that
+        // alone decides whether the configured host is honored or falls back to loopback.
+        if (newHost != oldHost || newPort != oldPort || newAllowNonLoopback != oldAllowNonLoopback) {
             ApplicationManager.getApplication().invokeLater({
                 val mcpService = McpServerService.getInstance()
                 if (!mcpService.isInitialized) return@invokeLater
@@ -328,6 +355,7 @@ class McpSettingsConfigurable : Configurable {
         serverPortSpinner?.value = settings.serverPort
         maxHistorySizeSpinner?.value = settings.maxHistorySize
         syncExternalChangesCheckBox?.isSelected = settings.syncExternalChanges
+        allowNonLoopbackBindCheckBox?.isSelected = settings.allowNonLoopbackBind
         availableProjectsModeComboBox?.selectedItem = settings.availableProjectsMode
         responseFormatComboBox?.selectedItem = settings.responseFormat
         
@@ -344,9 +372,10 @@ class McpSettingsConfigurable : Configurable {
     }
 
     private fun updateHostWarning(host: String) {
-        val trimmedHost = host.trim()
-        val isDefault = trimmedHost == McpConstants.DEFAULT_SERVER_HOST
-        hostWarningLabel?.isVisible = !isDefault
+        val isLoopback = ServerHostPolicy.isLoopback(host)
+        hostWarningLabel?.isVisible = !isLoopback
+        // The acknowledgement only means anything for a non-loopback host.
+        allowNonLoopbackBindPanel?.isVisible = !isLoopback
     }
 
     private fun installHostValidator(field: JBTextField) {

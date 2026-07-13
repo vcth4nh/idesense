@@ -47,6 +47,14 @@ class McpServerService(
     private var serverError: ServerError? = null
 
     /**
+     * The host actually bound, which differs from `settings.serverHost` when [ServerHostPolicy]
+     * refuses an unacknowledged non-loopback bind. Every URL we report is built from this, so the
+     * status panel and generated client configs never advertise an address nothing is listening on.
+     */
+    @Volatile
+    private var boundHost: String = McpConstants.DEFAULT_SERVER_HOST
+
+    /**
      * Represents a server error state.
      */
     data class ServerError(
@@ -97,9 +105,19 @@ class McpServerService(
      * @param port The port to listen on
      * @return The result of the start operation
      */
-    fun startServer(host: String, port: Int): KtorMcpServer.StartResult {
+    fun startServer(requestedHost: String, port: Int): KtorMcpServer.StartResult {
         // Stop existing server if running
         stopServer()
+
+        // Single choke point for the bind: every path (startup, settings apply, restart) goes
+        // through here, so an unacknowledged non-loopback host cannot slip in from any caller.
+        val resolution = ServerHostPolicy.resolve(requestedHost, McpSettings.getInstance().allowNonLoopbackBind)
+        val host = resolution.effectiveHost
+        if (resolution.blocked) {
+            LOG.warn("Refusing non-loopback bind to '$requestedHost' (not acknowledged in settings); falling back to $host")
+            showNonLoopbackBlockedNotification(requestedHost, host)
+        }
+        boundHost = host
 
         LOG.info("Starting MCP Server on $host:$port")
 
@@ -198,9 +216,8 @@ class McpServerService(
      */
     fun getServerUrl(): String? {
         if (ktorServer == null || serverError != null) return null
-        val settings = McpSettings.getInstance()
-        val port = settings.serverPort
-        val host = settings.serverHost
+        val port = McpSettings.getInstance().serverPort
+        val host = boundHost
         return "http://$host:$port${McpConstants.STREAMABLE_HTTP_ENDPOINT_PATH}"
     }
 
@@ -211,9 +228,8 @@ class McpServerService(
      */
     fun getLegacySseUrl(): String? {
         if (ktorServer == null || serverError != null) return null
-        val settings = McpSettings.getInstance()
-        val port = settings.serverPort
-        val host = settings.serverHost
+        val port = McpSettings.getInstance().serverPort
+        val host = boundHost
         return "http://$host:$port${McpConstants.SSE_ENDPOINT_PATH}"
     }
 
@@ -226,9 +242,8 @@ class McpServerService(
      * Returns information about the server status.
      */
     fun getServerInfo(): ServerStatusInfo {
-        val settings = McpSettings.getInstance()
-        val port = settings.serverPort
-        val host = settings.serverHost
+        val port = McpSettings.getInstance().serverPort
+        val host = boundHost
         val isRunning = isServerRunning()
         return ServerStatusInfo(
             name = McpConstants.SERVER_NAME,
@@ -242,6 +257,29 @@ class McpServerService(
             error = serverError?.message,
             isRunning = isRunning
         )
+    }
+
+    /**
+     * Warns that a non-loopback bind was refused for lack of acknowledgement. The server stays up
+     * on loopback, so local agents keep working — only the network exposure is withheld.
+     */
+    private fun showNonLoopbackBlockedNotification(requestedHost: String, effectiveHost: String) {
+        ApplicationManager.getApplication().invokeLater({
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup(McpConstants.NOTIFICATION_GROUP_ID)
+                .createNotification(
+                    McpBundle.message("notification.nonLoopbackBlocked.title"),
+                    McpBundle.message("notification.nonLoopbackBlocked.content", requestedHost, effectiveHost),
+                    NotificationType.WARNING
+                )
+                .addAction(object : NotificationAction(McpBundle.message("notification.action.openSettings")) {
+                    override fun actionPerformed(e: AnActionEvent, notification: Notification) {
+                        ShowSettingsUtil.getInstance().showSettingsDialog(null, McpSettingsConfigurable::class.java)
+                        notification.expire()
+                    }
+                })
+                .notify(null)
+        }, ModalityState.any())
     }
 
     /**

@@ -17,6 +17,15 @@
   analysis-first philosophy. `ide_diagnostics` still reports last-build errors via the passive
   build listener — only the ability to *trigger* builds is gone.
 
+### Added
+- **Security — non-loopback bind is now opt-in.** There is no authentication on any transport, so
+  binding a non-loopback host (`0.0.0.0`, a LAN address, …) hands every enabled tool to any machine
+  that can reach the port. A new **Allow non-loopback bind** setting (off by default) must be
+  ticked for such a host to be honored; without it the server falls back to `127.0.0.1`, keeps
+  running (local agents are unaffected), and warns via notification. URLs reported in the status
+  panel and generated client configs now reflect the host actually bound, not the configured one
+  (#25).
+
 ### Fixed
 - **Security:** disabled tools are now refused at the `tools/call` dispatch site instead of only
   being hidden from `tools/list`; a client that already knows a disabled tool's name gets a
