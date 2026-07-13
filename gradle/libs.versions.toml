@@ -8,7 +8,7 @@ mcpKotlinSdk = "0.4.0"
 ktor = "2.3.12"
 kotlinxSerializationJson = "1.11.0"
 kotlinxCoroutines = "1.11.0"
-jtoon = "1.0.9"
+jtoon = "2.0.1"
 
 # Testing
 mockk = "1.14.6"
