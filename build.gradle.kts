@@ -1,6 +1,7 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
 plugins {
     id("java") // Java support
@@ -138,6 +139,10 @@ intellijPlatform {
     }
 
     pluginVerification {
+        // IPGP 2.15+ adds INTERNAL_API_USAGES / OVERRIDE_ONLY_API_USAGES to the default
+        // failureLevel; HierarchyTreeWalker's client-session machinery uses internal API
+        // deliberately, so pin the pre-2.15 default to keep those as warnings.
+        failureLevel = listOf(VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS)
         ides {
             recommended()
             // Keep the explicitly supported compatibility range under verifier coverage.
