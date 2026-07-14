@@ -4,6 +4,10 @@ import com.github.vcth4nh.idesense.tools.models.*
 import junit.framework.TestCase
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class ToolModelsUnitTest : TestCase() {
 
@@ -60,24 +64,24 @@ class ToolModelsUnitTest : TestCase() {
                 UsageLocation("file1.kt", 10, 5, "context1", "REFERENCE", listOf("ClassA", "methodX")),
                 UsageLocation("file2.kt", 20, 8, "context2", "METHOD_CALL", listOf("ClassB", "methodY"))
             ),
-            totalCount = 2
+            totalCollected = 2
         )
 
         val serialized = json.encodeToString(result)
         val deserialized = json.decodeFromString<FindUsagesResult>(serialized)
 
         assertEquals(2, deserialized.usages.size)
-        assertEquals(2, deserialized.totalCount)
+        assertEquals(2, deserialized.totalCollected)
     }
 
     fun testFindUsagesResultEmpty() {
-        val result = FindUsagesResult(usages = emptyList(), totalCount = 0)
+        val result = FindUsagesResult(usages = emptyList(), totalCollected = 0)
 
         val serialized = json.encodeToString(result)
         val deserialized = json.decodeFromString<FindUsagesResult>(serialized)
 
         assertTrue(deserialized.usages.isEmpty())
-        assertEquals(0, deserialized.totalCount)
+        assertEquals(0, deserialized.totalCollected)
     }
 
     // DefinitionResult tests
@@ -243,14 +247,14 @@ class ToolModelsUnitTest : TestCase() {
                 ImplementationLocation("UserRepositoryImpl", "src/impl/UserRepositoryImpl.kt", 15, 1, "CLASS"),
                 ImplementationLocation("MockUserRepository", "src/test/MockUserRepository.kt", 8, 1, "CLASS")
             ),
-            totalCount = 2
+            totalCollected = 2
         )
 
         val serialized = json.encodeToString(result)
         val deserialized = json.decodeFromString<ImplementationResult>(serialized)
 
         assertEquals(2, deserialized.implementations.size)
-        assertEquals(2, deserialized.totalCount)
+        assertEquals(2, deserialized.totalCollected)
         assertEquals("UserRepositoryImpl", deserialized.implementations[0].name)
     }
 
@@ -617,33 +621,32 @@ class ToolModelsUnitTest : TestCase() {
     // IndexStatusResult tests
 
     fun testIndexStatusResultSmartMode() {
-        val result = IndexStatusResult(
-            isDumbMode = false,
-            isIndexing = false,
-            indexingProgress = null
-        )
+        val result = IndexStatusResult(isDumbMode = false)
 
         val serialized = json.encodeToString(result)
         val deserialized = json.decodeFromString<IndexStatusResult>(serialized)
 
         assertFalse(deserialized.isDumbMode)
-        assertFalse(deserialized.isIndexing)
-        assertNull(deserialized.indexingProgress)
     }
 
     fun testIndexStatusResultDumbMode() {
-        val result = IndexStatusResult(
-            isDumbMode = true,
-            isIndexing = true,
-            indexingProgress = 0.75
-        )
+        val result = IndexStatusResult(isDumbMode = true)
 
         val serialized = json.encodeToString(result)
         val deserialized = json.decodeFromString<IndexStatusResult>(serialized)
 
         assertTrue(deserialized.isDumbMode)
-        assertTrue(deserialized.isIndexing)
-        assertEquals(0.75, deserialized.indexingProgress!!, 0.001)
+    }
+
+    // #31 — ide_index_status must expose only isDumbMode; the derived isIndexing (which mirrored
+    // isDumbMode) and the always-null indexingProgress are removed.
+    fun testIndexStatusResultOmitsDerivedFields() {
+        val obj = json.encodeToJsonElement(
+            IndexStatusResult(isDumbMode = true)
+        ).jsonObject
+        assertTrue("isDumbMode must remain", obj.containsKey("isDumbMode"))
+        assertFalse("isIndexing must be removed", obj.containsKey("isIndexing"))
+        assertFalse("indexingProgress must be removed", obj.containsKey("indexingProgress"))
     }
 
     // FindSymbolResult tests
@@ -654,7 +657,7 @@ class ToolModelsUnitTest : TestCase() {
                 SymbolMatch("UserService", "com.example.UserService", "CLASS", "src/UserService.kt", 10, 1),
                 SymbolMatch("findById", "com.example.UserRepository#findById(java.lang.Long)", "METHOD", "src/UserRepository.kt", 25, 1)
             ),
-            totalCount = 2,
+            totalCollected = 2,
             query = "User"
         )
 
@@ -662,18 +665,18 @@ class ToolModelsUnitTest : TestCase() {
         val deserialized = json.decodeFromString<FindSymbolResult>(serialized)
 
         assertEquals(2, deserialized.symbols.size)
-        assertEquals(2, deserialized.totalCount)
+        assertEquals(2, deserialized.totalCollected)
         assertEquals("User", deserialized.query)
     }
 
     fun testFindSymbolResultEmpty() {
-        val result = FindSymbolResult(symbols = emptyList(), totalCount = 0, query = "NonExistent")
+        val result = FindSymbolResult(symbols = emptyList(), totalCollected = 0, query = "NonExistent")
 
         val serialized = json.encodeToString(result)
         val deserialized = json.decodeFromString<FindSymbolResult>(serialized)
 
         assertTrue(deserialized.symbols.isEmpty())
-        assertEquals(0, deserialized.totalCount)
+        assertEquals(0, deserialized.totalCollected)
         assertEquals("NonExistent", deserialized.query)
     }
 
@@ -855,7 +858,7 @@ class ToolModelsUnitTest : TestCase() {
                 SymbolMatch("UserService", "com.example.UserService", "CLASS", "src/UserService.kt", 10, 1),
                 SymbolMatch("UserRepository", "com.example.UserRepository", "INTERFACE", "src/UserRepository.kt", 15, 1)
             ),
-            totalCount = 2,
+            totalCollected = 2,
             query = "User"
         )
 
@@ -863,19 +866,19 @@ class ToolModelsUnitTest : TestCase() {
         val deserialized = json.decodeFromString<FindClassResult>(serialized)
 
         assertEquals(2, deserialized.classes.size)
-        assertEquals(2, deserialized.totalCount)
+        assertEquals(2, deserialized.totalCollected)
         assertEquals("User", deserialized.query)
         assertEquals("UserService", deserialized.classes[0].name)
     }
 
     fun testFindClassResultEmpty() {
-        val result = FindClassResult(classes = emptyList(), totalCount = 0, query = "NonExistent")
+        val result = FindClassResult(classes = emptyList(), totalCollected = 0, query = "NonExistent")
 
         val serialized = json.encodeToString(result)
         val deserialized = json.decodeFromString<FindClassResult>(serialized)
 
         assertTrue(deserialized.classes.isEmpty())
-        assertEquals(0, deserialized.totalCount)
+        assertEquals(0, deserialized.totalCollected)
         assertEquals("NonExistent", deserialized.query)
     }
 
@@ -887,7 +890,7 @@ class ToolModelsUnitTest : TestCase() {
                 FileMatch("UserService.kt", "src/main/kotlin/UserService.kt", "src/main/kotlin"),
                 FileMatch("build.gradle", "build.gradle", "")
             ),
-            totalCount = 2,
+            totalCollected = 2,
             query = "User"
         )
 
@@ -895,19 +898,19 @@ class ToolModelsUnitTest : TestCase() {
         val deserialized = json.decodeFromString<FindFileResult>(serialized)
 
         assertEquals(2, deserialized.files.size)
-        assertEquals(2, deserialized.totalCount)
+        assertEquals(2, deserialized.totalCollected)
         assertEquals("User", deserialized.query)
         assertEquals("UserService.kt", deserialized.files[0].name)
     }
 
     fun testFindFileResultEmpty() {
-        val result = FindFileResult(files = emptyList(), totalCount = 0, query = "NonExistent.txt")
+        val result = FindFileResult(files = emptyList(), totalCollected = 0, query = "NonExistent.txt")
 
         val serialized = json.encodeToString(result)
         val deserialized = json.decodeFromString<FindFileResult>(serialized)
 
         assertTrue(deserialized.files.isEmpty())
-        assertEquals(0, deserialized.totalCount)
+        assertEquals(0, deserialized.totalCollected)
     }
 
     // FileMatch tests
@@ -950,7 +953,7 @@ class ToolModelsUnitTest : TestCase() {
                 TextMatch("src/Main.kt", 10, 5, "val config = ConfigManager()", "CODE"),
                 TextMatch("src/Service.kt", 25, 12, "// TODO: refactor this", "COMMENT")
             ),
-            totalCount = 2,
+            totalCollected = 2,
             query = "config"
         )
 
@@ -958,19 +961,19 @@ class ToolModelsUnitTest : TestCase() {
         val deserialized = json.decodeFromString<SearchTextResult>(serialized)
 
         assertEquals(2, deserialized.matches.size)
-        assertEquals(2, deserialized.totalCount)
+        assertEquals(2, deserialized.totalCollected)
         assertEquals("config", deserialized.query)
         assertEquals("src/Main.kt", deserialized.matches[0].file)
     }
 
     fun testSearchTextResultEmpty() {
-        val result = SearchTextResult(matches = emptyList(), totalCount = 0, query = "NonExistentTerm")
+        val result = SearchTextResult(matches = emptyList(), totalCollected = 0, query = "NonExistentTerm")
 
         val serialized = json.encodeToString(result)
         val deserialized = json.decodeFromString<SearchTextResult>(serialized)
 
         assertTrue(deserialized.matches.isEmpty())
-        assertEquals(0, deserialized.totalCount)
+        assertEquals(0, deserialized.totalCollected)
     }
 
     // TextMatch tests
@@ -1086,5 +1089,38 @@ class ToolModelsUnitTest : TestCase() {
         val deserialized = json.decodeFromString<CallElement>(serialized)
         assertNull(deserialized.qualifiedName)
         assertEquals(listOf("UserService", "filterBy"), deserialized.enclosingScope)
+    }
+
+    // #30 — paginated results must not emit the misleading `totalCount` alias; completeness is
+    // signalled by hasMore/nextCursor and the collected count carried by `totalCollected`.
+
+    fun testPaginatedResultsDoNotEmitTotalCount() {
+        val objects = listOf(
+            "find_usages" to json.encodeToJsonElement(
+                FindUsagesResult(usages = emptyList(), totalCollected = 7, hasMore = true)
+            ).jsonObject,
+            "find_implementations" to json.encodeToJsonElement(
+                ImplementationResult(implementations = emptyList(), totalCollected = 7, hasMore = true)
+            ).jsonObject,
+            "find_symbol" to json.encodeToJsonElement(
+                FindSymbolResult(symbols = emptyList(), query = "q", totalCollected = 7, hasMore = true)
+            ).jsonObject,
+            "find_class" to json.encodeToJsonElement(
+                FindClassResult(classes = emptyList(), query = "q", totalCollected = 7, hasMore = true)
+            ).jsonObject,
+            "find_file" to json.encodeToJsonElement(
+                FindFileResult(files = emptyList(), query = "q", totalCollected = 7, hasMore = true)
+            ).jsonObject,
+            "search_text" to json.encodeToJsonElement(
+                SearchTextResult(matches = emptyList(), query = "q", totalCollected = 7, hasMore = true)
+            ).jsonObject,
+        )
+
+        for ((tool, obj) in objects) {
+            assertFalse("$tool must not emit totalCount", obj.containsKey("totalCount"))
+            assertTrue("$tool must keep totalCollected", obj.containsKey("totalCollected"))
+            assertEquals("$tool totalCollected", 7, obj["totalCollected"]!!.jsonPrimitive.int)
+            assertTrue("$tool must keep hasMore for pagination", obj["hasMore"]!!.jsonPrimitive.content.toBoolean())
+        }
     }
 }

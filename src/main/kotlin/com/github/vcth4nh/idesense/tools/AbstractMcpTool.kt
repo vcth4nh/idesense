@@ -11,6 +11,7 @@ import com.github.vcth4nh.idesense.server.StructuredToolResult
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.settings.McpSettings
+import com.github.vcth4nh.idesense.tools.schema.Violation
 import com.github.vcth4nh.idesense.util.ClassResolver
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.PsiUtils
@@ -43,6 +44,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
@@ -645,6 +647,29 @@ abstract class AbstractMcpTool : McpTool {
             )
         }
     }
+
+    /**
+     * Structured error for an unsupported `scope` argument, shared by the search + hierarchy tools.
+     * Each tool passes its own supported-value vocabulary since it differs per tool
+     * (BuiltInSearchScope vs HierarchyScope). See [McpErrors.invalidScope].
+     */
+    protected fun createInvalidScopeError(scopeElement: JsonElement?, supportedValues: List<String>): ToolCallResult {
+        val provided = when (scopeElement) {
+            null -> ""
+            is JsonPrimitive -> scopeElement.content
+            else -> scopeElement.toString()
+        }
+        return createStructuredErrorResult(McpErrors.invalidScope(ParamNames.SCOPE, provided, supportedValues))
+    }
+
+    /**
+     * Structured error for a required parameter a schema can't mark `required` — e.g. `query`, which
+     * is omitted on cursor-paginated calls. Emits the same `invalid_arguments` shape as
+     * [com.github.vcth4nh.idesense.tools.schema.ArgumentValidator] so agents parse one taxonomy.
+     * See [McpErrors.invalidArguments].
+     */
+    protected fun createMissingRequiredParamError(vararg parameters: String): ToolCallResult =
+        createStructuredErrorResult(McpErrors.invalidArguments(name, parameters.map { Violation.MissingRequired(it) }))
 
     /**
      * Creates a successful result with JSON-serialized data.

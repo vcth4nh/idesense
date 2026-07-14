@@ -19,6 +19,27 @@ class McpErrorsUnitTest : TestCase() {
         assertEquals("IDE is in dumb mode", body["message"]?.jsonPrimitive?.content)
     }
 
+    fun testInvalidScopeShape() {
+        val body = McpErrors.invalidScope(
+            "scope",
+            "totally_invalid",
+            listOf("project_files", "project_and_libraries", "project_production_files", "project_test_files")
+        )
+        assertEquals("invalid_scope", body["error"]?.jsonPrimitive?.content)
+        assertEquals("scope", body["parameter"]?.jsonPrimitive?.content)
+        assertEquals("totally_invalid", body["provided"]?.jsonPrimitive?.content)
+        assertEquals(
+            listOf("project_files", "project_and_libraries", "project_production_files", "project_test_files"),
+            body["supportedValues"]!!.jsonArray.map { it.jsonPrimitive.content }
+        )
+        // Consistent with the McpErrors vocabulary: every body carries a human-readable message.
+        assertNotNull("invalid_scope must carry a message", body["message"])
+        assertTrue(
+            "message should name the bad value",
+            body["message"]!!.jsonPrimitive.content.contains("totally_invalid")
+        )
+    }
+
     fun testInvalidArgumentsAggregatesAllViolationKinds() {
         val body = McpErrors.invalidArguments("ide_find_class", listOf(
             Violation.MissingRequired("query"),

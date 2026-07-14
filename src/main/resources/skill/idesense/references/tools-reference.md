@@ -14,9 +14,9 @@ be passed back unchanged. Line and column numbers are **1-based**.
 ## Navigation Tools
 
 ### ide_find_usages
-Find semantic references to a symbol (not text search). Paginated; `totalCount`/`totalCollected` are collected counts (each cursor caches up to an internal cap), not a guaranteed whole-project total.
+Find semantic references to a symbol (not text search). Paginated; `totalCollected` is a collected count (each cursor caches up to an internal cap), not a guaranteed whole-project total — page with `hasMore`/`nextCursor`.
 
-**Returns**: `{ usages: [{ file, line, column, preview, usageType, enclosingScope }], totalCount, truncated, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
+**Returns**: `{ usages: [{ file, line, column, preview, usageType, enclosingScope }], truncated, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
 
 `usageType` values: `METHOD_CALL`, `FIELD_ACCESS`, `IMPORT`, `PARAMETER`, `VARIABLE`, `REFERENCE`. Paginated (see Pagination in SKILL.md).
 
@@ -30,7 +30,7 @@ Handles packages, compiled classes, and library sources (`jar://` URLs).
 ### ide_find_class
 Search for class-like/type declarations by name using IDE's Go to Class index (Ctrl+N / Cmd+O equivalent): classes, interfaces, enums, records, structs, traits, objects, annotations, and similar type declarations. Not methods/fields/functions — use `ide_find_symbol` (when enabled) or `ide_search_text` for those.
 
-**Returns**: `{ classes: [{name, qualifiedName?, kind, file, line, column}], totalCount, query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
+**Returns**: `{ classes: [{name, qualifiedName?, kind, file, line, column}], query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
 
 Project results use relative paths; dependency/library results may use absolute paths or `jar://` URLs.
 Exact (case-insensitive) by default; with `fuzzySearch: true`, IDE camelCase/substring matching applies (`USvc` → `UserService`).
@@ -38,22 +38,22 @@ Exact (case-insensitive) by default; with `fuzzySearch: true`, IDE camelCase/sub
 ### ide_find_file
 Search for files by name using IDE's file index (Ctrl+Shift+N / Cmd+Shift+O equivalent).
 
-**Returns**: `{ files: [{name, path, directory}], totalCount, query }`
+**Returns**: `{ files: [{name, path, directory}], query }`
 
 Project results use relative paths; dependency/library results may use absolute paths or `jar://` URLs.
 
 ### ide_search_text
 Search for exact words using IDE's pre-built word index. O(1) lookups, not file scanning.
 
-**Returns**: `{ matches: [{file, line, column, context, contextType}], totalCount, query }`
+**Returns**: `{ matches: [{file, line, column, context, contextType}], query }`
 
 `contextType` values: `CODE`, `COMMENT`, `STRING_LITERAL`.
 **Selection note**: exact-word only (uses word index, not regex). Use `Grep` for regex patterns.
 
 ### ide_find_implementations
-Find flat implementation, inheritor, and override locations for a class/interface/trait/protocol or method — anchored at a declaration or a resolvable reference. For a subtype *tree*, use `ide_type_hierarchy` with `direction: "subtypes"`. Collected up to an internal per-cursor cap; `totalCount`/`totalCollected` are collected counts.
+Find flat implementation, inheritor, and override locations for a class/interface/trait/protocol or method — anchored at a declaration or a resolvable reference. For a subtype *tree*, use `ide_type_hierarchy` with `direction: "subtypes"`. Collected up to an internal per-cursor cap; `totalCollected` is a collected count.
 
-**Returns**: `{ implementations: [{name, qualifiedName?, file, line, column, kind}], totalCount, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
+**Returns**: `{ implementations: [{name, qualifiedName?, file, line, column, kind}], nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
 
 **Languages**: Java, Kotlin, Python, JS/TS, Go, PHP, Rust.
 
@@ -82,7 +82,7 @@ Build call tree showing who calls a method or what a method calls.
 ### ide_find_symbol
 Search for methods, fields, functions, and other symbols by name (IDE Go to Symbol). Disabled by default; enable in Settings → Tools → IdeSense.
 
-**Returns**: `{ symbols: [{name, qualifiedName?, kind, file, line, column}], totalCount, query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
+**Returns**: `{ symbols: [{name, qualifiedName?, kind, file, line, column}], query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
 
 ### ide_file_structure
 Get the IDE Structure-view outline for a source file. Disabled by default; enable in Settings → Tools → IdeSense.
@@ -127,7 +127,7 @@ Supports IDE undo (Ctrl+Z).
 ### ide_index_status
 Check if IDE is ready for code intelligence operations.
 
-**Returns**: `{ isDumbMode, isIndexing, indexingProgress? }` — currently `isIndexing` mirrors `isDumbMode` and `indexingProgress` is always `null`.
+**Returns**: `{ isDumbMode }` — `true` while the IDE is indexing (most tools fail); poll until `false`.
 
 When `isDumbMode: true`, most tools will fail — wait and retry.
 
