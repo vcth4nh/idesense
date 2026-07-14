@@ -1,6 +1,7 @@
 import org.jetbrains.changelog.Changelog
 import org.jetbrains.changelog.markdownToHTML
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 
 plugins {
     id("java") // Java support
@@ -32,15 +33,6 @@ repositories {
 
 // Dependencies are managed with Gradle version catalog - read more: https://docs.gradle.org/current/userguide/platforms.html#sub:version-catalog
 dependencies {
-    // MCP Kotlin SDK - exclude kotlinx-coroutines to use IntelliJ Platform's bundled version
-    implementation(libs.mcp.kotlin.sdk) {
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-bom")
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-slf4j")
-        exclude(group = "org.slf4j")
-    }
-
     // Kotlinx Serialization
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.jtoon)
@@ -147,6 +139,10 @@ intellijPlatform {
     }
 
     pluginVerification {
+        // IPGP 2.15+ adds INTERNAL_API_USAGES / OVERRIDE_ONLY_API_USAGES to the default
+        // failureLevel; HierarchyTreeWalker's client-session machinery uses internal API
+        // deliberately, so pin the pre-2.15 default to keep those as warnings.
+        failureLevel = listOf(VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS)
         ides {
             recommended()
             // Keep the explicitly supported compatibility range under verifier coverage.
