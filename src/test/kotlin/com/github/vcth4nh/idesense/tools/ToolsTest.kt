@@ -55,7 +55,6 @@ class ToolsTest : BasePlatformTestCase() {
         val resultJson = json.parseToJsonElement(textContent).jsonObject
 
         assertNotNull("Result should have isDumbMode", resultJson["isDumbMode"])
-        assertNotNull("Result should have isIndexing", resultJson["isIndexing"])
     }
 
     fun testFindUsagesToolMissingParams() = runBlocking {

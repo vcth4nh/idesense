@@ -11,11 +11,25 @@
   `ide_reformat_code` (code mutation), `ide_build_project` (dev-loop driver). **Breaking** for
   MCP clients that call these tools. `ide_refactor_rename` and `ide_move_file` remain as the
   minimal retained refactorings.
+- **`totalCount` removed from every paginated search result** (`ide_find_usages`, `ide_find_class`,
+  `ide_find_symbol`, `ide_find_file`, `ide_find_implementations`, `ide_search_text`). It duplicated
+  `totalCollected`, but the name implied a whole-project total, so an agent could stop paginating
+  early and miss results. Completeness is signalled by `hasMore`/`nextCursor`; `totalCollected` (the
+  collected count) remains. **Breaking** for clients that read `totalCount` (#30).
+- **`isIndexing` and `indexingProgress` removed from `ide_index_status`.** `isIndexing` always
+  mirrored `isDumbMode` and `indexingProgress` was always `null`; the result is now just
+  `{ isDumbMode }`. **Breaking** for clients that read those fields (#31).
 
 ### Changed
 - Mission statements (README/Marketplace description, CLAUDE.md, agent skill) rewritten to the
   analysis-first philosophy. `ide_diagnostics` still reports last-build errors via the passive
   build listener — only the ability to *trigger* builds is gone.
+- **Error taxonomy unified** so agents parse one shape. `invalid_scope` is now built from the central
+  `McpErrors` vocabulary — it gains a human-readable `message`; `error`/`parameter`/`provided`/
+  `supportedValues` are unchanged — across all seven scope-taking tools (the five search tools plus
+  `ide_type_hierarchy`/`ide_call_hierarchy`). A missing `query` on the search tools now returns the
+  structured `invalid_arguments` shape (a `missing_required` violation) instead of a generic
+  `tool_error` string. **Breaking** for clients that matched the old missing-`query` message (#39).
 
 ### Added
 - **Security — non-loopback bind is now opt-in.** There is no authentication on any transport, so

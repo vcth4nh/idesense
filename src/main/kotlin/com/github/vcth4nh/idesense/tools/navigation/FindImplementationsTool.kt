@@ -23,14 +23,9 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.search.searches.DefinitionsScopedSearch
 import com.intellij.psi.util.PsiModificationTracker
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 
 /**
  * Tool for finding implementations of interfaces, abstract classes, or methods across all languages.
@@ -101,7 +96,6 @@ class FindImplementationsTool : AbstractMcpTool() {
             return buildPaginatedResult<ImplementationLocation, ImplementationResult>(getPageFromCache(cursor, pageSize, project)) { items, page ->
                 ImplementationResult(
                     implementations = items,
-                    totalCount = page.totalCollected,
                     nextCursor = page.nextCursor,
                     hasMore = page.hasMore,
                     totalCollected = page.totalCollected,
@@ -113,13 +107,12 @@ class FindImplementationsTool : AbstractMcpTool() {
         }
 
         val pageSize = resolvePageSize(arguments, DEFAULT_PAGE_SIZE)
-        val rawScope = rawScopeValue(arguments[ParamNames.SCOPE])
         val scope = try {
             BuiltInSearchScopeResolver.parse(arguments, BuiltInSearchScope.PROJECT_FILES)
         } catch (_: IllegalArgumentException) {
-            return createInvalidScopeError(rawScope)
+            return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         } catch (_: IllegalStateException) {
-            return createInvalidScopeError(rawScope)
+            return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         }
         requireSmartMode(project)
 
@@ -171,7 +164,6 @@ class FindImplementationsTool : AbstractMcpTool() {
         return buildPaginatedResult<ImplementationLocation, ImplementationResult>(getPageFromCache(token!!, pageSize, project)) { items, page ->
             ImplementationResult(
                 implementations = items,
-                totalCount = page.totalCollected,
                 nextCursor = page.nextCursor,
                 hasMore = page.hasMore,
                 totalCollected = page.totalCollected,
@@ -365,20 +357,4 @@ class FindImplementationsTool : AbstractMcpTool() {
         }
         return null
     }
-
-    private fun rawScopeValue(scopeElement: JsonElement?): String = when (scopeElement) {
-        null -> ""
-        is JsonPrimitive -> scopeElement.content
-        else -> scopeElement.toString()
-    }
-
-    private fun createInvalidScopeError(provided: String): ToolCallResult =
-        createStructuredErrorResult(buildJsonObject {
-            put("error", JsonPrimitive("invalid_scope"))
-            put("parameter", JsonPrimitive(ParamNames.SCOPE))
-            put("provided", JsonPrimitive(provided))
-            put("supportedValues", buildJsonArray {
-                BuiltInSearchScope.supportedWireValues().forEach { add(JsonPrimitive(it)) }
-            })
-        })
 }

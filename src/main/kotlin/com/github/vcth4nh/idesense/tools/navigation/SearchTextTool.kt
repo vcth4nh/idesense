@@ -77,7 +77,6 @@ class SearchTextTool : AbstractMcpTool() {
             return buildPaginatedResult<TextMatch, SearchTextResult>(getPageFromCache(cursor, pageSize, project)) { items, page ->
                 SearchTextResult(
                     matches = items,
-                    totalCount = page.totalCollected,
                     query = page.metadata["query"] ?: "",
                     nextCursor = page.nextCursor,
                     hasMore = page.hasMore,
@@ -90,7 +89,7 @@ class SearchTextTool : AbstractMcpTool() {
         }
 
         val query = arguments[ParamNames.QUERY]?.jsonPrimitive?.content
-            ?: return createErrorResult("Missing required parameter: ${ParamNames.QUERY}")
+            ?: return createMissingRequiredParamError(ParamNames.QUERY)
         val contextStr = arguments[ParamNames.CONTEXT]?.jsonPrimitive?.content ?: "all"
         val caseSensitive = arguments[ParamNames.CASE_SENSITIVE]?.jsonPrimitive?.boolean ?: true
         val pageSize = resolvePageSize(arguments, DEFAULT_PAGE_SIZE, aliases = arrayOf("limit"))
@@ -136,7 +135,6 @@ class SearchTextTool : AbstractMcpTool() {
         return buildPaginatedResult<TextMatch, SearchTextResult>(getPageFromCache(cursorToken, pageSize, project)) { items, page ->
             SearchTextResult(
                 matches = items,
-                totalCount = page.totalCollected,
                 query = page.metadata["query"] ?: "",
                 nextCursor = page.nextCursor,
                 hasMore = page.hasMore,

@@ -26,14 +26,9 @@ import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiModificationTracker
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 
 /**
  * Tool for searching classes and interfaces by name.
@@ -84,7 +79,6 @@ class FindClassTool : AbstractMcpTool() {
             return buildPaginatedResult<SymbolMatch, FindClassResult>(getPageFromCache(cursor, pageSize, project)) { items, page ->
                 FindClassResult(
                     classes = items,
-                    totalCount = page.totalCollected,
                     query = page.metadata["query"] ?: "",
                     nextCursor = page.nextCursor,
                     hasMore = page.hasMore,
@@ -97,14 +91,13 @@ class FindClassTool : AbstractMcpTool() {
         }
 
         val query = arguments[ParamNames.QUERY]?.jsonPrimitive?.content
-            ?: return createErrorResult("Missing required parameter: ${ParamNames.QUERY}")
-        val rawScope = rawScopeValue(arguments[ParamNames.SCOPE])
+            ?: return createMissingRequiredParamError(ParamNames.QUERY)
         val scope = try {
             BuiltInSearchScopeResolver.parse(arguments, BuiltInSearchScope.PROJECT_FILES)
         } catch (_: IllegalArgumentException) {
-            return createInvalidScopeError(rawScope)
+            return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         } catch (_: IllegalStateException) {
-            return createInvalidScopeError(rawScope)
+            return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         }
         val languageFilter = arguments[ParamNames.LANGUAGE]?.jsonPrimitive?.content
         val fuzzySearch = arguments[ParamNames.FUZZY_SEARCH]?.jsonPrimitive?.booleanOrNull ?: false
@@ -149,7 +142,6 @@ class FindClassTool : AbstractMcpTool() {
         return buildPaginatedResult<SymbolMatch, FindClassResult>(getPageFromCache(cursorToken, pageSize, project)) { items, page ->
             FindClassResult(
                 classes = items,
-                totalCount = page.totalCollected,
                 query = page.metadata["query"] ?: "",
                 nextCursor = page.nextCursor,
                 hasMore = page.hasMore,
@@ -244,22 +236,6 @@ class FindClassTool : AbstractMcpTool() {
     private fun resolveSearchScope(project: Project, scope: BuiltInSearchScope): GlobalSearchScope {
         return BuiltInSearchScopeResolver.resolveGlobalScope(project, scope)
     }
-
-    private fun rawScopeValue(scopeElement: JsonElement?): String = when (scopeElement) {
-        null -> ""
-        is JsonPrimitive -> scopeElement.content
-        else -> scopeElement.toString()
-    }
-
-    private fun createInvalidScopeError(provided: String): ToolCallResult =
-        createStructuredErrorResult(buildJsonObject {
-            put("error", JsonPrimitive("invalid_scope"))
-            put("parameter", JsonPrimitive(ParamNames.SCOPE))
-            put("provided", JsonPrimitive(provided))
-            put("supportedValues", buildJsonArray {
-                BuiltInSearchScope.supportedWireValues().forEach { add(JsonPrimitive(it)) }
-            })
-        })
 
     private fun convertToSymbolMatch(item: NavigationItem, project: Project, scope: GlobalSearchScope, languageFilter: String? = null): SymbolMatch? {
         val element = extractPsiElement(item) ?: return null

@@ -23,7 +23,6 @@ data class UsageLocation(
 @Serializable
 data class FindUsagesResult(
     val usages: List<UsageLocation>,
-    val totalCount: Int,
     val truncated: Boolean = false,
     val nextCursor: String? = null,
     val hasMore: Boolean = false,
@@ -102,7 +101,6 @@ data class CallElement(
 @Serializable
 data class ImplementationResult(
     val implementations: List<ImplementationLocation>,
-    val totalCount: Int,
     val nextCursor: String? = null,
     val hasMore: Boolean = false,
     val totalCollected: Int = 0,
@@ -194,9 +192,7 @@ data class RefactoringResult(
 // get_index_status output
 @Serializable
 data class IndexStatusResult(
-    val isDumbMode: Boolean,
-    val isIndexing: Boolean,
-    val indexingProgress: Double?
+    val isDumbMode: Boolean
 )
 
 // ide_sync_files output
@@ -241,7 +237,6 @@ data class RestartIdeResult(
 @Serializable
 data class FindSymbolResult(
     val symbols: List<SymbolMatch>,
-    val totalCount: Int,
     val query: String,
     val nextCursor: String? = null,
     val hasMore: Boolean = false,
@@ -292,7 +287,6 @@ data class SuperMethodInfo(
 @Serializable
 data class FindClassResult(
     val classes: List<SymbolMatch>,
-    val totalCount: Int,
     val query: String,
     val nextCursor: String? = null,
     val hasMore: Boolean = false,
@@ -306,7 +300,6 @@ data class FindClassResult(
 @Serializable
 data class FindFileResult(
     val files: List<FileMatch>,
-    val totalCount: Int,
     val query: String,
     val nextCursor: String? = null,
     val hasMore: Boolean = false,
@@ -327,7 +320,6 @@ data class FileMatch(
 @Serializable
 data class SearchTextResult(
     val matches: List<TextMatch>,
-    val totalCount: Int,
     val query: String,
     val nextCursor: String? = null,
     val hasMore: Boolean = false,

@@ -31,13 +31,8 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 
 class FindUsagesTool : AbstractMcpTool() {
 
@@ -84,7 +79,6 @@ class FindUsagesTool : AbstractMcpTool() {
             return buildPaginatedResult<UsageLocation, FindUsagesResult>(getPageFromCache(cursor, pageSize, project)) { items, page ->
                 FindUsagesResult(
                     usages = items,
-                    totalCount = page.totalCollected,
                     truncated = page.hasMore,
                     nextCursor = page.nextCursor,
                     hasMore = page.hasMore,
@@ -98,13 +92,12 @@ class FindUsagesTool : AbstractMcpTool() {
 
         val pageSize = resolvePageSize(arguments, DEFAULT_MAX_RESULTS, aliases = arrayOf("maxResults"))
         val collectLimit = maxOf(PaginationService.DEFAULT_OVERCOLLECT, pageSize)
-        val rawScope = rawScopeValue(arguments[ParamNames.SCOPE])
         val scope = try {
             BuiltInSearchScopeResolver.parse(arguments, BuiltInSearchScope.PROJECT_FILES)
         } catch (_: IllegalArgumentException) {
-            return createInvalidScopeError(rawScope)
+            return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         } catch (_: IllegalStateException) {
-            return createInvalidScopeError(rawScope)
+            return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         }
         requireSmartMode(project)
 
@@ -232,7 +225,6 @@ class FindUsagesTool : AbstractMcpTool() {
         return buildPaginatedResult<UsageLocation, FindUsagesResult>(getPageFromCache(token!!, pageSize, project)) { items, page ->
             FindUsagesResult(
                 usages = items,
-                totalCount = page.totalCollected,
                 truncated = page.hasMore,
                 nextCursor = page.nextCursor,
                 hasMore = page.hasMore,
@@ -344,20 +336,4 @@ class FindUsagesTool : AbstractMcpTool() {
             else -> UsageTypes.REFERENCE
             }
     }
-
-    private fun rawScopeValue(scopeElement: JsonElement?): String = when (scopeElement) {
-        null -> ""
-        is JsonPrimitive -> scopeElement.content
-        else -> scopeElement.toString()
-    }
-
-    private fun createInvalidScopeError(provided: String): ToolCallResult =
-        createStructuredErrorResult(buildJsonObject {
-            put("error", JsonPrimitive("invalid_scope"))
-            put("parameter", JsonPrimitive(ParamNames.SCOPE))
-            put("provided", JsonPrimitive(provided))
-            put("supportedValues", buildJsonArray {
-                BuiltInSearchScope.supportedWireValues().forEach { add(JsonPrimitive(it)) }
-            })
-        })
 }

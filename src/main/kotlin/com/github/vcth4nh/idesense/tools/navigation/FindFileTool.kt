@@ -26,14 +26,9 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.util.indexing.FindSymbolParameters
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 
 /**
  * Tool for searching files by name.
@@ -81,7 +76,6 @@ class FindFileTool : AbstractMcpTool() {
             return buildPaginatedResult<FileMatch, FindFileResult>(getPageFromCache(cursor, pageSize, project)) { items, page ->
                 FindFileResult(
                     files = items,
-                    totalCount = page.totalCollected,
                     query = page.metadata["query"] ?: "",
                     nextCursor = page.nextCursor,
                     hasMore = page.hasMore,
@@ -94,14 +88,13 @@ class FindFileTool : AbstractMcpTool() {
         }
 
         val query = arguments[ParamNames.QUERY]?.jsonPrimitive?.content
-            ?: return createErrorResult("Missing required parameter: ${ParamNames.QUERY}")
-        val rawScope = rawScopeValue(arguments[ParamNames.SCOPE])
+            ?: return createMissingRequiredParamError(ParamNames.QUERY)
         val scope = try {
             BuiltInSearchScopeResolver.parse(arguments, BuiltInSearchScope.PROJECT_FILES)
         } catch (_: IllegalArgumentException) {
-            return createInvalidScopeError(rawScope)
+            return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         } catch (_: IllegalStateException) {
-            return createInvalidScopeError(rawScope)
+            return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         }
         val pageSize = resolvePageSize(arguments, DEFAULT_PAGE_SIZE, aliases = arrayOf("limit"))
         val collectLimit = maxOf(PaginationService.DEFAULT_OVERCOLLECT, pageSize)
@@ -149,7 +142,6 @@ class FindFileTool : AbstractMcpTool() {
         return buildPaginatedResult<FileMatch, FindFileResult>(getPageFromCache(cursorToken, pageSize, project)) { items, page ->
             FindFileResult(
                 files = items,
-                totalCount = page.totalCollected,
                 query = page.metadata["query"] ?: "",
                 nextCursor = page.nextCursor,
                 hasMore = page.hasMore,
@@ -297,22 +289,6 @@ class FindFileTool : AbstractMcpTool() {
     private fun resolveSearchScope(project: Project, scope: BuiltInSearchScope): GlobalSearchScope {
         return BuiltInSearchScopeResolver.resolveGlobalScope(project, scope)
     }
-
-    private fun rawScopeValue(scopeElement: JsonElement?): String = when (scopeElement) {
-        null -> ""
-        is JsonPrimitive -> scopeElement.content
-        else -> scopeElement.toString()
-    }
-
-    private fun createInvalidScopeError(provided: String): ToolCallResult =
-        createStructuredErrorResult(buildJsonObject {
-            put("error", JsonPrimitive("invalid_scope"))
-            put("parameter", JsonPrimitive(ParamNames.SCOPE))
-            put("provided", JsonPrimitive(provided))
-            put("supportedValues", buildJsonArray {
-                BuiltInSearchScope.supportedWireValues().forEach { add(JsonPrimitive(it)) }
-            })
-        })
 
     private fun convertToFileMatch(item: NavigationItem, project: Project, scope: GlobalSearchScope): FileMatch? {
         val virtualFile = extractVirtualFile(item) ?: return null

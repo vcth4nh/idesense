@@ -153,7 +153,6 @@ Finds all references to a symbol across the entire project using IntelliJ's sema
       "enclosingScope": ["UserServiceTest", "testFindUser"]
     }
   ],
-  "totalCount": 2,
   "truncated": false,
   "nextCursor": null,
   "hasMore": false,
@@ -281,7 +280,7 @@ Searches for classes and interfaces by name using the IDE's class index.
       "column": 18
     }
   ],
-  "totalCount": 1,
+  "totalCollected": 1,
   "query": "UserService"
 }
 ```
@@ -336,7 +335,7 @@ Searches for files by name using the IDE's file index.
       "directory": "src/main/kotlin/com/example/service"
     }
   ],
-  "totalCount": 1,
+  "totalCollected": 1,
   "query": "UserService"
 }
 ```
@@ -393,7 +392,7 @@ Searches for text using the IDE's pre-built word index. Significantly faster tha
       "contextType": "COMMENT"
     }
   ],
-  "totalCount": 1,
+  "totalCollected": 1,
   "query": "TODO"
 }
 ```
@@ -519,9 +518,7 @@ Checks if the IDE is in dumb mode (indexing) or smart mode.
 
 ```json
 {
-  "isDumbMode": false,
-  "isIndexing": false,
-  "indexingProgress": null
+  "isDumbMode": false
 }
 ```
 
@@ -710,7 +707,7 @@ Searches for code symbols (classes, interfaces, methods, fields, and functions) 
       "column": 10
     }
   ],
-  "totalCount": 3,
+  "totalCollected": 3,
   "query": "UserService"
 }
 ```
@@ -1272,7 +1269,6 @@ Finds implementation, inheritor, and override locations for a class/interface/tr
       "kind": "CLASS"
     }
   ],
-  "totalCount": 2,
   "nextCursor": null,
   "hasMore": false,
   "totalCollected": 2,

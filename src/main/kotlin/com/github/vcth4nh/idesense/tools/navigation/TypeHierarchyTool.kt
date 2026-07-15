@@ -17,14 +17,9 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 
 /**
  * Tool for retrieving type hierarchies across multiple languages.
@@ -84,11 +79,10 @@ class TypeHierarchyTool : AbstractMcpTool() {
         val file = arguments["file"]?.jsonPrimitive?.content
         val direction = arguments[ParamNames.DIRECTION]?.jsonPrimitive?.content ?: DIRECTION_BOTH
         val maxDepth = (arguments["maxDepth"]?.jsonPrimitive?.int ?: DEFAULT_DEPTH).coerceIn(1, MAX_DEPTH)
-        val rawScope = rawScopeValue(arguments[ParamNames.SCOPE])
         val scope = try {
             HierarchyScope.parse(arguments)
         } catch (_: IllegalArgumentException) {
-            return createInvalidScopeError(rawScope)
+            return createInvalidScopeError(arguments[ParamNames.SCOPE], HierarchyScope.wireValues(HierarchyScope.TYPE_HIERARCHY_SCOPES))
         }
 
         val includeSupertypes = direction != DIRECTION_SUBTYPES
@@ -162,22 +156,6 @@ class TypeHierarchyTool : AbstractMcpTool() {
             ))
         }
     }
-
-    private fun rawScopeValue(scopeElement: JsonElement?): String = when (scopeElement) {
-        null -> ""
-        is JsonPrimitive -> scopeElement.content
-        else -> scopeElement.toString()
-    }
-
-    private fun createInvalidScopeError(provided: String): ToolCallResult =
-        createStructuredErrorResult(buildJsonObject {
-            put("error", JsonPrimitive("invalid_scope"))
-            put("parameter", JsonPrimitive(ParamNames.SCOPE))
-            put("provided", JsonPrimitive(provided))
-            put("supportedValues", buildJsonArray {
-                HierarchyScope.wireValues(HierarchyScope.TYPE_HIERARCHY_SCOPES).forEach { add(JsonPrimitive(it)) }
-            })
-        })
 
     private fun resolveTargetElement(project: Project, arguments: JsonObject): PsiElement? {
         // Try className first (Java/Kotlin specific)

@@ -26,6 +26,18 @@ object McpErrors {
     fun fromException(e: McpException): JsonObject =
         generic(e.errorType, e.message ?: ErrorMessages.UNKNOWN_ERROR)
 
+    /**
+     * Structured body for an unsupported `scope` (or other enum-like) argument. A first-class
+     * McpErrors code so the five search + two hierarchy tools stop hand-building their own shape.
+     */
+    fun invalidScope(parameter: String, provided: String, supportedValues: List<String>): JsonObject = buildJsonObject {
+        put("error", "invalid_scope")
+        put("message", "Unsupported $parameter '$provided'. Supported values: ${supportedValues.joinToString(", ")}.")
+        put("parameter", parameter)
+        put("provided", provided)
+        putJsonArray("supportedValues") { supportedValues.forEach { add(it) } }
+    }
+
     /** Aggregate body for argument-validation failures; the agent fixes everything in one retry. */
     fun invalidArguments(toolName: String, violations: List<Violation>): JsonObject = buildJsonObject {
         put("error", "invalid_arguments")

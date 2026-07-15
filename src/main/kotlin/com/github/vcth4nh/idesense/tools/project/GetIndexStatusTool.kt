@@ -20,7 +20,7 @@ class GetIndexStatusTool : AbstractMcpTool() {
         Call this before batch operations or when other tools return index_not_ready errors; prefer
         this over retrying blindly.
 
-        Returns: isDumbMode (true = indexing in progress, most tools will fail) and isIndexing (currently mirrors isDumbMode; indexingProgress is currently always null).
+        Returns: isDumbMode (true = indexing in progress, most tools will fail).
         When isDumbMode is true, wait and retry — indexing will complete automatically.
 
         Gotchas: read-only and very fast; after project resolution and argument validation it succeeds in both smart and dumb mode.
@@ -35,9 +35,7 @@ class GetIndexStatusTool : AbstractMcpTool() {
         val isDumb = dumbService.isDumb
 
         return createJsonResult(IndexStatusResult(
-            isDumbMode = isDumb,
-            isIndexing = isDumb,
-            indexingProgress = null
+            isDumbMode = isDumb
         ))
     }
 }

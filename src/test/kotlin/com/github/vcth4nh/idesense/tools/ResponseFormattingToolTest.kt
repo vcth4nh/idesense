@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.tools
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.github.vcth4nh.idesense.settings.McpSettings
 import com.github.vcth4nh.idesense.tools.navigation.FindFileTool
+import com.github.vcth4nh.idesense.tools.navigation.SearchTextTool
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import kotlinx.coroutines.runBlocking
@@ -44,7 +45,6 @@ class ResponseFormattingToolTest : BasePlatformTestCase() {
 
         val parsed = json.parseToJsonElement(text).jsonObject
         assertNotNull(parsed["isDumbMode"])
-        assertNotNull(parsed["isIndexing"])
     }
 
     fun testStructuredSuccessUsesToonWhenSelected() = runBlocking {
@@ -56,7 +56,6 @@ class ResponseFormattingToolTest : BasePlatformTestCase() {
 
         assertFalse("TOON output should not be raw JSON", text.trim().startsWith("{"))
         assertTrue(text.contains("isDumbMode:"))
-        assertTrue(text.contains("isIndexing:"))
     }
 
     fun testStructuredErrorsUseToonWhenSelected() = runBlocking {
@@ -77,13 +76,15 @@ class ResponseFormattingToolTest : BasePlatformTestCase() {
 
     fun testPlainTextErrorsRemainPlainTextInToonMode() = runBlocking {
         settings.responseFormat = McpSettings.ResponseFormat.TOON
-        val tool = FindFileTool()
+        val tool = SearchTextTool()
 
-        val result = tool.execute(project, buildJsonObject { })
+        // A generic tool_error (error + message only) — distinct from the rich structured
+        // invalid_arguments/invalid_scope shapes, which carry violations/supportedValues.
+        val result = tool.execute(project, buildJsonObject { put("query", "") })
         val text = (result.content.single() as ContentBlock.Text).text
 
         assertTrue(result.isError)
-        assertTrue(text.contains("Missing required parameter: query"))
-        assertFalse("Plain text errors should not be structured payloads", text.contains("supportedValues"))
+        assertTrue(text.contains("Query cannot be empty"))
+        assertFalse("Generic errors should not carry structured detail fields", text.contains("violations"))
     }
 }
