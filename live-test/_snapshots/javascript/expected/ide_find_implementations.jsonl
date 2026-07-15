@@ -1,6 +1,6 @@
-{"id":"impls-Circle-class","result":{"implementations":[],"totalCount":0}}
-{"id":"impls-Drawable.draw","result":{"implementations":[],"totalCount":0}}
-{"id":"impls-Rectangle-class","result":{"implementations":[{"column":7,"file":"src/normal.js","kind":"CLASS","line":44,"name":"Square","qualifiedName":"Square"}],"totalCount":1}}
-{"id":"impls-Shape-class","result":{"implementations":[{"column":7,"file":"src/normal.js","kind":"CLASS","line":23,"name":"Circle","qualifiedName":"Circle"},{"column":7,"file":"src/normal.js","kind":"CLASS","line":32,"name":"Rectangle","qualifiedName":"Rectangle"},{"column":7,"file":"src/normal.js","kind":"CLASS","line":44,"name":"Square","qualifiedName":"Square"}],"totalCount":3}}
-{"id":"impls-Shape.area-direct-overrides-only","result":{"implementations":[{"column":9,"file":"src/accessors.js","kind":"PROPERTY","line":12,"name":"area","qualifiedName":"Box.area"},{"column":5,"file":"src/normal.js","kind":"METHOD","line":28,"name":"area","qualifiedName":"Circle.area"},{"column":5,"file":"src/normal.js","kind":"METHOD","line":38,"name":"area","qualifiedName":"Rectangle.area"}],"totalCount":3}}
-{"id":"impls-Shape.describe","result":{"implementations":[],"totalCount":0}}
+{"id":"impls-Circle-class","result":{"implementations":[]}}
+{"id":"impls-Drawable.draw","result":{"implementations":[]}}
+{"id":"impls-Rectangle-class","result":{"implementations":[{"column":7,"file":"src/normal.js","kind":"CLASS","line":44,"name":"Square","qualifiedName":"Square"}]}}
+{"id":"impls-Shape-class","result":{"implementations":[{"column":7,"file":"src/normal.js","kind":"CLASS","line":23,"name":"Circle","qualifiedName":"Circle"},{"column":7,"file":"src/normal.js","kind":"CLASS","line":32,"name":"Rectangle","qualifiedName":"Rectangle"},{"column":7,"file":"src/normal.js","kind":"CLASS","line":44,"name":"Square","qualifiedName":"Square"}]}}
+{"id":"impls-Shape.area-direct-overrides-only","result":{"implementations":[{"column":9,"file":"src/accessors.js","kind":"PROPERTY","line":12,"name":"area","qualifiedName":"Box.area"},{"column":5,"file":"src/normal.js","kind":"METHOD","line":28,"name":"area","qualifiedName":"Circle.area"},{"column":5,"file":"src/normal.js","kind":"METHOD","line":38,"name":"area","qualifiedName":"Rectangle.area"}]}}
+{"id":"impls-Shape.describe","result":{"implementations":[]}}
