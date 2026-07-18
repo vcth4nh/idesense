@@ -6,3 +6,5 @@
 {"id":"def-infix-coerceFirst","result":{"column":29,"enclosingScope":null,"file":"src/main/kotlin/demo/Quirks.kt","kind":"FUNCTION","line":81,"name":"coerceFirst","qualifiedName":"demo.QuirksKt#coerceFirst"}}
 {"id":"def-makeDefaultShapes","result":{"column":5,"enclosingScope":null,"file":"src/main/kotlin/demo/Normal.kt","kind":"FUNCTION","line":49,"name":"makeDefaultShapes","qualifiedName":"demo.NormalKt#makeDefaultShapes"}}
 {"id":"def-suspend-fetchValue-call","result":{"column":13,"enclosingScope":null,"file":"src/main/kotlin/demo/Modern.kt","kind":"FUNCTION","line":21,"name":"fetchValue","qualifiedName":"demo.ModernKt#fetchValue"}}
+{"id":"def-Circle-ctor-call","result":{"column":7,"enclosingScope":null,"file":"src/main/kotlin/demo/Normal.kt","kind":"CLASS","line":19,"name":"Circle","qualifiedName":"demo.Circle"}}
+{"id":"def-Coercer-ctor-call","result":{"column":12,"enclosingScope":null,"file":"src/main/kotlin/demo/Quirks.kt","kind":"DATA_CLASS","line":60,"name":"Coercer","qualifiedName":"demo.Coercer"}}
