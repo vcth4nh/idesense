@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Fixed
+- `ide_find_definition` on a Kotlin constructor call now reports the class being constructed
+  — kind `CLASS`/`DATA_CLASS` and class qualified name, matching the declaration-site result
+  and Java's `new Foo()` behavior — instead of `STRUCT` with a member-style qualified name (#17).
+- `ide_find_file` no longer doubles a leading `*` wildcard when building its match pattern,
+  so queries like `*.java` and `*Test.kt` match exactly as written (#16).
+
 ## [2.0.0] - 2026-07-18
 
 ### Removed

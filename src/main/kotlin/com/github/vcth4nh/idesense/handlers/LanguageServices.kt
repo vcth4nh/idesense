@@ -69,6 +69,8 @@ object LanguageServices {
             lower.contains("annotation") -> "ANNOTATION"
             lower.contains("enum") -> "ENUM"
             lower.contains("record") -> "RECORD"
+            // before the struct checks: "constructor" contains "struct" as a substring
+            lower.contains("constructor") -> "CONSTRUCTOR"
             lower.contains("structitem") -> "STRUCT"
             lower.contains("implitem") -> "IMPL"
             lower.contains("moditem") -> "MODULE"

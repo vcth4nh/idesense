@@ -13,11 +13,24 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.search.GlobalSearchScope
 import kotlinx.serialization.json.JsonObject
 
 class FindDefinitionTool : AbstractMcpTool() {
+
+    companion object {
+        // Kotlin PSI is only present when the Kotlin plugin is installed; resolve reflectively
+        // so this class loads in non-IntelliJ IDEs (same approach as the PsiPackage guard below).
+        private val ktConstructorClass: Class<*>? by lazy {
+            try {
+                Class.forName("org.jetbrains.kotlin.psi.KtConstructor")
+            } catch (_: ClassNotFoundException) {
+                null
+            }
+        }
+    }
 
     override val name = ToolNames.FIND_DEFINITION
 
@@ -57,7 +70,7 @@ class FindDefinitionTool : AbstractMcpTool() {
 
             // Try the target element first, then its navigationElement (for Kotlin light classes
             // and import directives where the resolved element may be a compiled class without a virtual file)
-            val effectiveTarget = if (targetElement.containingFile?.virtualFile != null) {
+            val navigationTarget = if (targetElement.containingFile?.virtualFile != null) {
                 targetElement
             } else {
                 val navElement = targetElement.navigationElement
@@ -67,6 +80,7 @@ class FindDefinitionTool : AbstractMcpTool() {
                     targetElement
                 }
             }
+            val effectiveTarget = adjustConstructorTarget(navigationTarget)
 
             // Handle package/directory references (e.g., cursor on package segment in import statement)
             if (effectiveTarget is PsiDirectory) {
@@ -140,6 +154,21 @@ class FindDefinitionTool : AbstractMcpTool() {
                 qualifiedName = qualifiedName,
                 enclosingScope = enclosingScope
             ))
+        }
+    }
+
+    /**
+     * Kotlin resolves a constructor call to the KtPrimaryConstructor/KtSecondaryConstructor
+     * element. Report the class being constructed instead, matching the declaration-site
+     * result and Java's behavior for `new Foo()` (#17).
+     */
+    private fun adjustConstructorTarget(element: PsiElement): PsiElement {
+        val ctorClass = ktConstructorClass ?: return element
+        if (!ctorClass.isInstance(element)) return element
+        return try {
+            ctorClass.getMethod("getContainingClassOrObject").invoke(element) as? PsiElement ?: element
+        } catch (_: Exception) {
+            element
         }
     }
 }

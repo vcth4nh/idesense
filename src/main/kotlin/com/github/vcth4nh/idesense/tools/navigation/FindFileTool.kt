@@ -44,6 +44,11 @@ class FindFileTool : AbstractMcpTool() {
         private val LOG = logger<FindFileTool>()
         private const val DEFAULT_PAGE_SIZE = 25
         private const val MAX_PAGE_SIZE = PaginationService.MAX_PAGE_SIZE
+
+        // Prepend "*" so plain queries match as substrings, but never double a leading
+        // wildcard: "**.java" resolves inconsistently in the file index (#16).
+        internal fun matcherPattern(query: String): String =
+            if (query.startsWith("*")) query else "*$query"
     }
 
     override val name = ToolNames.FIND_FILE
@@ -324,6 +329,6 @@ class FindFileTool : AbstractMcpTool() {
     }
 
     private fun createMatcher(pattern: String): MinusculeMatcher {
-        return NameUtil.buildMatcher("*$pattern", NameUtil.MatchingCaseSensitivity.NONE)
+        return NameUtil.buildMatcher(matcherPattern(pattern), NameUtil.MatchingCaseSensitivity.NONE)
     }
 }
