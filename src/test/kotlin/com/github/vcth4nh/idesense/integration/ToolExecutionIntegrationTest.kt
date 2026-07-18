@@ -64,9 +64,13 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         assertTrue("Should error with invalid file", resultInvalid.isError)
     }
 
-    fun testFindUsagesSurfacesHandlerStageDegradationAsWarnings() = runBlocking {
-        // #81: a FindUsagesHandler stage throwing mid-expansion must not produce a
-        // silently smaller success — the response carries warnings naming the stage.
+    fun testFindUsagesSurfacesHandlerStageDegradationAsWarnings() {
+        // #81: a FindUsagesHandler stage throwing mid-expansion must be swallowed
+        // (headless-safe) but reported through the warnings collector, not silently
+        // dropped. Exercises FindUsagesHandlerSearch directly — the tool-level JSON
+        // shape (isError:false + warnings on the first page) is pinned by the live
+        // suite, and end-to-end file resolution is not available on the light
+        // fixture's in-memory VFS.
         val psiFile = myFixture.addFileToProject("Warn.java", """
             public class Warn {
                 void target() {}
@@ -74,7 +78,7 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
                     target();
                 }
             }
-        """.trimIndent())
+        """.trimIndent()) as com.intellij.psi.PsiJavaFile
 
         val throwingFactory = object : com.intellij.find.findUsages.FindUsagesHandlerFactory() {
             override fun canFindUsages(element: com.intellij.psi.PsiElement) = element is com.intellij.psi.PsiMethod
@@ -87,29 +91,22 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         com.intellij.find.findUsages.FindUsagesHandlerFactory.EP_NAME.getPoint(project)
             .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
 
-        val document = PsiDocumentManager.getInstance(project).getDocument(psiFile)!!
-        val offset = document.text.indexOf("target")
-        val line = document.getLineNumber(offset) + 1
-        val column = offset - document.getLineStartOffset(line - 1) + 1
-
-        val result = try {
-            FindUsagesTool().execute(project, buildJsonObject {
-                put("file", psiFile.virtualFile.path)
-                put("line", line)
-                put("column", column)
-            })
-        } catch (e: com.github.vcth4nh.idesense.exceptions.IndexNotReadyException) {
-            System.err.println("testFindUsagesSurfacesHandlerStageDegradationAsWarnings: skipped – index not ready")
-            return@runBlocking
+        val warnings = mutableListOf<String>()
+        val processed = com.intellij.openapi.application.ReadAction.compute<Boolean, Throwable> {
+            val target = psiFile.classes[0].findMethodsByName("target", false)[0]
+            com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch.processReferences(
+                project,
+                target,
+                com.intellij.psi.search.GlobalSearchScope.projectScope(project),
+                com.intellij.util.Processor { true },
+                warnings
+            )
         }
 
-        assertFalse("Degraded search should not be an error", result.isError)
-        val payload = json.decodeFromString<FindUsagesResult>((result.content.first() as ContentBlock.Text).text)
-        val warnings = payload.warnings
-        assertNotNull("Degraded search must carry warnings", warnings)
+        assertTrue("Throwing factory should have claimed the element", processed)
         assertTrue(
             "Warning should name the failed stage and consequence: $warnings",
-            warnings!!.any { it.contains("primaryElements") && it.contains("usages may be incomplete") }
+            warnings.any { it.contains("primaryElements") && it.contains("usages may be incomplete") }
         )
     }
 
