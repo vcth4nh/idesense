@@ -59,6 +59,7 @@ fails when this file is stale.
 | 31:6 | hier-type-baseShape | type_hierarchy | `type baseShape struct{}` |
 | 33:20 | hier-caller-baseShape.Describe-cross-file | call_hierarchy | `func (b baseShape) Describe() string { return "shape with unknown area" }` |
 | 33:20 | usage-baseShape.Describe-promoted | find_usages | `func (b baseShape) Describe() string { return "shape with unknown area" }` |
+| 37:6 | explain-Circle-pos | explain_symbol | `type Circle struct {` |
 | 37:6 | hier-type-Circle | type_hierarchy | `type Circle struct {` |
 | 37:6 | usage-Circle-struct | find_usages | `type Circle struct {` |
 | 44:17 | super-Circle.Area | find_super_methods | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
@@ -104,6 +105,7 @@ fails when this file is stale.
 
 | probe id | tool | params |
 |---|---|---|
+| explain-Shape-name | explain_symbol | `{"symbol":"Shape"}` |
 | find-class-Circle | find_class | `{"query":"Circle"}` |
 | find-class-Circle-exact | find_class | `{"fuzzySearch":false,"query":"Circle"}` |
 | find-class-Drawable | find_class | `{"query":"Drawable"}` |

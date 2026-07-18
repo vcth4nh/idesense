@@ -79,6 +79,7 @@ fails when this file is stale.
 | 12:30 | usage-area-libraries-scope | find_usages | `abstract public function area(): float;` |
 | 14:21 | hier-caller-describe | call_hierarchy | `public function describe(): string {` |
 | 14:21 | impls-Shape.describe | find_implementations | `public function describe(): string {` |
+| 19:7 | explain-Circle-pos | explain_symbol | `class Circle extends Shape implements Drawable {` |
 | 19:7 | hier-type-Circle | type_hierarchy | `class Circle extends Shape implements Drawable {` |
 | 22:21 | def-Circle.area | find_definition | `public function area(): float {` |
 | 22:21 | super-Circle.area | find_super_methods | `public function area(): float {` |
@@ -148,6 +149,7 @@ fails when this file is stale.
 
 | probe id | tool | params |
 |---|---|---|
+| explain-Shape-name | explain_symbol | `{"symbol":"Shape"}` |
 | find-class-Circle | find_class | `{"query":"Circle"}` |
 | find-class-Circle-exact | find_class | `{"fuzzySearch":false,"query":"Circle"}` |
 | find-class-Coercer | find_class | `{"query":"Coercer"}` |

@@ -1,2 +1,2 @@
+{"id":"explain-Circle-pos","tool":"ide_explain_symbol","params":{"column":7,"file":"src/normal.py","line":32}}
 {"id":"explain-Shape-name","tool":"ide_explain_symbol","params":{"symbol":"Shape"}}
-{"id":"explain-Circle-pos","tool":"ide_explain_symbol","params":{"file":"src/normal.py","line":32,"column":7}}

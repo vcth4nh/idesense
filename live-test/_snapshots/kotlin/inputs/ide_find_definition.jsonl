@@ -1,4 +1,6 @@
+{"id":"def-Circle-ctor-call","tool":"ide_find_definition","params":{"column":47,"file":"src/main/kotlin/demo/Normal.kt","line":49}}
 {"id":"def-Circle.area","tool":"ide_find_definition","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":20}}
+{"id":"def-Coercer-ctor-call","tool":"ide_find_definition","params":{"column":38,"file":"src/main/kotlin/demo/Quirks.kt","line":65}}
 {"id":"def-Rectangle.area","tool":"ide_find_definition","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":25}}
 {"id":"def-companion-DEFAULT-LIMIT","tool":"ide_find_definition","params":{"column":20,"file":"src/main/kotlin/demo/Modern.kt","line":34}}
 {"id":"def-companion-create-call","tool":"ide_find_definition","params":{"column":21,"file":"src/main/kotlin/demo/Modern.kt","line":32}}
@@ -6,5 +8,3 @@
 {"id":"def-infix-coerceFirst","tool":"ide_find_definition","params":{"column":43,"file":"src/main/kotlin/demo/Quirks.kt","line":78}}
 {"id":"def-makeDefaultShapes","tool":"ide_find_definition","params":{"column":5,"file":"src/main/kotlin/demo/Normal.kt","line":49}}
 {"id":"def-suspend-fetchValue-call","tool":"ide_find_definition","params":{"column":13,"file":"src/main/kotlin/demo/Modern.kt","line":24}}
-{"id":"def-Circle-ctor-call","tool":"ide_find_definition","params":{"column":47,"file":"src/main/kotlin/demo/Normal.kt","line":49}}
-{"id":"def-Coercer-ctor-call","tool":"ide_find_definition","params":{"column":38,"file":"src/main/kotlin/demo/Quirks.kt","line":65}}

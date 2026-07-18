@@ -72,6 +72,7 @@ fails when this file is stale.
 | 13:8 | impls-Shape.area | find_implementations | `fn area(&self) -> f64;` |
 | 15:8 | hier-caller-describe | call_hierarchy | `fn describe(&self) -> String {` |
 | 15:8 | impls-Shape.describe | find_implementations | `fn describe(&self) -> String {` |
+| 22:12 | explain-Circle-pos | explain_symbol | `pub struct Circle {` |
 | 22:12 | hier-type-Circle | type_hierarchy | `pub struct Circle {` |
 | 23:9 | usage-Circle.radius | find_usages | `pub radius: f64,` |
 | 27:8 | usage-area-libraries-scope | find_usages | `fn area(&self) -> f64 {` |
@@ -131,6 +132,7 @@ fails when this file is stale.
 
 | probe id | tool | params |
 |---|---|---|
+| explain-Shape-name | explain_symbol | `{"symbol":"Shape"}` |
 | find-class-Circle | find_class | `{"query":"Circle"}` |
 | find-class-Circle-exact | find_class | `{"fuzzySearch":false,"query":"Circle"}` |
 | find-class-Coercer | find_class | `{"query":"Coercer"}` |
