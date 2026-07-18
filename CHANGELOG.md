@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-18
+
 ### Removed
 - **Seven tools removed** in refocusing IdeSense on code analysis without human-in-the-IDE
   interaction: `ide_open_file` and `ide_get_active_file` (editor interaction),
