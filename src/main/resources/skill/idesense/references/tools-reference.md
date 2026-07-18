@@ -80,12 +80,12 @@ Build call tree showing who calls a method or what a method calls.
 **Languages**: Java, Kotlin, Python, JS/TS, Go, PHP, Rust.
 
 ### ide_find_symbol
-Search for methods, fields, functions, and other symbols by name (IDE Go to Symbol). Disabled by default; enable in Settings → Tools → IdeSense.
+Search for methods, fields, functions, and other symbols by name (IDE Go to Symbol).
 
 **Returns**: `{ symbols: [{name, qualifiedName?, kind, file, line, column}], query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
 
 ### ide_file_structure
-Get the IDE Structure-view outline for a source file. Disabled by default; enable in Settings → Tools → IdeSense.
+Get the IDE Structure-view outline for a source file.
 
 **Returns**: `{ file, language, structure }` — `structure` is a two-space-indented text tree beginning with the file name; each node renders modifiers, name, optional signature, and line number. Empty or no-structure files return a plain-text success message instead.
 
@@ -107,14 +107,14 @@ Unified diagnostics from any combination of per-file IDE analysis, cached last-b
 ## Refactoring Tools
 
 ### ide_refactor_rename
-Rename a symbol and update ALL references (semantic rename, not find-replace). Works across ALL languages.
+Rename a symbol and update ALL references (semantic rename, not find-replace). Works across ALL languages. Disabled by default; enable in Settings → Tools → IdeSense.
 
 **Returns**: `{ success, affectedFiles: [paths], changesCount, message }`
 
 Auto-renames getters/setters, overriding methods, constructor params ↔ fields, test classes. Supports IDE undo (Ctrl+Z).
 
 ### ide_move_file
-Move a file to a new directory. Language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend for that file type.
+Move a file to a new directory. Language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend for that file type. Disabled by default; enable in Settings → Tools → IdeSense.
 
 **Returns**: `{ success, affectedFiles: [paths], changesCount, message }`
 

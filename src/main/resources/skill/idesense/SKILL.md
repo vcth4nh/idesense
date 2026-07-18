@@ -5,7 +5,7 @@ description: >
   rename/move refactorings).
   TRIGGER: When ANY of these MCP tools are available in the current session: ide_find_usages,
   ide_find_definition, ide_find_class, ide_find_file, ide_search_text, ide_diagnostics,
-  ide_index_status, ide_sync_files, ide_refactor_rename, ide_move_file, ide_type_hierarchy,
+  ide_index_status, ide_sync_files, ide_find_symbol, ide_file_structure, ide_type_hierarchy,
   ide_call_hierarchy, ide_find_implementations, ide_find_super_methods.
   Use when performing code navigation (find usages, go to definition, find class),
   code analysis (diagnostics, type hierarchy, call hierarchy),
@@ -88,11 +88,11 @@ Omit `paths` to sync the entire project.
 1. `ide_find_class` - classes by name (exact by default; `fuzzySearch: true` for CamelCase: `USvc` finds `UserService`)
 2. `ide_find_file` - files by name
 3. `ide_search_text` - exact word occurrences across project
-4. `ide_find_symbol` - methods, fields, functions, and other symbols by name *(disabled by default; enable in Settings → Tools → IdeSense)*
+4. `ide_find_symbol` - methods, fields, functions, and other symbols by name
 
 ### "I need to refactor"
-1. `ide_refactor_rename` - rename symbol + all references atomically
-2. `ide_move_file` - move file and let the IDE apply semantic updates when that language/backend supports them
+1. `ide_refactor_rename` - rename symbol + all references atomically *(disabled by default; enable in Settings → Tools → IdeSense)*
+2. `ide_move_file` - move file and let the IDE apply semantic updates when that language/backend supports them *(disabled by default; enable in Settings → Tools → IdeSense)*
 
 ### "I need to check for problems"
 1. `ide_diagnostics` - per-file errors/warnings + quick fixes; also cached last-build errors and open test-run results via `includeBuildErrors` / `includeTestResults` (at least one source required)
@@ -124,7 +124,7 @@ Omit `paths` to sync the entire project.
 
 9. **Using `ide_search_text` for regex**: This tool is exact-word only (uses word index). Use `Grep` for regex.
 
-10. **Using `ide_find_class` for methods/functions**: It searches class-like/type declarations (classes, interfaces, enums, records, structs, traits, objects, annotations, and similar), not methods/fields/functions. Use `ide_find_symbol` when enabled, or `ide_search_text` for a quick word lookup.
+10. **Using `ide_find_class` for methods/functions**: It searches class-like/type declarations (classes, interfaces, enums, records, structs, traits, objects, annotations, and similar), not methods/fields/functions. Use `ide_find_symbol`, or `ide_search_text` for a quick word lookup.
 
 ## Tool Availability
 

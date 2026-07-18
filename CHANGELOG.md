@@ -30,6 +30,13 @@
   `ide_type_hierarchy`/`ide_call_hierarchy`). A missing `query` on the search tools now returns the
   structured `invalid_arguments` shape (a `missing_required` violation) instead of a generic
   `tool_error` string. **Breaking** for clients that matched the old missing-`query` message (#39).
+- **Analysis-only default tool set.** Fresh installs now enable every read-only analysis tool:
+  `ide_find_symbol` and `ide_file_structure` leave the default-disabled set (#72). The retained
+  refactorings `ide_refactor_rename` and `ide_move_file` become opt-in instead, joining
+  `ide_install_plugin`, `ide_restart`, and `ide_read_file` (enable any tool under Settings →
+  Tools → IdeSense). Installs that ever saved the tool toggles are unaffected — persisted
+  settings replace the defaults entirely. **Breaking** for MCP clients on fresh installs that
+  call the refactoring tools without opting in.
 
 ### Added
 - **Security — non-loopback bind is now opt-in.** There is no authentication on any transport, so

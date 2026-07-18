@@ -27,13 +27,13 @@
     <li><b>Go to Definition</b> - Jump to symbol declarations instantly</li>
     <li><b>Find Class</b> - Fast class/interface search by name (exact by default; optional fuzzy camelCase/substring matching)</li>
     <li><b>Find File</b> - Fast file search by name using IDE's file index</li>
-    <li><b>Symbol Search</b> - Find classes, methods, functions, and fields by name with IntelliJ Go to Symbol matching (disabled by default)</li>
+    <li><b>Symbol Search</b> - Find classes, methods, functions, and fields by name with IntelliJ Go to Symbol matching</li>
     <li><b>Search Text</b> - Text search using IDE's pre-built word index with context filtering</li>
     <li><b>Code Diagnostics</b> - Access errors, warnings, and available quick fixes</li>
     <li><b>Index Status</b> - Check if the IDE is ready for code intelligence</li>
     <li><b>Sync Files</b> - Force-sync IDE state with external file changes on demand</li>
     <li><b>Read File</b> - Read file content by path or qualified name, including library sources (disabled by default)</li>
-    <li><b>File Structure</b> - View hierarchical file structure like IDE's Structure view, for any language with a registered structure-view factory (disabled by default)</li>
+    <li><b>File Structure</b> - View hierarchical file structure like IDE's Structure view, for any language with a registered structure-view factory</li>
 </ul>
 
 <h3>Extended Tools (Language-Aware)</h3>
@@ -47,8 +47,8 @@
 
 <h3>Refactoring Tools</h3>
 <ul>
-    <li><b>Rename Refactoring</b> - Safe symbol renaming with automatic reference updates - works across ALL languages, fully headless</li>
-    <li><b>Move File</b> - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend</li>
+    <li><b>Rename Refactoring</b> - Safe symbol renaming with automatic reference updates - works across ALL languages, fully headless (disabled by default)</li>
+    <li><b>Move File</b> - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend (disabled by default)</li>
 </ul>
 
 <h3>Why This Plugin?</h3>
