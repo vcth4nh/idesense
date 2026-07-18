@@ -394,7 +394,20 @@ ERROR_KEYS = ("tool_error_text", "transport_error", "jsonrpc_error")
 
 
 def _result_has_error(result: Any) -> bool:
-    return isinstance(result, dict) and any(k in result for k in ERROR_KEYS)
+    if not isinstance(result, dict):
+        return False
+    # Existing error keys
+    if any(k in result for k in ERROR_KEYS):
+        return True
+    # Check for structured error in result
+    if "error" in result and isinstance(result["error"], dict):
+        err = result["error"]
+        if isinstance(err, dict) and ("code" in err or "message" in err):
+            return True
+        # Also, if the error is a string, maybe?
+        if isinstance(err, str):
+            return True
+    return False
 
 
 def run_language(
@@ -491,18 +504,34 @@ def run_language(
         failed += len(orphan_ids)
 
     if bless:
-        # Refuse to bless rows that returned tool/transport errors unless
-        # explicitly overridden — otherwise a flaky IDE response gets locked
-        # in as truth.
-        error_ids = [eid for eid, r in fresh_results.items() if _result_has_error(r)]
-        if error_ids and not bless_errors:
-            print(f"  ERROR: refusing to bless {len(error_ids)} rows with tool/transport errors:")
-            for eid in error_ids[:5]:
-                print(f"    {eid}: {fresh_results[eid]}")
-            if len(error_ids) > 5:
-                print(f"    ... and {len(error_ids) - 5} more")
+        # Refuse to bless rows that are errors (by our extended definition) unless
+        # either --bless-errors is given, or the existing expected is also an error (so error->error)
+        # or if there is no existing expected, we still refuse (because new error row) unless --bless-errors.
+        refused_error_details = []  # list of (eid, fresh_result, existing_expected)
+        for eid, fresh_result in fresh_results.items():
+            if _result_has_error(fresh_result):
+                existing_expected = expected_by_id.get(eid)
+                existing_is_error = _result_has_error(existing_expected) if existing_expected is not None else False
+                # If there's no existing expected, we treat it as non-error for the purpose of comparison?
+                # Because we want to refuse new error rows unless --bless-errors.
+                # So condition to refuse: if not bless_errors and (existing_expected is None or not existing_is_error)
+                if not bless_errors and (existing_expected is None or not existing_is_error):
+                    refused_error_details.append((eid, fresh_result, existing_expected))
+
+        if refused_error_details:
+            print(f"  ERROR: refusing to bless {len(refused_error_details)} rows that would introduce errors:")
+            for eid, fresh_result, existing_expected in refused_error_details[:5]:
+                if existing_expected is None:
+                    print(f"    {eid}: new row is error: {fresh_result}")
+                else:
+                    print(f"    {eid}: changing from non-error to error: {fresh_result}")
+            if len(refused_error_details) > 5:
+                print(f"    ... and {len(refused_error_details) - 5} more")
             print(f"  Use --bless-errors to override.")
-            return passed - len(error_ids), len(error_ids)
+            # We need to adjust the counts: we are refusing to bless these rows, so they should not be counted as passed.
+            # Currently, we have passed counting every row in the bless block (line 463: passed += 1 for each row).
+            # We want to subtract the number of rows we are refusing to bless from passed.
+            return passed - len(refused_error_details), len(refused_error_details)
         # Merge fresh results into existing expected, then write per-tool
         # files mirroring input-file order.
         merged: dict[str, Any] = dict(expected_by_id)
