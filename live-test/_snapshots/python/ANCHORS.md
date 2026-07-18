@@ -76,6 +76,7 @@ fails when this file is stale.
 | 28:9 | def-Shape.describe-decl | find_definition | `def describe(self) -> str:` |
 | 28:9 | hier-caller-describe | call_hierarchy | `def describe(self) -> str:` |
 | 28:9 | impls-Shape.describe | find_implementations | `def describe(self) -> str:` |
+| 32:7 | explain-Circle-pos | explain_symbol | `class Circle(Shape):` |
 | 32:7 | hier-type-Circle | type_hierarchy | `class Circle(Shape):` |
 | 32:7 | impls-Circle-class | find_implementations | `class Circle(Shape):` |
 | 34:14 | usage-Circle.radius | find_usages | `self.radius = radius` |
@@ -146,6 +147,7 @@ fails when this file is stale.
 
 | probe id | tool | params |
 |---|---|---|
+| explain-Shape-name | explain_symbol | `{"symbol":"Shape"}` |
 | find-class-Channel-enum | find_class | `{"query":"Channel"}` |
 | find-class-Circle | find_class | `{"query":"Circle"}` |
 | find-class-Circle-exact | find_class | `{"fuzzySearch":false,"query":"Circle"}` |
@@ -158,6 +160,10 @@ fails when this file is stale.
 | find-class-ShapeCollection | find_class | `{"query":"ShapeCollection"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-py | find_file | `{"query":"*Super.py"}` |
+| find-file-star-py | find_file | `{"query":"*.py"}` |
 | find-symbol-Coercer.coerce-qualified | find_symbol | `{"query":"Coercer.coerce"}` |
 | find-symbol-__post_init__-dunder | find_symbol | `{"query":"__post_init__"}` |
 | find-symbol-area | find_symbol | `{"query":"area"}` |

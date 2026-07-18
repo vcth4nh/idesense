@@ -12,6 +12,12 @@
   exact file position, so agents can skip the find-coordinates-first step.
 
 ### Fixed
+- `ide_find_usages` no longer degrades silently when a language's find-usages handler throws
+  during target expansion: the response now carries a `warnings` list naming each failed
+  stage (`primaryElements` / `secondaryElements` / `findReferencesToHighlight`), so agents
+  can tell a partial result from a complete one. `ide_explain_symbol`'s usage facet reports
+  the same degradation through its existing `warnings` field. `warnings` is `null` on
+  complete searches (#81).
 - `ide_find_definition` on a Kotlin constructor call now reports the class being constructed
   — kind `CLASS`/`DATA_CLASS` and class qualified name, matching the declaration-site result
   and Java's `new Foo()` behavior — instead of `STRUCT` with a member-style qualified name (#17).

@@ -57,6 +57,7 @@ fails when this file is stale.
 | 17:5 | hier-caller-describe | call_hierarchy | describe() { return `${this.constructor.name} with area ${this.area()}`; } |
 | 17:5 | impls-Shape.describe | find_implementations | describe() { return `${this.constructor.name} with area ${this.area()}`; } |
 | 17:5 | usage-describe-method | find_usages | describe() { return `${this.constructor.name} with area ${this.area()}`; } |
+| 23:7 | explain-Circle-pos | explain_symbol | `class Circle extends Shape {` |
 | 23:7 | hier-type-Circle | type_hierarchy | `class Circle extends Shape {` |
 | 23:7 | impls-Circle-class | find_implementations | `class Circle extends Shape {` |
 | 23:7 | usage-Circle-cross-file | find_usages | `class Circle extends Shape {` |
@@ -144,6 +145,7 @@ fails when this file is stale.
 
 | probe id | tool | params |
 |---|---|---|
+| explain-Shape-name | explain_symbol | `{"symbol":"Shape"}` |
 | find-class-Circle | find_class | `{"query":"Circle"}` |
 | find-class-Circle-exact | find_class | `{"fuzzySearch":false,"query":"Circle"}` |
 | find-class-Drawable | find_class | `{"query":"Drawable"}` |
@@ -155,6 +157,10 @@ fails when this file is stale.
 | find-class-ShapeCollection | find_class | `{"query":"ShapeCollection"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-js | find_file | `{"query":"*Super.js"}` |
+| find-file-star-js | find_file | `{"query":"*.js"}` |
 | find-symbol-Shape.area-qualified | find_symbol | `{"query":"Shape.area"}` |
 | find-symbol-area | find_symbol | `{"query":"area"}` |
 | find-symbol-area-fuzzy | find_symbol | `{"fuzzySearch":true,"query":"area"}` |

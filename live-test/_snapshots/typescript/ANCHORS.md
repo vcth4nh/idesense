@@ -95,6 +95,7 @@ fails when this file is stale.
 | 11:14 | usage-area-libraries-scope | find_usages | `abstract area(): number;` |
 | 13:5 | hier-caller-describe | call_hierarchy | `describe(): string {` |
 | 13:5 | impls-Shape.describe | find_implementations | `describe(): string {` |
+| 21:14 | explain-Circle-pos | explain_symbol | `export class Circle extends Shape implements Drawable {` |
 | 21:14 | hier-type-Circle | type_hierarchy | `export class Circle extends Shape implements Drawable {` |
 | 22:33 | usage-Circle.radius-paramprop | find_usages | `constructor(public readonly radius: number) {` |
 | 25:5 | def-Circle.area | find_definition | `area(): number { return 3.14159 * this.radius * this.radius; }` |
@@ -165,6 +166,7 @@ fails when this file is stale.
 
 | probe id | tool | params |
 |---|---|---|
+| explain-Shape-name | explain_symbol | `{"symbol":"Shape"}` |
 | find-class-Circle | find_class | `{"query":"Circle"}` |
 | find-class-Circle-exact | find_class | `{"fuzzySearch":false,"query":"Circle"}` |
 | find-class-Coercer | find_class | `{"query":"Coercer"}` |
@@ -178,6 +180,10 @@ fails when this file is stale.
 | find-class-ShapeCollection | find_class | `{"query":"ShapeCollection"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-ts | find_file | `{"query":"*Super.ts"}` |
+| find-file-star-ts | find_file | `{"query":"*.ts"}` |
 | find-symbol-Direction | find_symbol | `{"query":"Direction"}` |
 | find-symbol-Geometry | find_symbol | `{"query":"Geometry"}` |
 | find-symbol-Shape.area-qualified | find_symbol | `{"query":"Shape.area"}` |

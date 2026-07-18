@@ -209,9 +209,14 @@ Hard rules (they keep the pinned snapshots stable):
 1. Bless rows whose result is `tool_error_text` / `transport_error` /
    `jsonrpc_error`. Override with `--bless-errors` (rare; usually fix the
    probe first).
-2. Drop orphan expected ids (ids in `expected/` no longer in any
+2. Bless rows whose fresh result is a structured `{"error": ...}` payload
+   when the previously blessed result was **not** an error (or the row is
+   new) — a degraded IDE must not silently poison snapshots. Rows already
+   blessed as errors (intentional negative probes) stay re-blessable.
+   Override with `--bless-errors` (e.g. when adding a new negative probe).
+3. Drop orphan expected ids (ids in `expected/` no longer in any
    `inputs/<tool>.jsonl`). Override with `--prune`.
-3. Run with `--tool` filter matching zero rows.
+4. Run with `--tool` filter matching zero rows.
 
 Writes are atomic (temp file + `os.replace`) — SIGINT-safe but not concurrency-
 safe. Don't run parallel `--bless` against the same language.
@@ -405,6 +410,16 @@ will just snapshot a different empty/odd result.
   `func (b baseShape) Describe()` at normal.go:16, **plus 7 more in `normal_test.go`**. The receiver names the type,
   so GoLand counts it as a reference. Verified in GoLand (Find Usages lists the
   receiver). Not a tool artifact.
+- **Python `find-file-star-py` collapses to `src/__init__.py`** — known PyCharm-only
+  defect (#87), pinned deliberately. Extension-only queries (`*.py`, `.py`, `py`) return
+  a single file while any name part (`*_super.py`) or a trailing space (`*.py `) returns
+  the full set; the platform matcher itself accepts all names, so the loss is in the
+  contributor item phase (failures are debug-swallowed). When #87 is fixed this row
+  diffs — re-bless it then.
+- **`find_file` extension queries substring-match longer extensions**: `*.js` matches
+  `package.json` (`.js` ⊂ `.json`) and `*.kt` matches `build.gradle.kts` / `settings.gradle.kts`.
+  MinusculeMatcher fragments are not end-anchored without a trailing space; matcher-level
+  behavior shared with the IDE popup, not a tool bug.
 - **Rust `super-Inherent.foo-inherent`**: empty hierarchy — *correct*. An
   inherent `impl` method (no trait) has no super. Don't be misled by RustRover's
   raw Ctrl+U "Go to Super", which jumps to the enclosing `pub mod` declaration

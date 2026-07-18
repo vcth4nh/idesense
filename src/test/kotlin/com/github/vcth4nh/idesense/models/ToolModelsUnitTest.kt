@@ -84,6 +84,25 @@ class ToolModelsUnitTest : TestCase() {
         assertEquals(0, deserialized.totalCollected)
     }
 
+    fun testFindUsagesResultWarningsSerialization() {
+        val degraded = FindUsagesResult(
+            usages = emptyList(),
+            totalCollected = 0,
+            warnings = listOf("Find-usages handler KotlinFindUsagesHandler threw on primaryElements; searched the anchor element only — usages may be incomplete.")
+        )
+
+        val serialized = json.encodeToString(degraded)
+        assertTrue("warnings should serialize", serialized.contains("threw on primaryElements"))
+        val deserialized = json.decodeFromString<FindUsagesResult>(serialized)
+        assertEquals(1, deserialized.warnings?.size)
+
+        // Complete searches keep the null default (serialized as "warnings":null):
+        // null = not degraded, mirroring the DiagnosticsResult null-vs-empty convention.
+        val clean = FindUsagesResult(usages = emptyList(), totalCollected = 0)
+        assertNull(clean.warnings)
+        assertTrue(json.encodeToString(clean).contains("\"warnings\":null"))
+    }
+
     // DefinitionResult tests
 
     fun testDefinitionResultSerialization() {

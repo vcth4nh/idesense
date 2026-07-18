@@ -76,6 +76,7 @@ fails when this file is stale.
 | 12:16 | usage-Shape-class | find_usages | `abstract class Shape {` |
 | 13:18 | hier-caller-area | call_hierarchy | `abstract fun area(): Double` |
 | 13:18 | impls-Shape.area | find_implementations | `abstract fun area(): Double` |
+| 19:7 | explain-Circle-pos | explain_symbol | `class Circle(val radius: Double) : Shape(), Drawable {` |
 | 19:7 | hier-type-Circle | type_hierarchy | `class Circle(val radius: Double) : Shape(), Drawable {` |
 | 19:18 | usage-Circle.radius | find_usages | `class Circle(val radius: Double) : Shape(), Drawable {` |
 | 20:18 | def-Circle.area | find_definition | `override fun area(): Double = 3.14159 * radius * radius` |
@@ -98,6 +99,7 @@ fails when this file is stale.
 | 49:5 | def-makeDefaultShapes | find_definition | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
 | 49:5 | hier-callee-makeDefault | call_hierarchy | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
 | 49:5 | hier-callee-makeDefault-d3 | call_hierarchy | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
+| 49:47 | def-Circle-ctor-call | find_definition | `fun makeDefaultShapes(): List<Shape> = listOf(Circle(1.0), Rectangle(2.0, 3.0), Square(4.0))` |
 
 ## src/main/kotlin/demo/OperatorSuper.kt
 
@@ -132,6 +134,7 @@ fails when this file is stale.
 | 51:18 | impls-Coercion.apply | find_implementations | `abstract fun apply(x: String): Int` |
 | 52:50 | super-IntCoerce.apply | find_super_methods | `object IntCoerce : Coercion() { override fun apply(x: String): Int = x.toInt() }` |
 | 53:50 | super-AbsCoerce.apply | find_super_methods | `object AbsCoerce : Coercion() { override fun apply(x: String): Int = Math.abs(x.toInt()) }` |
+| 65:38 | def-Coercer-ctor-call | find_definition | `fun quirkDataClass(x: String): Int = Coercer("+").coerce(x)` |
 | 69:5 | hier-callee-quirkDispatchMap | call_hierarchy | `fun quirkDispatchMap(key: String, x: String): Int {` |
 | 78:43 | def-infix-coerceFirst | find_definition | `fun quirkInfix(x: String): Int = (x to 0).coerceFirst()` |
 | 81:29 | usage-coerceFirst-callsite | find_usages | `infix fun Pair<String, Int>.coerceFirst(): Int = this.first.toIntOrNull() ?: this.second` |
@@ -146,6 +149,7 @@ fails when this file is stale.
 
 | probe id | tool | params |
 |---|---|---|
+| explain-Shape-name | explain_symbol | `{"symbol":"Shape"}` |
 | find-class-Channel-enum | find_class | `{"query":"Channel"}` |
 | find-class-Circle | find_class | `{"query":"Circle"}` |
 | find-class-Circle-exact | find_class | `{"fuzzySearch":false,"query":"Circle"}` |
@@ -159,6 +163,10 @@ fails when this file is stale.
 | find-class-ShapeCollection | find_class | `{"query":"ShapeCollection"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-kt | find_file | `{"query":"*Super.kt"}` |
+| find-file-star-kt | find_file | `{"query":"*.kt"}` |
 | find-symbol-Coercer.coerce-qualified | find_symbol | `{"query":"Coercer.coerce"}` |
 | find-symbol-area | find_symbol | `{"query":"area"}` |
 | find-symbol-area-fuzzy | find_symbol | `{"fuzzySearch":true,"query":"area"}` |

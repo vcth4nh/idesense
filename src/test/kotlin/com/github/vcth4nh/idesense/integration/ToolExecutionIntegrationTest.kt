@@ -64,6 +64,52 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         assertTrue("Should error with invalid file", resultInvalid.isError)
     }
 
+    fun testFindUsagesSurfacesHandlerStageDegradationAsWarnings() {
+        // #81: a FindUsagesHandler stage throwing mid-expansion must be swallowed
+        // (headless-safe) but reported through the warnings collector, not silently
+        // dropped. Exercises FindUsagesHandlerSearch directly — the tool-level JSON
+        // shape (isError:false + warnings on the first page) is pinned by the live
+        // suite, and end-to-end file resolution is not available on the light
+        // fixture's in-memory VFS.
+        val psiFile = myFixture.addFileToProject("Warn.java", """
+            public class Warn {
+                void target() {}
+                void caller() {
+                    target();
+                }
+            }
+        """.trimIndent()) as com.intellij.psi.PsiJavaFile
+
+        val throwingFactory = object : com.intellij.find.findUsages.FindUsagesHandlerFactory() {
+            override fun canFindUsages(element: com.intellij.psi.PsiElement) = element is com.intellij.psi.PsiMethod
+            override fun createFindUsagesHandler(element: com.intellij.psi.PsiElement, forHighlightUsages: Boolean) =
+                object : com.intellij.find.findUsages.FindUsagesHandler(element) {
+                    override fun getPrimaryElements(): Array<com.intellij.psi.PsiElement> =
+                        throw IllegalStateException("test-induced primaryElements failure")
+                }
+        }
+        com.intellij.find.findUsages.FindUsagesHandlerFactory.EP_NAME.getPoint(project)
+            .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
+
+        val warnings = mutableListOf<String>()
+        val processed = com.intellij.openapi.application.ReadAction.compute<Boolean, Throwable> {
+            val target = psiFile.classes[0].findMethodsByName("target", false)[0]
+            com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch.processReferences(
+                project,
+                target,
+                com.intellij.psi.search.GlobalSearchScope.projectScope(project),
+                com.intellij.util.Processor { true },
+                warnings
+            )
+        }
+
+        assertTrue("Throwing factory should have claimed the element", processed)
+        assertTrue(
+            "Warning should name the failed stage and consequence: $warnings",
+            warnings.any { it.contains("primaryElements") && it.contains("usages may be incomplete") }
+        )
+    }
+
     fun testFindDefinitionToolEndToEnd() = runBlocking {
         val tool = FindDefinitionTool()
 

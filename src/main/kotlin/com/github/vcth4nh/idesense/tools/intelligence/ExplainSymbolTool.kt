@@ -375,7 +375,8 @@ class ExplainSymbolTool : AbstractMcpTool() {
                 project = project,
                 element = target,
                 scope = searchScope,
-                processor = Processor { refElement -> collectRef(refElement) }
+                processor = Processor { refElement -> collectRef(refElement) },
+                warnings = warnings
             )
             if (!handlerProcessed) {
                 ReferencesSearch.search(target, searchScope).forEach(Processor { reference ->

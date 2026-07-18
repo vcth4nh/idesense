@@ -38,12 +38,17 @@ internal object FindUsagesHandlerSearch {
      * Returns `true` if a handler was found (result may be empty). Returns `false`
      * if no factory claims the element; callers should fall back to plain
      * [com.intellij.psi.search.searches.ReferencesSearch].
+     *
+     * When a handler stage throws and is swallowed (see the per-stage catches below),
+     * a human-readable message is added to [warnings] so callers can surface the
+     * partial coverage instead of returning a silently smaller result (#81).
      */
     fun processReferences(
         project: Project,
         element: PsiElement,
         scope: SearchScope,
-        processor: Processor<PsiElement>
+        processor: Processor<PsiElement>,
+        warnings: MutableCollection<String>? = null
     ): Boolean {
         val factory = FindUsagesHandlerFactory.EP_NAME.getExtensions(project)
             .firstOrNull { safeCanFindUsages(it, element) } ?: return false
@@ -73,6 +78,7 @@ internal object FindUsagesHandlerSearch {
             throw e
         } catch (e: Throwable) {
             LOG.warn("FindUsagesHandler ${handler.javaClass.name} threw on primaryElements", e)
+            addStageWarning(warnings, handler, "primaryElements", "searched the anchor element only")
             listOf(element)
         }
         val secondary = try {
@@ -83,6 +89,7 @@ internal object FindUsagesHandlerSearch {
             throw e
         } catch (e: Throwable) {
             LOG.warn("FindUsagesHandler ${handler.javaClass.name} threw on secondaryElements", e)
+            addStageWarning(warnings, handler, "secondaryElements", "secondary targets skipped")
             emptyList()
         }
 
@@ -97,6 +104,7 @@ internal object FindUsagesHandlerSearch {
                 throw e
             } catch (e: Throwable) {
                 LOG.warn("FindUsagesHandler ${handler.javaClass.name} threw on findReferencesToHighlight", e)
+                addStageWarning(warnings, handler, "findReferencesToHighlight", "skipped a search target")
                 continue
             }
             for (ref in refs) {
@@ -105,6 +113,18 @@ internal object FindUsagesHandlerSearch {
             }
         }
         return true
+    }
+
+    private fun addStageWarning(
+        warnings: MutableCollection<String>?,
+        handler: FindUsagesHandler,
+        stage: String,
+        consequence: String
+    ) {
+        if (warnings == null) return
+        val message =
+            "Find-usages handler ${handler.javaClass.simpleName} threw on $stage; $consequence — usages may be incomplete."
+        if (message !in warnings) warnings.add(message)
     }
 
     private fun safeCanFindUsages(factory: FindUsagesHandlerFactory, element: PsiElement): Boolean =

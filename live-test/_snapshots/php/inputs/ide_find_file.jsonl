@@ -1,0 +1,4 @@
+{"id":"find-file-MS-camel","tool":"ide_find_file","params":{"query":"MS"}}
+{"id":"find-file-Super","tool":"ide_find_file","params":{"query":"Super"}}
+{"id":"find-file-star-Super-php","tool":"ide_find_file","params":{"query":"*Super.php"}}
+{"id":"find-file-star-php","tool":"ide_find_file","params":{"query":"*.php"}}

@@ -1,0 +1,4 @@
+{"id":"find-file-GS-camel","tool":"ide_find_file","params":{"query":"GS"}}
+{"id":"find-file-Super","tool":"ide_find_file","params":{"query":"Super"}}
+{"id":"find-file-star-Super-js","tool":"ide_find_file","params":{"query":"*Super.js"}}
+{"id":"find-file-star-js","tool":"ide_find_file","params":{"query":"*.js"}}
