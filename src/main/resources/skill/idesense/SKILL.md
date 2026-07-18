@@ -5,8 +5,8 @@ description: >
   rename/move refactorings).
   TRIGGER: When ANY of these MCP tools are available in the current session: ide_find_usages,
   ide_find_definition, ide_find_class, ide_find_file, ide_search_text, ide_diagnostics,
-  ide_index_status, ide_sync_files, ide_find_symbol, ide_file_structure, ide_type_hierarchy,
-  ide_call_hierarchy, ide_find_implementations, ide_find_super_methods.
+  ide_explain_symbol, ide_index_status, ide_sync_files, ide_find_symbol, ide_file_structure,
+  ide_type_hierarchy, ide_call_hierarchy, ide_find_implementations, ide_find_super_methods.
   Use when performing code navigation (find usages, go to definition, find class),
   code analysis (diagnostics, type hierarchy, call hierarchy),
   refactoring (rename, move),
@@ -80,9 +80,10 @@ Omit `paths` to sync the entire project.
 2. `ide_call_hierarchy` with `direction: "callers"` - full call chain upward
 
 ### "I need to understand what X is"
-1. `ide_find_definition` - jump to source
-2. `ide_type_hierarchy` - inheritance chain
-3. `ide_find_super_methods` - what interface/base method it implements
+1. `ide_explain_symbol` - one-call fused overview: declaration + signature + docs + supers + implementations + usage summary; takes a name (`symbol`) or a position — start here
+2. `ide_find_definition` - jump to source
+3. `ide_type_hierarchy` - inheritance chain
+4. `ide_find_super_methods` - what interface/base method it implements
 
 ### "I need to find a class/file/symbol"
 1. `ide_find_class` - classes by name (exact by default; `fuzzySearch: true` for CamelCase: `USvc` finds `UserService`)

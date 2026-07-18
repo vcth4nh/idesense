@@ -55,14 +55,6 @@ class FindImplementationsTool : AbstractMcpTool() {
         private val functionalExpressionSearchClass: Class<*>? by lazy {
             try { Class.forName("com.intellij.psi.search.searches.FunctionalExpressionSearch") } catch (_: ClassNotFoundException) { null }
         }
-
-        private val rsImplItemClass: Class<*>? by lazy {
-            try { Class.forName("org.rust.lang.core.psi.RsImplItem") } catch (_: ClassNotFoundException) { null }
-        }
-
-        private val rsFunctionClass: Class<*>? by lazy {
-            try { Class.forName("org.rust.lang.core.psi.RsFunction") } catch (_: ClassNotFoundException) { null }
-        }
     }
 
     override val name = "ide_find_implementations"
@@ -129,7 +121,7 @@ class FindImplementationsTool : AbstractMcpTool() {
             val collectLimit = maxOf(PaginationService.DEFAULT_OVERCOLLECT, pageSize)
             val results = mutableListOf<ImplementationLocation>()
             DefinitionsScopedSearch.search(target, searchScope, true).forEach(com.intellij.util.Processor { impl ->
-                val location = convertToLocation(impl, project) ?: return@Processor true
+                val location = ImplementationLocations.convert(impl, project) ?: return@Processor true
                 results.add(location)
                 results.size < collectLimit
             })
@@ -172,72 +164,6 @@ class FindImplementationsTool : AbstractMcpTool() {
                 stale = page.stale
             )
         }
-    }
-
-    private fun convertToLocation(element: PsiElement, project: Project): ImplementationLocation? {
-        val file = element.containingFile?.virtualFile ?: return null
-        val document = PsiDocumentManager.getInstance(project).getDocument(element.containingFile) ?: return null
-        val line = document.getLineNumber(element.textOffset) + 1
-        val lineStart = document.getLineStartOffset(document.getLineNumber(element.textOffset))
-        val column = element.textOffset - lineStart + 1
-
-        val qualifiedName = QualifiedNameUtil.getQualifiedName(element)
-        val name: String
-        val kind: String
-        if (rsImplItemClass?.isInstance(element) == true) {
-            name = buildRustImplName(element)
-            kind = "IMPL"
-        } else if (rsFunctionClass?.isInstance(element) == true) {
-            val namedElement = element as? PsiNamedElement ?: return null
-            val bareName = namedElement.name ?: return null
-            kind = LanguageServices.getKind(element)
-            name = if (kind == "METHOD") buildRustMethodName(element, bareName) else bareName
-        } else {
-            val namedElement = element as? PsiNamedElement ?: return null
-            val bareName = namedElement.name ?: return null
-            kind = LanguageServices.getKind(element)
-            name = bareName
-        }
-
-        return ImplementationLocation(
-            name = name,
-            file = ProjectUtils.getToolFilePath(project, file),
-            line = line,
-            column = column,
-            kind = kind,
-            qualifiedName = qualifiedName
-        )
-    }
-
-    private fun buildRustMethodName(element: PsiElement, bareName: String): String {
-        return try {
-            var current = element.parent
-            var depth = 0
-            while (current != null && depth < 5) {
-                if (rsImplItemClass?.isInstance(current) == true) {
-                    val typeRef = current.javaClass.getMethod("getTypeReference").invoke(current)
-                    val typeName = typeRef?.let { it.javaClass.getMethod("getText").invoke(it) as? String }?.trim()
-                    if (typeName != null) return "$typeName::$bareName"
-                }
-                current = current.parent
-                depth++
-            }
-            bareName
-        } catch (_: Exception) { bareName }
-    }
-
-    private fun buildRustImplName(implItem: PsiElement): String {
-        return try {
-            val traitRef = implItem.javaClass.getMethod("getTraitRef").invoke(implItem)
-            val typeRef = implItem.javaClass.getMethod("getTypeReference").invoke(implItem)
-            val traitName = traitRef?.let { it.javaClass.getMethod("getText").invoke(it) as? String }
-            val typeName = typeRef?.let { it.javaClass.getMethod("getText").invoke(it) as? String }
-            when {
-                traitName != null && typeName != null -> "impl $traitName for $typeName"
-                typeName != null -> "impl $typeName"
-                else -> "impl"
-            }
-        } catch (_: Exception) { "impl" }
     }
 
     private fun addFunctionalExpressionImpls(
@@ -356,5 +282,87 @@ class FindImplementationsTool : AbstractMcpTool() {
             depth++
         }
         return null
+    }
+}
+
+/**
+ * Converts a [DefinitionsScopedSearch] hit into an [ImplementationLocation], including the
+ * Rust-specific impl-block and method naming. Shared by ide_find_implementations and
+ * ide_explain_symbol so both render the same implementation identity.
+ */
+internal object ImplementationLocations {
+
+    private val rsImplItemClass: Class<*>? by lazy {
+        try { Class.forName("org.rust.lang.core.psi.RsImplItem") } catch (_: ClassNotFoundException) { null }
+    }
+
+    private val rsFunctionClass: Class<*>? by lazy {
+        try { Class.forName("org.rust.lang.core.psi.RsFunction") } catch (_: ClassNotFoundException) { null }
+    }
+
+    fun convert(element: PsiElement, project: Project): ImplementationLocation? {
+        val file = element.containingFile?.virtualFile ?: return null
+        val document = PsiDocumentManager.getInstance(project).getDocument(element.containingFile) ?: return null
+        val line = document.getLineNumber(element.textOffset) + 1
+        val lineStart = document.getLineStartOffset(document.getLineNumber(element.textOffset))
+        val column = element.textOffset - lineStart + 1
+
+        val qualifiedName = QualifiedNameUtil.getQualifiedName(element)
+        val name: String
+        val kind: String
+        if (rsImplItemClass?.isInstance(element) == true) {
+            name = buildRustImplName(element)
+            kind = "IMPL"
+        } else if (rsFunctionClass?.isInstance(element) == true) {
+            val namedElement = element as? PsiNamedElement ?: return null
+            val bareName = namedElement.name ?: return null
+            kind = LanguageServices.getKind(element)
+            name = if (kind == "METHOD") buildRustMethodName(element, bareName) else bareName
+        } else {
+            val namedElement = element as? PsiNamedElement ?: return null
+            val bareName = namedElement.name ?: return null
+            kind = LanguageServices.getKind(element)
+            name = bareName
+        }
+
+        return ImplementationLocation(
+            name = name,
+            file = ProjectUtils.getToolFilePath(project, file),
+            line = line,
+            column = column,
+            kind = kind,
+            qualifiedName = qualifiedName
+        )
+    }
+
+    private fun buildRustMethodName(element: PsiElement, bareName: String): String {
+        return try {
+            var current = element.parent
+            var depth = 0
+            while (current != null && depth < 5) {
+                if (rsImplItemClass?.isInstance(current) == true) {
+                    val typeRef = current.javaClass.getMethod("getTypeReference").invoke(current)
+                    val typeName = typeRef?.let { it.javaClass.getMethod("getText").invoke(it) as? String }?.trim()
+                    if (typeName != null) return "$typeName::$bareName"
+                }
+                current = current.parent
+                depth++
+            }
+            bareName
+        } catch (_: Exception) { bareName }
+    }
+
+    private fun buildRustImplName(implItem: PsiElement): String {
+        return try {
+            val traitRef = implItem.javaClass.getMethod("getTraitRef").invoke(implItem)
+            val typeRef = implItem.javaClass.getMethod("getTypeReference").invoke(implItem)
+            val traitName = traitRef?.let { it.javaClass.getMethod("getText").invoke(it) as? String }
+            val typeName = typeRef?.let { it.javaClass.getMethod("getText").invoke(it) as? String }
+            when {
+                traitName != null && typeName != null -> "impl $traitName for $typeName"
+                typeName != null -> "impl $typeName"
+                else -> "impl"
+            }
+        } catch (_: Exception) { "impl" }
     }
 }

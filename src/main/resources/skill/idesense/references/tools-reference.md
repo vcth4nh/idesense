@@ -102,6 +102,13 @@ Unified diagnostics from any combination of per-file IDE analysis, cached last-b
 
 `severity` values: `ERROR`, `WARNING`, `WEAK_WARNING`. Open files use fresh daemon highlights; closed files use public batch analysis so `WEAK_WARNING` results and quick-fix intentions may be less complete.
 
+### ide_explain_symbol
+Fused symbol overview in one call: declaration + signature + quick documentation + supers + implementations + usage summary. Anchor with `symbol` (name or qualified name) OR `file`+`line`+`column`; an ambiguous name returns `candidates` instead of guessing. `includeDiagnostics: true` adds problems overlapping the declaration (slower — runs a file analysis pass).
+
+**Returns**: `{ symbol: {file, line, column, name, kind, preview, qualifiedName?, enclosingScope?}, candidates?, message?, signature?, documentation?, documentationTruncated?, supers?, implementations? (≤10), implementationsTruncated?, usageCount? (project files, counted to 200), usagesTruncated?, topUsages? (≤5), problems?, warnings? }`
+
+Facets are capped summaries — page through `ide_find_implementations` / `ide_find_usages` for full sets. Degraded facets are named in `warnings`; a `null` facet means not applicable or not requested, `[]` means searched-and-empty.
+
 ---
 
 ## Refactoring Tools

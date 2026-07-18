@@ -30,6 +30,42 @@ class FindDefinitionTool : AbstractMcpTool() {
                 null
             }
         }
+
+        /**
+         * Maps a resolved element to the declaration the IDE presents: prefers source files over
+         * compiled ones, falls back to the navigationElement when the direct target has no virtual
+         * file (Kotlin light classes, import directives), then remaps Kotlin constructors to their
+         * class (#17). Shared with ide_explain_symbol so both report the same declaration identity.
+         */
+        internal fun effectiveDeclarationTarget(resolved: PsiElement): PsiElement {
+            val targetElement = PsiUtils.getNavigationElement(resolved)
+            val navigationTarget = if (targetElement.containingFile?.virtualFile != null) {
+                targetElement
+            } else {
+                val navElement = targetElement.navigationElement
+                if (navElement != targetElement && navElement.containingFile?.virtualFile != null) {
+                    navElement
+                } else {
+                    targetElement
+                }
+            }
+            return adjustConstructorTarget(navigationTarget)
+        }
+
+        /**
+         * Kotlin resolves a constructor call to the KtPrimaryConstructor/KtSecondaryConstructor
+         * element. Report the class being constructed instead, matching the declaration-site
+         * result and Java's behavior for `new Foo()` (#17).
+         */
+        private fun adjustConstructorTarget(element: PsiElement): PsiElement {
+            val ctorClass = ktConstructorClass ?: return element
+            if (!ctorClass.isInstance(element)) return element
+            return try {
+                ctorClass.getMethod("getContainingClassOrObject").invoke(element) as? PsiElement ?: element
+            } catch (_: Exception) {
+                element
+            }
+        }
     }
 
     override val name = ToolNames.FIND_DEFINITION
@@ -65,22 +101,7 @@ class FindDefinitionTool : AbstractMcpTool() {
                 ?: (PsiUtils.resolveTargetElement(element)
                     ?: return@suspendingReadAction createErrorResult(ErrorMessages.SYMBOL_NOT_RESOLVED))
 
-            // Prefer source files (.java) over compiled files (.class) for library classes
-            val targetElement = PsiUtils.getNavigationElement(resolvedElement)
-
-            // Try the target element first, then its navigationElement (for Kotlin light classes
-            // and import directives where the resolved element may be a compiled class without a virtual file)
-            val navigationTarget = if (targetElement.containingFile?.virtualFile != null) {
-                targetElement
-            } else {
-                val navElement = targetElement.navigationElement
-                if (navElement != targetElement && navElement.containingFile?.virtualFile != null) {
-                    navElement
-                } else {
-                    targetElement
-                }
-            }
-            val effectiveTarget = adjustConstructorTarget(navigationTarget)
+            val effectiveTarget = effectiveDeclarationTarget(resolvedElement)
 
             // Handle package/directory references (e.g., cursor on package segment in import statement)
             if (effectiveTarget is PsiDirectory) {
@@ -154,21 +175,6 @@ class FindDefinitionTool : AbstractMcpTool() {
                 qualifiedName = qualifiedName,
                 enclosingScope = enclosingScope
             ))
-        }
-    }
-
-    /**
-     * Kotlin resolves a constructor call to the KtPrimaryConstructor/KtSecondaryConstructor
-     * element. Report the class being constructed instead, matching the declaration-site
-     * result and Java's behavior for `new Foo()` (#17).
-     */
-    private fun adjustConstructorTarget(element: PsiElement): PsiElement {
-        val ctorClass = ktConstructorClass ?: return element
-        if (!ctorClass.isInstance(element)) return element
-        return try {
-            ctorClass.getMethod("getContainingClassOrObject").invoke(element) as? PsiElement ?: element
-        } catch (_: Exception) {
-            element
         }
     }
 }

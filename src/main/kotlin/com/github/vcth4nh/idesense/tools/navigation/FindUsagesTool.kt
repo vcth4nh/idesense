@@ -46,6 +46,22 @@ class FindUsagesTool : AbstractMcpTool() {
             return "Reference search failed due to IDE/plugin API incompatibility (${error::class.simpleName}$detail). " +
                 "Try ide_search_text as a fallback and check plugin compatibility against the current IDE build."
         }
+
+        // Shared with ide_explain_symbol so both report the same usageType vocabulary.
+        internal fun classifyUsage(element: PsiElement): String {
+            val parent = element.parent
+            val parentClass = parent?.javaClass?.simpleName ?: "Unknown"
+
+            return when {
+                parentClass.contains("MethodCall") -> UsageTypes.METHOD_CALL
+                parentClass.contains("Reference") -> UsageTypes.REFERENCE
+                parentClass.contains("Field") -> UsageTypes.FIELD_ACCESS
+                parentClass.contains("Import") -> UsageTypes.IMPORT
+                parentClass.contains("Parameter") -> UsageTypes.PARAMETER
+                parentClass.contains("Variable") -> UsageTypes.VARIABLE
+                else -> UsageTypes.REFERENCE
+            }
+        }
     }
 
     override val name = ToolNames.FIND_USAGES
@@ -320,20 +336,5 @@ class FindUsagesTool : AbstractMcpTool() {
         }
 
         return newResults.toList()
-    }
-
-    private fun classifyUsage(element: PsiElement): String {
-        val parent = element.parent
-        val parentClass = parent?.javaClass?.simpleName ?: "Unknown"
-
-        return when {
-            parentClass.contains("MethodCall") -> UsageTypes.METHOD_CALL
-            parentClass.contains("Reference") -> UsageTypes.REFERENCE
-            parentClass.contains("Field") -> UsageTypes.FIELD_ACCESS
-            parentClass.contains("Import") -> UsageTypes.IMPORT
-            parentClass.contains("Parameter") -> UsageTypes.PARAMETER
-            parentClass.contains("Variable") -> UsageTypes.VARIABLE
-            else -> UsageTypes.REFERENCE
-            }
     }
 }

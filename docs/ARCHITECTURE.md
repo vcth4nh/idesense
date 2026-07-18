@@ -21,6 +21,7 @@ The "verified against" column cites the exact call site so a future reader can r
 | `ide_file_structure` | EP: `LanguageStructureViewBuilder` → `TreeModelWrapper` + `SmartTreeStructure` (Structure view) | `FileStructureTool.kt` |
 | `ide_read_file` | none — `PsiUtils.resolveVirtualFileAnywhere` / `PsiManager.findFile` (VFS + PSI) | `ReadFileTool.kt` |
 | `ide_diagnostics` | multiple: `DaemonCodeAnalyzerEx` (open files) + `CodeSmellDetector` (closed files) + `BuildDiagnosticsCacheService` + `TestResultsCollector` | `GetDiagnosticsTool.kt` / `DiagnosticsAnalysisService.kt` |
+| `ide_explain_symbol` | composes: anchor via `ClassResolver` / `PopupFaithfulSymbolSearch`; facets via `DocumentationManager` quick doc + `SuperMethodsProvider` EP + `DefinitionsScopedSearch` + `FindUsagesHandlerSearch`/`ReferencesSearch` + optional `DiagnosticsAnalysisService` | `ExplainSymbolTool.kt` |
 | `ide_index_status` | service: `DumbService.getInstance(project).isDumb` | `GetIndexStatusTool.kt` |
 | `ide_sync_files` | none — `VfsUtil.markDirtyAndRefresh` + `LocalFileSystem` + `PsiDocumentManager.commitAllDocuments` | `SyncFilesTool.kt` |
 | `ide_install_plugin` | none — `PathManager.getPluginsDir()` + JDK `ZipInputStream` (zip-slip guarded) | `InstallPluginTool.kt` |

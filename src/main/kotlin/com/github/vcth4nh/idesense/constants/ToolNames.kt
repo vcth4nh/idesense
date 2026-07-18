@@ -17,6 +17,7 @@ object ToolNames {
 
     // Intelligence tools
     const val DIAGNOSTICS = "ide_diagnostics"
+    const val EXPLAIN_SYMBOL = "ide_explain_symbol"
 
     // Project tools
     const val INDEX_STATUS = "ide_index_status"
@@ -35,6 +36,7 @@ object ToolNames {
     val ALL: List<String> = listOf(
         CALL_HIERARCHY,
         DIAGNOSTICS,
+        EXPLAIN_SYMBOL,
         FILE_STRUCTURE,
         FIND_CLASS,
         FIND_DEFINITION,

@@ -4,6 +4,7 @@ import com.github.vcth4nh.idesense.constants.SchemaConstants
 import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.settings.McpSettings
 import com.github.vcth4nh.idesense.tools.McpTool
+import com.github.vcth4nh.idesense.tools.intelligence.ExplainSymbolTool
 import com.github.vcth4nh.idesense.tools.intelligence.GetDiagnosticsTool
 import com.github.vcth4nh.idesense.tools.navigation.CallHierarchyTool
 import com.github.vcth4nh.idesense.tools.navigation.FileStructureTool
@@ -69,8 +70,8 @@ class DocsDriftUnitTest : TestCase() {
         FindUsagesTool(), FindDefinitionTool(), TypeHierarchyTool(), CallHierarchyTool(),
         FindImplementationsTool(), FindSymbolTool(), FindSuperMethodsTool(), FileStructureTool(),
         FindClassTool(), FindFileTool(), SearchTextTool(), ReadFileTool(), GetDiagnosticsTool(),
-        GetIndexStatusTool(), SyncFilesTool(), InstallPluginTool(), RestartIdeTool(),
-        RenameSymbolTool(), MoveFileTool()
+        ExplainSymbolTool(), GetIndexStatusTool(), SyncFilesTool(), InstallPluginTool(),
+        RestartIdeTool(), RenameSymbolTool(), MoveFileTool()
     )
 
     private fun schemaProps(tool: McpTool): Set<String> =
@@ -85,7 +86,7 @@ class DocsDriftUnitTest : TestCase() {
     private fun tableToolSet(md: String) = tableCol1Tool.findAll(md).map { it.groupValues[1] }.toSet()
 
     fun testCanonicalCounts() {
-        assertEquals("Expected 19 tools in ToolNames.ALL", 19, allTools.size)
+        assertEquals("Expected 20 tools in ToolNames.ALL", 20, allTools.size)
         assertEquals(
             "Default-disabled set must be exactly the mutating tools plus ide_read_file (analysis-only default, #72)",
             setOf(

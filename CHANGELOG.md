@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Added
+- New `ide_explain_symbol` tool (#41): fused one-round-trip symbol overview — declaration +
+  signature + quick documentation (plain text) + supers + implementations + usage summary,
+  with optional declaration diagnostics via `includeDiagnostics`. Anchors on a symbol name /
+  qualified name (an ambiguous name returns a candidates list instead of guessing) or an
+  exact file position, so agents can skip the find-coordinates-first step.
+
 ### Fixed
 - `ide_find_definition` on a Kotlin constructor call now reports the class being constructed
   — kind `CLASS`/`DATA_CLASS` and class qualified name, matching the declaration-site result

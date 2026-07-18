@@ -4,6 +4,7 @@ import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.SchemaConstants
 import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
+import com.github.vcth4nh.idesense.tools.intelligence.ExplainSymbolTool
 import com.github.vcth4nh.idesense.tools.intelligence.GetDiagnosticsTool
 import com.github.vcth4nh.idesense.tools.navigation.CallHierarchyTool
 import com.github.vcth4nh.idesense.tools.navigation.FileStructureTool
@@ -331,6 +332,40 @@ class ToolsUnitTest : TestCase() {
         val enumValues = filterProp?.get("enum")?.jsonArray?.map { it.jsonPrimitive.content }
         assertNotNull("testResultFilter should have enum values", enumValues)
         assertEquals(listOf("failed", "all"), enumValues)
+    }
+
+    fun testExplainSymbolToolSchema() {
+        val tool = ExplainSymbolTool()
+
+        assertEquals(ToolNames.EXPLAIN_SYMBOL, tool.name)
+        assertNotNull(tool.description)
+
+        val schema = tool.inputSchema
+        assertEquals(SchemaConstants.TYPE_OBJECT, schema[SchemaConstants.TYPE]?.jsonPrimitive?.content)
+
+        val properties = schema[SchemaConstants.PROPERTIES]?.jsonObject
+        assertEquals(
+            "explain_symbol params must be exactly the two anchor forms + includeDiagnostics",
+            setOf(
+                ParamNames.PROJECT_PATH, ParamNames.SYMBOL, ParamNames.FILE,
+                ParamNames.LINE, ParamNames.COLUMN, ParamNames.INCLUDE_DIAGNOSTICS
+            ),
+            properties?.keys
+        )
+
+        assertNull(
+            "No param is unconditionally required (symbol XOR position is enforced at runtime)",
+            schema[SchemaConstants.REQUIRED]
+        )
+    }
+
+    fun testExplainSymbolToolIsRegistered() {
+        val registry = ToolRegistry()
+        registry.registerBuiltInTools()
+
+        val tool = registry.getTool(ToolNames.EXPLAIN_SYMBOL)
+        assertNotNull("ide_explain_symbol should be registered", tool)
+        assertEquals(ToolNames.EXPLAIN_SYMBOL, tool?.name)
     }
 
     /**
