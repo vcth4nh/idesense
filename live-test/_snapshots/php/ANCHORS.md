@@ -162,6 +162,10 @@ fails when this file is stale.
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-Status | find_class | `{"query":"Status"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-MS-camel | find_file | `{"query":"MS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-php | find_file | `{"query":"*Super.php"}` |
+| find-file-star-php | find_file | `{"query":"*.php"}` |
 | find-symbol-Shape.area-qualified | find_symbol | `{"query":"Shape::area"}` |
 | find-symbol-area | find_symbol | `{"query":"area"}` |
 | find-symbol-area-fuzzy | find_symbol | `{"fuzzySearch":true,"query":"area"}` |

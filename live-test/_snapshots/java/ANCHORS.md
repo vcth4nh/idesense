@@ -177,6 +177,11 @@ fails when this file is stale.
 | find-class-ShapeCollection | find_class | `{"query":"ShapeCollection"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-Zzz-no-match | find_file | `{"query":"Zzz"}` |
+| find-file-star-Super-java | find_file | `{"query":"*Super.java"}` |
+| find-file-star-java | find_file | `{"query":"*.java"}` |
 | find-symbol-Shape.area-qualified | find_symbol | `{"query":"Shape.area"}` |
 | find-symbol-area | find_symbol | `{"query":"area"}` |
 | find-symbol-area-fuzzy | find_symbol | `{"fuzzySearch":true,"query":"area"}` |

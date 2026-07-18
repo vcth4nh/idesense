@@ -1,0 +1,4 @@
+{"id":"find-file-GS-camel","tool":"ide_find_file","params":{"query":"GS"}}
+{"id":"find-file-Super","tool":"ide_find_file","params":{"query":"Super"}}
+{"id":"find-file-star-Super-go","tool":"ide_find_file","params":{"query":"*Super.go"}}
+{"id":"find-file-star-go","tool":"ide_find_file","params":{"query":"*.go"}}

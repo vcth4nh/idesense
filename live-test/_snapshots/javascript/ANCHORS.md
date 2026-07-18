@@ -157,6 +157,10 @@ fails when this file is stale.
 | find-class-ShapeCollection | find_class | `{"query":"ShapeCollection"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-js | find_file | `{"query":"*Super.js"}` |
+| find-file-star-js | find_file | `{"query":"*.js"}` |
 | find-symbol-Shape.area-qualified | find_symbol | `{"query":"Shape.area"}` |
 | find-symbol-area | find_symbol | `{"query":"area"}` |
 | find-symbol-area-fuzzy | find_symbol | `{"fuzzySearch":true,"query":"area"}` |

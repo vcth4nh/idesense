@@ -117,6 +117,10 @@ fails when this file is stale.
 | find-class-ShapeCollection | find_class | `{"query":"ShapeCollection"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-go | find_file | `{"query":"*Super.go"}` |
+| find-file-star-go | find_file | `{"query":"*.go"}` |
 | find-symbol-Area | find_symbol | `{"query":"Area"}` |
 | find-symbol-Area-fuzzy | find_symbol | `{"fuzzySearch":true,"query":"Area"}` |
 | find-symbol-Describe | find_symbol | `{"query":"Describe"}` |

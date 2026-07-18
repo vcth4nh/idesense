@@ -160,6 +160,10 @@ fails when this file is stale.
 | find-class-ShapeCollection | find_class | `{"query":"ShapeCollection"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-py | find_file | `{"query":"*Super.py"}` |
+| find-file-star-py | find_file | `{"query":"*.py"}` |
 | find-symbol-Coercer.coerce-qualified | find_symbol | `{"query":"Coercer.coerce"}` |
 | find-symbol-__post_init__-dunder | find_symbol | `{"query":"__post_init__"}` |
 | find-symbol-area | find_symbol | `{"query":"area"}` |

@@ -145,6 +145,10 @@ fails when this file is stale.
 | find-class-Shape-fuzzy | find_class | `{"fuzzySearch":true,"query":"Shape"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-rs | find_file | `{"query":"*Super.rs"}` |
+| find-file-star-rs | find_file | `{"query":"*.rs"}` |
 | find-symbol-IntCoercer.coerce-qualified | find_symbol | `{"query":"IntCoercer::coerce"}` |
 | find-symbol-area | find_symbol | `{"query":"area"}` |
 | find-symbol-area-fuzzy | find_symbol | `{"fuzzySearch":true,"query":"area"}` |

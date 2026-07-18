@@ -1,0 +1,4 @@
+{"id":"find-file-GS-camel","tool":"ide_find_file","params":{"query":"GS"}}
+{"id":"find-file-Super","tool":"ide_find_file","params":{"query":"Super"}}
+{"id":"find-file-star-Super-py","tool":"ide_find_file","params":{"query":"*Super.py"}}
+{"id":"find-file-star-py","tool":"ide_find_file","params":{"query":"*.py"}}

@@ -180,6 +180,10 @@ fails when this file is stale.
 | find-class-ShapeCollection | find_class | `{"query":"ShapeCollection"}` |
 | find-class-Square | find_class | `{"query":"Square"}` |
 | find-class-no-match | find_class | `{"query":"NoSuchClassXyz"}` |
+| find-file-GS-camel | find_file | `{"query":"GS"}` |
+| find-file-Super | find_file | `{"query":"Super"}` |
+| find-file-star-Super-ts | find_file | `{"query":"*Super.ts"}` |
+| find-file-star-ts | find_file | `{"query":"*.ts"}` |
 | find-symbol-Direction | find_symbol | `{"query":"Direction"}` |
 | find-symbol-Geometry | find_symbol | `{"query":"Geometry"}` |
 | find-symbol-Shape.area-qualified | find_symbol | `{"query":"Shape.area"}` |

@@ -1,0 +1,5 @@
+{"id":"find-file-GS-camel","tool":"ide_find_file","params":{"query":"GS"}}
+{"id":"find-file-Super","tool":"ide_find_file","params":{"query":"Super"}}
+{"id":"find-file-Zzz-no-match","tool":"ide_find_file","params":{"query":"Zzz"}}
+{"id":"find-file-star-Super-java","tool":"ide_find_file","params":{"query":"*Super.java"}}
+{"id":"find-file-star-java","tool":"ide_find_file","params":{"query":"*.java"}}
