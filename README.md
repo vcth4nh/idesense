@@ -116,7 +116,7 @@ The plugin provides **19 MCP tools** — 14 enabled by default, 5 opt-in (toggle
 | Tool | Java | Kotlin | Python | JS | TS | Go | PHP | Rust |
 |------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
 | `ide_diagnostics` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| `ide_explain_symbol` | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ | ⚠️ |
+| `ide_explain_symbol` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 **Refactoring**
 
