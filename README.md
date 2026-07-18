@@ -32,7 +32,7 @@ Advanced tools work across multiple languages based on available plugins:
 - **Sync Files** - Force sync VFS/PSI cache after external file changes
 - **Find Class** - Fast class/interface search by name (exact by default; opt into camelCase/substring matching with `fuzzySearch`)
 - **Find File** - Fast file search by name using IDE's file index
-- **Symbol Search** - Find code symbols by name with IntelliJ Go to Symbol matching (disabled by default)
+- **Symbol Search** - Find code symbols by name with IntelliJ Go to Symbol matching
 - **Search Text** - Text search using IDE's pre-built word index
 - **Read File** - Read file content by path or qualified name, including library sources (disabled by default)
 
@@ -42,11 +42,11 @@ These tools activate based on installed language plugins:
 - **Call Hierarchy** - Trace method/function call relationships
 - **Find Implementations** - Discover interface/abstract implementations
 - **Find Super Methods** - Navigate method override hierarchies
-- **File Structure** - View hierarchical file structure like IDE's Structure view, including Markdown heading outlines (disabled by default)
+- **File Structure** - View hierarchical file structure like IDE's Structure view, including Markdown heading outlines
 
 **Refactoring Tools**
-- **Rename Refactoring** - Safe renaming with automatic related element renaming (getters/setters, overriding methods) - works across ALL languages, fully headless
-- **Move File** - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend
+- **Rename Refactoring** - Safe renaming with automatic related element renaming (getters/setters, overriding methods) - works across ALL languages, fully headless (disabled by default)
+- **Move File** - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend (disabled by default)
 
 ### Why Use This Plugin?
 
@@ -405,7 +405,7 @@ Configure the plugin at <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</
 | Max History Size | 100 | Maximum number of commands to keep in history |
 | Project List in Error Responses | Expanded | Controls `available_projects` detail for invalid/missing `project_path` errors. `Expanded` includes workspace sub-projects; `Compact` returns only top-level project roots |
 | Sync External Changes | false | Sync external file changes before operations (**WARNING: significant performance impact**) |
-| Disabled Tools | 5 tools | Per-tool enable/disable toggles. Some tools are disabled by default to keep the tool list focused |
+| Disabled Tools | 5 tools | Per-tool enable/disable toggles. Tools that modify code or the IDE — plus `ide_read_file` — are disabled by default |
 | Response Format | `JSON` | Format for tool result text content block: `JSON` (default) mirrors the structured JSON; `TOON` converts it to a compact text-object notation for older clients |
 
 ## Community Integrations

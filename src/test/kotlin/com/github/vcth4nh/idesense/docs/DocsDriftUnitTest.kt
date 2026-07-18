@@ -86,7 +86,14 @@ class DocsDriftUnitTest : TestCase() {
 
     fun testCanonicalCounts() {
         assertEquals("Expected 19 tools in ToolNames.ALL", 19, allTools.size)
-        assertEquals("Expected 5 disabled-by-default tools", 5, disabled.size)
+        assertEquals(
+            "Default-disabled set must be exactly the mutating tools plus ide_read_file (analysis-only default, #72)",
+            setOf(
+                ToolNames.INSTALL_PLUGIN, ToolNames.RESTART_IDE, ToolNames.READ_FILE,
+                ToolNames.REFACTOR_RENAME, ToolNames.REFACTOR_MOVE
+            ),
+            disabled
+        )
         assertEquals("Every tool must be instantiable for schema introspection",
             allTools, allToolInstances().map { it.name }.toSet())
     }

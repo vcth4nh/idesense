@@ -16,14 +16,14 @@ These tools work in every supported JetBrains IDE:
 | `ide_find_definition` | Find symbol definition location | Enabled |
 | `ide_find_class` | Search classes/interfaces by name | Enabled |
 | `ide_find_file` | Search files by name | Enabled |
-| `ide_find_symbol` | Search code symbols by name *(disabled by default)* | Disabled |
+| `ide_find_symbol` | Search code symbols by name | Enabled |
 | `ide_search_text` | Text search using word index | Enabled |
 | `ide_diagnostics` | Analyze file problems with fresh IDE diagnostics, plus optional build/test results | Enabled |
 | `ide_index_status` | Check indexing status | Enabled |
 | `ide_sync_files` | Force sync VFS/PSI cache | Enabled |
 | `ide_read_file` | Read file content by path or qualified name | Disabled |
-| `ide_refactor_rename` | Rename symbol with reference updates (all languages) | Enabled |
-| `ide_move_file` | Move file to new directory with IDE-aware move semantics | Enabled |
+| `ide_refactor_rename` | Rename symbol with reference updates (all languages) | Disabled |
+| `ide_move_file` | Move file to new directory with IDE-aware move semantics | Disabled |
 | `ide_install_plugin` | Install a locally built plugin `.zip` into this IDE (dev loop) | Disabled |
 | `ide_restart` | Restart this IDE (pair with `ide_install_plugin`) | Disabled |
 
@@ -37,7 +37,7 @@ These tools activate based on available language plugins:
 | `ide_call_hierarchy` | Analyze method call relationships | Java, Kotlin, Python, JS/TS, Go, PHP, Rust |
 | `ide_find_implementations` | Find interface implementations | Java, Kotlin, Python, JS/TS, Go, PHP, Rust |
 | `ide_find_super_methods` | Find overridden methods | Java, Kotlin, Python, JS/TS, PHP, Go, Rust |
-| `ide_file_structure` | Hierarchical file structure *(disabled by default)* | Java, Kotlin, Python, JS/TS, Go, PHP, Rust, Markdown |
+| `ide_file_structure` | Hierarchical file structure | Java, Kotlin, Python, JS/TS, Go, PHP, Rust, Markdown |
 
 ---
 
@@ -620,8 +620,6 @@ Read file content by file path or fully qualified class name.
 
 ### ide_find_symbol
 
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
-
 Searches for code symbols (classes, interfaces, methods, fields, and functions) by name using the IDE's semantic index and IntelliJ's Go to Symbol matching.
 
 **Use when:**
@@ -812,6 +810,8 @@ The restart is scheduled after this tool's response is flushed (default 2 s dela
 
 ### ide_refactor_rename (Universal - All Languages)
 
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
+
 Renames a symbol and updates all references across the project. This tool uses IntelliJ's `RenameProcessor` which is language-agnostic and works across **all languages** supported by your IDE.
 
 **Supported Languages:** Java, Kotlin, Python, JavaScript, TypeScript, Go, PHP, Rust, Ruby, and any language with IntelliJ plugin support.
@@ -938,6 +938,8 @@ All renames happen in a single atomic operation, so one undo (Ctrl/Cmd+Z) revert
 ---
 
 ### ide_move_file
+
+> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Move a file to a new directory using the IDE's refactoring engine. Applies language-aware reference, import, and namespace/package updates when the IDE provides a semantic move backend for that file type.
 
@@ -1361,8 +1363,6 @@ Finds IDE Go-to-Super targets for a code element — methods that override/imple
 ---
 
 ### ide_file_structure
-
-> **Default**: Disabled - enable in Settings > Tools > IdeSense
 
 Get the hierarchical structure of a source file, similar to the IDE's Structure view (<kbd>Cmd+7</kbd> / <kbd>Alt+7</kbd>).
 
