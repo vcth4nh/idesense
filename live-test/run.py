@@ -397,6 +397,27 @@ def _result_has_error(result: Any) -> bool:
     return isinstance(result, dict) and any(k in result for k in ERROR_KEYS)
 
 
+def _result_is_structured_error(result: Any) -> bool:
+    """A tool-level {"error": ..., "message": ...} payload — valid JSON the plugin
+    returned, as opposed to the harness-level ERROR_KEYS shapes."""
+    return isinstance(result, dict) and "error" in result
+
+
+def _structured_error_bless_refusals(
+    fresh_results: dict[str, Any], expected_by_id: dict[str, Any]
+) -> list[str]:
+    """Ids whose fresh result is a structured error but whose previously blessed
+    result was not (or which have no expected row yet). Blessing these would let a
+    degraded IDE overwrite a known-good snapshot; rows already pinned as errors
+    (intentional negative probes) stay re-blessable."""
+    return [
+        eid
+        for eid, r in fresh_results.items()
+        if _result_is_structured_error(r)
+        and not _result_is_structured_error(expected_by_id.get(eid))
+    ]
+
+
 def run_language(
     lang: str,
     project_path: Path,
@@ -503,6 +524,20 @@ def run_language(
                 print(f"    ... and {len(error_ids) - 5} more")
             print(f"  Use --bless-errors to override.")
             return passed - len(error_ids), len(error_ids)
+        # A structured {"error": ...} payload is a valid tool result, so the
+        # ERROR_KEYS gate above never sees it — but blessing one over a row
+        # that previously passed (or is brand new) would lock a degraded IDE
+        # in as truth. Rows already blessed as errors are intentional
+        # negative probes and stay re-blessable.
+        transition_ids = _structured_error_bless_refusals(fresh_results, expected_by_id)
+        if transition_ids and not bless_errors:
+            print(f"  ERROR: refusing to bless {len(transition_ids)} rows whose structured error would replace a non-error (or new) expected row:")
+            for eid in transition_ids[:5]:
+                print(f"    {eid}: {fresh_results[eid]}")
+            if len(transition_ids) > 5:
+                print(f"    ... and {len(transition_ids) - 5} more")
+            print(f"  Use --bless-errors to override.")
+            return passed - len(transition_ids), len(transition_ids)
         # Merge fresh results into existing expected, then write per-tool
         # files mirroring input-file order.
         merged: dict[str, Any] = dict(expected_by_id)
@@ -672,7 +707,8 @@ def main() -> int:
     parser.add_argument(
         "--bless-errors",
         action="store_true",
-        help="Allow blessing rows that returned tool_error_text / transport_error / jsonrpc_error.",
+        help="Allow blessing rows that returned tool_error_text / transport_error / jsonrpc_error, "
+        "or whose structured {\"error\": ...} result would replace a non-error (or new) expected row.",
     )
     parser.add_argument(
         "--prune",

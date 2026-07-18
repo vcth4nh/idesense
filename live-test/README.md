@@ -41,7 +41,7 @@ silently stops reporting — which would change diagnostics snapshots.
 ```bash
 ./run.py                                 # runs every language, fails on diff
 ./run.py --bless                         # rewrite _snapshots/<lang>/expected/<tool>.jsonl from server output
-./run.py --bless --bless-errors          # allow blessing rows that returned tool errors (rare)
+./run.py --bless --bless-errors          # allow blessing tool errors / non-error→error transitions (rare)
 ./run.py --bless --prune                 # allow bless to drop orphan expected ids
 ./run.py --language python               # one language only
 ./run.py --tool ide_find_definition      # one tool across all languages
