@@ -4,6 +4,7 @@ import com.github.vcth4nh.idesense.handlers.LanguageServices
 import com.github.vcth4nh.idesense.server.McpServerService
 import com.github.vcth4nh.idesense.server.models.ToolDefinition
 import com.github.vcth4nh.idesense.settings.McpSettings
+import com.github.vcth4nh.idesense.tools.intelligence.ExplainSymbolTool
 import com.github.vcth4nh.idesense.tools.intelligence.GetDiagnosticsTool
 import com.github.vcth4nh.idesense.tools.navigation.FileStructureTool
 import com.github.vcth4nh.idesense.tools.navigation.FindClassTool
@@ -44,6 +45,7 @@ import java.util.concurrent.ConcurrentHashMap
  * - `ide_find_symbol` - Search for symbols by name (universal, popup-backed)
  * - `ide_search_text` - Text search using word index
  * - `ide_diagnostics` - Analyze code for problems and available intentions
+ * - `ide_explain_symbol` - Fused declaration/doc/supers/implementations/usages overview
  * - `ide_install_plugin` - Install a locally built plugin .zip into this IDE (disabled by default)
  * - `ide_restart` - Restart this IDE to load a freshly installed plugin (disabled by default)
  * - `ide_index_status` - Check indexing status
@@ -191,6 +193,7 @@ class ToolRegistry {
 
         // Intelligence tools
         register(GetDiagnosticsTool())
+        register(ExplainSymbolTool())
 
         // Project tools
         register(GetIndexStatusTool())

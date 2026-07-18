@@ -19,6 +19,7 @@ These tools work in every supported JetBrains IDE:
 | `ide_find_symbol` | Search code symbols by name | Enabled |
 | `ide_search_text` | Text search using word index | Enabled |
 | `ide_diagnostics` | Analyze file problems with fresh IDE diagnostics, plus optional build/test results | Enabled |
+| `ide_explain_symbol` | Fused symbol overview: declaration, signature, docs, supers, implementations, usage summary | Enabled |
 | `ide_index_status` | Check indexing status | Enabled |
 | `ide_sync_files` | Force sync VFS/PSI cache | Enabled |
 | `ide_read_file` | Read file content by path or qualified name | Disabled |
@@ -52,6 +53,7 @@ These tools activate based on available language plugins:
   - [ide_search_text](#ide_search_text)
   - [ide_find_symbol](#ide_find_symbol)
   - [ide_diagnostics](#ide_diagnostics)
+  - [ide_explain_symbol](#ide_explain_symbol)
   - [ide_index_status](#ide_index_status)
   - [ide_sync_files](#ide_sync_files)
   - [ide_install_plugin](#ide_install_plugin)
@@ -483,6 +485,76 @@ File problems are collected through explicit daemon analysis, so they do not dep
 - `WARNING` - Potential problem
 - `WEAK_WARNING` - Minor issue
 - `INFO` - Informational
+
+---
+
+### ide_explain_symbol
+
+> **Availability**: Universal Tool - works in all JetBrains IDEs
+
+Explains a symbol in one round-trip by fusing the IDE's navigation and documentation engines:
+declaration location, signature, quick documentation, supers, implementations, and a usage
+summary. Anchors on either a symbol name/qualified name or an exact file position; an
+ambiguous name returns a `candidates` list instead of guessing.
+
+**Use when:**
+- Answering "what is this thing?" without chaining `ide_find_definition` → `ide_find_super_methods` → `ide_find_implementations` → `ide_find_usages`
+- You have a name (stack trace, review comment, task description) but no coordinates yet
+- You want the declaration's signature or documentation, which no other tool returns
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `symbol` | string | No* | Symbol name or qualified name (e.g. `UserService`, `demo.UserService`, `UserService.authenticate`). Mutually exclusive with `file`/`line`/`column`. |
+| `file` | string | No* | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. Use with `line` and `column`. |
+| `line` | integer | No* | 1-based line number. |
+| `column` | integer | No* | 1-based column number. |
+| `includeDiagnostics` | boolean | No | Also analyze the declaration's file and return problems overlapping the declaration. Default: `false` (the analysis pass is slower). |
+
+*Exactly one anchor form is required: either `symbol`, or all of `file`+`line`+`column`.
+
+**Example Request:**
+
+```json
+{
+  "symbol": "Shape"
+}
+```
+
+**Example Response** (implementations/topUsages trimmed for brevity):
+
+```json
+{
+  "symbol": {"file": "src/main/java/demo/Normal.java", "line": 15, "column": 16, "name": "Shape", "kind": "ABSTRACT_CLASS", "preview": "abstract class Shape {", "qualifiedName": "demo.Shape", "enclosingScope": null},
+  "candidates": null,
+  "message": null,
+  "signature": "[java] demo\nabstract class Shape extends Object",
+  "documentation": "demo\nabstract class Shape",
+  "documentationTruncated": null,
+  "supers": [],
+  "implementations": [
+    {"name": "Circle", "file": "src/main/java/demo/Normal.java", "line": 25, "column": 7, "kind": "CLASS", "qualifiedName": "demo.Circle"},
+    {"name": "Rectangle", "file": "src/main/java/demo/Normal.java", "line": 43, "column": 7, "kind": "CLASS", "qualifiedName": "demo.Rectangle"}
+  ],
+  "implementationsTruncated": false,
+  "usageCount": 11,
+  "usagesTruncated": false,
+  "topUsages": [
+    {"file": "src/main/java/demo/Normal.java", "line": 25, "column": 22, "preview": "class Circle extends Shape implements Drawable {", "usageType": "REFERENCE", "enclosingScope": ["Circle"]},
+    {"file": "src/main/java/demo/Normal.java", "line": 76, "column": 14, "preview": "void add(Shape shape) {", "usageType": "REFERENCE", "enclosingScope": ["ShapeCollection", "add", "shape"]}
+  ],
+  "problems": null,
+  "warnings": null
+}
+```
+
+**Response Notes:**
+- Facets are capped summaries: `implementations` up to 10 (`implementationsTruncated`), `usageCount` counted up to 200 (`usagesTruncated`), `topUsages` up to 5, `documentation` up to 4000 characters (`documentationTruncated`). Page through the dedicated tools for full sets.
+- A `null` facet means not applicable, not requested, or degraded (degradations are named in `warnings`); an empty list means searched-and-empty — the same convention as `ide_diagnostics`.
+- Usage counting and implementation search run over project files; library usages are not counted.
+- On an ambiguous `symbol`, only `candidates` and `message` are populated — re-call with a qualified name or position from the list.
+- `problems` is only populated with `includeDiagnostics: true` and covers problems overlapping the declaration's line range.
 
 ---
 

@@ -157,6 +157,27 @@ data class IntentionInfo(
     val description: String?
 )
 
+// ide_explain_symbol output. Facet fields are null when the facet was not applicable,
+// not requested, or degraded (degradations are named in warnings); requested-and-empty
+// facets are empty lists — same null-vs-empty convention as DiagnosticsResult.
+@Serializable
+data class ExplainSymbolResult(
+    val symbol: DefinitionResult? = null,
+    val candidates: List<SymbolMatch>? = null,
+    val message: String? = null,
+    val signature: String? = null,
+    val documentation: String? = null,
+    val documentationTruncated: Boolean? = null,
+    val supers: List<SuperMethodInfo>? = null,
+    val implementations: List<ImplementationLocation>? = null,
+    val implementationsTruncated: Boolean? = null,
+    val usageCount: Int? = null,
+    val usagesTruncated: Boolean? = null,
+    val topUsages: List<UsageLocation>? = null,
+    val problems: List<ProblemInfo>? = null,
+    val warnings: List<String>? = null,
+)
+
 // ide_diagnostics test results output
 @Serializable
 data class TestResultInfo(

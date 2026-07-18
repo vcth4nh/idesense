@@ -56,6 +56,9 @@ object ParamNames {
     // Lifecycle parameters (install plugin / restart IDE)
     const val DELAY_SECONDS = "delaySeconds"
 
+    // Explain symbol parameters
+    const val INCLUDE_DIAGNOSTICS = "includeDiagnostics"
+
     // Diagnostics parameters
     const val INCLUDE_BUILD_ERRORS = "includeBuildErrors"
     const val INCLUDE_TEST_RESULTS = "includeTestResults"

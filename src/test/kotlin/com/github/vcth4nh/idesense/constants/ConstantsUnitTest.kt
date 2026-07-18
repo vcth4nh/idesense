@@ -18,6 +18,7 @@ class ConstantsUnitTest : TestCase() {
 
     fun testToolNamesIntelligenceTools() {
         assertEquals("ide_diagnostics", ToolNames.DIAGNOSTICS)
+        assertEquals("ide_explain_symbol", ToolNames.EXPLAIN_SYMBOL)
     }
 
     fun testToolNamesProjectTools() {
@@ -52,6 +53,7 @@ class ConstantsUnitTest : TestCase() {
             ToolNames.SEARCH_TEXT,
             ToolNames.READ_FILE,
             ToolNames.DIAGNOSTICS,
+            ToolNames.EXPLAIN_SYMBOL,
             ToolNames.INDEX_STATUS,
             ToolNames.SYNC_FILES,
             ToolNames.INSTALL_PLUGIN,

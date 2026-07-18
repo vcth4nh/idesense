@@ -479,6 +479,7 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             ToolNames.SEARCH_TEXT,
             // Intelligence tools
             ToolNames.DIAGNOSTICS,
+            ToolNames.EXPLAIN_SYMBOL,
             // Project tools
             ToolNames.INSTALL_PLUGIN,
             ToolNames.RESTART_IDE,
