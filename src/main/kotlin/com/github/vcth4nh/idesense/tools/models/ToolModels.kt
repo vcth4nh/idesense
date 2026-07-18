@@ -29,7 +29,9 @@ data class FindUsagesResult(
     val totalCollected: Int = 0,
     val offset: Int = 0,
     val pageSize: Int = 0,
-    val stale: Boolean = false
+    val stale: Boolean = false,
+    // null = search ran complete; non-null names handler stages that degraded (#81).
+    val warnings: List<String>? = null
 )
 
 // find_definition output

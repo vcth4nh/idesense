@@ -161,7 +161,8 @@ Finds all references to a symbol across the entire project using IntelliJ's sema
   "totalCollected": 2,
   "offset": 0,
   "pageSize": 100,
-  "stale": false
+  "stale": false,
+  "warnings": null
 }
 ```
 
@@ -172,6 +173,12 @@ Finds all references to a symbol across the entire project using IntelliJ's sema
 - `IMPORT` - Import statement
 - `PARAMETER` - Method parameter
 - `VARIABLE` - Variable usage
+
+**Degraded searches:** if the language's find-usages handler throws mid-expansion (e.g.
+broken library roots), the search continues on the remaining targets and `warnings` lists
+each failed stage (`primaryElements` / `secondaryElements` / `findReferencesToHighlight`)
+so partial coverage is visible instead of looking like a complete result. `warnings` is
+`null` when the search ran complete; it is reported on the first page of a fresh search.
 
 ---
 

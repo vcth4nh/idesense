@@ -74,8 +74,9 @@ class FindUsagesTool : AbstractMcpTool() {
         Returns: file paths, 1-based positions, context snippets, and reference kinds
         (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE). Paginated (each cursor collects up to an internal cap; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
 
-        Gotchas: requires smart mode (not indexing). For a quick literal word sweep use ide_search_text;
-        for "who calls this" as a tree use ide_call_hierarchy.
+        Gotchas: requires smart mode (not indexing). If the language's find-usages handler degrades
+        mid-search, a warnings list on the first page flags the partial coverage. For a quick literal
+        word sweep use ide_search_text; for "who calls this" as a tree use ide_call_hierarchy.
     """.trimIndent()
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()
@@ -117,6 +118,10 @@ class FindUsagesTool : AbstractMcpTool() {
         }
         requireSmartMode(project)
 
+        // Filled inside the read action; read after it completes. Non-empty when a
+        // FindUsagesHandler stage threw and the search degraded (#81) — surfaced on
+        // the first page of a fresh search.
+        val handlerWarnings = mutableListOf<String>()
         val cursorToken = suspendingReadAction {
             val element = resolveElementFromArguments(project, arguments, allowLibraryFilesForPosition = true).getOrElse {
                 return@suspendingReadAction null to createErrorResult(it.message ?: ErrorMessages.COULD_NOT_RESOLVE_SYMBOL)
@@ -189,7 +194,8 @@ class FindUsagesTool : AbstractMcpTool() {
                     project = project,
                     element = targetElement,
                     scope = searchScope,
-                    processor = Processor { refElement -> collectRef(refElement) }
+                    processor = Processor { refElement -> collectRef(refElement) },
+                    warnings = handlerWarnings
                 )
 
                 if (!handlerProcessed) {
@@ -247,7 +253,8 @@ class FindUsagesTool : AbstractMcpTool() {
                 totalCollected = page.totalCollected,
                 offset = page.offset,
                 pageSize = page.pageSize,
-                stale = page.stale
+                stale = page.stale,
+                warnings = handlerWarnings.takeIf { it.isNotEmpty() }
             )
         }
     }

@@ -64,6 +64,55 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         assertTrue("Should error with invalid file", resultInvalid.isError)
     }
 
+    fun testFindUsagesSurfacesHandlerStageDegradationAsWarnings() = runBlocking {
+        // #81: a FindUsagesHandler stage throwing mid-expansion must not produce a
+        // silently smaller success — the response carries warnings naming the stage.
+        val psiFile = myFixture.addFileToProject("Warn.java", """
+            public class Warn {
+                void target() {}
+                void caller() {
+                    target();
+                }
+            }
+        """.trimIndent())
+
+        val throwingFactory = object : com.intellij.find.findUsages.FindUsagesHandlerFactory() {
+            override fun canFindUsages(element: com.intellij.psi.PsiElement) = element is com.intellij.psi.PsiMethod
+            override fun createFindUsagesHandler(element: com.intellij.psi.PsiElement, forHighlightUsages: Boolean) =
+                object : com.intellij.find.findUsages.FindUsagesHandler(element) {
+                    override fun getPrimaryElements(): Array<com.intellij.psi.PsiElement> =
+                        throw IllegalStateException("test-induced primaryElements failure")
+                }
+        }
+        com.intellij.find.findUsages.FindUsagesHandlerFactory.EP_NAME.getPoint(project)
+            .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
+
+        val document = PsiDocumentManager.getInstance(project).getDocument(psiFile)!!
+        val offset = document.text.indexOf("target")
+        val line = document.getLineNumber(offset) + 1
+        val column = offset - document.getLineStartOffset(line - 1) + 1
+
+        val result = try {
+            FindUsagesTool().execute(project, buildJsonObject {
+                put("file", psiFile.virtualFile.path)
+                put("line", line)
+                put("column", column)
+            })
+        } catch (e: com.github.vcth4nh.idesense.exceptions.IndexNotReadyException) {
+            System.err.println("testFindUsagesSurfacesHandlerStageDegradationAsWarnings: skipped – index not ready")
+            return@runBlocking
+        }
+
+        assertFalse("Degraded search should not be an error", result.isError)
+        val payload = json.decodeFromString<FindUsagesResult>((result.content.first() as ContentBlock.Text).text)
+        val warnings = payload.warnings
+        assertNotNull("Degraded search must carry warnings", warnings)
+        assertTrue(
+            "Warning should name the failed stage and consequence: $warnings",
+            warnings!!.any { it.contains("primaryElements") && it.contains("usages may be incomplete") }
+        )
+    }
+
     fun testFindDefinitionToolEndToEnd() = runBlocking {
         val tool = FindDefinitionTool()
 

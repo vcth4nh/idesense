@@ -16,7 +16,7 @@ be passed back unchanged. Line and column numbers are **1-based**.
 ### ide_find_usages
 Find semantic references to a symbol (not text search). Paginated; `totalCollected` is a collected count (each cursor caches up to an internal cap), not a guaranteed whole-project total — page with `hasMore`/`nextCursor`.
 
-**Returns**: `{ usages: [{ file, line, column, preview, usageType, enclosingScope }], truncated, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
+**Returns**: `{ usages: [{ file, line, column, preview, usageType, enclosingScope }], truncated, nextCursor?, hasMore, totalCollected, offset, pageSize, stale, warnings? }` — non-null `warnings` (first page) means a find-usages handler stage degraded and the list may be incomplete.
 
 `usageType` values: `METHOD_CALL`, `FIELD_ACCESS`, `IMPORT`, `PARAMETER`, `VARIABLE`, `REFERENCE`. Paginated (see Pagination in SKILL.md).
 
