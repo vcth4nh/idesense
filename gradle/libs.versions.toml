@@ -14,7 +14,11 @@ mockk = "1.14.11"
 
 # plugins
 changelog = "2.5.0"
-intelliJPlatform = "2.18.1"
+# Pinned: >2.10.5 introduces IdeLayoutIndexService, whose bundled-plugin indexing
+# intermittently hits ClosedFileSystemException and drops plugins/java, failing CI
+# with "Could not find bundled plugin with ID: 'com.intellij.java'" (no upstream fix
+# as of 2.18.1). Lift the pin (+ dependabot ignore) once fixed upstream.
+intelliJPlatform = "2.10.5"
 kotlin = "2.4.0"
 kotlinSerialization = "2.4.0"
 kover = "0.9.8"

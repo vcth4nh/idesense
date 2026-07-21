@@ -23,6 +23,14 @@ updates:
       # PR superseding #49). Lift this once the platform's coroutines catch up.
       - dependency-name: "io.ktor:*"
         versions: [">= 3.5.0"]
+      # IPGP > 2.10.5 introduces IdeLayoutIndexService, whose bundled-plugin
+      # indexing intermittently throws ClosedFileSystemException and drops
+      # plugins/java — CI then fails with "Could not find bundled plugin with
+      # ID: 'com.intellij.java'" (5 hits across Build/Test/Verify jobs,
+      # 2026-07-15..18; no fix as of 2.18.1). Lift together with the version
+      # pin in gradle/libs.versions.toml once fixed upstream.
+      - dependency-name: "org.jetbrains.intellij.platform"
+        versions: ["> 2.10.5"]
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
