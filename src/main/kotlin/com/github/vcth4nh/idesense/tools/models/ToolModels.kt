@@ -329,7 +329,9 @@ data class FindFileResult(
     val totalCollected: Int = 0,
     val offset: Int = 0,
     val pageSize: Int = 0,
-    val stale: Boolean = false
+    val stale: Boolean = false,
+    // null = search ran complete; non-null names contributors that threw mid-search (#87).
+    val warnings: List<String>? = null
 )
 
 @Serializable

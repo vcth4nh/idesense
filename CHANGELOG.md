@@ -12,6 +12,18 @@
   exact file position, so agents can skip the find-coordinates-first step.
 
 ### Fixed
+- `ide_find_file` no longer drops in-scope files on extension-only queries (`*.py`, `.py`, `py`).
+  The default contributor enumerates the machine-global VFS name table in append order
+  (scope and `IdFilter` are ignored on that path), so the old `limit*3` candidate-name cap
+  filled up with library names matching the un-anchored pattern (typeshed stubs, SDK
+  sources) and starved recently indexed project files. The name enumeration is no longer
+  truncated; names are ranked by matching degree and the scope-filtered item phase stops at
+  the collection limit instead. Was most visible on PyCharm, where `*.py` could collapse to
+  a single file (#87).
+- `ide_find_file` no longer swallows file-contributor failures at debug level: a contributor
+  that throws mid-search is logged at WARN and reported through a `warnings` list on the first
+  page (same contract as `ide_find_usages`), and cancellation exceptions are rethrown instead
+  of being eaten, preserving the read-action retry contract (#87).
 - `ide_find_usages` no longer degrades silently when a language's find-usages handler throws
   during target expansion: the response now carries a `warnings` list naming each failed
   stage (`primaryElements` / `secondaryElements` / `findReferencesToHighlight`), so agents

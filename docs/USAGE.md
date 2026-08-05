@@ -345,11 +345,17 @@ Searches for files by name using the IDE's file index.
     }
   ],
   "totalCollected": 1,
-  "query": "UserService"
+  "query": "UserService",
+  "warnings": null
 }
 ```
 
 **Path note:** Project results use relative paths. Dependency/library results may use absolute paths or `jar://` URLs.
+
+**Degraded searches:** if a file contributor throws mid-search, the remaining contributors
+still run and `warnings` names the failed contributor, so partial coverage is visible
+instead of looking like a complete result. `warnings` is `null` when the search ran
+complete; it is reported on the first page of a fresh search.
 
 ---
 
