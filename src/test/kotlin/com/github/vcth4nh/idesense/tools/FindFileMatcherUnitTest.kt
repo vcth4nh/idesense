@@ -36,4 +36,21 @@ class FindFileMatcherUnitTest : TestCase() {
         assertTrue(matches("*Test.kt", "MyTest.kt"))
         assertTrue(matches("Super.java", "GenericSuper.java"))
     }
+
+    // Extension-only queries are not end-anchored, so they also admit longer-extension
+    // names (".py" ⊂ ".pyi"/".pyc"). Harmless per se, but it is why the candidate-name
+    // enumeration must never be truncated: these shapes admit the machine-wide VFS name
+    // universe, and a capped collection starved out in-scope files (#87). A trailing space
+    // end-anchors the pattern and rejects them — both behaviors mirror the IDE popup.
+    fun testBareExtensionQueryAdmitsLongerExtensions() {
+        assertTrue(matches("*.py", "builtins.pyi"))
+        assertTrue(matches("*.py", "normal.cpython-312.pyc"))
+        assertTrue(matches("*.py", "normal.py"))
+    }
+
+    fun testTrailingSpaceEndAnchorsExtensionQuery() {
+        assertFalse(matches("*.py ", "builtins.pyi"))
+        assertFalse(matches("*.py ", "normal.cpython-312.pyc"))
+        assertTrue(matches("*.py ", "normal.py"))
+    }
 }

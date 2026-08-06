@@ -17,6 +17,7 @@ import com.intellij.navigation.ChooseByNameContributorEx
 import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiFile
@@ -25,6 +26,7 @@ import com.intellij.psi.codeStyle.NameUtil
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.util.indexing.FindSymbolParameters
+import com.intellij.util.indexing.IdFilter
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.int
@@ -60,7 +62,8 @@ class FindFileTool : AbstractMcpTool() {
         and wildcards ("*Test.kt").
 
         Returns: matching files with name, project-relative path, and parent directory. Paginated
-        — pass the returned cursor for the next page.
+        — pass the returned cursor for the next page. If a file contributor fails mid-search, a
+        warnings list on the first page flags the partial coverage.
 
         Gotchas: requires smart mode. Searches file names only — not content.
     """.trimIndent()
@@ -110,10 +113,14 @@ class FindFileTool : AbstractMcpTool() {
 
         requireSmartMode(project)
 
+        // Filled inside the read action; read after it completes. Non-empty when a file
+        // contributor threw and its remaining candidates were skipped (#87) — surfaced on
+        // the first page of a fresh search.
+        val contributorWarnings = mutableListOf<String>()
         val cursorToken = suspendingReadAction {
             val searchScope = resolveSearchScope(project, scope)
             val matcher = createMatcher(query)
-            val files = searchFiles(project, query, searchScope, scope, collectLimit, matcher)
+            val files = searchFiles(project, query, searchScope, scope, collectLimit, matcher, contributorWarnings)
 
             val sortedFiles = files
                 .distinctBy { it.path }
@@ -153,7 +160,8 @@ class FindFileTool : AbstractMcpTool() {
                 totalCollected = page.totalCollected,
                 offset = page.offset,
                 pageSize = page.pageSize,
-                stale = page.stale
+                stale = page.stale,
+                warnings = contributorWarnings.takeIf { it.isNotEmpty() }
             )
         }
     }
@@ -173,7 +181,8 @@ class FindFileTool : AbstractMcpTool() {
     ): List<PaginationService.SerializedResult> {
         val searchScope = resolveSearchScope(project, scope)
         val matcher = createMatcher(query)
-        val files = searchFiles(project, query, searchScope, scope, limit + seenKeys.size, matcher)
+        // Warnings ride the first page of a fresh search only; extension pages drop them.
+        val files = searchFiles(project, query, searchScope, scope, limit + seenKeys.size, matcher, mutableListOf())
 
         return files
             .distinctBy { it.path }
@@ -197,7 +206,8 @@ class FindFileTool : AbstractMcpTool() {
         searchScope: GlobalSearchScope,
         scope: BuiltInSearchScope,
         limit: Int,
-        matcher: MinusculeMatcher
+        matcher: MinusculeMatcher,
+        warnings: MutableList<String>
     ): List<FileMatch> {
         val results = mutableListOf<FileMatch>()
         val seen = mutableSetOf<String>()
@@ -210,8 +220,14 @@ class FindFileTool : AbstractMcpTool() {
 
             try {
                 processContributor(contributor, project, pattern, searchScope, scope, limit, matcher, results, seen)
+            } catch (e: ProcessCanceledException) {
+                // Must escape: swallowing it breaks the coroutine readAction retry contract.
+                throw e
             } catch (e: Exception) {
-                LOG.debug("Contributor ${contributor.javaClass.simpleName} failed for pattern '$pattern'", e)
+                LOG.warn("Contributor ${contributor.javaClass.simpleName} failed for pattern '$pattern'", e)
+                val message = "File contributor ${contributor.javaClass.simpleName} threw mid-search; " +
+                    "its remaining candidates were skipped — files may be incomplete."
+                if (message !in warnings) warnings.add(message)
             }
         }
 
@@ -233,18 +249,35 @@ class FindFileTool : AbstractMcpTool() {
             // Modern API with Processor pattern
             val matchingNames = mutableListOf<String>()
 
+            // The name enumeration must never be truncated: the default contributor walks the
+            // machine-global VFS name table (FSRecords.processAllNames — scope and IdFilter are
+            // ignored on that path, see FileBasedIndexScanUtil.processAllKeys) in append order,
+            // so any cap fills with whatever names the VFS saw first — e.g. bundled stub names
+            // admitted by an un-anchored "*.py" — and starves recently indexed in-scope files
+            // (#87). The item phase below is scope-filtered and stops at `limit`, which bounds
+            // the real work. The IdFilter matches the popup's parameters and prunes when a
+            // storage-backed path honors it.
+            val idFilter = IdFilter.getProjectIdFilter(project, searchScope.isSearchInLibraries)
             contributor.processNames(
                 { name ->
                     if (matcher.matches(name)) {
                         matchingNames.add(name)
                     }
-                    matchingNames.size < limit * 3
+                    true
                 },
                 searchScope,
-                null
+                idFilter
             )
 
-            for (name in matchingNames) {
+            // Rank once so the best names reach the item limit first, like the IDE popup's
+            // ordering. Degree is precomputed — sortedByDescending would re-run the matcher
+            // O(n log n) times on flood-sized name sets.
+            val rankedNames = matchingNames
+                .map { it to matcher.matchingDegree(it) }
+                .sortedByDescending { it.second }
+                .map { it.first }
+
+            for (name in rankedNames) {
                 if (results.size >= limit) break
 
                 val params = FindSymbolParameters.wrap(pattern, searchScope)

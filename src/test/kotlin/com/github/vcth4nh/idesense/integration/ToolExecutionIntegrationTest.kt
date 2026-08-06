@@ -110,6 +110,44 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         )
     }
 
+    fun testFindFileSurfacesContributorFailureAsWarning() = runBlocking {
+        // #87: a file contributor throwing mid-search must not abort the whole search
+        // silently — remaining contributors still run and the response carries a
+        // warnings entry naming the failed contributor.
+        myFixture.addFileToProject("Alpha.txt", "alpha")
+
+        val throwingContributor = object : com.intellij.navigation.ChooseByNameContributorEx {
+            override fun processNames(
+                processor: com.intellij.util.Processor<in String>,
+                scope: com.intellij.psi.search.GlobalSearchScope,
+                filter: com.intellij.util.indexing.IdFilter?
+            ): Unit = throw IllegalStateException("test-induced contributor failure")
+
+            override fun processElementsWithName(
+                name: String,
+                processor: com.intellij.util.Processor<in com.intellij.navigation.NavigationItem>,
+                parameters: com.intellij.util.indexing.FindSymbolParameters
+            ) = Unit
+        }
+        com.intellij.navigation.ChooseByNameContributor.FILE_EP_NAME.point
+            .registerExtension(throwingContributor, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
+
+        val result = FindFileTool().execute(project, buildJsonObject { put("query", "Alpha") })
+
+        val text = (result.content.first() as ContentBlock.Text).text
+        assertFalse("Search should degrade, not error: $text", result.isError)
+        val payload = Json { ignoreUnknownKeys = true }.decodeFromString<FindFileResult>(text)
+        assertTrue(
+            "Default contributor should still return Alpha.txt, got: ${payload.files}",
+            payload.files.any { it.name == "Alpha.txt" }
+        )
+        val warnings = payload.warnings.orEmpty()
+        assertTrue(
+            "Warning should name the throwing contributor and consequence: $warnings",
+            warnings.any { it.contains("contributor") && it.contains("files may be incomplete") }
+        )
+    }
+
     fun testFindDefinitionToolEndToEnd() = runBlocking {
         val tool = FindDefinitionTool()
 
