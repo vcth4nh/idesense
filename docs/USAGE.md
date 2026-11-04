@@ -45,6 +45,7 @@ These tools activate based on available language plugins:
 ## Table of Contents
 
 - [Common Parameters](#common-parameters)
+  - [Pagination and Result Size](#pagination-and-result-size)
 - [Universal Tools](#universal-tools)
   - [ide_find_usages](#ide_find_usages)
   - [ide_find_definition](#ide_find_definition)
@@ -90,6 +91,17 @@ Most tools operate on a specific location in code and require these parameters:
 | `line` | integer | 1-based line number |
 | `column` | integer | 1-based column number. For dotted expressions like `json.dumps()` or `os.path.join()`, point to the member token (`dumps`, `join`) when targeting the member definition. |
 
+When `ide_find_usages`, `ide_call_hierarchy` or `ide_find_implementations` finds no symbol at `line`/`column`, the error message names up to 3 named elements of that line with their columns (or says that the line is blank). Retry with one of these columns.
+
+### Pagination and Result Size
+
+Paginated tools (`ide_find_usages`, `ide_find_class`, `ide_find_file`, `ide_search_text`, `ide_find_implementations`, `ide_find_symbol`) return `nextCursor`, `hasMore`, `offset`, `pageSize` and `totalCollected`:
+
+- `pageSize` is the page size of the call (the requested value, or the value stored in the cursor). An empty page reports it too.
+- `totalCollected` counts the results collected so far for this cursor. While `hasMore` is `true`, more results can exist, so the value is not a total.
+
+Fields that quote a source line (`preview`, and `context` in `ide_search_text` matches) hold at most 200 characters of the line. A longer line, for example in a minified file, is cut to a 200-character window around the match, and `…` marks each cut end. Thus `pageSize` also bounds the size of a page.
+
 ---
 
 ## Universal Tools
@@ -112,7 +124,7 @@ Finds all references to a symbol across the entire project using IntelliJ's sema
 | `file` | string | Yes | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
 | `line` | integer | Yes | 1-based line number. |
 | `column` | integer | Yes | 1-based column number. |
-| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files` |
+| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files`. The last two follow the project's non-test and test source roots; in a project without such roots the tool returns a `scope_matches_no_files` error instead of an empty result. |
 | `maxResults` | integer | No | Deprecated alias for `pageSize` (default: 100, max: 500) |
 | `cursor` | string | No | Pagination cursor from a previous response |
 | `pageSize` | integer | No | Number of results per page (default: 100, max: 500) |
@@ -252,7 +264,7 @@ Searches for classes and interfaces by name using the IDE's class index.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `query` | string | Yes | Search pattern |
-| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files` |
+| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files`. The last two follow the project's non-test and test source roots; in a project without such roots the tool returns a `scope_matches_no_files` error instead of an empty result. |
 | `language` | string | No | Filter by language (e.g., `"Kotlin"`, `"Java"`, `"Python"`). Case-insensitive |
 | `fuzzySearch` | boolean | No | `false` (default) = exact, case-insensitive name match; `true` = IDE camelCase/substring matching (`USvc` → `UserService`) |
 | `limit` | integer | No | Deprecated alias for `pageSize` (default: 25, max: 500) |
@@ -313,7 +325,7 @@ Searches for files by name using the IDE's file index.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `query` | string | Yes | File name pattern |
-| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files` |
+| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files`. The last two follow the project's non-test and test source roots; in a project without such roots the tool returns a `scope_matches_no_files` error instead of an empty result. |
 | `limit` | integer | No | Deprecated alias for `pageSize` (default: 25, max: 500) |
 | `cursor` | string | No | Pagination cursor from a previous response |
 | `pageSize` | integer | No | Number of results per page (default: 25, max: 500) |
@@ -412,6 +424,10 @@ Searches for text using the IDE's pre-built word index. Significantly faster tha
 }
 ```
 
+**Response Notes:**
+- `line` and `column` point at the occurrence itself, also inside a multi-line comment or string.
+- The match's `context` is its source line; a line longer than 200 characters is cut to a window around the match (see [Pagination and Result Size](#pagination-and-result-size)).
+
 ---
 
 ### ide_diagnostics
@@ -488,8 +504,8 @@ File problems are collected through explicit daemon analysis, so they do not dep
 ```
 
 **Response Notes:**
-- `analysisFresh = true` means the file problems came from a fresh explicit IDE analysis pass instead of cached editor highlights.
-- `analysisTimedOut = true` means the file analysis budget was exceeded; build/test sections may still be returned.
+- `analysisFresh = true` means the file problems came from a fresh explicit IDE analysis pass instead of cached editor highlights. It covers the analysis of the current file text only: right after the IDE starts, background SDK setup (for example Python interpreter skeletons) can still cause transient unresolved-import problems.
+- `analysisTimedOut = true` means the file analysis budget was exceeded. `problems` and `problemCount` are then `null`, because the file is not known to be clean. Build/test sections may still be returned.
 - `analysisMessage` explains degraded cases such as timeouts or missing live editor context for intentions.
 - `line` and `column` affect intention lookup only; file problems are collected for the whole file, then filtered by `startLine` / `endLine` if provided.
 
@@ -607,6 +623,18 @@ Checks if the IDE is in dumb mode (indexing) or smart mode.
 }
 ```
 
+Without `project_path` while several projects are open, the tool returns the status of every open project. The top-level `isDumbMode` is then `true` when any project is indexing:
+
+```json
+{
+  "isDumbMode": false,
+  "projects": [
+    { "name": "backend", "path": "/home/user/backend", "isDumbMode": false },
+    { "name": "frontend", "path": "/home/user/frontend", "isDumbMode": false }
+  ]
+}
+```
+
 ---
 
 ### ide_sync_files
@@ -646,6 +674,8 @@ Force the IDE to synchronize its virtual file system and PSI cache with external
   "message": "Synced 1 path(s)"
 }
 ```
+
+If a requested path is excluded from the project and is not part of a library, `message` names it: the IDE refreshes it, but it does not index or analyze it.
 
 ---
 
@@ -723,7 +753,7 @@ Searches for code symbols (classes, interfaces, methods, fields, and functions) 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `query` | string | Yes* | Search pattern. Required for a fresh search; ignored when `cursor` is provided. |
-| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files` |
+| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files`. The last two follow the project's non-test and test source roots; in a project without such roots the tool returns a `scope_matches_no_files` error instead of an empty result. |
 | `language` | string | No | Filter by language (e.g., `"Kotlin"`, `"Java"`). Case-insensitive |
 | `fuzzySearch` | boolean | No | When `true`, use the IDE's Go to Symbol fuzzy matching (camelCase + substring). When `false` (default), match the symbol name exactly, case-insensitively. |
 | `cursor` | string | No | Pagination cursor from a previous response |
@@ -1241,7 +1271,7 @@ Analyzes method call relationships to find callers or callees.
 | `line` | integer | Yes | 1-based line number. |
 | `column` | integer | Yes | 1-based column number. |
 | `direction` | string | Yes | `"callers"` or `"callees"` |
-| `maxDepth` | integer | No | How many levels deep to traverse (default: 7, max: 20) |
+| `maxDepth` | integer | No | How many levels deep to traverse (default: 3, max: 20) |
 | `scope` | string | No | Hierarchy scope. One of `all` (default), `production`, `test`, `this_class`, `this_module`. (`production` = production sources only.) |
 
 **Example Request:**
@@ -1290,9 +1320,13 @@ Analyzes method call relationships to find callers or callees.
       "line": 62,
       "column": 17
     }
-  ]
+  ],
+  "truncated": false
 }
 ```
+
+**Response Notes:**
+- The tree holds at most 200 nodes, filled depth-first. When the walk reaches this limit, `truncated` is `true`, and the nodes after that point show no children, even if they have some. Then lower `maxDepth`, start from one caller, or use `ide_find_usages` (paginated) for the full flat list of direct callers.
 
 ---
 
@@ -1314,7 +1348,7 @@ Finds implementation, inheritor, and override locations for a class/interface/tr
 | `file` | string | Yes | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
 | `line` | integer | Yes | 1-based line number. |
 | `column` | integer | Yes | 1-based column number. |
-| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files` |
+| `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files`. The last two follow the project's non-test and test source roots; in a project without such roots the tool returns a `scope_matches_no_files` error instead of an empty result. |
 | `cursor` | string | No | Pagination cursor from a previous response |
 | `pageSize` | integer | No | Number of results per page (default: 100, max: 500) |
 
@@ -1524,6 +1558,8 @@ Common `error` codes:
 | No symbol at the specified position | `symbol_not_found` |
 | Refactoring cannot be completed | `refactoring_conflict` |
 | Parameter validation failed (includes a `violations` array) | `invalid_arguments` |
+| The `scope` matches no files: the project has no production (or test) source roots | `scope_matches_no_files` |
+| The IDE's index does not match a file (temporary, the IDE rebuilds it; retry later) | `index_out_of_sync` |
 | Generic tool failure | `tool_error` |
 | Unexpected server error | `internal_error` |
 | Project resolution errors | `no_project_open` / `project_not_found` / `multiple_projects_open` |

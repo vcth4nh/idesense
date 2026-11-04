@@ -45,7 +45,7 @@ Project results use relative paths; dependency/library results may use absolute 
 ### ide_search_text
 Search for exact words using IDE's pre-built word index. O(1) lookups, not file scanning.
 
-**Returns**: `{ matches: [{file, line, column, context, contextType}], query }`
+**Returns**: `{ matches: [{file, line, column, context, contextType}], query }` — `line`/`column` point at the occurrence; `context` is its source line, cut to a 200-character window around the match when longer.
 
 `contextType` values: `CODE`, `COMMENT`, `STRING_LITERAL`.
 **Selection note**: exact-word only (uses word index, not regex). Use `Grep` for regex patterns.
@@ -75,7 +75,7 @@ Provide either `className` (FQN, preferred where the language's qualified-name p
 ### ide_call_hierarchy
 Build call tree showing who calls a method or what a method calls.
 
-**Returns**: `{ element: {name, qualifiedName?, enclosingScope?, kind, file, line, column}, calls: [{name, qualifiedName?, enclosingScope?, kind, file, line, column, children?: [...]}] }`
+**Returns**: `{ element: {name, qualifiedName?, enclosingScope?, kind, file, line, column}, calls: [{name, qualifiedName?, enclosingScope?, kind, file, line, column, children?: [...]}], truncated }` — `maxDepth` defaults to 3; the tree holds at most 200 nodes (depth-first), and `truncated: true` means that the walk reached this limit: the nodes after that point show no children, even if they have some.
 
 **Languages**: Java, Kotlin, Python, JS/TS, Go, PHP, Rust.
 
@@ -100,7 +100,7 @@ Unified diagnostics from any combination of per-file IDE analysis, cached last-b
 
 **Returns** (fields present depend on which sources were requested): `{ problems: [{message, severity, file, line, column, endLine?, endColumn?}], intentions: [{name, description?}], problemCount, intentionCount, analysisFresh, analysisTimedOut, analysisMessage, buildErrors?, buildErrorCount?, buildWarningCount?, buildErrorsTruncated?, buildTimestamp?, testResults?, testSummary?, testResultsTruncated? }`
 
-`severity` values: `ERROR`, `WARNING`, `WEAK_WARNING`. Open files use fresh daemon highlights; closed files use public batch analysis so `WEAK_WARNING` results and quick-fix intentions may be less complete.
+When `analysisTimedOut` is `true`, `problems` and `problemCount` are `null` (the file is not known to be clean). `severity` values: `ERROR`, `WARNING`, `WEAK_WARNING`. Open files use fresh daemon highlights; closed files use public batch analysis so `WEAK_WARNING` results and quick-fix intentions may be less complete.
 
 ### ide_explain_symbol
 Fused symbol overview in one call: declaration + signature + quick documentation + supers + implementations + usage summary. Anchor with `symbol` (name or qualified name) OR `file`+`line`+`column`; an ambiguous name returns `candidates` instead of guessing. `includeDiagnostics: true` adds problems overlapping the declaration (slower — runs a file analysis pass).
@@ -134,7 +134,7 @@ Supports IDE undo (Ctrl+Z).
 ### ide_index_status
 Check if IDE is ready for code intelligence operations.
 
-**Returns**: `{ isDumbMode }` — `true` while the IDE is indexing (most tools fail); poll until `false`.
+**Returns**: `{ isDumbMode }` — `true` while the IDE is indexing (most tools fail); poll until `false`. Without `project_path` while several projects are open: `{ isDumbMode, projects: [{name, path, isDumbMode}] }`, where the top-level value is `true` when any project is indexing.
 
 When `isDumbMode: true`, most tools will fail — wait and retry.
 
