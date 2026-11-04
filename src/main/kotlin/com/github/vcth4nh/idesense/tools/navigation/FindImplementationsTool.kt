@@ -76,7 +76,7 @@ class FindImplementationsTool : AbstractMcpTool() {
         .projectPath()
         .file(required = false, description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin. Required for fresh search; ignored when cursor is provided.")
         .lineAndColumn(required = false)
-        .scopeProperty("Search scope. Default: project_files.")
+        .scopeProperty()
         .stringProperty("cursor", "Pagination cursor from a previous response. When provided, returns the next page of results. Search parameters are ignored; project_path and pageSize may still be provided.")
         .intProperty("pageSize", "Results per page. Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
         .build()
@@ -106,6 +106,8 @@ class FindImplementationsTool : AbstractMcpTool() {
         } catch (_: IllegalStateException) {
             return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         }
+        scopeMatchesNoFilesError(project, scope)?.let { return it }
+
         requireSmartMode(project)
 
         val cursorToken = suspendingReadAction {
@@ -115,7 +117,9 @@ class FindImplementationsTool : AbstractMcpTool() {
 
             val target = PsiUtils.resolveTargetElement(element)
             if (target == null) {
-                return@suspendingReadAction null to createErrorResult("No method or class found at position")
+                return@suspendingReadAction null to createErrorResult(
+                    "No method or class found at position." + caretHint(element, arguments)
+                )
             }
             val searchScope = BuiltInSearchScopeResolver.resolveGlobalScope(project, scope)
             val collectLimit = maxOf(PaginationService.DEFAULT_OVERCOLLECT, pageSize)

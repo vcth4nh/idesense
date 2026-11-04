@@ -7,10 +7,10 @@ import com.github.vcth4nh.idesense.tools.AbstractMcpTool
 import com.github.vcth4nh.idesense.tools.models.DefinitionResult
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
 import com.github.vcth4nh.idesense.handlers.LanguageServices
+import com.github.vcth4nh.idesense.util.LinePreview
 import com.github.vcth4nh.idesense.util.PsiUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
@@ -152,9 +152,7 @@ class FindDefinitionTool : AbstractMcpTool() {
             val targetColumn = effectiveTarget.textOffset -
                 document.getLineStartOffset(targetLine - 1) + 1
 
-            val preview = document.getText(
-                TextRange(document.getLineStartOffset(targetLine - 1), document.getLineEndOffset(targetLine - 1))
-            ).trim()
+            val preview = LinePreview.ofLine(document, targetLine - 1, targetColumn - 1)
 
             val name = if (effectiveTarget is PsiNamedElement) {
                 effectiveTarget.name ?: "unknown"

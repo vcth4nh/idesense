@@ -14,12 +14,12 @@ import com.github.vcth4nh.idesense.tools.AbstractMcpTool
 import com.github.vcth4nh.idesense.tools.models.FindUsagesResult
 import com.github.vcth4nh.idesense.tools.models.UsageLocation
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
+import com.github.vcth4nh.idesense.util.LinePreview
 import com.github.vcth4nh.idesense.util.PsiUtils
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNamedElement
@@ -83,7 +83,7 @@ class FindUsagesTool : AbstractMcpTool() {
         .projectPath()
         .file(required = false, description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin. Required for fresh search; ignored when cursor is provided.")
         .lineAndColumn(required = false)
-        .scopeProperty("Search scope. Default: project_files.")
+        .scopeProperty()
         .intProperty("maxResults", "Maximum results per page (deprecated, use pageSize). Default: $DEFAULT_MAX_RESULTS, max: $MAX_PAGE_SIZE.")
         .stringProperty("cursor", "Pagination cursor from a previous response. When provided, returns the next page of results. Search parameters are ignored; project_path and pageSize may still be provided.")
         .intProperty("pageSize", "Results per page. Default: $DEFAULT_MAX_RESULTS, max: $MAX_PAGE_SIZE.")
@@ -116,6 +116,8 @@ class FindUsagesTool : AbstractMcpTool() {
         } catch (_: IllegalStateException) {
             return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         }
+        scopeMatchesNoFilesError(project, scope)?.let { return it }
+
         requireSmartMode(project)
 
         // Filled inside the read action; read after it completes. Non-empty when a
@@ -138,7 +140,9 @@ class FindUsagesTool : AbstractMcpTool() {
             // GotoDeclarationHandler extensions.
             val targetElement = element as? PsiNamedElement
                 ?: (PsiUtils.resolveReferenceTarget(element)
-                    ?: return@suspendingReadAction null to createErrorResult(ErrorMessages.NO_NAMED_ELEMENT))
+                    ?: return@suspendingReadAction null to createErrorResult(
+                        ErrorMessages.NO_NAMED_ELEMENT + "." + caretHint(element, arguments)
+                    ))
 
             val usages = ConcurrentLinkedQueue<UsageLocation>()
             val totalFound = AtomicInteger(0)
@@ -164,17 +168,11 @@ class FindUsagesTool : AbstractMcpTool() {
                         if (seenLocationKeys.add(key)) {
                             val total = totalFound.incrementAndGet()
                             if (total <= collectLimit) {
-                                val lineText = document.getText(
-                                    TextRange(
-                                        document.getLineStartOffset(lineNumber - 1),
-                                        document.getLineEndOffset(lineNumber - 1)
-                                    )
-                                ).trim()
                                 usages.add(UsageLocation(
                                     file = getRelativePath(project, refFile),
                                     line = lineNumber,
                                     column = columnNumber,
-                                    preview = lineText,
+                                    preview = LinePreview.ofLine(document, lineNumber - 1, columnNumber - 1),
                                     usageType = classifyUsage(refElement),
                                     enclosingScope = PsiUtils.getEnclosingScope(refElement)
                                 ))
@@ -296,17 +294,11 @@ class FindUsagesTool : AbstractMcpTool() {
                     if (seenLocationKeys.add(key)) {
                         val slot = count.incrementAndGet()
                         if (slot <= limit) {
-                            val lineText = document.getText(
-                                TextRange(
-                                    document.getLineStartOffset(lineNumber - 1),
-                                    document.getLineEndOffset(lineNumber - 1)
-                                )
-                            ).trim()
                             val usage = UsageLocation(
                                 file = getRelativePath(project, refFile),
                                 line = lineNumber,
                                 column = columnNumber,
-                                preview = lineText,
+                                preview = LinePreview.ofLine(document, lineNumber - 1, columnNumber - 1),
                                 usageType = classifyUsage(refElement),
                                 enclosingScope = PsiUtils.getEnclosingScope(refElement)
                             )

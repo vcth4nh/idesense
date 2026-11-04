@@ -71,7 +71,7 @@ class FindFileTool : AbstractMcpTool() {
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
         .stringProperty(ParamNames.QUERY, "File name pattern. Supports camelCase, substring, and wildcard matching. Required for fresh search; ignored when cursor is provided.")
-        .scopeProperty("Search scope. Default: project_files.")
+        .scopeProperty()
         .intProperty(ParamNames.LIMIT, "Maximum results per page (deprecated, use pageSize). Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
         .stringProperty("cursor", "Pagination cursor from a previous response. When provided, returns the next page of results. Search parameters are ignored; project_path and pageSize may still be provided.")
         .intProperty("pageSize", "Results per page. Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
@@ -110,6 +110,8 @@ class FindFileTool : AbstractMcpTool() {
         if (query.isBlank()) {
             return createErrorResult("Query cannot be empty")
         }
+
+        scopeMatchesNoFilesError(project, scope)?.let { return it }
 
         requireSmartMode(project)
 

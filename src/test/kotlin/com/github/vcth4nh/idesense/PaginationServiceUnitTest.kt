@@ -334,6 +334,25 @@ class PaginationServiceUnitTest : TestCase() {
         assertEquals(PaginationService.CursorError.MALFORMED, (result as PaginationService.GetPageResult.Error).reason)
     }
 
+    // --- A page echoes the effective pageSize, not its item count ---
+
+    fun testPartialPageEchoesRequestedPageSize() = runBlocking {
+        val service = createTestService()
+        val results = (1..3).map { PaginationService.SerializedResult("key$it", JsonPrimitive("data$it")) }
+        val token = service.createCursor("tool", results, results.map { it.key }.toSet(), null, 42L, "/project")
+        val page = (service.getPage(token, 10, "/project", 42L) as PaginationService.GetPageResult.Success).page
+        assertEquals(3, page.items.size)
+        assertEquals(10, page.pageSize)
+    }
+
+    fun testEmptyPageEchoesRequestedPageSize() = runBlocking {
+        val service = createTestService()
+        val token = service.createCursor("tool", emptyList(), emptySet(), null, 42L, "/project")
+        val page = (service.getPage(token, 10, "/project", 42L) as PaginationService.GetPageResult.Success).page
+        assertTrue(page.items.isEmpty())
+        assertEquals(10, page.pageSize)
+    }
+
     // --- Periodic sweep, TTL expiry, and dispose ---
 
     fun testExpiredCursorReturnsError() = runBlocking {

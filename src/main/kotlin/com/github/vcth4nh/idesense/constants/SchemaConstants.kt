@@ -19,6 +19,7 @@ object SchemaConstants {
     // Common parameter descriptions
     const val DESC_PROJECT_PATH = "Absolute path to the project root. Required only when multiple projects are open."
     const val DESC_FILE = "Path to the file relative to project root"
+    const val DESC_SCOPE = "Search scope. Default: project_files. project_production_files covers the non-test source roots and project_test_files the test source roots; in a project without such roots the tool returns a scope_matches_no_files error, not an empty result."
     const val DESC_LINE = "1-based line number"
     const val DESC_COLUMN = "1-based column number — point it at the symbol's name, not whitespace or punctuation. For a dotted expression like json.dumps(), put it on the member token (dumps) to resolve the member rather than the receiver."
     const val DESC_START_LINE = "1-based start line number"

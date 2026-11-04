@@ -10,11 +10,13 @@ import com.github.vcth4nh.idesense.tools.AbstractMcpTool
 import com.github.vcth4nh.idesense.tools.models.SearchTextResult
 import com.github.vcth4nh.idesense.tools.models.TextMatch
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
+import com.github.vcth4nh.idesense.util.LinePreview
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
 import com.intellij.psi.search.PsiSearchHelper
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.search.TextOccurenceProcessor
@@ -166,25 +168,23 @@ class SearchTextTool : AbstractMcpTool() {
     ): List<TextMatch> {
         val results = ConcurrentLinkedQueue<TextMatch>()
         val seenLines = ConcurrentHashMap.newKeySet<String>()
+        val lastOccurrenceByFile = ConcurrentHashMap<PsiFile, Int>()
         val count = AtomicInteger(0)
         val helper = PsiSearchHelper.getInstance(project)
 
-        val processor = TextOccurenceProcessor { element, _ ->
+        val processor = TextOccurenceProcessor { element, offsetInElement ->
             if (count.get() >= limit) {
                 return@TextOccurenceProcessor false
             }
+            val occurrence = element.textRange.startOffset + offsetInElement
+            val file = element.containingFile ?: return@TextOccurenceProcessor true
+            if (lastOccurrenceByFile.put(file, occurrence) == occurrence) {
+                // An ancestor call for the occurrence before (see convertToTextMatch).
+                return@TextOccurenceProcessor true
+            }
 
-            val match = convertToTextMatch(project, element, searchContext)
+            val match = convertToTextMatch(project, element, occurrence, word.length, searchContext)
             if (match != null) {
-                val lineContainsWord = if (caseSensitive) {
-                    match.context.contains(word)
-                } else {
-                    match.context.contains(word, ignoreCase = true)
-                }
-                if (!lineContainsWord) {
-                    return@TextOccurenceProcessor true
-                }
-
                 val lineKey = "${match.file}:${match.line}"
                 if (seenLines.add(lineKey)) {
                     val slot = count.incrementAndGet()
@@ -229,25 +229,23 @@ class SearchTextTool : AbstractMcpTool() {
         val newResults = ConcurrentLinkedQueue<PaginationService.SerializedResult>()
         val seenLines = ConcurrentHashMap.newKeySet<String>()
         seenLines.addAll(seenKeys)
+        val lastOccurrenceByFile = ConcurrentHashMap<PsiFile, Int>()
         val count = AtomicInteger(0)
         val helper = PsiSearchHelper.getInstance(project)
 
-        val processor = TextOccurenceProcessor { element, _ ->
+        val processor = TextOccurenceProcessor { element, offsetInElement ->
             if (count.get() >= limit) {
                 return@TextOccurenceProcessor false
             }
+            val occurrence = element.textRange.startOffset + offsetInElement
+            val file = element.containingFile ?: return@TextOccurenceProcessor true
+            if (lastOccurrenceByFile.put(file, occurrence) == occurrence) {
+                // An ancestor call for the occurrence before (see convertToTextMatch).
+                return@TextOccurenceProcessor true
+            }
 
-            val match = convertToTextMatch(project, element, searchContext)
+            val match = convertToTextMatch(project, element, occurrence, word.length, searchContext)
             if (match != null) {
-                val lineContainsWord = if (caseSensitive) {
-                    match.context.contains(word)
-                } else {
-                    match.context.contains(word, ignoreCase = true)
-                }
-                if (!lineContainsWord) {
-                    return@TextOccurenceProcessor true
-                }
-
                 val lineKey = "${match.file}:${match.line}"
                 if (seenLines.add(lineKey)) {
                     val slot = count.incrementAndGet()
@@ -277,9 +275,21 @@ class SearchTextTool : AbstractMcpTool() {
         return newResults.toList()
     }
 
+    /**
+     * Converts one word occurrence to a match. [occurrence] is the occurrence's offset in the file.
+     * The platform calls the occurrence processor once per PSI ancestor of an occurrence, innermost
+     * first; the callers pass only that first call, because an ancestor would report the context
+     * type of a larger element (for example CODE for a word inside a comment). The calls for one
+     * occurrence come one after the other, and one job processes each file
+     * (`LowLevelSearchUtil.processTreeUp`, `PsiSearchHelperImpl.processPsiFileRoots`), so the
+     * callers keep only the last occurrence of each file to find the ancestor calls. Line, column
+     * and context come from the occurrence itself, not from the start of [element].
+     */
     private fun convertToTextMatch(
         project: Project,
         element: PsiElement,
+        occurrence: Int,
+        wordLength: Int,
         searchContext: Short
     ): TextMatch? {
         val containingFile = element.containingFile ?: return null
@@ -287,13 +297,9 @@ class SearchTextTool : AbstractMcpTool() {
         val relativePath = getRelativePath(project, virtualFile)
 
         val document = PsiDocumentManager.getInstance(project).getDocument(containingFile) ?: return null
-        val offset = element.textOffset
-        val lineNumber = document.getLineNumber(offset)
-        val lineStartOffset = document.getLineStartOffset(lineNumber)
-        val columnNumber = offset - lineStartOffset
-
-        val lineEndOffset = document.getLineEndOffset(lineNumber)
-        val lineText = document.getText(com.intellij.openapi.util.TextRange(lineStartOffset, lineEndOffset))
+        if (occurrence > document.textLength) return null
+        val lineNumber = document.getLineNumber(occurrence)
+        val columnNumber = occurrence - document.getLineStartOffset(lineNumber)
 
         val contextType = resolveActualContextType(element)
 
@@ -308,7 +314,7 @@ class SearchTextTool : AbstractMcpTool() {
             file = relativePath,
             line = lineNumber + 1,
             column = columnNumber + 1,
-            context = lineText.trim(),
+            context = LinePreview.ofLine(document, lineNumber, columnNumber, wordLength),
             contextType = contextType
         )
     }

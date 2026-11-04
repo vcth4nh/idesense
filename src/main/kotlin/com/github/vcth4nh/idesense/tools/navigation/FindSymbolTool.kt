@@ -5,6 +5,7 @@ import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
 import com.github.vcth4nh.idesense.handlers.PopupFaithfulSymbolSearch
+import com.github.vcth4nh.idesense.handlers.SameNameSymbolOrder
 import com.github.vcth4nh.idesense.handlers.SymbolData
 import com.github.vcth4nh.idesense.handlers.SymbolDataConverter
 import com.github.vcth4nh.idesense.server.PaginationService
@@ -61,7 +62,7 @@ class FindSymbolTool : AbstractMcpTool() {
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
         .stringProperty(ParamNames.QUERY, "Symbol name pattern, including qualified queries (e.g. \"BasicSolver.run\"). Required for fresh search; ignored when cursor is provided.")
-        .scopeProperty("Search scope. Default: project_files.")
+        .scopeProperty()
         .stringProperty(ParamNames.LANGUAGE, "Filter results by language (e.g., \"Kotlin\", \"Java\", \"Python\"). Case-insensitive. Optional.")
         .booleanProperty(ParamNames.FUZZY_SEARCH, "When true, use the IDE's Go to Symbol fuzzy matching (camelCase + substring). When false (default), match the symbol name exactly, case-insensitively. Default: false.")
         .intProperty(ParamNames.LIMIT, "Maximum results per page (deprecated, use pageSize). Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
@@ -104,6 +105,8 @@ class FindSymbolTool : AbstractMcpTool() {
         if (query.isBlank()) {
             return createErrorResult("Query cannot be empty")
         }
+
+        scopeMatchesNoFilesError(project, scope)?.let { return it }
 
         requireSmartMode(project)
 
@@ -201,6 +204,7 @@ class FindSymbolTool : AbstractMcpTool() {
                 .mapNotNull { SymbolDataConverter.convert(it.item, project, scope, languageFilter) }
                 .filter { fuzzySearch || it.name.equals(popupResults.localPattern, ignoreCase = true) }
                 .distinctBy { "${it.file}:${it.line}:${it.column}:${it.name}" }
+                .let { SameNameSymbolOrder.sort(it) { symbol -> symbol } }
             if (results.size >= limit ||
                 popupResults.candidates.size < popupLimit ||
                 popupLimit >= popupLimitCap

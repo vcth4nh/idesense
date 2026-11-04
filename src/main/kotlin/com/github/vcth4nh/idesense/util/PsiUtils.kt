@@ -18,8 +18,10 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.PsiReference
+import com.intellij.psi.util.PsiTreeUtil
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
+import kotlin.math.abs
 
 object PsiUtils {
 
@@ -30,6 +32,8 @@ object PsiUtils {
      * 3 levels covers common cases: identifier -> expression -> call expression.
      */
     private const val DEFAULT_PARENT_SEARCH_DEPTH = 3
+    private const val MAX_HINT_LEAVES = 200
+    private const val MAX_HINT_RESOLVES = 20
 
     /**
      * Resolves the target element from a position, mirroring what the IDE's Ctrl+Click does
@@ -104,6 +108,43 @@ object PsiUtils {
         // 3. Cursor-on-declaration-identifier fallback only — bug B.1 fix.
         if (!isOnDeclarationIdentifier(element)) return null
         return findNamedElement(element)
+    }
+
+    /**
+     * Text to append to a "nothing at this position" error: up to 3 named elements of [line]
+     * (1-based), nearest to [column] first, so the caller can retry with a column that works.
+     * A leaf counts when [resolveReferenceTarget] accepts it, as at the position itself.
+     * Resolves at most [MAX_HINT_RESOLVES] leaves.
+     */
+    fun namedElementsOnLine(psiFile: PsiFile, line: Int, column: Int): String {
+        val document = PsiDocumentManager.getInstance(psiFile.project).getDocument(psiFile) ?: return ""
+        if (line < 1 || line > document.lineCount) return ""
+        val lineStart = document.getLineStartOffset(line - 1)
+        val lineEnd = document.getLineEndOffset(line - 1)
+        if (document.charsSequence.subSequence(lineStart, lineEnd).isBlank()) return " Line $line is blank."
+
+        // Start at most MAX_HINT_LEAVES characters before the caret. A leaf has at least one
+        // character, so the leaves before the caret never fill the cap, and on a long line the cap
+        // keeps the leaves near the caret.
+        val caret = (lineStart + column - 1).coerceIn(lineStart, lineEnd)
+        val leaves = mutableListOf<PsiElement>()
+        var leaf = psiFile.findElementAt(maxOf(lineStart, caret - MAX_HINT_LEAVES))
+        while (leaf != null && leaf.textRange.startOffset < lineEnd && leaves.size < MAX_HINT_LEAVES) {
+            val text = leaf.text
+            if (leaf.textRange.startOffset >= lineStart && text.any { it.isLetterOrDigit() || it == '_' || it == '$' }) {
+                leaves += leaf
+            }
+            leaf = PsiTreeUtil.nextLeaf(leaf)
+        }
+        val hits = leaves.sortedBy { abs(it.textRange.startOffset - caret) }.asSequence()
+            .take(MAX_HINT_RESOLVES)
+            .filter { resolveReferenceTarget(it) != null }
+            .take(3)
+            .toList()
+        if (hits.isEmpty()) return " Line $line has no named element."
+        return " Named elements on line $line: " + hits.joinToString(", ") {
+            "'${it.text.take(60)}' at column ${it.textRange.startOffset - lineStart + 1}"
+        } + "."
     }
 
     /**
