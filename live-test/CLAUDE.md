@@ -322,6 +322,17 @@ will just snapshot a different empty/odd result.
 - **Python `find-definition` on builtins inside lambda / dict bodies**: some
   positions can return `tool_error_text: No named element at position` — but the
   suite currently has no probe capturing this, so it's an observation, not a blessed row.
+- **Python builtins carry the `builtins.` qualifier** (PyCharm 2026.2+):
+  `qualifiedName` reads `builtins.object`, `builtins.int.__new__`,
+  `builtins.super.__init__`. PyCharm's `QualifiedNameFinder` now always prefixes
+  builtins with `builtins`; 2026.1.3 returned the bare name (`object`).
+- **Python scope rows need `test/` marked as a test root.** PyCharm 2026.2
+  re-imports the fixture from `pyproject.toml` as `.idea/live-test-python.iml`
+  (and rewrites the tracked `modules.xml`) with `test/` as a plain source root.
+  Then `hier-caller-target-production` gains the test caller and
+  `hier-caller-target-test` loses it. Fix: stop PyCharm, set
+  `isTestSource="true"` on the `test` source folder in that `.iml`, restart.
+  The `.iml` is gitignored, so a fresh checkout needs the same edit.
 - **TypeScript `impls-` via object literal**: classes/objects satisfying an
   interface structurally (no `implements` clause) are not surfaced.
 - **JS `hier-sub-Probe-*` subtypes omit a cross-file child that `extends` a
@@ -354,8 +365,14 @@ will just snapshot a different empty/odd result.
   `QualifiedNameUtil.goFallback` builds the FQN by reflection (`package.Function` /
   `package.Receiver.Method` / `package.Interface.method`). Nearly all Go elements
   resolve; a few positions still return `null`.
-- **Rust `qualifiedName` partially `null`**: when the Rust provider can't
-  compute an FQN. The `name` field is unaffected.
+- **Rust `qualifiedName` comes from RustRover's `RsQualifiedNameProvider`**
+  (2026.2+): crate-qualified module paths (`live_test_rust::normal::Circle`),
+  trait-impl members as `<live_test_rust::normal::Circle as
+  live_test_rust::normal::Shape>::area`, std items as `core::…` / `alloc::…`.
+  On 2026.1 the provider returned nothing for these elements, so
+  `QualifiedNameUtil.rustFallback` emitted `crate::<name>` (the pre-#95
+  snapshots). It is still `null` where neither computes an FQN (13 values in 5
+  rows, e.g. `impls-Shape-trait`). The `name` field is unaffected.
 - **Rust `impls-generic-bound-Coercer`** (anchored on `Coercer` in the `<C: Coercer>`
   bound): resolves to the trait's implementations — `impl Coercer for IntCoercer`,
   `impl Coercer for LenCoercer` (`totalCount: 2`).
@@ -365,6 +382,15 @@ will just snapshot a different empty/odd result.
 - **Kotlin `qualifiedName` uses `#` for methods** (e.g. `demo.Shape#area`):
   correct — matches IntelliJ's "Copy Reference" format and is consistent
   with Java.
+- **Java hierarchy node `name` is the bare member or class name** (IntelliJ
+  2026.2+): call-hierarchy nodes read `describe()` / `Circle(double)`, and
+  type-hierarchy nodes read `Cat` / `Enum constant 'INT'`. The tool keeps only
+  the primary-text part of the IDE node. Since 2026.2 the IDE puts the class
+  context (`Shape.`, `in Modern`) in the grey location part
+  (`JavaHierarchyNodeDescriptor.appendLocationPath`), which the tool drops; the
+  class stays in `qualifiedName` (`demo.Shape#describe`). Kotlin call
+  hierarchies show the same for Java library callees (`append(String)`,
+  `abs(int)`).
 - **Library/SDK targets show as a bare basename**: a hit resolving into a
   JDK / stdlib / stub file (`java.lang.Object`, JS `Number.parseInt`, Python
   `int`, …) is reduced to basename + symbol identity, with no directory and no
@@ -404,12 +430,16 @@ will just snapshot a different empty/odd result.
   to the package changes these snapshots — re-bless them when you add Go
   fixtures (this is why they drift after `multisuper.go` / `*_super.go` land).
 - **Go `find_usages` on a type counts the method receiver as a usage**:
-  `usage-baseShape-embed` (find_usages of the `baseShape` struct) returns 11
-  usages — the three embed sites (`Labeled` embed.go:6, `Circle` normal.go:19,
-  `Rectangle` normal.go:30), the receiver declaration
-  `func (b baseShape) Describe()` at normal.go:16, **plus 7 more in `normal_test.go`**. The receiver names the type,
-  so GoLand counts it as a reference. Verified in GoLand (Find Usages lists the
-  receiver). Not a tool artifact.
+  `usage-baseShape-embed` (find_usages of the `baseShape` struct) returns 17
+  usages — the three embed sites (`Labeled` embed.go:9, `Circle` normal.go:38,
+  `Rectangle` normal.go:51), the receiver declaration
+  `func (b baseShape) Describe()` at normal.go:33, **plus 13 in `normal_test.go`**:
+  6 `baseShape baseShape` field types, 1 `baseShape{}` literal, and 6
+  composite-literal keys `baseShape: tt.fields.baseShape`. The receiver names the
+  type, so GoLand counts it as a reference. Verified in GoLand (Find Usages lists the
+  receiver). The keys name the embedded field (`ide_find_definition` on one
+  resolves to the `ANONYMOUS_FIELD` at normal.go:38); GoLand 2026.1 did not list
+  them (11 usages), 2026.2 does. Not a tool artifact.
 - **`find_file` extension queries substring-match longer extensions**: `*.js` matches
   `package.json` (`.js` ⊂ `.json`) and `*.kt` matches `build.gradle.kts` / `settings.gradle.kts`.
   MinusculeMatcher fragments are not end-anchored without a trailing space; matcher-level
