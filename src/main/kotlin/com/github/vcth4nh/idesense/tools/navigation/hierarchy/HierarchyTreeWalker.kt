@@ -107,7 +107,9 @@ internal interface LogicalElementResolver {
 /** Walker output: the populated descriptor tree plus a resolver to extract logical elements. */
 internal class HierarchyWalkResult(
     val root: HierarchyNodeDescriptor,
-    val resolver: LogicalElementResolver
+    val resolver: LogicalElementResolver,
+    /** True when the walk's node limit cut the tree (see [HierarchyTreeWalker.walk]). */
+    val truncated: Boolean = false
 )
 
 /**
@@ -185,7 +187,9 @@ internal object HierarchyTreeWalker {
     /**
      * Walks the IDE's hierarchy tree for [element] in the [kind] direction.
      * Returns the root [HierarchyNodeDescriptor] with all children populated
-     * via [HierarchyNodeDescriptor.setCachedChildren] up to [maxDepth].
+     * via [HierarchyNodeDescriptor.setCachedChildren] up to [maxDepth]. The tree holds at most
+     * [maxNodes] nodes below the root, filled depth-first; when the limit cuts the tree, the
+     * result is marked truncated.
      *
      * MUST be called from a read action.
      */
@@ -195,7 +199,8 @@ internal object HierarchyTreeWalker {
         element: PsiElement,
         kind: HierarchyKind,
         scope: HierarchyScope,
-        maxDepth: Int
+        maxDepth: Int,
+        maxNodes: Int = Int.MAX_VALUE
     ): Result<HierarchyWalkResult> {
         // Pin the whole walk to the IDE GUI's client session (GH #17). The platform
         // hierarchy browser ctor (reached via createBrowserHeadless) force-inits the
@@ -215,7 +220,7 @@ internal object HierarchyTreeWalker {
         // Flatten: walkInner returns Result<...>; runCatching wraps any unexpected
         // throw as Result.failure; combine so callers always see a single Result.
         val result = ClientId.withExplicitClientId(guiClientId(project)) {
-            runCatching { walkInner(project, element, kind, scope, maxDepth) }
+            runCatching { walkInner(project, element, kind, scope, maxDepth, maxNodes) }
                 .getOrElse { Result.failure(it) }
         }
         // Never swallow a read-action cancellation — rethrow it so the enclosing
@@ -246,7 +251,8 @@ internal object HierarchyTreeWalker {
         element: PsiElement,
         kind: HierarchyKind,
         scope: HierarchyScope,
-        maxDepth: Int
+        maxDepth: Int,
+        maxNodes: Int
     ): Result<HierarchyWalkResult> {
         val language = element.language
         val provider = when {
@@ -299,8 +305,11 @@ internal object HierarchyTreeWalker {
             ?: return Result.failure(IllegalStateException("Browser refused element ${element.text} for $kind"))
 
         runCatching { structure.baseDescriptor.update() }.onFailure(::rethrowIfCancellation)
-        walkRecursive(structure, structure.baseDescriptor, maxDepth, mutableSetOf())
-        return Result.success(HierarchyWalkResult(structure.baseDescriptor, BrowserBackedResolver(browser)))
+        val budget = NodeBudget(maxNodes)
+        walkRecursive(structure, structure.baseDescriptor, maxDepth, mutableSetOf(), budget)
+        return Result.success(
+            HierarchyWalkResult(structure.baseDescriptor, BrowserBackedResolver(browser), budget.truncated)
+        )
     }
 
     private fun resolveTarget(provider: Any, project: Project, element: PsiElement): PsiElement? {
@@ -429,11 +438,17 @@ internal object HierarchyTreeWalker {
         return null
     }
 
+    /** Nodes that a walk can still add; [truncated] records that the limit cut children or left a node unexpanded. */
+    private class NodeBudget(var nodesLeft: Int) {
+        var truncated = false
+    }
+
     private fun walkRecursive(
         structure: HierarchyTreeStructure,
         node: HierarchyNodeDescriptor,
         depthLeft: Int,
-        visited: MutableSet<PsiElement>
+        visited: MutableSet<PsiElement>,
+        budget: NodeBudget
     ) {
         if (depthLeft <= 0) {
             node.cachedChildren = emptyArray()
@@ -447,16 +462,27 @@ internal object HierarchyTreeWalker {
             }
             visited.add(psi)
         }
-        val descriptorChildren = runCatching { structure.getChildElements(node) }
+        if (budget.nodesLeft <= 0) {
+            // Limit reached: this node may have children that the tree leaves out.
+            budget.truncated = true
+            node.cachedChildren = emptyArray()
+            return
+        }
+        var descriptorChildren = runCatching { structure.getChildElements(node) }
             .onFailure(::rethrowIfCancellation)
             .getOrDefault(emptyArray<Any>())
             .filterIsInstance<HierarchyNodeDescriptor>()
+        if (descriptorChildren.size > budget.nodesLeft) {
+            descriptorChildren = descriptorChildren.take(budget.nodesLeft)
+            budget.truncated = true
+        }
+        budget.nodesLeft -= descriptorChildren.size
         node.cachedChildren = descriptorChildren.toTypedArray<Any>()
         for (child in descriptorChildren) {
             // Trigger the descriptor's presentation update so getHighlightedText()
             // is populated — the IDE normally does this in the UI tree renderer.
             runCatching { child.update() }.onFailure(::rethrowIfCancellation)
-            walkRecursive(structure, child, depthLeft - 1, visited)
+            walkRecursive(structure, child, depthLeft - 1, visited, budget)
         }
     }
 }

@@ -1,4 +1,5 @@
 {"id":"usage-Circle-struct","tool":"ide_find_usages","params":{"column":6,"file":"normal.go","line":37}}
+{"id":"usage-Circle-struct-production-scope","tool":"ide_find_usages","params":{"column":6,"file":"normal.go","line":37,"scope":"project_production_files"}}
 {"id":"usage-CoerceLimitA-iota","tool":"ide_find_usages","params":{"column":2,"file":"quirks.go","line":144}}
 {"id":"usage-Drawable-iface","tool":"ide_find_usages","params":{"column":6,"file":"normal.go","line":16}}
 {"id":"usage-Drawable.draw","tool":"ide_find_usages","params":{"column":2,"file":"normal.go","line":17}}

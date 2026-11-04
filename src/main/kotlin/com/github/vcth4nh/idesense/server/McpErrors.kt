@@ -38,6 +38,38 @@ object McpErrors {
         putJsonArray("supportedValues") { supportedValues.forEach { add(it) } }
     }
 
+    /**
+     * Body for a `scope` that can match no file because the project lacks the source roots it
+     * needs. An empty result would read as "no matches", so the tool reports the scope instead.
+     */
+    fun scopeMatchesNoFiles(scope: String, reason: String): JsonObject = buildJsonObject {
+        put("error", "scope_matches_no_files")
+        put(
+            "message",
+            "Scope '$scope' matches no files: $reason. An empty result would not mean that no matches " +
+                "exist. Omit 'scope' to search all project files."
+        )
+        put("provided", scope)
+    }
+
+    /**
+     * True when [t] (or a cause) is the platform's stub-index consistency failure ("PSI and index
+     * do not match", `StubTreeLoader`). Before it throws, the platform calls `rebuildStub()` on that
+     * file (`FileTrees`, idea/262.8665.337), so the call can succeed later. A wrapper can put the
+     * class name first in its message, so the check looks for the text anywhere.
+     */
+    fun isIndexMismatch(t: Throwable): Boolean =
+        generateSequence(t) { it.cause }.take(10).any { it.message?.contains(INDEX_MISMATCH_TEXT) == true }
+
+    /** Retryable body for [isIndexMismatch], instead of the raw platform message. */
+    fun indexOutOfSync(): JsonObject = generic(
+        "index_out_of_sync",
+        "The IDE's index does not match the file content. This is temporary: the IDE rebuilds the index of " +
+            "that file. Wait a few seconds, check ide_index_status (wait while isDumbMode is true), then retry."
+    )
+
+    private const val INDEX_MISMATCH_TEXT = "PSI and index do not match"
+
     /** Aggregate body for argument-validation failures; the agent fixes everything in one retry. */
     fun invalidArguments(toolName: String, violations: List<Violation>): JsonObject = buildJsonObject {
         put("error", "invalid_arguments")

@@ -39,10 +39,14 @@ class CallHierarchyTool : AbstractMcpTool() {
         a flat reference list.
 
         Returns: recursive tree with method names, qualified names, file locations (line/column),
-        and nested call relationships up to maxDepth.
+        and nested call relationships up to maxDepth (default 3).
 
         Gotchas: requires smart mode. Languages: Java, Kotlin, Python, JS/TS, Go, PHP, Rust. Rust
-        "callees" may be incomplete due to PSI resolution limits.
+        "callees" may be incomplete due to PSI resolution limits. The tree holds at most $MAX_NODES
+        nodes, filled depth-first. When the walk reaches this limit, the result has truncated=true,
+        and the nodes after that point show no children, even if they have some. Then lower
+        maxDepth, start from one caller, or use ide_find_usages (paginated) for the full flat list
+        of direct callers.
     """.trimIndent()
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()
@@ -50,7 +54,7 @@ class CallHierarchyTool : AbstractMcpTool() {
         .file(description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin.")
         .lineAndColumn()
         .enumProperty("direction", "Direction: 'callers' (methods that call this method) or 'callees' (methods this method calls)", listOf("callers", "callees"), required = true)
-        .intProperty("maxDepth", "How many levels deep to traverse the call hierarchy (default: 7, max: 20)")
+        .intProperty("maxDepth", "How many levels deep to traverse the call hierarchy (default: $DEFAULT_DEPTH, max: $MAX_DEPTH)")
         .hierarchyScopeProperty(
             "Hierarchy scope. Default: all. (production = production sources only — empty in projects without production roots, same as the IDE.)",
             HierarchyScope.wireValues(HierarchyScope.CALL_HIERARCHY_SCOPES)
@@ -58,8 +62,10 @@ class CallHierarchyTool : AbstractMcpTool() {
         .build()
 
     companion object {
-        private const val DEFAULT_DEPTH = 7
+        private const val DEFAULT_DEPTH = 3
         private const val MAX_DEPTH = 20
+        // Bounds the response: a callers tree of a frequently called function can hold thousands of nodes.
+        private const val MAX_NODES = 200
     }
 
     override suspend fun doExecute(project: Project, arguments: JsonObject): ToolCallResult {
@@ -89,21 +95,26 @@ class CallHierarchyTool : AbstractMcpTool() {
             // Tool-layer gate: reject position-based invocations where the caret is not on a
             // resolvable navigation target (comment, whitespace, literal).
             if (PsiUtils.resolveTargetElement(element) == null) {
-                return@suspendingReadAction createErrorResult("No method/function found at position")
+                return@suspendingReadAction createErrorResult(
+                    "No method/function found at position." + caretHint(element, arguments)
+                )
             }
 
             ProgressManager.checkCanceled()
 
-            val walkResult = HierarchyTreeWalker.walk(project, element, kind, scope, depth).getOrElse {
+            val walkResult = HierarchyTreeWalker.walk(project, element, kind, scope, depth, MAX_NODES).getOrElse {
                 return@suspendingReadAction createErrorResult(it.message ?: "Failed to build call hierarchy")
             }
 
             val rootCallElement = convertDescriptorToCallElement(walkResult.root, walkResult.resolver, depth)
-                ?: return@suspendingReadAction createErrorResult("No method/function found at position")
+                ?: return@suspendingReadAction createErrorResult(
+                    "No method/function found at position." + caretHint(element, arguments)
+                )
 
             createJsonResult(CallHierarchyResult(
                 element = rootCallElement.copy(children = null),
-                calls = rootCallElement.children ?: emptyList()
+                calls = rootCallElement.children ?: emptyList(),
+                truncated = walkResult.truncated
             ))
         }
     }

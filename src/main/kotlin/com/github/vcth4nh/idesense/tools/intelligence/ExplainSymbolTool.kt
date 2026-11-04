@@ -8,6 +8,7 @@ import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
 import com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch
 import com.github.vcth4nh.idesense.handlers.LanguageServices
 import com.github.vcth4nh.idesense.handlers.PopupFaithfulSymbolSearch
+import com.github.vcth4nh.idesense.handlers.SameNameSymbolOrder
 import com.github.vcth4nh.idesense.handlers.SymbolData
 import com.github.vcth4nh.idesense.handlers.SymbolDataConverter
 import com.github.vcth4nh.idesense.server.McpErrors
@@ -25,6 +26,7 @@ import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.ImplementationLocations
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
 import com.github.vcth4nh.idesense.util.HtmlToText
+import com.github.vcth4nh.idesense.util.LinePreview
 import com.github.vcth4nh.idesense.util.PsiUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.codeInsight.documentation.DocumentationManager
@@ -35,7 +37,6 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
@@ -199,6 +200,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
                 Match(element, data)
             }
             .distinctBy { "${it.data.file}:${it.data.line}:${it.data.column}:${it.data.name}" }
+            .let { SameNameSymbolOrder.sort(it) { match -> match.data } }
 
         return when {
             matches.isEmpty() -> SymbolResolution.NotFound
@@ -245,9 +247,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
 
         val line = document.getLineNumber(target.textOffset) + 1
         val column = target.textOffset - document.getLineStartOffset(line - 1) + 1
-        val preview = document.getText(
-            TextRange(document.getLineStartOffset(line - 1), document.getLineEndOffset(line - 1))
-        ).trim()
+        val preview = LinePreview.ofLine(document, line - 1, column - 1)
         val qualifiedName = QualifiedNameUtil.getQualifiedName(target)
         val definition = DefinitionResult(
             file = getRelativePath(project, targetFile),
@@ -352,17 +352,11 @@ class ExplainSymbolTool : AbstractMcpTool() {
                         val refColumn = refElement.textOffset - refDocument.getLineStartOffset(refLine - 1) + 1
                         val path = getRelativePath(project, refFile)
                         if (seen.add("$path:$refLine:$refColumn") && top.size < MAX_TOP_USAGES) {
-                            val lineText = refDocument.getText(
-                                TextRange(
-                                    refDocument.getLineStartOffset(refLine - 1),
-                                    refDocument.getLineEndOffset(refLine - 1)
-                                )
-                            ).trim()
                             top.add(UsageLocation(
                                 file = path,
                                 line = refLine,
                                 column = refColumn,
-                                preview = lineText,
+                                preview = LinePreview.ofLine(refDocument, refLine - 1, refColumn - 1),
                                 usageType = FindUsagesTool.classifyUsage(refElement),
                                 enclosingScope = PsiUtils.getEnclosingScope(refElement),
                             ))

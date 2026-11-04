@@ -64,7 +64,7 @@ class FindClassTool : AbstractMcpTool() {
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
         .stringProperty(ParamNames.QUERY, "Class name pattern. With fuzzySearch=true, uses IDE camelCase/substring matching (e.g. \"USvc\" → \"UserService\"); otherwise an exact (case-insensitive) name match. Required for fresh search; ignored when cursor is provided.")
-        .scopeProperty("Search scope. Default: project_files.")
+        .scopeProperty()
         .stringProperty(ParamNames.LANGUAGE, "Filter results by language (e.g., \"Kotlin\", \"Java\", \"Python\"). Case-insensitive. Optional.")
         .booleanProperty(ParamNames.FUZZY_SEARCH, "When true, use the IDE's Go to Class fuzzy matching (camelCase + substring, e.g. \"USvc\" matches \"UserService\"). When false (default), match the name exactly, case-insensitively. Default: false.")
         .intProperty(ParamNames.LIMIT, "Maximum results per page (deprecated, use pageSize). Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
@@ -107,6 +107,8 @@ class FindClassTool : AbstractMcpTool() {
         if (query.isBlank()) {
             return createErrorResult("Query cannot be empty")
         }
+
+        scopeMatchesNoFilesError(project, scope)?.let { return it }
 
         requireSmartMode(project)
 

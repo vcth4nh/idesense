@@ -4,6 +4,8 @@ import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.toArgumentFailure
 import com.github.vcth4nh.idesense.exceptions.IndexNotReadyException
+import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
+import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
 import com.github.vcth4nh.idesense.server.PaginationService
 import com.github.vcth4nh.idesense.server.ProjectResolver
 import com.github.vcth4nh.idesense.server.McpErrors
@@ -47,6 +49,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
@@ -646,6 +649,28 @@ abstract class AbstractMcpTool : McpTool {
                 isError = true,
             )
         }
+    }
+
+    /**
+     * `scope_matches_no_files` error when [scope] can match no file because the project lacks the
+     * source roots it needs, else null. Call it after the scope parse and before the search.
+     */
+    protected suspend fun scopeMatchesNoFilesError(project: Project, scope: BuiltInSearchScope): ToolCallResult? {
+        val reason = suspendingReadAction { BuiltInSearchScopeResolver.missingRootsReason(project, scope) }
+            ?: return null
+        return createStructuredErrorResult(McpErrors.scopeMatchesNoFiles(scope.wireValue, reason))
+    }
+
+    /**
+     * Text to append to a "nothing at this position" error: the named elements on the requested
+     * line and their columns (see [PsiUtils.namedElementsOnLine]). [element] is the leaf at the position.
+     */
+    @RequiresReadLock
+    protected fun caretHint(element: PsiElement, arguments: JsonObject): String {
+        val line = arguments[ParamNames.LINE]?.jsonPrimitive?.intOrNull ?: return ""
+        val column = arguments[ParamNames.COLUMN]?.jsonPrimitive?.intOrNull ?: return ""
+        val file = element.containingFile ?: return ""
+        return PsiUtils.namedElementsOnLine(file, line, column)
     }
 
     /**

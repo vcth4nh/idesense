@@ -10,10 +10,12 @@ import com.github.vcth4nh.idesense.history.CommandHistoryService
 import com.github.vcth4nh.idesense.history.CommandStatus
 import com.github.vcth4nh.idesense.server.models.*
 import com.github.vcth4nh.idesense.settings.McpSettings
+import com.github.vcth4nh.idesense.tools.AllProjectsTool
 import com.github.vcth4nh.idesense.tools.ToolRegistry
 import com.github.vcth4nh.idesense.tools.schema.ArgumentValidator
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
@@ -140,6 +142,21 @@ class JsonRpcHandler @JvmOverloads constructor(
 
         val projectResult = projectResolver.resolve(projectPath)
         if (projectResult.isError) {
+            // A tool that can answer for every open project does so, instead of the
+            // multiple_projects_open error (ide_index_status is the first call an agent makes).
+            if (projectPath == null && tool is AllProjectsTool) {
+                val openProjects = ProjectManager.getInstance().openProjects.filter { !it.isDefault }
+                if (openProjects.size > 1) {
+                    val violations = ArgumentValidator.validate(arguments, tool.inputSchema)
+                    if (violations.isNotEmpty()) {
+                        return structuredToolError(request.id, McpErrors.invalidArguments(toolName, violations))
+                    }
+                    return JsonRpcResponse(
+                        id = request.id,
+                        result = json.encodeToJsonElement(tool.executeForAllProjects(openProjects))
+                    )
+                }
+            }
             return JsonRpcResponse(
                 id = request.id,
                 result = json.encodeToJsonElement(projectResult.errorResult!!)
@@ -203,7 +220,13 @@ class JsonRpcHandler @JvmOverloads constructor(
             structuredToolError(request.id, McpErrors.fromException(e))
         } catch (e: Exception) {
             val duration = System.currentTimeMillis() - startTime
-            LOG.error("Tool execution failed: $toolName", e)
+            val indexMismatch = McpErrors.isIndexMismatch(e)
+            if (indexMismatch) {
+                // A platform index state, not a plugin bug: no ERROR report, a retryable body instead.
+                LOG.warn("Tool '$toolName' hit a PSI/index mismatch", e)
+            } else {
+                LOG.error("Tool execution failed: $toolName", e)
+            }
 
             updateHistorySafely(
                 project = project,
@@ -215,7 +238,8 @@ class JsonRpcHandler @JvmOverloads constructor(
 
             structuredToolError(
                 request.id,
-                McpErrors.generic("internal_error", e.message ?: ErrorMessages.UNKNOWN_ERROR)
+                if (indexMismatch) McpErrors.indexOutOfSync()
+                else McpErrors.generic("internal_error", e.message ?: ErrorMessages.UNKNOWN_ERROR)
             )
         }
     }

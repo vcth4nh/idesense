@@ -62,6 +62,7 @@ fails when this file is stale.
 | 37:6 | explain-Circle-pos | explain_symbol | `type Circle struct {` |
 | 37:6 | hier-type-Circle | type_hierarchy | `type Circle struct {` |
 | 37:6 | usage-Circle-struct | find_usages | `type Circle struct {` |
+| 37:6 | usage-Circle-struct-production-scope | find_usages | `type Circle struct {` |
 | 44:17 | super-Circle.Area | find_super_methods | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
 | 44:18 | def-Circle.area | find_definition | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
 | 44:18 | hier-caller-area | call_hierarchy | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |

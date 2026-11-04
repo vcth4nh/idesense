@@ -19,6 +19,26 @@ class McpErrorsUnitTest : TestCase() {
         assertEquals("IDE is in dumb mode", body["message"]?.jsonPrimitive?.content)
     }
 
+    fun testScopeMatchesNoFilesShape() {
+        val body = McpErrors.scopeMatchesNoFiles("project_production_files", "the project has no production source roots")
+        assertEquals("scope_matches_no_files", body["error"]?.jsonPrimitive?.content)
+        assertEquals("project_production_files", body["provided"]?.jsonPrimitive?.content)
+        val message = body["message"]!!.jsonPrimitive.content
+        assertTrue(message.contains("project_production_files"))
+        assertTrue(message.contains("no production source roots"))
+    }
+
+    fun testIndexMismatchDetectedDirectlyAndAsCause() {
+        val platform = RuntimeException("PSI and index do not match.\nPlease report the problem to JetBrains with the files attached\n")
+        assertTrue(McpErrors.isIndexMismatch(platform))
+        assertTrue(McpErrors.isIndexMismatch(IllegalStateException("wrapper", platform)))
+        // A wrapper that copies cause.toString() into its own message and drops the cause.
+        assertTrue(McpErrors.isIndexMismatch(RuntimeException("com.intellij.openapi.diagnostic.RuntimeExceptionWithAttachments: PSI and index do not match.")))
+        assertFalse(McpErrors.isIndexMismatch(RuntimeException("something else")))
+        assertFalse(McpErrors.isIndexMismatch(RuntimeException()))
+        assertEquals("index_out_of_sync", McpErrors.indexOutOfSync()["error"]?.jsonPrimitive?.content)
+    }
+
     fun testInvalidScopeShape() {
         val body = McpErrors.invalidScope(
             "scope",

@@ -7,6 +7,7 @@ import com.github.vcth4nh.idesense.tools.models.SyncFilesResult
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import kotlinx.serialization.json.JsonObject
@@ -58,6 +59,7 @@ class SyncFilesTool : AbstractMcpTool() {
 
         val syncedPaths: List<String>
         val syncedAll: Boolean
+        var excludedPaths = emptyList<String>()
 
         if (requestedPaths != null && requestedPaths.isNotEmpty()) {
             val resolvedFiles = requestedPaths.mapNotNull { relativePath ->
@@ -68,6 +70,13 @@ class SyncFilesTool : AbstractMcpTool() {
             }
             syncedPaths = resolvedFiles.map { it.first }
             syncedAll = false
+            // The refresh is still valid there (the IDE's Synchronize does it too), but the
+            // caller must not expect index-based results for these paths.
+            excludedPaths = suspendingReadAction {
+                val fileIndex = ProjectRootManager.getInstance(project).fileIndex
+                resolvedFiles.filter { (_, file) -> fileIndex.isExcluded(file) && !fileIndex.isInLibrary(file) }
+                    .map { it.first }
+            }
         } else {
             val projectDir = LocalFileSystem.getInstance().findFileByPath(effectiveRoot)
             if (projectDir != null) {
@@ -87,10 +96,13 @@ class SyncFilesTool : AbstractMcpTool() {
             "Synchronized ${syncedPaths.size} path(s)."
         }
 
+        val excludedNote = if (excludedPaths.isEmpty()) "" else
+            " Excluded from the project, so the IDE does not index or analyze: ${excludedPaths.joinToString(", ")}."
+
         return createJsonResult(SyncFilesResult(
             syncedPaths = syncedPaths,
             syncedAll = syncedAll,
-            message = message
+            message = message + excludedNote
         ))
     }
 

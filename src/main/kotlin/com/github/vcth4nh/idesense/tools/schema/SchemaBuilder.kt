@@ -72,7 +72,7 @@ class SchemaBuilder private constructor() {
         if (required) requiredFields.add(name)
     }
 
-    fun scopeProperty(description: String, required: Boolean = false) = apply {
+    fun scopeProperty(description: String = SchemaConstants.DESC_SCOPE, required: Boolean = false) = apply {
         enumProperty(
             name = ParamNames.SCOPE,
             description = description,

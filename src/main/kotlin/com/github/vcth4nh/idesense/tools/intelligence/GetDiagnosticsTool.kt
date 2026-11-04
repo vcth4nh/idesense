@@ -65,7 +65,10 @@ class GetDiagnosticsTool : AbstractMcpTool() {
         an editor for full intention coverage), build messages, and test results with stack traces.
 
         Gotchas: requires smart mode for file analysis. Intentions are only available when the file
-        is already open in an editor tab.
+        is already open in an editor tab. When the file analysis times out (analysisTimedOut), problems
+        and problemCount are null: the file is not known to be clean. analysisFresh covers the analysis of
+        the current file text only; right after the IDE starts, background SDK setup (for example Python
+        interpreter skeletons) can still cause transient unresolved-import errors.
     """.trimIndent()
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()
@@ -129,7 +132,8 @@ class GetDiagnosticsTool : AbstractMcpTool() {
                 endLine = endLine,
                 maxProblems = MAX_PROBLEMS
             )
-            problems = analysisResult.problems
+            // A timed-out analysis established nothing: null, not an empty list that reads as a clean file.
+            problems = analysisResult.problems.takeUnless { analysisResult.analysisTimedOut }
             analysisFresh = analysisResult.analysisFresh
             analysisTimedOut = analysisResult.analysisTimedOut
             analysisMessage = analysisResult.analysisMessage

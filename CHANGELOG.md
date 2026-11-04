@@ -11,7 +11,46 @@
   qualified name (an ambiguous name returns a candidates list instead of guessing) or an
   exact file position, so agents can skip the find-coordinates-first step.
 
+### Changed
+- `ide_call_hierarchy`: the default `maxDepth` is 3 (was 7), and the tree holds at most 200 nodes,
+  filled depth-first. A new `truncated` field is `true` when the walk stopped at this limit.
+  Callers trees of frequently called functions were 60K–250K characters before and failed in
+  clients (#116).
+- `project_production_files` / `project_test_files` in a project without production (or test)
+  source roots now return a `scope_matches_no_files` error instead of an empty list, in
+  `ide_find_usages`, `ide_find_symbol`, `ide_find_file`, `ide_find_class` and
+  `ide_find_implementations`. The scope itself keeps the IDE's semantics (the IDE's
+  "Project Production Files" scope is also empty there); the error only makes the empty scope
+  visible, because `[]` read as "no usages" (#116).
+- `ide_find_symbol` and `ide_explain_symbol` order same-name symbols: declarations (class,
+  function, …) before values (field, variable, …), then a symbol declared in a file of its own
+  name. The Go to Symbol popup sorts same-name items by proximity to the file open in the
+  editor; a headless call has no editor, so the old order was arbitrary and could put attribute
+  assignments above the declaration. Remaining ties sort by file, line and column, so the order
+  is the same in every IDE session. Names keep the popup's match order (#116).
+- `ide_index_status` without `project_path` while several projects are open returns the status
+  of every open project (`projects: [{name, path, isDumbMode}]`) instead of
+  `multiple_projects_open` (#116).
+- `ide_diagnostics`: `problems` and `problemCount` are `null` when the file analysis timed out,
+  instead of an empty list that read as a clean file (#116).
+- Paginated tools echo the page size of the call in `pageSize`; it was `0` on an empty page and
+  the item count on a short page (#116).
+
 ### Fixed
+- Source-line text is bounded: `preview` (`ide_find_usages`, `ide_find_definition`,
+  `ide_explain_symbol`) and `ide_search_text` match `context` hold at most 200 characters of
+  the line, cut to a window around the match with `…` at each cut end. One match on a minified
+  line was 1.66M characters before, and a smaller `pageSize` could not help (#116).
+- `ide_search_text` reports `line` and `column` of the occurrence itself. A word inside a
+  multi-line comment or string was reported on the comment's first line, or not at all. The
+  search also no longer copies the whole line for every PSI ancestor of an occurrence (#116).
+- Caret errors of `ide_find_usages`, `ide_call_hierarchy` and `ide_find_implementations` name up
+  to 3 named elements of the requested line with their columns, or say that the line is blank
+  (#116).
+- A platform "PSI and index do not match" failure returns a retryable `index_out_of_sync` error
+  instead of `internal_error` with the raw platform text, and is logged at WARN, not ERROR (#116).
+- `ide_sync_files` names requested paths that are excluded from the project (and are not part
+  of a library): the IDE refreshes them but does not index them (#116).
 - `ide_find_file` no longer drops in-scope files on extension-only queries (`*.py`, `.py`, `py`).
   The default contributor enumerates the machine-global VFS name table in append order
   (scope and `IdFilter` are ignored on that path), so the old `limit*3` candidate-name cap

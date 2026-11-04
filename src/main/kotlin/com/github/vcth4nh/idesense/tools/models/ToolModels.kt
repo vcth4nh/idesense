@@ -84,7 +84,9 @@ data class TypeElement(
 @Serializable
 data class CallHierarchyResult(
     val element: CallElement,
-    val calls: List<CallElement>
+    val calls: List<CallElement>,
+    // true = the node limit cut the tree; some nodes then show no children although they have some.
+    val truncated: Boolean = false
 )
 
 @Serializable
@@ -215,6 +217,21 @@ data class RefactoringResult(
 // get_index_status output
 @Serializable
 data class IndexStatusResult(
+    val isDumbMode: Boolean
+)
+
+// get_index_status output without project_path while several projects are open
+@Serializable
+data class AllProjectsIndexStatusResult(
+    // true when any open project is indexing
+    val isDumbMode: Boolean,
+    val projects: List<ProjectIndexStatus>
+)
+
+@Serializable
+data class ProjectIndexStatus(
+    val name: String,
+    val path: String,
     val isDumbMode: Boolean
 )
 
