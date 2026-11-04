@@ -176,3 +176,5 @@ fails when this file is stale.
 | find-symbol-quirk-rebind | find_symbol | `{"query":"quirk_name_rebinding"}` |
 | find-symbol-total_area | find_symbol | `{"query":"total_area"}` |
 | hier-type-Shape-byname | type_hierarchy | `{"className":"normal.Shape"}` |
+| search-text-indirection-docstring | search_text | `{"query":"indirection"}` |
+| search-text-int-comments | search_text | `{"context":"comments","query":"int"}` |

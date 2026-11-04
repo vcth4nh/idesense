@@ -1,0 +1,2 @@
+{"id":"search-text-indirection-docstring","tool":"ide_search_text","params":{"query":"indirection"}}
+{"id":"search-text-int-comments","tool":"ide_search_text","params":{"context":"comments","query":"int"}}

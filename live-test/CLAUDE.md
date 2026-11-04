@@ -67,6 +67,7 @@ classes, camelCase methods, snake_case Python identifiers, UPPER enum constants)
 | `file-structure-` | `ide_file_structure` | |
 | `diagnostics-` | `ide_diagnostics` | |
 | `status-` | `ide_index_status` | |
+| `search-text-` | `ide_search_text` | entity = the query word; `-comments`/`-strings`/`-code` = the `context` param |
 
 ### Entity
 
