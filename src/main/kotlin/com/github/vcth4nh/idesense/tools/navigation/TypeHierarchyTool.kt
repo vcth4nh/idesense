@@ -132,44 +132,51 @@ class TypeHierarchyTool : AbstractMcpTool() {
                 HierarchyTreeWalker
                     .walk(project, element, HierarchyKind.SUBTYPES, scope, maxDepth)
                     .getOrElse {
+                        superResult?.close()
                         return@suspendingReadAction createErrorResult(it.message ?: "Failed to build subtype hierarchy")
                     }
             } else null
 
-            val supertypes = superResult?.let { sr ->
-                sr.root.cachedChildren
-                    ?.filterIsInstance<HierarchyNodeDescriptor>().orEmpty()
-                    .mapNotNull {
-                        convertDescriptorToTypeElement(it, sr.resolver, recurseSupertypes = true, remainingDepth = maxDepth)
-                    }
-            } ?: emptyList()
+            // Each result owns a per-call browser; release both once the trees are converted (GH #26).
+            try {
+                val supertypes = superResult?.let { sr ->
+                    sr.root.cachedChildren
+                        ?.filterIsInstance<HierarchyNodeDescriptor>().orEmpty()
+                        .mapNotNull {
+                            convertDescriptorToTypeElement(it, sr.resolver, recurseSupertypes = true, remainingDepth = maxDepth)
+                        }
+                } ?: emptyList()
 
-            val subtypes = mutableListOf<TypeElement>()
-            if (subResult != null) {
-                val resolver = subResult.resolver
-                fun collectSubtypes(desc: HierarchyNodeDescriptor) {
-                    convertDescriptorToTypeElement(desc, resolver, recurseSupertypes = false, remainingDepth = 0)
-                        ?.let { subtypes.add(it) }
-                    desc.cachedChildren
+                val subtypes = mutableListOf<TypeElement>()
+                if (subResult != null) {
+                    val resolver = subResult.resolver
+                    fun collectSubtypes(desc: HierarchyNodeDescriptor) {
+                        convertDescriptorToTypeElement(desc, resolver, recurseSupertypes = false, remainingDepth = 0)
+                            ?.let { subtypes.add(it) }
+                        desc.cachedChildren
+                            ?.filterIsInstance<HierarchyNodeDescriptor>()
+                            ?.forEach { collectSubtypes(it) }
+                    }
+                    subResult.root.cachedChildren
                         ?.filterIsInstance<HierarchyNodeDescriptor>()
                         ?.forEach { collectSubtypes(it) }
                 }
-                subResult.root.cachedChildren
-                    ?.filterIsInstance<HierarchyNodeDescriptor>()
-                    ?.forEach { collectSubtypes(it) }
+
+                // Root descriptor comes from whichever walk ran (at least one always does).
+                val rootDescriptor = (superResult ?: subResult)!!.root
+                val rootElement = ClassLikePsi.walkUpToClassLike(element) ?: element
+                val rootTypeElement = buildRootTypeElement(rootDescriptor, rootElement)
+                    ?: return@suspendingReadAction createErrorResult("Could not extract class info from element")
+
+                createJsonResult(TypeHierarchyResult(
+                    element = rootTypeElement,
+                    supertypes = supertypes,
+                    subtypes = subtypes
+                ))
+            } finally {
+                superResult?.close()
+                subResult?.close()
             }
-
-            // Root descriptor comes from whichever walk ran (at least one always does).
-            val rootDescriptor = (superResult ?: subResult)!!.root
-            val rootElement = ClassLikePsi.walkUpToClassLike(element) ?: element
-            val rootTypeElement = buildRootTypeElement(rootDescriptor, rootElement)
-                ?: return@suspendingReadAction createErrorResult("Could not extract class info from element")
-
-            createJsonResult(TypeHierarchyResult(
-                element = rootTypeElement,
-                supertypes = supertypes,
-                subtypes = subtypes
-            ))
         }
     }
 

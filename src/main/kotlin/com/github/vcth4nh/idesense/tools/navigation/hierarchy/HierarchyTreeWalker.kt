@@ -15,6 +15,7 @@ import com.intellij.openapi.client.ClientSessionsManager
 import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Disposer
 import com.intellij.psi.PsiElement
 import com.intellij.util.concurrency.annotations.RequiresReadLock
 import java.lang.reflect.InvocationTargetException
@@ -104,13 +105,26 @@ internal interface LogicalElementResolver {
     fun resolve(descriptor: HierarchyNodeDescriptor): PsiElement?
 }
 
-/** Walker output: the populated descriptor tree plus a resolver to extract logical elements. */
+/**
+ * Walker output: the populated descriptor tree plus a resolver to extract logical elements.
+ *
+ * Owns the per-call [browser] that the IDE-driven path constructed (null for the Rust
+ * fallback). The browser's ctor registers a `SingleAlarm` under it in the Disposer tree, so
+ * a result that is never closed leaks a Swing panel plus a timer per call (GH #26). Consume
+ * [root] through [resolver] first, then [close] — the tools wrap the conversion in `use { }`.
+ */
 internal class HierarchyWalkResult(
     val root: HierarchyNodeDescriptor,
     val resolver: LogicalElementResolver,
     /** True when the walk's node limit cut the tree (see [HierarchyTreeWalker.walk]). */
-    val truncated: Boolean = false
-)
+    val truncated: Boolean = false,
+    val browser: HierarchyBrowserBaseEx? = null
+) : AutoCloseable {
+    /** Disposes the per-call browser and the alarm registered under it. Idempotent. */
+    override fun close() {
+        browser?.let(HierarchyTreeWalker::disposeBrowser)
+    }
+}
 
 /**
  * [LogicalElementResolver] used for the IDE-driven path. Resolution order:
@@ -292,6 +306,52 @@ internal object HierarchyTreeWalker {
         val browser = createBrowserHeadless(provider, target)
             .getOrElse { return Result.failure(it) }
 
+        return releaseOnFailure(browser) { buildTree(browser, target, element, kind, scope, maxDepth, maxNodes) }
+    }
+
+    /**
+     * Runs [build]; disposes [browser] when it returns a failure or throws (a read-action
+     * cancellation included — the caller retries with a fresh browser). On success the
+     * [HierarchyWalkResult] owns the browser until the tool closes it (GH #26).
+     */
+    private inline fun releaseOnFailure(
+        browser: HierarchyBrowserBaseEx,
+        build: () -> Result<HierarchyWalkResult>
+    ): Result<HierarchyWalkResult> {
+        val result = try {
+            build()
+        } catch (t: Throwable) {
+            disposeBrowser(browser)
+            throw t
+        }
+        if (result.isFailure) disposeBrowser(browser)
+        return result
+    }
+
+    /**
+     * Disposes a per-call hierarchy browser. `HierarchyBrowserBaseEx.dispose()` only clears
+     * the sheets' tree models and flips `myDisposed` (decompiled 2026.2: no EDT assertion, no
+     * Swing mutation), so this is safe from the tool's read action. A failure is logged and
+     * never propagated: cleanup must not turn a finished walk into a tool error. A read-action
+     * cancellation is still rethrown.
+     */
+    internal fun disposeBrowser(browser: HierarchyBrowserBaseEx) {
+        if (browser.isDisposed) return
+        runCatching { Disposer.dispose(browser) }
+            .onFailure(::rethrowIfCancellation)
+            .onFailure { LOG.warn("Failed to dispose the hierarchy browser ${browser.javaClass.name}", it) }
+    }
+
+    /** Builds and walks the tree structure on a freshly constructed [browser]. */
+    private fun buildTree(
+        browser: HierarchyBrowserBaseEx,
+        target: PsiElement,
+        element: PsiElement,
+        kind: HierarchyKind,
+        scope: HierarchyScope,
+        maxDepth: Int,
+        maxNodes: Int
+    ): Result<HierarchyWalkResult> {
         val typeName = typeStringFor(kind)
 
         // Per-language tree structures read scope-type via `browser.getCurrentScopeType()`,
@@ -308,7 +368,7 @@ internal object HierarchyTreeWalker {
         val budget = NodeBudget(maxNodes)
         walkRecursive(structure, structure.baseDescriptor, maxDepth, mutableSetOf(), budget)
         return Result.success(
-            HierarchyWalkResult(structure.baseDescriptor, BrowserBackedResolver(browser), budget.truncated)
+            HierarchyWalkResult(structure.baseDescriptor, BrowserBackedResolver(browser), budget.truncated, browser)
         )
     }
 
