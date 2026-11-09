@@ -296,6 +296,16 @@ data class SymbolMatch(
     val column: Int,
 )
 
+/**
+ * Success-shaped reply of ide_type_hierarchy (className), ide_call_hierarchy and
+ * ide_find_usages (symbol) when the name matches several declarations (#59, #40).
+ */
+@Serializable
+data class SymbolCandidatesResult(
+    val candidates: List<SymbolMatch>,
+    val message: String,
+)
+
 // ide_find_super_methods output
 @Serializable
 data class SuperMethodsResult(

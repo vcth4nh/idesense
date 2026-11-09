@@ -14,4 +14,5 @@
 {"id":"hier-type-Shape","tool":"ide_type_hierarchy","params":{"column":16,"file":"src/main/java/demo/Normal.java","line":15}}
 {"id":"hier-type-Shape-both","tool":"ide_type_hierarchy","params":{"column":16,"direction":"both","file":"src/main/java/demo/Normal.java","line":15}}
 {"id":"hier-type-Shape-byname","tool":"ide_type_hierarchy","params":{"className":"demo.Shape"}}
+{"id":"hier-type-Shape.area-byname","tool":"ide_type_hierarchy","params":{"className":"demo.Shape.area"}}
 {"id":"hier-type-Square","tool":"ide_type_hierarchy","params":{"column":7,"file":"src/main/java/demo/Normal.java","line":65}}
