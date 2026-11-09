@@ -5,6 +5,7 @@
 {"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":12,"direction":"supertypes","file":"src/normal.rs","line":65}}
 {"id":"hier-super-Sub-supertrait","tool":"ide_type_hierarchy","params":{"column":11,"direction":"supertypes","file":"src/supertrait_super.rs","line":10}}
 {"id":"hier-type-Circle","tool":"ide_type_hierarchy","params":{"column":12,"file":"src/normal.rs","line":22}}
+{"id":"hier-type-Circle-byname","tool":"ide_type_hierarchy","params":{"className":"Circle"}}
 {"id":"hier-type-CoerceMode","tool":"ide_type_hierarchy","params":{"column":10,"file":"src/quirks.rs","line":87}}
 {"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":11,"file":"src/normal.rs","line":6}}
 {"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":12,"file":"src/normal.rs","line":42}}

@@ -4,6 +4,30 @@
 
 ## [Unreleased]
 
+### Added
+- `ide_call_hierarchy` and `ide_find_usages` accept a `symbol` (name or qualified name) instead of
+  `file`/`line`/`column`, resolved like the `ide_explain_symbol` anchor: exact qualified name first,
+  then the Go to Symbol popup with the exact-name filter. An ambiguous name returns a `candidates`
+  list instead of a guess. A class name given to `ide_call_hierarchy` anchors on its constructor
+  where the IDE's provider supports that (Java, Kotlin, Python, Rust); elsewhere the error names the
+  class. Calling either tool without `symbol` and without a full position now returns a structured
+  `invalid_arguments` error (was a `tool_error` text) (#40).
+
+### Changed
+- The name anchors of `ide_explain_symbol`, `ide_type_hierarchy` (`className`), `ide_call_hierarchy`
+  and `ide_find_usages` (`symbol`) no longer resolve a qualified method name given without its
+  parameter list (`demo.Quirks#parse`) to the provider's first overload: the overloads come back as
+  `candidates`, and `demo.Quirks#parse(java.lang.String)` selects one exactly. A file path is no
+  longer accepted as a symbol (IntelliJ IDEA's qualified-name provider resolved paths as a last
+  fallback); it returns "Symbol not found" (#40).
+
+### Fixed
+- `ide_type_hierarchy` `className` works on Go and Rust, and resolves plain class names on every
+  language. It only used the `QualifiedNameProvider` extension point: in the 2026.2 IDEs RustRover's
+  `RsQualifiedNameProvider.qualifiedNameToElement` returns null and GoLand registers no provider, so
+  every Go/Rust name reported "Class not found". The lookup now falls back to the Go to Symbol popup;
+  a name that is not a class-like declaration returns a clear error (#59).
+
 ## [2.1.0] - 2026-11-09
 
 ### Added

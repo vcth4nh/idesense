@@ -1,3 +1,4 @@
 {"id":"explain-Circle-pos","tool":"ide_explain_symbol","params":{"column":7,"file":"src/main/java/demo/Normal.java","line":25}}
+{"id":"explain-Quirks.parse-qualified","tool":"ide_explain_symbol","params":{"symbol":"demo.Quirks#parse"}}
 {"id":"explain-Shape-name","tool":"ide_explain_symbol","params":{"symbol":"Shape"}}
 {"id":"explain-ambiguous-parse","tool":"ide_explain_symbol","params":{"symbol":"parse"}}

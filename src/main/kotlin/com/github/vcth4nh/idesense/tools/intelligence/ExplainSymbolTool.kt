@@ -7,19 +7,17 @@ import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
 import com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch
 import com.github.vcth4nh.idesense.handlers.LanguageServices
-import com.github.vcth4nh.idesense.handlers.PopupFaithfulSymbolSearch
-import com.github.vcth4nh.idesense.handlers.SameNameSymbolOrder
-import com.github.vcth4nh.idesense.handlers.SymbolData
-import com.github.vcth4nh.idesense.handlers.SymbolDataConverter
 import com.github.vcth4nh.idesense.server.McpErrors
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
+import com.github.vcth4nh.idesense.tools.SymbolAnchor
+import com.github.vcth4nh.idesense.tools.SymbolAnchorResolver
+import com.github.vcth4nh.idesense.tools.SymbolResolution
 import com.github.vcth4nh.idesense.tools.models.DefinitionResult
 import com.github.vcth4nh.idesense.tools.models.ExplainSymbolResult
 import com.github.vcth4nh.idesense.tools.models.ImplementationLocation
 import com.github.vcth4nh.idesense.tools.models.ProblemInfo
 import com.github.vcth4nh.idesense.tools.models.SuperMethodInfo
-import com.github.vcth4nh.idesense.tools.models.SymbolMatch
 import com.github.vcth4nh.idesense.tools.models.UsageLocation
 import com.github.vcth4nh.idesense.tools.navigation.FindDefinitionTool
 import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
@@ -30,7 +28,6 @@ import com.github.vcth4nh.idesense.util.LinePreview
 import com.github.vcth4nh.idesense.util.PsiUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.codeInsight.documentation.DocumentationManager
-import com.intellij.navigation.NavigationItem
 import com.intellij.platform.backend.documentation.DocumentationData
 import com.intellij.platform.backend.documentation.PsiDocumentationTargetProvider
 import com.intellij.openapi.diagnostic.logger
@@ -62,7 +59,6 @@ class ExplainSymbolTool : AbstractMcpTool() {
         internal const val MAX_TOP_USAGES = 5
         internal const val MAX_USAGE_COUNT = 200
         internal const val MAX_DOC_LENGTH = 4000
-        internal const val MAX_CANDIDATES = 10
         private const val MAX_DECLARATION_PROBLEMS = 50
     }
 
@@ -93,7 +89,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
         .projectPath()
         .stringProperty(
             ParamNames.SYMBOL,
-            "Symbol name or qualified name (e.g. \"UserService\", \"demo.UserService\", \"UserService.authenticate\"). Mutually exclusive with file/line/column."
+            "Symbol name or qualified name (e.g. \"UserService\", \"demo.UserService\", \"UserService.authenticate\"); an overloaded method needs its parameter list to select one overload (e.g. \"demo.Quirks#parse(java.lang.String)\"), otherwise the overloads come back as candidates. Mutually exclusive with file/line/column."
         )
         .file(required = false, description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin. Use with line and column; mutually exclusive with symbol.")
         .lineAndColumn(required = false)
@@ -104,8 +100,8 @@ class ExplainSymbolTool : AbstractMcpTool() {
         .build()
 
     override suspend fun doExecute(project: Project, arguments: JsonObject): ToolCallResult {
-        val anchor = ExplainAnchor.parse(arguments)
-        if (anchor is ExplainAnchor.Invalid) {
+        val anchor = SymbolAnchor.parse(arguments)
+        if (anchor is SymbolAnchor.Invalid) {
             return createStructuredErrorResult(McpErrors.generic("invalid_arguments", anchor.message))
         }
         val includeDiagnostics = arguments[ParamNames.INCLUDE_DIAGNOSTICS]?.jsonPrimitive?.booleanOrNull ?: false
@@ -113,7 +109,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
 
         val (core, earlyResult) = suspendingReadAction {
             val target = when (anchor) {
-                is ExplainAnchor.BySymbol -> when (val resolution = resolveSymbolAnchor(project, anchor.symbol)) {
+                is SymbolAnchor.BySymbol -> when (val resolution = SymbolAnchorResolver.resolve(project, anchor.symbol)) {
                     is SymbolResolution.Resolved -> resolution.element
                     is SymbolResolution.Ambiguous -> return@suspendingReadAction null to createJsonResult(
                         ExplainSymbolResult(
@@ -126,7 +122,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
                         "Symbol not found in project files: '${anchor.symbol}'. Try a qualified name, or ide_find_symbol with fuzzySearch=true."
                     )
                 }
-                is ExplainAnchor.ByPosition -> {
+                is SymbolAnchor.ByPosition -> {
                     val element = resolveElementFromArguments(project, arguments, allowLibraryFilesForPosition = true).getOrElse {
                         return@suspendingReadAction null to createErrorResult(it.message ?: ErrorMessages.COULD_NOT_RESOLVE_SYMBOL)
                     }
@@ -134,7 +130,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
                         ?: PsiUtils.resolveTargetElement(element)
                         ?: return@suspendingReadAction null to createErrorResult(ErrorMessages.SYMBOL_NOT_RESOLVED)
                 }
-                is ExplainAnchor.Invalid -> error("unreachable: Invalid anchor handled above")
+                is SymbolAnchor.Invalid -> error("unreachable: Invalid anchor handled above")
             }
             buildCore(project, FindDefinitionTool.effectiveDeclarationTarget(target))
         }
@@ -173,55 +169,6 @@ class ExplainSymbolTool : AbstractMcpTool() {
             }
         }
         return createJsonResult(core.result.copy(problems = problems, warnings = warnings.ifEmpty { null }))
-    }
-
-    private sealed interface SymbolResolution {
-        data class Resolved(val element: PsiElement) : SymbolResolution
-        data class Ambiguous(val candidates: List<SymbolMatch>) : SymbolResolution
-        data object NotFound : SymbolResolution
-    }
-
-    /**
-     * Resolves a symbol name to its declaration: exact qualified-name lookup first
-     * (ClassResolver, so library FQNs work), then the Go to Symbol popup stack with the
-     * same exact-name filter ide_find_symbol applies when fuzzySearch=false.
-     */
-    private fun resolveSymbolAnchor(project: Project, symbol: String): SymbolResolution {
-        findClassByName(project, symbol)?.let { return SymbolResolution.Resolved(it) }
-
-        val scope = BuiltInSearchScopeResolver.resolveGlobalScope(project, BuiltInSearchScope.PROJECT_FILES)
-        val popup = PopupFaithfulSymbolSearch.search(project, symbol, scope, MAX_CANDIDATES * 4)
-        data class Match(val element: PsiElement, val data: SymbolData)
-        val matches = popup.candidates
-            .mapNotNull { candidate ->
-                val data = SymbolDataConverter.convert(candidate.item, project, scope) ?: return@mapNotNull null
-                if (!data.name.equals(popup.localPattern, ignoreCase = true)) return@mapNotNull null
-                val element = candidate.item as? PsiElement ?: extractPsiElement(candidate.item) ?: return@mapNotNull null
-                Match(element, data)
-            }
-            .distinctBy { "${it.data.file}:${it.data.line}:${it.data.column}:${it.data.name}" }
-            .let { SameNameSymbolOrder.sort(it) { match -> match.data } }
-
-        return when {
-            matches.isEmpty() -> SymbolResolution.NotFound
-            matches.size == 1 -> SymbolResolution.Resolved(matches.single().element)
-            else -> SymbolResolution.Ambiguous(matches.take(MAX_CANDIDATES).map { match ->
-                SymbolMatch(
-                    name = match.data.name,
-                    qualifiedName = match.data.qualifiedName,
-                    kind = match.data.kind,
-                    file = match.data.file,
-                    line = match.data.line,
-                    column = match.data.column,
-                )
-            })
-        }
-    }
-
-    private fun extractPsiElement(item: NavigationItem): PsiElement? = try {
-        item.javaClass.getMethod("getElement").invoke(item) as? PsiElement
-    } catch (_: Exception) {
-        null
     }
 
     private data class CoreData(

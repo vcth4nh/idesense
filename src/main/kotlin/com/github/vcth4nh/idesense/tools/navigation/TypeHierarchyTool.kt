@@ -3,6 +3,9 @@ package com.github.vcth4nh.idesense.tools.navigation
 import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
+import com.github.vcth4nh.idesense.tools.SymbolAnchorResolver
+import com.github.vcth4nh.idesense.tools.SymbolResolution
+import com.github.vcth4nh.idesense.tools.models.SymbolCandidatesResult
 import com.github.vcth4nh.idesense.tools.models.TypeElement
 import com.github.vcth4nh.idesense.tools.models.TypeHierarchyResult
 import com.github.vcth4nh.idesense.tools.navigation.hierarchy.ClassLikePsi
@@ -41,14 +44,13 @@ class TypeHierarchyTool : AbstractMcpTool() {
         Returns: root class info, recursive supertypes chain, and flat subtypes list — per direction.
         "both" unions the two walks rather than producing the IDE's combined tree view.
 
-        Gotchas: requires smart mode. Languages: Java, Kotlin, Python, JS/TS, Go, PHP, Rust. Rust
-        does not support the className shortcut — use file + line + column. Kotlin K2: direction=both/
-        supertypes requires EDT context; may show empty for some Kotlin classes.
+        Gotchas: requires smart mode. Languages: Java, Kotlin, Python, JS/TS, Go, PHP, Rust. Kotlin K2:
+        direction=both/supertypes requires EDT context; may show empty for some Kotlin classes.
     """.trimIndent()
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
-        .stringProperty("className", "Fully qualified class name (e.g., 'com.example.MyClass' for Java or 'App\\\\Models\\\\User' for PHP). RECOMMENDED where supported - use this if you know the class name. Not supported for Rust (use file + line + column).")
+        .stringProperty("className", "Class name or qualified name (e.g., 'MyClass', 'com.example.MyClass', 'App\\\\Models\\\\User'). RECOMMENDED when you know the name; an ambiguous name returns a candidates list. Mutually exclusive with file/line/column.")
         .file(required = false, description = "Path to file relative to project root (e.g., 'src/main/java/com/example/MyClass.java'). Use with line and column.")
         .intProperty("line", "1-based line number where the class is defined. Required if using file parameter.")
         .intProperty("column", "1-based column number. Required if using file parameter.")
@@ -91,13 +93,27 @@ class TypeHierarchyTool : AbstractMcpTool() {
         return suspendingReadAction {
             ProgressManager.checkCanceled()
 
-            val element = resolveTargetElement(project, arguments) ?: run {
-                val errorMsg = when {
-                    className != null -> "Class '$className' not found in project '${project.name}'. Verify the fully qualified name is correct and the class is part of this project."
-                    file != null -> "No class found at the specified file/line/column position."
-                    else -> "Provide either 'className' (e.g., 'com.example.MyClass') or 'file' + 'line' + 'column'."
+            val element = if (className != null) {
+                when (val resolution = SymbolAnchorResolver.resolve(project, className)) {
+                    is SymbolResolution.Resolved -> resolution.element.takeIf { ClassLikePsi.isClassLike(it) }
+                        ?: return@suspendingReadAction createErrorResult(
+                            "'$className' is not a class-like declaration. Pass a class, interface, enum, struct or trait name, or a file/line/column position."
+                        )
+                    is SymbolResolution.Ambiguous -> return@suspendingReadAction createJsonResult(
+                        SymbolCandidatesResult(
+                            candidates = resolution.candidates,
+                            message = "Ambiguous symbol '$className': ${resolution.candidates.size} matches. Pass a qualified name or a file/line/column position.",
+                        )
+                    )
+                    SymbolResolution.NotFound -> return@suspendingReadAction createErrorResult(
+                        "Class '$className' not found in project '${project.name}'. Verify the fully qualified name is correct and the class is part of this project."
+                    )
                 }
-                return@suspendingReadAction createErrorResult(errorMsg)
+            } else {
+                resolveTargetElement(project, arguments) ?: return@suspendingReadAction createErrorResult(
+                    if (file != null) "No class found at the specified file/line/column position."
+                    else "Provide either 'className' (e.g., 'com.example.MyClass') or 'file' + 'line' + 'column'."
+                )
             }
 
             ProgressManager.checkCanceled()
@@ -158,13 +174,7 @@ class TypeHierarchyTool : AbstractMcpTool() {
     }
 
     private fun resolveTargetElement(project: Project, arguments: JsonObject): PsiElement? {
-        // Try className first (Java/Kotlin specific)
-        val className = arguments["className"]?.jsonPrimitive?.content
-        if (className != null) {
-            return findClassByName(project, className)
-        }
-
-        // Otherwise use file/line/column (works for all languages)
+        // file/line/column (works for all languages); className is resolved in doExecute
         val file = arguments["file"]?.jsonPrimitive?.content ?: return null
         val line = arguments["line"]?.jsonPrimitive?.int ?: return null
         val column = arguments["column"]?.jsonPrimitive?.int ?: return null

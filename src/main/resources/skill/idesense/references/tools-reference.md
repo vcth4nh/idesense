@@ -14,7 +14,7 @@ be passed back unchanged. Line and column numbers are **1-based**.
 ## Navigation Tools
 
 ### ide_find_usages
-Find semantic references to a symbol (not text search). Paginated; `totalCollected` is a collected count (each cursor caches up to an internal cap), not a guaranteed whole-project total — page with `hasMore`/`nextCursor`.
+Find semantic references to a symbol (not text search). Anchor by `symbol` (name or qualified name) or by `file`+`line`+`column`; an ambiguous `symbol` returns `{ candidates, message }`. Paginated; `totalCollected` is a collected count (each cursor caches up to an internal cap), not a guaranteed whole-project total — page with `hasMore`/`nextCursor`.
 
 **Returns**: `{ usages: [{ file, line, column, preview, usageType, enclosingScope }], truncated, nextCursor?, hasMore, totalCollected, offset, pageSize, stale, warnings? }` — non-null `warnings` (first page) means a find-usages handler stage degraded and the list may be incomplete.
 
@@ -69,11 +69,11 @@ Get a depth-limited type inheritance hierarchy (supertypes and subtypes), up to 
 
 **Returns**: `{ element: {name, qualifiedName?, enclosingScope?, kind, file?, line?, column?, supertypes?}, supertypes: [{name, qualifiedName?, enclosingScope?, kind, file?, line?, column?, supertypes?}], subtypes: [{name, qualifiedName?, enclosingScope?, kind, file?, line?, column?, supertypes?}] }`
 
-Provide either `className` (FQN, preferred where the language's qualified-name provider supports it) or `file`+`line`+`column`. **Rust:** `className` is not supported (use `file`+`line`+`column`), and the flat fallback ignores `maxDepth`. Unlike other read-only navigation tools, file mode does not resolve dependency/library absolute paths or `jar://` URLs.
+Provide either `className` (name or qualified name; works on every language, an ambiguous name returns `{ candidates, message }`) or `file`+`line`+`column`. **Rust:** the flat fallback ignores `maxDepth`. Unlike other read-only navigation tools, file mode does not resolve dependency/library absolute paths or `jar://` URLs.
 **Languages**: Java, Kotlin, Python, JS/TS, Go, PHP, Rust.
 
 ### ide_call_hierarchy
-Build call tree showing who calls a method or what a method calls.
+Build call tree showing who calls a method or what a method calls. Anchor by `symbol` (name or qualified name) or by the declaration position `file`+`line`+`column`; an ambiguous `symbol` returns `{ candidates, message }`.
 
 **Returns**: `{ element: {name, qualifiedName?, enclosingScope?, kind, file, line, column}, calls: [{name, qualifiedName?, enclosingScope?, kind, file, line, column, children?: [...]}], truncated }` — `maxDepth` defaults to 3; the tree holds at most 200 nodes (depth-first), and `truncated: true` means that the walk reached this limit: the nodes after that point show no children, even if they have some.
 

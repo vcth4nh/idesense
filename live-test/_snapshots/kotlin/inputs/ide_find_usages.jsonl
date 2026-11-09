@@ -2,6 +2,7 @@
 {"id":"usage-CompParent-companion","tool":"ide_find_usages","params":{"column":16,"file":"src/main/kotlin/demo/CompanionSuper.kt","line":17}}
 {"id":"usage-Drawable-interface","tool":"ide_find_usages","params":{"column":11,"file":"src/main/kotlin/demo/Normal.kt","line":8}}
 {"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":12,"file":"src/main/kotlin/demo/Normal.kt","line":24}}
+{"id":"usage-Shape-bysymbol","tool":"ide_find_usages","params":{"symbol":"demo.Shape"}}
 {"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":16,"file":"src/main/kotlin/demo/Normal.kt","line":12}}
 {"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":49,"file":"src/main/kotlin/demo/Normal.kt","line":42}}
 {"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":20,"scope":"project_and_libraries"}}

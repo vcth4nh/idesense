@@ -175,6 +175,8 @@ fails when this file is stale.
 | find-symbol-no-match | find_symbol | `{"query":"noSuchSymbolXyz"}` |
 | find-symbol-quirk-rebind | find_symbol | `{"query":"quirk_name_rebinding"}` |
 | find-symbol-total_area | find_symbol | `{"query":"total_area"}` |
+| hier-caller-Circle.area-bysymbol | call_hierarchy | `{"direction":"callers","maxDepth":2,"symbol":"Circle.area"}` |
 | hier-type-Shape-byname | type_hierarchy | `{"className":"normal.Shape"}` |
 | search-text-indirection-docstring | search_text | `{"query":"indirection"}` |
 | search-text-int-comments | search_text | `{"context":"comments","query":"int"}` |
+| usage-Shape-bysymbol | find_usages | `{"symbol":"Shape"}` |

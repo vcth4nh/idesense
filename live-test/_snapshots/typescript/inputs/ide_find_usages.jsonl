@@ -6,6 +6,7 @@
 {"id":"usage-Drawable-class","tool":"ide_find_usages","params":{"column":18,"file":"src/normal.ts","line":4}}
 {"id":"usage-Geometry-namespace","tool":"ide_find_usages","params":{"column":18,"file":"src/namespaces.ts","line":4}}
 {"id":"usage-Point-namespace","tool":"ide_find_usages","params":{"column":18,"file":"src/namespaces.ts","line":5}}
+{"id":"usage-Shape-bysymbol","tool":"ide_find_usages","params":{"symbol":"Shape"}}
 {"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":23,"file":"src/normal.ts","line":10}}
 {"id":"usage-aliasedCoerce","tool":"ide_find_usages","params":{"column":14,"file":"src/quirks.ts","line":80}}
 {"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":14,"file":"src/normal.ts","line":11}}

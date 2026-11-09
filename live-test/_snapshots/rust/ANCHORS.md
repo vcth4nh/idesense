@@ -160,3 +160,6 @@ fails when this file is stale.
 | find-symbol-q_closure | find_symbol | `{"query":"q_closure"}` |
 | find-symbol-square | find_symbol | `{"query":"square"}` |
 | find-symbol-total_area | find_symbol | `{"query":"total_area"}` |
+| hier-caller-parse_or_zero-bysymbol | call_hierarchy | `{"direction":"callers","maxDepth":2,"symbol":"parse_or_zero"}` |
+| hier-type-Circle-byname | type_hierarchy | `{"className":"Circle"}` |
+| usage-Shape-bysymbol | find_usages | `{"symbol":"Shape"}` |

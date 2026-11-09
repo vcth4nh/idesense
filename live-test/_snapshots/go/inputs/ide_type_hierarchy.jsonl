@@ -5,6 +5,7 @@
 {"id":"hier-super-ILeaf-embedded","tool":"ide_type_hierarchy","params":{"column":6,"direction":"supertypes","file":"multisuper.go","line":31}}
 {"id":"hier-super-Square","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"normal.go","line":63}}
 {"id":"hier-type-Circle","tool":"ide_type_hierarchy","params":{"column":6,"file":"normal.go","line":37}}
+{"id":"hier-type-Circle-byname","tool":"ide_type_hierarchy","params":{"className":"Circle"}}
 {"id":"hier-type-Drawable","tool":"ide_type_hierarchy","params":{"column":6,"file":"normal.go","line":16}}
 {"id":"hier-type-Rectangle","tool":"ide_type_hierarchy","params":{"column":6,"file":"normal.go","line":50}}
 {"id":"hier-type-ShapeCollection","tool":"ide_type_hierarchy","params":{"column":6,"file":"normal.go","line":72}}

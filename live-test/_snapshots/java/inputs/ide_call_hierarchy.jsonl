@@ -4,8 +4,14 @@
 {"id":"hier-callee-totalArea","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callees","file":"src/main/java/demo/Normal.java","line":80,"maxDepth":2}}
 {"id":"hier-callee-totalArea-d1","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callees","file":"src/main/java/demo/Normal.java","line":80,"maxDepth":1}}
 {"id":"hier-caller-Circle-ctor","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/main/java/demo/Normal.java","line":28,"maxDepth":2}}
+{"id":"hier-caller-Quirks.parse-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","symbol":"Quirks.parse"}}
+{"id":"hier-caller-Quirks.parse-bysymbol-exact","tool":"ide_call_hierarchy","params":{"direction":"callers","symbol":"demo.Quirks#parse(java.lang.String, int)"}}
+{"id":"hier-caller-Quirks.parse-bysymbol-qualified","tool":"ide_call_hierarchy","params":{"direction":"callers","symbol":"demo.Quirks#parse"}}
+{"id":"hier-caller-Shape-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","symbol":"demo.Shape"}}
+{"id":"hier-caller-Shape.area-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":2,"symbol":"demo.Shape.area"}}
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callers","file":"src/main/java/demo/Normal.java","line":18,"maxDepth":2}}
 {"id":"hier-caller-describe","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callers","file":"src/main/java/demo/Normal.java","line":20,"maxDepth":2}}
+{"id":"hier-caller-noSuchFunction-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","symbol":"noSuchFunction"}}
 {"id":"hier-caller-parse-string","tool":"ide_call_hierarchy","params":{"column":23,"direction":"callers","file":"src/main/java/demo/Quirks.java","line":108,"maxDepth":2}}
 {"id":"hier-caller-target-all","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/main/java/demo/Probes.java","line":7,"scope":"all"}}
 {"id":"hier-caller-target-production","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/main/java/demo/Probes.java","line":7,"scope":"production"}}

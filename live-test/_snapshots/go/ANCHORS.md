@@ -132,3 +132,8 @@ fails when this file is stale.
 | find-symbol-area-paged | find_symbol | `{"pageSize":2,"query":"Area"}` |
 | find-symbol-no-match | find_symbol | `{"query":"noSuchSymbolXyz"}` |
 | find-symbol-qFnVar | find_symbol | `{"query":"qFnVar"}` |
+| hier-caller-Circle-bysymbol | call_hierarchy | `{"direction":"callers","symbol":"Circle"}` |
+| hier-caller-Rectangle.Area-bysymbol | call_hierarchy | `{"direction":"callers","scope":"all","symbol":"Rectangle.Area"}` |
+| hier-caller-Shape.Describe-bysymbol | call_hierarchy | `{"direction":"callers","maxDepth":2,"symbol":"Shape.Describe"}` |
+| hier-type-Circle-byname | type_hierarchy | `{"className":"Circle"}` |
+| usage-Shape-bysymbol | find_usages | `{"symbol":"Shape"}` |

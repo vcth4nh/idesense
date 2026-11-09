@@ -1,4 +1,4 @@
-package com.github.vcth4nh.idesense.tools.intelligence
+package com.github.vcth4nh.idesense.tools
 
 import com.github.vcth4nh.idesense.constants.ParamNames
 import kotlinx.serialization.json.JsonObject
@@ -6,16 +6,17 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * The resolved anchor for ide_explain_symbol: either a symbol name/qualified name or an
- * exact file position. Exactly one of the two forms must be supplied (#41).
+ * The resolved anchor for the name-or-position tools (ide_explain_symbol, ide_call_hierarchy,
+ * ide_find_usages): either a symbol name/qualified name or an exact file position. Exactly one
+ * of the two forms must be supplied (#41, #40).
  */
-internal sealed interface ExplainAnchor {
-    data class BySymbol(val symbol: String) : ExplainAnchor
-    data class ByPosition(val file: String, val line: Int, val column: Int) : ExplainAnchor
-    data class Invalid(val message: String) : ExplainAnchor
+internal sealed interface SymbolAnchor {
+    data class BySymbol(val symbol: String) : SymbolAnchor
+    data class ByPosition(val file: String, val line: Int, val column: Int) : SymbolAnchor
+    data class Invalid(val message: String) : SymbolAnchor
 
     companion object {
-        fun parse(arguments: JsonObject): ExplainAnchor {
+        fun parse(arguments: JsonObject): SymbolAnchor {
             val symbol = arguments[ParamNames.SYMBOL]?.jsonPrimitive?.content
             val file = arguments[ParamNames.FILE]?.jsonPrimitive?.content
             val line = arguments[ParamNames.LINE]?.jsonPrimitive?.intOrNull

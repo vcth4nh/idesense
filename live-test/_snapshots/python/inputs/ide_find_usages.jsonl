@@ -5,6 +5,7 @@
 {"id":"usage-ParentDC-dataclass","tool":"ide_find_usages","params":{"column":7,"file":"src/dataclass_super.py","line":11}}
 {"id":"usage-Probe.target-files-scope","tool":"ide_find_usages","params":{"column":9,"file":"src/probes.py","line":8,"scope":"project_files"}}
 {"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.py","line":43}}
+{"id":"usage-Shape-bysymbol","tool":"ide_find_usages","params":{"symbol":"Shape"}}
 {"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.py","line":23}}
 {"id":"usage-area-from-describe","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.py","line":25}}
 {"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.py","line":25,"scope":"project_and_libraries"}}

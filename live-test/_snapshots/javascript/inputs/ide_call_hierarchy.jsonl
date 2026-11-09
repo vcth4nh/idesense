@@ -3,6 +3,7 @@
 {"id":"hier-callee-makeDefault-d3","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callees","file":"src/normal.js","line":74,"maxDepth":3}}
 {"id":"hier-callee-qAwait","tool":"ide_call_hierarchy","params":{"column":16,"direction":"callees","file":"src/quirks.js","line":67,"maxDepth":2}}
 {"id":"hier-callee-totalArea","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/normal.js","line":57,"maxDepth":2}}
+{"id":"hier-caller-Shape.area-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":2,"symbol":"Shape.area"}}
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/normal.js","line":16,"maxDepth":2}}
 {"id":"hier-caller-describe","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"src/normal.js","line":17,"maxDepth":2}}
 {"id":"hier-caller-freeProdCaller","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callers","file":"src/probes.js","line":22,"maxDepth":2}}
