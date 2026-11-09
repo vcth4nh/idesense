@@ -19,6 +19,7 @@ import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.PsiUtils
 import com.intellij.ide.hierarchy.HierarchyNodeDescriptor
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiDocumentManager
@@ -75,6 +76,7 @@ class CallHierarchyTool : AbstractMcpTool() {
         .build()
 
     companion object {
+        private val LOG = logger<CallHierarchyTool>()
         private const val DEFAULT_DEPTH = 3
         private const val MAX_DEPTH = 20
         // Bounds the response: a callers tree of a frequently called function can hold thousands of nodes.
@@ -138,6 +140,8 @@ class CallHierarchyTool : AbstractMcpTool() {
 
             val walkResult = HierarchyTreeWalker.walk(project, element, kind, scope, depth, MAX_NODES).getOrElse {
                 if (anchor is SymbolAnchor.BySymbol && ClassLikePsi.isClassLike(element)) {
+                    // The agent gets the actionable text below; keep the provider's own failure in the log.
+                    LOG.info("Call hierarchy rejected class-like symbol '${anchor.symbol}' (${element.javaClass.simpleName}, ${element.language.id}): ${it.message}")
                     return@suspendingReadAction createErrorResult(
                         "No method/function found for symbol '${anchor.symbol}': it is a class-like declaration and this language's call hierarchy does not accept a class. Pass a method/function name (e.g. '${anchor.symbol}.method') or a file/line/column position."
                     )
