@@ -2,6 +2,7 @@
 {"id":"hier-callee-make-default","tool":"ide_call_hierarchy","params":{"column":8,"direction":"callees","file":"src/normal.rs","line":109,"maxDepth":2}}
 {"id":"hier-callee-make-default-d3","tool":"ide_call_hierarchy","params":{"column":8,"direction":"callees","file":"src/normal.rs","line":109,"maxDepth":3}}
 {"id":"hier-callee-total-area","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callees","file":"src/normal.rs","line":96,"maxDepth":2}}
+{"id":"hier-caller-Shape.area-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":2,"symbol":"Shape.area"}}
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":8,"direction":"callers","file":"src/normal.rs","line":13,"maxDepth":2}}
 {"id":"hier-caller-area-d1","tool":"ide_call_hierarchy","params":{"column":8,"direction":"callers","file":"src/normal.rs","line":13,"maxDepth":1}}
 {"id":"hier-caller-describe","tool":"ide_call_hierarchy","params":{"column":8,"direction":"callers","file":"src/normal.rs","line":15,"maxDepth":2}}

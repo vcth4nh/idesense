@@ -5,6 +5,7 @@
 {"id":"hier-callee-quirkDispatchMap","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/main/kotlin/demo/Quirks.kt","line":69,"maxDepth":2}}
 {"id":"hier-callee-quirkLet","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/main/kotlin/demo/Quirks.kt","line":24,"maxDepth":2}}
 {"id":"hier-callee-quirkWith","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/main/kotlin/demo/Quirks.kt","line":29,"maxDepth":2}}
+{"id":"hier-caller-Shape.area-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":2,"symbol":"Shape.area"}}
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":18,"direction":"callers","file":"src/main/kotlin/demo/Normal.kt","line":13,"maxDepth":2}}
 {"id":"hier-caller-target-all","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/main/kotlin/demo/Probes.kt","line":7,"scope":"all"}}
 {"id":"hier-caller-target-production","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/main/kotlin/demo/Probes.kt","line":7,"scope":"production"}}

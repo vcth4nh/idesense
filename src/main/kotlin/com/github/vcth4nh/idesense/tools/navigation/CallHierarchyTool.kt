@@ -2,10 +2,15 @@ package com.github.vcth4nh.idesense.tools.navigation
 
 import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.constants.ParamNames
+import com.github.vcth4nh.idesense.server.McpErrors
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
+import com.github.vcth4nh.idesense.tools.SymbolAnchor
+import com.github.vcth4nh.idesense.tools.SymbolAnchorResolver
+import com.github.vcth4nh.idesense.tools.SymbolResolution
 import com.github.vcth4nh.idesense.tools.models.CallElement
 import com.github.vcth4nh.idesense.tools.models.CallHierarchyResult
+import com.github.vcth4nh.idesense.tools.models.SymbolCandidatesResult
 import com.github.vcth4nh.idesense.tools.navigation.hierarchy.HierarchyKind
 import com.github.vcth4nh.idesense.tools.navigation.hierarchy.HierarchyScope
 import com.github.vcth4nh.idesense.tools.navigation.hierarchy.HierarchyTreeWalker
@@ -36,7 +41,8 @@ class CallHierarchyTool : AbstractMcpTool() {
     override val description = """
         Build a call hierarchy tree for a method/function — who calls it (callers) or what it calls
         (callees). Use over ide_find_usages when you need the full call chain as a tree rather than
-        a flat reference list.
+        a flat reference list. Anchor on a symbol name or qualified name (symbol), or on the
+        declaration position (file + line + column).
 
         Returns: recursive tree with method names, qualified names, file locations (line/column),
         and nested call relationships up to maxDepth (default 3).
@@ -51,8 +57,12 @@ class CallHierarchyTool : AbstractMcpTool() {
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
-        .file(description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin.")
-        .lineAndColumn()
+        .stringProperty(
+            ParamNames.SYMBOL,
+            "Symbol name or qualified name (e.g. \"UserService\", \"demo.UserService\", \"UserService.authenticate\"). Mutually exclusive with file/line/column."
+        )
+        .file(required = false, description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin. Use with line and column; mutually exclusive with symbol.")
+        .lineAndColumn(required = false)
         .enumProperty("direction", "Direction: 'callers' (methods that call this method) or 'callees' (methods this method calls)", listOf("callers", "callees"), required = true)
         .intProperty("maxDepth", "How many levels deep to traverse the call hierarchy (default: $DEFAULT_DEPTH, max: $MAX_DEPTH)")
         .hierarchyScopeProperty(
@@ -82,22 +92,43 @@ class CallHierarchyTool : AbstractMcpTool() {
             "callees" -> HierarchyKind.CALLEES
             else -> return createErrorResult("direction must be 'callers' or 'callees'")
         }
+        val anchor = SymbolAnchor.parse(arguments)
+        if (anchor is SymbolAnchor.Invalid) {
+            return createStructuredErrorResult(McpErrors.generic("invalid_arguments", anchor.message))
+        }
 
         requireSmartMode(project)
 
         return suspendingReadAction {
             ProgressManager.checkCanceled()
 
-            val element = resolveElementFromArguments(project, arguments, allowLibraryFilesForPosition = true).getOrElse {
-                return@suspendingReadAction createErrorResult(it.message ?: ErrorMessages.COULD_NOT_RESOLVE_SYMBOL)
-            }
-
-            // Tool-layer gate: reject position-based invocations where the caret is not on a
-            // resolvable navigation target (comment, whitespace, literal).
-            if (PsiUtils.resolveTargetElement(element) == null) {
-                return@suspendingReadAction createErrorResult(
-                    "No method/function found at position." + caretHint(element, arguments)
-                )
+            val element = when (anchor) {
+                is SymbolAnchor.BySymbol -> when (val resolution = SymbolAnchorResolver.resolve(project, anchor.symbol)) {
+                    is SymbolResolution.Resolved -> resolution.element
+                    is SymbolResolution.Ambiguous -> return@suspendingReadAction createJsonResult(
+                        SymbolCandidatesResult(
+                            candidates = resolution.candidates,
+                            message = "Ambiguous symbol '${anchor.symbol}': ${resolution.candidates.size} matches. Pass a qualified name or a file/line/column position.",
+                        )
+                    )
+                    SymbolResolution.NotFound -> return@suspendingReadAction createErrorResult(
+                        "Symbol not found in project files: '${anchor.symbol}'. Try a qualified name, or ide_find_symbol with fuzzySearch=true."
+                    )
+                }
+                is SymbolAnchor.ByPosition -> {
+                    val element = resolveElementFromArguments(project, arguments, allowLibraryFilesForPosition = true).getOrElse {
+                        return@suspendingReadAction createErrorResult(it.message ?: ErrorMessages.COULD_NOT_RESOLVE_SYMBOL)
+                    }
+                    // Tool-layer gate: reject position-based invocations where the caret is not on a
+                    // resolvable navigation target (comment, whitespace, literal).
+                    if (PsiUtils.resolveTargetElement(element) == null) {
+                        return@suspendingReadAction createErrorResult(
+                            "No method/function found at position." + caretHint(element, arguments)
+                        )
+                    }
+                    element
+                }
+                is SymbolAnchor.Invalid -> error("unreachable: Invalid anchor handled above")
             }
 
             ProgressManager.checkCanceled()
@@ -108,7 +139,8 @@ class CallHierarchyTool : AbstractMcpTool() {
 
             val rootCallElement = convertDescriptorToCallElement(walkResult.root, walkResult.resolver, depth)
                 ?: return@suspendingReadAction createErrorResult(
-                    "No method/function found at position." + caretHint(element, arguments)
+                    if (anchor is SymbolAnchor.BySymbol) "No method/function found for symbol '${anchor.symbol}'."
+                    else "No method/function found at position." + caretHint(element, arguments)
                 )
 
             createJsonResult(CallHierarchyResult(

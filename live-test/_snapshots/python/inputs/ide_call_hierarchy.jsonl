@@ -3,6 +3,7 @@
 {"id":"hier-callee-make-default-d3","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"src/normal.py","line":84,"maxDepth":3}}
 {"id":"hier-callee-total-area","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callees","file":"src/normal.py","line":73,"maxDepth":2}}
 {"id":"hier-caller-Circle.area","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/normal.py","line":36,"maxDepth":2}}
+{"id":"hier-caller-Circle.area-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":2,"symbol":"Circle.area"}}
 {"id":"hier-caller-add","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/normal.py","line":70,"maxDepth":2}}
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/normal.py","line":25,"maxDepth":2}}
 {"id":"hier-caller-describe","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"src/normal.py","line":28,"maxDepth":2}}

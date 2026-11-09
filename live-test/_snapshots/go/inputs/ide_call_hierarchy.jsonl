@@ -7,5 +7,6 @@
 {"id":"hier-caller-Rectangle.Area-all","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":55,"scope":"all"}}
 {"id":"hier-caller-Rectangle.Area-class-scope","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":55,"scope":"this_class"}}
 {"id":"hier-caller-Rectangle.Area-test","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":55,"scope":"test"}}
+{"id":"hier-caller-Shape.Describe-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":2,"symbol":"Shape.Describe"}}
 {"id":"hier-caller-area","tool":"ide_call_hierarchy","params":{"column":18,"direction":"callers","file":"normal.go","line":44,"maxDepth":2}}
 {"id":"hier-caller-baseShape.Describe-cross-file","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":33,"maxDepth":2}}
