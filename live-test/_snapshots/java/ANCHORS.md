@@ -159,6 +159,7 @@ fails when this file is stale.
 
 | probe id | tool | params |
 |---|---|---|
+| explain-Quirks.parse-qualified | explain_symbol | `{"symbol":"demo.Quirks#parse"}` |
 | explain-Shape-name | explain_symbol | `{"symbol":"Shape"}` |
 | explain-ambiguous-parse | explain_symbol | `{"symbol":"parse"}` |
 | find-class-Animal | find_class | `{"query":"Animal"}` |
@@ -193,10 +194,14 @@ fails when this file is stale.
 | find-symbol-quirkLambda | find_symbol | `{"query":"quirkLambda"}` |
 | find-symbol-totalArea | find_symbol | `{"query":"totalArea"}` |
 | hier-caller-Quirks.parse-bysymbol | call_hierarchy | `{"direction":"callers","symbol":"Quirks.parse"}` |
+| hier-caller-Quirks.parse-bysymbol-exact | call_hierarchy | `{"direction":"callers","symbol":"demo.Quirks#parse(java.lang.String, int)"}` |
+| hier-caller-Quirks.parse-bysymbol-qualified | call_hierarchy | `{"direction":"callers","symbol":"demo.Quirks#parse"}` |
+| hier-caller-Shape-bysymbol | call_hierarchy | `{"direction":"callers","symbol":"demo.Shape"}` |
 | hier-caller-Shape.area-bysymbol | call_hierarchy | `{"direction":"callers","maxDepth":2,"symbol":"demo.Shape.area"}` |
 | hier-caller-noSuchFunction-bysymbol | call_hierarchy | `{"direction":"callers","symbol":"noSuchFunction"}` |
 | hier-type-Shape-byname | type_hierarchy | `{"className":"demo.Shape"}` |
 | hier-type-Shape.area-byname | type_hierarchy | `{"className":"demo.Shape.area"}` |
 | status-Status | index_status | `{}` |
+| usage-Normal.java-bysymbol | find_usages | `{"symbol":"src/main/java/demo/Normal.java"}` |
 | usage-Shape-bysymbol | find_usages | `{"symbol":"demo.Shape"}` |
 | usage-noSuchSymbol-bysymbol | find_usages | `{"symbol":"noSuchSymbol"}` |

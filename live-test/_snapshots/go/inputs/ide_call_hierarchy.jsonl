@@ -2,6 +2,7 @@
 {"id":"hier-callee-MakeDefault","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callees","file":"normal.go","line":100,"maxDepth":2}}
 {"id":"hier-callee-MakeDefault-d3","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callees","file":"normal.go","line":100,"maxDepth":3}}
 {"id":"hier-callee-TotalArea","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callees","file":"normal.go","line":80,"maxDepth":2}}
+{"id":"hier-caller-Circle-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","symbol":"Circle"}}
 {"id":"hier-caller-Describe","tool":"ide_call_hierarchy","params":{"column":2,"direction":"callers","file":"normal.go","line":22,"maxDepth":2}}
 {"id":"hier-caller-Draw","tool":"ide_call_hierarchy","params":{"column":2,"direction":"callers","file":"normal.go","line":17,"maxDepth":2}}
 {"id":"hier-caller-Rectangle.Area-all","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":55,"scope":"all"}}
