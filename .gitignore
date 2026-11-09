@@ -11,6 +11,7 @@ tmp
 docs/superpowers/
 docs/reviews/
 local.properties
+.local
 
 # generated scratch (decompile logs, dependency cache, eclipse metadata, live-test stderr)
 logs
