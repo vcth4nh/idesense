@@ -65,8 +65,9 @@ jobs:
       - name: Maximize Build Space
         uses: jlumbroso/free-disk-space@v2.0.0
         with:
-          tool-cache: false
+          preinstalled-runtimes: false
           large-packages: false
+          swap-storage: true
 
       # Check out the current repository
       - name: Fetch Sources
@@ -116,8 +117,9 @@ jobs:
       - name: Maximize Build Space
         uses: jlumbroso/free-disk-space@v2.0.0
         with:
-          tool-cache: false
+          preinstalled-runtimes: false
           large-packages: false
+          swap-storage: true
 
       # Check out the current repository
       - name: Fetch Sources
@@ -171,8 +173,9 @@ jobs:
       - name: Maximize Build Space
         uses: jlumbroso/free-disk-space@v2.0.0
         with:
-          tool-cache: false
+          preinstalled-runtimes: false
           large-packages: false
+          swap-storage: true
 
       # Check out the current repository
       - name: Fetch Sources
@@ -206,8 +209,9 @@ jobs:
       - name: Maximize Build Space
         uses: jlumbroso/free-disk-space@v2.0.0
         with:
-          tool-cache: false
+          preinstalled-runtimes: false
           large-packages: false
+          swap-storage: true
 
       # Check out the current repository
       - name: Fetch Sources
