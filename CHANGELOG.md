@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-09
+
 ### Added
 - New `ide_explain_symbol` tool (#41): fused one-round-trip symbol overview — declaration +
   signature + quick documentation (plain text) + supers + implementations + usage summary,
