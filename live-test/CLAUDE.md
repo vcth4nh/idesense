@@ -92,7 +92,7 @@ Append to disambiguate parameter shapes or behaviors of the same probe:
 - explicit type-hierarchy direction "both": `-both` (default-direction rows omit it).
 - language filter: `-lang-<language>` (e.g. `-lang-java`, `-lang-kotlin-empty`).
 - pagination: `-paged`, `-page1`, `-page2`.
-- query shape: `-qualified` (e.g. `find-symbol-Shape.area-qualified`).
+- query shape: `-qualified` (e.g. `find-symbol-Shape.area-qualified`), `-byname` (`className` instead of a position), `-bysymbol` (`symbol` instead of a position).
 - result shape: `-no-match`, `-empty`, `-direct-overrides-only`.
 - diagnostics severity: `-errors`, `-warnings`, `-info`, `-all`.
 - context: `-cross-file`, `-decl`, `-call`, `-ctor`, `-promoted`, `-from-<x>`, `-via-<x>`.

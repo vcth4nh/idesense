@@ -121,13 +121,16 @@ Finds all references to a symbol across the entire project using IntelliJ's sema
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `file` | string | Yes | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
-| `line` | integer | Yes | 1-based line number. |
-| `column` | integer | Yes | 1-based column number. |
+| `symbol` | string | No* | Symbol name or qualified name (e.g. `demo.UserService`, `UserService.authenticate`); alternative to `file`/`line`/`column`. An ambiguous name returns a `candidates` list instead of a result. |
+| `file` | string | No* | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
+| `line` | integer | No* | 1-based line number. |
+| `column` | integer | No* | 1-based column number. |
 | `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files`. The last two follow the project's non-test and test source roots; in a project without such roots the tool returns a `scope_matches_no_files` error instead of an empty result. |
 | `maxResults` | integer | No | Deprecated alias for `pageSize` (default: 100, max: 500) |
 | `cursor` | string | No | Pagination cursor from a previous response |
 | `pageSize` | integer | No | Number of results per page (default: 100, max: 500) |
+
+*Either `symbol` OR `file`/`line`/`column` must be provided on a fresh search; a `cursor` call needs neither.
 
 **Example Request:**
 
@@ -1156,7 +1159,7 @@ Retrieves a depth-limited type hierarchy (supertypes and subtypes) for a class o
 | `file` | string | No* | Path to the file relative to project root |
 | `line` | integer | No* | 1-based line number. Required if using `file`. |
 | `column` | integer | No* | 1-based column number. Required if using `file`. |
-| `className` | string | No* | Fully qualified class name (alternative to position) |
+| `className` | string | No* | Class name or qualified name (alternative to position); works on every language. An ambiguous name returns a `candidates` list instead of a hierarchy. |
 | `direction` | string | No | Which direction to traverse: `"supertypes"` (ancestors), `"subtypes"` (descendants), or `"both"` (default). `"both"` returns the union of the supertypes and subtypes walks. |
 | `maxDepth` | integer | No | How many levels deep to traverse (default: 5, max: 20) |
 | `scope` | string | No | Hierarchy scope. One of `all` (default), `production`, `test`. (`production` = production sources only — empty in projects without production roots.) |
@@ -1267,12 +1270,15 @@ Analyzes method call relationships to find callers or callees.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `file` | string | Yes | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
-| `line` | integer | Yes | 1-based line number. |
-| `column` | integer | Yes | 1-based column number. |
+| `symbol` | string | No* | Symbol name or qualified name (e.g. `demo.UserService`, `UserService.authenticate`); alternative to `file`/`line`/`column`. An ambiguous name returns a `candidates` list instead of a result. |
+| `file` | string | No* | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
+| `line` | integer | No* | 1-based line number. |
+| `column` | integer | No* | 1-based column number. |
 | `direction` | string | Yes | `"callers"` or `"callees"` |
 | `maxDepth` | integer | No | How many levels deep to traverse (default: 3, max: 20) |
 | `scope` | string | No | Hierarchy scope. One of `all` (default), `production`, `test`, `this_class`, `this_module`. (`production` = production sources only.) |
+
+*Either `symbol` OR `file`/`line`/`column` (the declaration position) must be provided.
 
 **Example Request:**
 

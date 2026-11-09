@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### Added
+- `ide_call_hierarchy` and `ide_find_usages` accept a `symbol` (name or qualified name) instead of
+  `file`/`line`/`column`, resolved like the `ide_explain_symbol` anchor: exact qualified name first,
+  then the Go to Symbol popup with the exact-name filter. An ambiguous name returns a `candidates`
+  list instead of a guess (#40).
+
+### Fixed
+- `ide_type_hierarchy` `className` works on Go and Rust, and resolves plain class names on every
+  language. It only used the `QualifiedNameProvider` extension point: in the 2026.2 IDEs RustRover's
+  `RsQualifiedNameProvider.qualifiedNameToElement` returns null and GoLand registers no provider, so
+  every Go/Rust name reported "Class not found". The lookup now falls back to the Go to Symbol popup;
+  a name that is not a class-like declaration returns a clear error (#59).
+
 ## [2.1.0] - 2026-11-09
 
 ### Added
