@@ -145,17 +145,20 @@ class CallHierarchyTool : AbstractMcpTool() {
                 return@suspendingReadAction createErrorResult(it.message ?: "Failed to build call hierarchy")
             }
 
-            val rootCallElement = convertDescriptorToCallElement(walkResult.root, walkResult.resolver, depth)
-                ?: return@suspendingReadAction createErrorResult(
-                    if (anchor is SymbolAnchor.BySymbol) "No method/function found for symbol '${anchor.symbol}'."
-                    else "No method/function found at position." + caretHint(element, arguments)
-                )
+            // The result owns the per-call browser; release it once the tree is converted (GH #26).
+            walkResult.use {
+                val rootCallElement = convertDescriptorToCallElement(walkResult.root, walkResult.resolver, depth)
+                    ?: return@suspendingReadAction createErrorResult(
+                        if (anchor is SymbolAnchor.BySymbol) "No method/function found for symbol '${anchor.symbol}'."
+                        else "No method/function found at position." + caretHint(element, arguments)
+                    )
 
-            createJsonResult(CallHierarchyResult(
-                element = rootCallElement.copy(children = null),
-                calls = rootCallElement.children ?: emptyList(),
-                truncated = walkResult.truncated
-            ))
+                createJsonResult(CallHierarchyResult(
+                    element = rootCallElement.copy(children = null),
+                    calls = rootCallElement.children ?: emptyList(),
+                    truncated = walkResult.truncated
+                ))
+            }
         }
     }
 

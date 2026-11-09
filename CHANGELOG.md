@@ -22,6 +22,11 @@
   fallback); it returns "Symbol not found" (#40).
 
 ### Fixed
+- `ide_type_hierarchy` and `ide_call_hierarchy` dispose the per-call hierarchy browser once the
+  tree is converted. Every call constructed a `HierarchyBrowserBaseEx` (a Swing panel whose
+  constructor registers a `SingleAlarm` under it in the Disposer tree) and never released it, so
+  an agent that issued hierarchy calls in a loop grew the IDE's Disposer tree and heap for the
+  life of the process (#26).
 - `ide_type_hierarchy` `className` works on Go and Rust, and resolves plain class names on every
   language. It only used the `QualifiedNameProvider` extension point: in the 2026.2 IDEs RustRover's
   `RsQualifiedNameProvider.qualifiedNameToElement` returns null and GoLand registers no provider, so
