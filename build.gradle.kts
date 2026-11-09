@@ -9,7 +9,6 @@ plugins {
     alias(libs.plugins.kotlinSerialization) // Kotlin Serialization Plugin
     alias(libs.plugins.intelliJPlatform) // IntelliJ Platform Gradle Plugin
     alias(libs.plugins.changelog) // Gradle Changelog Plugin
-    alias(libs.plugins.qodana) // Gradle Qodana Plugin
     alias(libs.plugins.kover) // Gradle Kover Plugin
 }
 
