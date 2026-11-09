@@ -121,7 +121,7 @@ Finds all references to a symbol across the entire project using IntelliJ's sema
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `symbol` | string | No* | Symbol name or qualified name (e.g. `demo.UserService`, `UserService.authenticate`); alternative to `file`/`line`/`column`. An ambiguous name returns a `candidates` list instead of a result. |
+| `symbol` | string | No* | Symbol name or qualified name (e.g. `demo.UserService`, `UserService.authenticate`); alternative to `file`/`line`/`column`. An ambiguous name — including an overloaded method given without its parameter list — returns a `candidates` list instead of a result; `demo.Quirks#parse(java.lang.String)` selects one overload exactly. A file path is not a symbol. |
 | `file` | string | No* | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
 | `line` | integer | No* | 1-based line number. |
 | `column` | integer | No* | 1-based column number. |
@@ -1270,7 +1270,7 @@ Analyzes method call relationships to find callers or callees.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `symbol` | string | No* | Symbol name or qualified name (e.g. `demo.UserService`, `UserService.authenticate`); alternative to `file`/`line`/`column`. An ambiguous name returns a `candidates` list instead of a result. |
+| `symbol` | string | No* | Symbol name or qualified name (e.g. `demo.UserService`, `UserService.authenticate`); alternative to `file`/`line`/`column`. An ambiguous name — including an overloaded method given without its parameter list — returns a `candidates` list instead of a result; `demo.Quirks#parse(java.lang.String)` selects one overload exactly. A file path is not a symbol. |
 | `file` | string | No* | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
 | `line` | integer | No* | 1-based line number. |
 | `column` | integer | No* | 1-based column number. |

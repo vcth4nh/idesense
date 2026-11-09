@@ -89,7 +89,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
         .projectPath()
         .stringProperty(
             ParamNames.SYMBOL,
-            "Symbol name or qualified name (e.g. \"UserService\", \"demo.UserService\", \"UserService.authenticate\"). Mutually exclusive with file/line/column."
+            "Symbol name or qualified name (e.g. \"UserService\", \"demo.UserService\", \"UserService.authenticate\"); an overloaded method needs its parameter list to select one overload (e.g. \"demo.Quirks#parse(java.lang.String)\"), otherwise the overloads come back as candidates. Mutually exclusive with file/line/column."
         )
         .file(required = false, description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin. Use with line and column; mutually exclusive with symbol.")
         .lineAndColumn(required = false)

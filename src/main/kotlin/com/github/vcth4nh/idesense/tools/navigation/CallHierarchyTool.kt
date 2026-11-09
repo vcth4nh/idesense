@@ -11,6 +11,7 @@ import com.github.vcth4nh.idesense.tools.SymbolResolution
 import com.github.vcth4nh.idesense.tools.models.CallElement
 import com.github.vcth4nh.idesense.tools.models.CallHierarchyResult
 import com.github.vcth4nh.idesense.tools.models.SymbolCandidatesResult
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.ClassLikePsi
 import com.github.vcth4nh.idesense.tools.navigation.hierarchy.HierarchyKind
 import com.github.vcth4nh.idesense.tools.navigation.hierarchy.HierarchyScope
 import com.github.vcth4nh.idesense.tools.navigation.hierarchy.HierarchyTreeWalker
@@ -42,7 +43,9 @@ class CallHierarchyTool : AbstractMcpTool() {
         Build a call hierarchy tree for a method/function — who calls it (callers) or what it calls
         (callees). Use over ide_find_usages when you need the full call chain as a tree rather than
         a flat reference list. Anchor on a symbol name or qualified name (symbol), or on the
-        declaration position (file + line + column).
+        declaration position (file + line + column). A class name anchors on its constructor where
+        the IDE's provider supports that (Java, Kotlin, Python, Rust); elsewhere the error names the
+        class — pass a method/function name instead.
 
         Returns: recursive tree with method names, qualified names, file locations (line/column),
         and nested call relationships up to maxDepth (default 3).
@@ -59,7 +62,7 @@ class CallHierarchyTool : AbstractMcpTool() {
         .projectPath()
         .stringProperty(
             ParamNames.SYMBOL,
-            "Symbol name or qualified name (e.g. \"UserService\", \"demo.UserService\", \"UserService.authenticate\"). Mutually exclusive with file/line/column."
+            "Symbol name or qualified name (e.g. \"UserService\", \"demo.UserService\", \"UserService.authenticate\"); an overloaded method needs its parameter list to select one overload (e.g. \"demo.Quirks#parse(java.lang.String)\"), otherwise the overloads come back as candidates. Mutually exclusive with file/line/column."
         )
         .file(required = false, description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin. Use with line and column; mutually exclusive with symbol.")
         .lineAndColumn(required = false)
@@ -134,6 +137,11 @@ class CallHierarchyTool : AbstractMcpTool() {
             ProgressManager.checkCanceled()
 
             val walkResult = HierarchyTreeWalker.walk(project, element, kind, scope, depth, MAX_NODES).getOrElse {
+                if (anchor is SymbolAnchor.BySymbol && ClassLikePsi.isClassLike(element)) {
+                    return@suspendingReadAction createErrorResult(
+                        "No method/function found for symbol '${anchor.symbol}': it is a class-like declaration and this language's call hierarchy does not accept a class. Pass a method/function name (e.g. '${anchor.symbol}.method') or a file/line/column position."
+                    )
+                }
                 return@suspendingReadAction createErrorResult(it.message ?: "Failed to build call hierarchy")
             }
 
