@@ -198,4 +198,6 @@ fails when this file is stale.
 | find-symbol-qLambda | find_symbol | `{"query":"qLambda"}` |
 | find-symbol-totalArea | find_symbol | `{"query":"totalArea"}` |
 | find-symbol-traced | find_symbol | `{"query":"traced"}` |
+| hier-caller-Shape.area-bysymbol | call_hierarchy | `{"direction":"callers","maxDepth":2,"symbol":"Shape.area"}` |
 | hier-type-Shape-byname | type_hierarchy | `{"className":"Shape"}` |
+| usage-Shape-bysymbol | find_usages | `{"symbol":"Shape"}` |

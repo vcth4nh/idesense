@@ -5,6 +5,7 @@
 {"id":"hier-caller-Describe","tool":"ide_call_hierarchy","params":{"column":2,"direction":"callers","file":"normal.go","line":22,"maxDepth":2}}
 {"id":"hier-caller-Draw","tool":"ide_call_hierarchy","params":{"column":2,"direction":"callers","file":"normal.go","line":17,"maxDepth":2}}
 {"id":"hier-caller-Rectangle.Area-all","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":55,"scope":"all"}}
+{"id":"hier-caller-Rectangle.Area-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","scope":"all","symbol":"Rectangle.Area"}}
 {"id":"hier-caller-Rectangle.Area-class-scope","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":55,"scope":"this_class"}}
 {"id":"hier-caller-Rectangle.Area-test","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"normal.go","line":55,"scope":"test"}}
 {"id":"hier-caller-Shape.Describe-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":2,"symbol":"Shape.Describe"}}

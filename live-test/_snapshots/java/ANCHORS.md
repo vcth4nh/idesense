@@ -192,5 +192,11 @@ fails when this file is stale.
 | find-symbol-parse | find_symbol | `{"query":"parse"}` |
 | find-symbol-quirkLambda | find_symbol | `{"query":"quirkLambda"}` |
 | find-symbol-totalArea | find_symbol | `{"query":"totalArea"}` |
+| hier-caller-Quirks.parse-bysymbol | call_hierarchy | `{"direction":"callers","symbol":"Quirks.parse"}` |
+| hier-caller-Shape.area-bysymbol | call_hierarchy | `{"direction":"callers","maxDepth":2,"symbol":"demo.Shape.area"}` |
+| hier-caller-noSuchFunction-bysymbol | call_hierarchy | `{"direction":"callers","symbol":"noSuchFunction"}` |
 | hier-type-Shape-byname | type_hierarchy | `{"className":"demo.Shape"}` |
+| hier-type-Shape.area-byname | type_hierarchy | `{"className":"demo.Shape.area"}` |
 | status-Status | index_status | `{}` |
+| usage-Shape-bysymbol | find_usages | `{"symbol":"demo.Shape"}` |
+| usage-noSuchSymbol-bysymbol | find_usages | `{"symbol":"noSuchSymbol"}` |
