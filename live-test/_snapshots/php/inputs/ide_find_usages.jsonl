@@ -5,6 +5,7 @@
 {"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":7,"file":"src/Normal.php","line":31}}
 {"id":"usage-RequiresImpl-trait","tool":"ide_find_usages","params":{"column":7,"file":"src/AbstractTraitSuper.php","line":7}}
 {"id":"usage-Severity.Low-enum","tool":"ide_find_usages","params":{"column":10,"file":"src/EnumSuper.php","line":15}}
+{"id":"usage-Shape-bysymbol","tool":"ide_find_usages","params":{"symbol":"Shape"}}
 {"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":16,"file":"src/Normal.php","line":11}}
 {"id":"usage-Status-enum","tool":"ide_find_usages","params":{"column":6,"file":"src/Modern.php","line":6}}
 {"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":30,"file":"src/Normal.php","line":12}}

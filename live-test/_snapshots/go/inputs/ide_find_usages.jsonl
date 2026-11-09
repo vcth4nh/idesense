@@ -5,6 +5,7 @@
 {"id":"usage-Drawable.draw","tool":"ide_find_usages","params":{"column":2,"file":"normal.go","line":17}}
 {"id":"usage-IntCoercer-struct","tool":"ide_find_usages","params":{"column":6,"file":"quirks.go","line":62}}
 {"id":"usage-Rectangle.Area-files-scope","tool":"ide_find_usages","params":{"column":20,"file":"normal.go","line":55,"scope":"project_files"}}
+{"id":"usage-Shape-bysymbol","tool":"ide_find_usages","params":{"symbol":"Shape"}}
 {"id":"usage-Shape-iface","tool":"ide_find_usages","params":{"column":11,"file":"normal.go","line":73}}
 {"id":"usage-ShapeCollection.add","tool":"ide_find_usages","params":{"column":28,"file":"normal.go","line":76}}
 {"id":"usage-area-from-totalArea","tool":"ide_find_usages","params":{"column":12,"file":"normal.go","line":83}}

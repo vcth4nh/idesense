@@ -8,10 +8,15 @@ import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
 import com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch
 import com.github.vcth4nh.idesense.server.PaginationService
+import com.github.vcth4nh.idesense.server.McpErrors
 import com.github.vcth4nh.idesense.server.ProjectResolver
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
+import com.github.vcth4nh.idesense.tools.SymbolAnchor
+import com.github.vcth4nh.idesense.tools.SymbolAnchorResolver
+import com.github.vcth4nh.idesense.tools.SymbolResolution
 import com.github.vcth4nh.idesense.tools.models.FindUsagesResult
+import com.github.vcth4nh.idesense.tools.models.SymbolCandidatesResult
 import com.github.vcth4nh.idesense.tools.models.UsageLocation
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
 import com.github.vcth4nh.idesense.util.LinePreview
@@ -69,7 +74,8 @@ class FindUsagesTool : AbstractMcpTool() {
     override val description = """
         Find references to a symbol in the chosen scope — semantic, not text. Prefer this over
         ide_search_text for usages: it resolves through imports, aliases, overrides, and generics
-        that text search misses. Put the caret on the symbol name (file + line + column).
+        that text search misses. Anchor on a symbol name or qualified name (symbol), or put the
+        caret on the symbol name (file + line + column).
 
         Returns: file paths, 1-based positions, context snippets, and reference kinds
         (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE). Paginated (each cursor collects up to an internal cap; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
@@ -81,7 +87,11 @@ class FindUsagesTool : AbstractMcpTool() {
 
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
-        .file(required = false, description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin. Required for fresh search; ignored when cursor is provided.")
+        .stringProperty(
+            ParamNames.SYMBOL,
+            "Symbol name or qualified name (e.g. \"UserService\", \"demo.UserService\", \"UserService.authenticate\"). Mutually exclusive with file/line/column; ignored when cursor is provided."
+        )
+        .file(required = false, description = "Project-relative file path, or a dependency/library absolute path or jar:// URL previously returned by the plugin. Use with line and column; mutually exclusive with symbol. Ignored when cursor is provided.")
         .lineAndColumn(required = false)
         .scopeProperty()
         .intProperty("maxResults", "Maximum results per page (deprecated, use pageSize). Default: $DEFAULT_MAX_RESULTS, max: $MAX_PAGE_SIZE.")
@@ -117,6 +127,10 @@ class FindUsagesTool : AbstractMcpTool() {
             return createInvalidScopeError(arguments[ParamNames.SCOPE], BuiltInSearchScope.supportedWireValues())
         }
         scopeMatchesNoFilesError(project, scope)?.let { return it }
+        val anchor = SymbolAnchor.parse(arguments)
+        if (anchor is SymbolAnchor.Invalid) {
+            return createStructuredErrorResult(McpErrors.generic("invalid_arguments", anchor.message))
+        }
 
         requireSmartMode(project)
 
@@ -125,24 +139,40 @@ class FindUsagesTool : AbstractMcpTool() {
         // the first page of a fresh search.
         val handlerWarnings = mutableListOf<String>()
         val cursorToken = suspendingReadAction {
-            val element = resolveElementFromArguments(project, arguments, allowLibraryFilesForPosition = true).getOrElse {
-                return@suspendingReadAction null to createErrorResult(it.message ?: ErrorMessages.COULD_NOT_RESOLVE_SYMBOL)
+            val targetElement = when (anchor) {
+                is SymbolAnchor.BySymbol -> when (val resolution = SymbolAnchorResolver.resolve(project, anchor.symbol)) {
+                    is SymbolResolution.Resolved -> resolution.element
+                    is SymbolResolution.Ambiguous -> return@suspendingReadAction null to createJsonResult(
+                        SymbolCandidatesResult(
+                            candidates = resolution.candidates,
+                            message = "Ambiguous symbol '${anchor.symbol}': ${resolution.candidates.size} matches. Pass a qualified name or a file/line/column position.",
+                        )
+                    )
+                    SymbolResolution.NotFound -> return@suspendingReadAction null to createErrorResult(
+                        "Symbol not found in project files: '${anchor.symbol}'. Try a qualified name, or ide_find_symbol with fuzzySearch=true."
+                    )
+                }
+                is SymbolAnchor.ByPosition -> {
+                    val element = resolveElementFromArguments(project, arguments, allowLibraryFilesForPosition = true).getOrElse {
+                        return@suspendingReadAction null to createErrorResult(it.message ?: ErrorMessages.COULD_NOT_RESOLVE_SYMBOL)
+                    }
+                    // Symbol-based resolution returns the declaration directly (PsiNamedElement).
+                    // Position-based resolution returns a leaf token that needs reference resolution.
+                    // We deliberately use resolveReferenceTarget (not resolveTargetElement) — the
+                    // GotoDeclarationHandler step would redirect e.g. `new Foo()` cursors to the
+                    // constructor / __init__ / class-declaration depending on language, narrowing the
+                    // search anchor and dropping legitimate references (type annotations, variable
+                    // assignments, etc.). This matches the IDE's Find Usages action (Alt+F7), which
+                    // uses TargetElementUtil.FIND_TARGET_FLAGS — those flags do not invoke
+                    // GotoDeclarationHandler extensions.
+                    element as? PsiNamedElement
+                        ?: (PsiUtils.resolveReferenceTarget(element)
+                            ?: return@suspendingReadAction null to createErrorResult(
+                                ErrorMessages.NO_NAMED_ELEMENT + "." + caretHint(element, arguments)
+                            ))
+                }
+                is SymbolAnchor.Invalid -> error("unreachable: Invalid anchor handled above")
             }
-
-            // Symbol-based resolution returns the declaration directly (PsiNamedElement).
-            // Position-based resolution returns a leaf token that needs reference resolution.
-            // We deliberately use resolveReferenceTarget (not resolveTargetElement) — the
-            // GotoDeclarationHandler step would redirect e.g. `new Foo()` cursors to the
-            // constructor / __init__ / class-declaration depending on language, narrowing the
-            // search anchor and dropping legitimate references (type annotations, variable
-            // assignments, etc.). This matches the IDE's Find Usages action (Alt+F7), which
-            // uses TargetElementUtil.FIND_TARGET_FLAGS — those flags do not invoke
-            // GotoDeclarationHandler extensions.
-            val targetElement = element as? PsiNamedElement
-                ?: (PsiUtils.resolveReferenceTarget(element)
-                    ?: return@suspendingReadAction null to createErrorResult(
-                        ErrorMessages.NO_NAMED_ELEMENT + "." + caretHint(element, arguments)
-                    ))
 
             val usages = ConcurrentLinkedQueue<UsageLocation>()
             val totalFound = AtomicInteger(0)

@@ -4,6 +4,7 @@
 {"id":"usage-Drawable-trait","tool":"ide_find_usages","params":{"column":11,"file":"src/normal.rs","line":6}}
 {"id":"usage-Point-derived","tool":"ide_find_usages","params":{"column":12,"file":"src/macros.rs","line":16}}
 {"id":"usage-Rectangle-struct","tool":"ide_find_usages","params":{"column":12,"file":"src/normal.rs","line":42}}
+{"id":"usage-Shape-bysymbol","tool":"ide_find_usages","params":{"symbol":"Shape"}}
 {"id":"usage-Shape-trait","tool":"ide_find_usages","params":{"column":11,"file":"src/normal.rs","line":12}}
 {"id":"usage-area-from-total","tool":"ide_find_usages","params":{"column":38,"file":"src/normal.rs","line":97}}
 {"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":8,"file":"src/normal.rs","line":27,"scope":"project_and_libraries"}}
