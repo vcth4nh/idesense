@@ -1,0 +1,7 @@
+{"id":"hier-callee-RegisterModule-d2","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callees","file":"modules.go","line":138,"maxDepth":2}}
+{"id":"hier-caller-App.Provision","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"modules/caddyhttp/app.go","line":188,"maxDepth":1}}
+{"id":"hier-caller-GetModule-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"caddy.GetModule"}}
+{"id":"hier-caller-NewReplacer-d1","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callers","file":"replacer.go","line":34,"maxDepth":1},"compare":"shape"}
+{"id":"hier-caller-NewReplacer-d2","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callers","file":"replacer.go","line":34,"maxDepth":2},"compare":"shape"}
+{"id":"hier-caller-ReplaceAll-production-scope","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"replacer.go","line":163,"maxDepth":1,"scope":"production"}}
+{"id":"hier-caller-ReplaceAll-test-scope","tool":"ide_call_hierarchy","params":{"column":20,"direction":"callers","file":"replacer.go","line":163,"maxDepth":1,"scope":"test"}}

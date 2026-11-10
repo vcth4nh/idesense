@@ -1,0 +1,9 @@
+{"id":"canary-usage-GetModule","tool":"ide_find_usages","params":{"column":6,"file":"modules.go","line":164,"pageSize":100}}
+{"id":"usage-FastAbs","tool":"ide_find_usages","params":{"column":6,"file":"filepath.go","line":29,"pageSize":100}}
+{"id":"usage-FastAbs-decl-windows","tool":"ide_find_usages","params":{"column":6,"file":"filepath_windows.go","line":25,"pageSize":100}}
+{"id":"usage-GetModule-production-scope","tool":"ide_find_usages","params":{"column":6,"file":"modules.go","line":164,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-GetModule-test-scope","tool":"ide_find_usages","params":{"column":6,"file":"modules.go","line":164,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-Handler-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"Handler"},"parked":131}
+{"id":"usage-Module-page1","tool":"ide_find_usages","params":{"column":6,"file":"modules.go","line":54,"pageSize":100},"compare":"shape","parked":132}
+{"id":"usage-Module-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-Module-page1","parked":132}
+{"id":"usage-OnExit-empty","tool":"ide_find_usages","params":{"column":6,"file":"caddy.go","line":851,"pageSize":100}}

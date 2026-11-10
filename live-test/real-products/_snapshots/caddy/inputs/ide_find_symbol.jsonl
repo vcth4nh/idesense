@@ -1,0 +1,5 @@
+{"id":"find-symbol-App.Provision-qualified","tool":"ide_find_symbol","params":{"query":"App.Provision"}}
+{"id":"find-symbol-CaddyModule-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"CaddyModule"},"compare":"shape"}
+{"id":"find-symbol-Cleanup","tool":"ide_find_symbol","params":{"pageSize":25,"query":"Cleanup"},"compare":"ordered"}
+{"id":"find-symbol-Cleanup-lang-go","tool":"ide_find_symbol","params":{"language":"Go","pageSize":25,"query":"Cleanup"}}
+{"id":"find-symbol-caddyhttp.App.Provision-qualified","tool":"ide_find_symbol","params":{"query":"caddyhttp.App.Provision"}}

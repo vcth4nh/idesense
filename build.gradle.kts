@@ -10,6 +10,14 @@ plugins {
     alias(libs.plugins.intelliJPlatform) // IntelliJ Platform Gradle Plugin
     alias(libs.plugins.changelog) // Gradle Changelog Plugin
     alias(libs.plugins.kover) // Gradle Kover Plugin
+    id("idea") // IDE project model
+}
+
+// Real-product checkouts are test data for the live-test harness, not part of this project.
+idea {
+    module {
+        excludeDirs.add(file("live-test/real-products"))
+    }
 }
 
 group = providers.gradleProperty("pluginGroup").get()

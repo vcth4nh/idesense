@@ -1,0 +1,5 @@
+{"id":"search-text-caddy-paged","tool":"ide_search_text","params":{"pageSize":50,"query":"caddy"},"compare":"shape"}
+{"id":"search-text-tailscale","tool":"ide_search_text","params":{"pageSize":100,"query":"tailscale"},"parked":133}
+{"id":"search-text-tailscale-code","tool":"ide_search_text","params":{"context":"code","pageSize":100,"query":"tailscale"},"parked":133}
+{"id":"search-text-tailscale-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"tailscale"}}
+{"id":"search-text-tailscale-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"tailscale"}}

@@ -1,0 +1,4 @@
+{"id":"find-class-Handler","tool":"ide_find_class","params":{"query":"Handler"}}
+{"id":"find-class-MatchP-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"MatchP"}}
+{"id":"find-class-Module","tool":"ide_find_class","params":{"query":"Module"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}

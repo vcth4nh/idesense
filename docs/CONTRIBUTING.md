@@ -117,7 +117,8 @@ edit → ./gradlew buildPlugin → ide_install_plugin → ide_restart
 IDE's open project. When that IDE has this repo open, the default path (newest zip in
 `build/distributions/`) just works. When it has a *different* project open (e.g. the
 `live-test/fixtures/<lang>` fixtures), copy the zip into that project root first and pass the
-in-project path — see [live-test/README.md](../live-test/README.md).
+in-project path — see [live-test/README.md](../live-test/README.md). Never copy a zip into a
+real-product checkout (`live-test/real-products/<folder>`): a product is pinned test data.
 
 **Dev versioning during iteration.** While iterating, set `pluginVersion` to a
 monotonic dev suffix: `5.3.5-dev.01`, `5.3.5-dev.02`, … (increment every build that
@@ -221,7 +222,7 @@ Tests are split into two categories to optimize execution time:
 
 > **Editing docs?** `DocsDriftUnitTest` (a `*UnitTest`) pins the catalog docs to code-derived facts (tool names, params), but it reads the `.md` files via `File()` at runtime — they are **not** declared Gradle task inputs. So after a docs-only edit a plain `./gradlew test` reports `UP-TO-DATE`, and even `cleanTest` can return `FROM-CACHE` — a **stale pass**. Force a real re-run with `./gradlew --no-build-cache cleanTest test --tests "*DocsDriftUnitTest*"`. (`--rerun-tasks` also works but recompiles everything → add `-Pkotlin.daemon.jvmargs="-Xmx4g"`.)
 
-> **Live-test harness**: For tool-behavior changes, also run the snapshot regression suite in `live-test/` against real running IDEs. See [live-test/README.md](../live-test/README.md) for instructions. The harness is not part of `./gradlew test` and requires running IDEs.
+> **Live-test harness**: For tool-behavior changes, also run the snapshot regression suite in `live-test/` against real running IDEs. It has two suites: the fixtures (`./live-test/run.py`) and pinned real products (`./live-test/run.py --suite real-products`). A version bump runs both with `./live-test/run.py --suite all`. A contributor needs no product checkout for the fixture suite. See [live-test/README.md](../live-test/README.md) for instructions. The harness is not part of `./gradlew test` and requires running IDEs.
 
 ### Test Data
 - Place test fixtures in `src/test/testData/`
@@ -259,7 +260,7 @@ Every PR **must** include:
 3. Follow existing code patterns and use `SchemaBuilder` for new tool schemas
 4. Add tests for new functionality
 5. Update the docs ([ARCHITECTURE.md](ARCHITECTURE.md) for design/structure, this file for process) for any structural or architectural changes
-6. Run `./gradlew test --tests "*UnitTest*"` to verify unit tests pass. Do NOT run platform tests yourself (CI runs `./gradlew test` which includes them). For tool-behavior changes, also run the live-test harness — see [live-test/README.md](../live-test/README.md).
+6. Run `./gradlew test --tests "*UnitTest*"` to verify unit tests pass. Do NOT run platform tests yourself (CI runs `./gradlew test` which includes them). For tool-behavior changes, also run the fixture suite of the live-test harness (`./live-test/run.py`) — see [live-test/README.md](../live-test/README.md).
 
 ---
 
