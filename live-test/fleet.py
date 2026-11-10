@@ -6,6 +6,9 @@ IDE, and which projects that IDE opens at its next start. Linux only (/proc).
 from __future__ import annotations
 
 import os
+import signal
+import subprocess
+import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,13 +55,14 @@ def parse_ide_process(ide: Ide, pid: int, cmdline: list[str], exe: str, environ:
                       cwd: str, user_home: str) -> IdeProcess | None:
     """The fleet instance of `ide`, or None when the process is something else.
 
-    The fleet instance runs `serverMode` with the default configuration folder.
-    A throwaway instance with its own -Didea.config.path is not the fleet.
+    The fleet instance runs `serverMode` with the default configuration folder;
+    a project path can follow `serverMode`. A throwaway instance with its own
+    -Didea.config.path is not the fleet.
     """
     prefix = f"-Didea.paths.selector={ide.selector}"
     selector = next((a.split("=", 1)[1] for a in cmdline
                      if a.startswith(prefix) and a[len(prefix):len(prefix) + 1].isdigit()), None)
-    if selector is None or cmdline[-1] != "serverMode":
+    if selector is None or "serverMode" not in cmdline:
         return None
     if any(a.startswith("-Didea.config.path=") for a in cmdline):
         return None
@@ -112,3 +116,85 @@ def rewrite_recent_projects(xml_text: str, wanted: list[str], user_home: str) ->
         ET.SubElement(value, "RecentProjectMetaInfo", {"opened": "true"})
     ET.indent(root, space="  ")
     return ET.tostring(root, encoding="unicode")
+
+
+_PROBE_PATH = "/nonexistent/idesense-open-projects-probe"
+
+
+def open_projects(url: str, post) -> list[str] | None:
+    """The project paths that the IDE has open, or None when the server does not answer.
+
+    The server lists its open projects in the error payload of a call that
+    names an unknown project. `post` has the signature of run.post_jsonrpc.
+    An entry with a "workspace" key is a module folder of a project, not a
+    project (ProjectResolver.kt, collectAvailableProjectEntries).
+    """
+    request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+               "params": {"name": "ide_index_status", "arguments": {"project_path": _PROBE_PATH}}}
+    result = post(url, request, timeout=5.0)
+    if not isinstance(result, dict) or "transport_error" in result or "jsonrpc_error" in result:
+        return None
+    return [p["path"] for p in result.get("available_projects", []) if "workspace" not in p]
+
+
+def _stop(proc: IdeProcess, timeout: float, key: str) -> str | None:
+    """SIGTERM, then wait until the process is gone. Never SIGKILL: the IDE must save its state."""
+    try:
+        os.kill(proc.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return None
+    deadline = time.monotonic() + timeout
+    while Path(f"/proc/{proc.pid}").exists():
+        if time.monotonic() >= deadline:
+            return f"{key} did not stop in {timeout:.0f} s"
+        time.sleep(0.2)
+    return None
+
+
+def _start(proc: IdeProcess) -> None:
+    """Start the IDE as it ran before: same launcher, environment and working directory.
+
+    `setsid --fork` makes the IDE a child of init, not of this harness. A child
+    of the harness would stay in /proc as a zombie after its end, and a later
+    `_stop` in the same harness run would wait for it until the timeout.
+    """
+    subprocess.run(["setsid", "--fork", str(proc.launcher), "serverMode"], cwd=proc.cwd, env=proc.env, check=True,
+                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None, log=print,
+                      stop_timeout: float = 90.0, start_timeout: float = 300.0) -> str | None:
+    """Make `wanted` the open projects of the IDE. None on success, else one error line.
+
+    The plugin has no tool that opens or closes a project, so a change is a
+    restart: stop the IDE, mark the wanted projects in recentProjects.xml,
+    start the IDE, and wait until the server lists exactly those projects.
+    """
+    url = url or ide_url(ide)
+    now = open_projects(url, post)
+    if now is None:
+        return f"cannot reach {url}: start the IDE first"
+    if set(now) == set(wanted):
+        return None
+    proc = find_ide_process(ide)
+    if proc is None:
+        return f"no {ide.key} fleet process found"
+    command = f"{proc.launcher} serverMode"
+    log(f"[{ide.key}] restart for a project switch. Start command: {command}")
+    err = _stop(proc, stop_timeout, ide.key)
+    if err is not None:
+        return err
+    recent = proc.config_dir / "options" / "recentProjects.xml"
+    tmp = recent.with_name(f".{recent.name}.tmp.{os.getpid()}")
+    tmp.write_text(rewrite_recent_projects(recent.read_text(), wanted, proc.env.get("HOME") or str(Path.home())))
+    os.replace(tmp, recent)
+    _start(proc)
+    deadline = time.monotonic() + start_timeout
+    while True:
+        now = open_projects(url, post)
+        if now is not None and set(now) == set(wanted):
+            return None
+        if time.monotonic() >= deadline:
+            return (f"{ide.key} did not open {wanted} in {start_timeout:.0f} s (open now: {now}). "
+                    f"Start command: {command}")
+        time.sleep(5)

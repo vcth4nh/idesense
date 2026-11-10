@@ -7,8 +7,14 @@ Covers the bless error gate (#82): structured {"error": ...} tool payloads
 must not silently replace a previously non-error expected row.
 """
 import unittest
+from pathlib import Path
+from unittest import mock
 
+import fleet
+import products
+import run
 from run import _result_has_error, _result_is_structured_error, _structured_error_bless_refusals
+from run import wait_until
 
 
 class ResultIsStructuredErrorTest(unittest.TestCase):
@@ -59,6 +65,73 @@ class StructuredErrorBlessRefusalsTest(unittest.TestCase):
         fresh = {"a": self.OK, "b": self.ERR, "c": self.NEG, "d": self.ERR}
         expected = {"a": self.OK, "b": self.OK, "c": self.NEG}  # d is new
         self.assertEqual(["b", "d"], _structured_error_bless_refusals(fresh, expected))
+
+
+class WaitUntilTest(unittest.TestCase):
+    def run_with(self, results, timeout=30.0):
+        t, calls = [0.0], []
+
+        def check():
+            calls.append(t[0])
+            return results[min(len(calls) - 1, len(results) - 1)]
+
+        def sleep(s):
+            t[0] += s
+        return wait_until(check, timeout, poll_s=5.0, sleep=sleep, clock=lambda: t[0]), calls
+
+    def test_returns_when_the_check_passes(self):
+        (err, waited), calls = self.run_with(["dumb mode", "dumb mode", None])
+        self.assertEqual((None, 10.0, 3), (err, waited, len(calls)))
+
+    def test_returns_the_last_error_after_the_timeout(self):
+        (err, waited), _ = self.run_with(["cannot reach"], timeout=12.0)
+        self.assertEqual("cannot reach", err)
+        self.assertGreaterEqual(waited, 12.0)
+
+    def test_zero_timeout_checks_one_time(self):
+        (err, _), calls = self.run_with(["dumb mode"], timeout=0.0)
+        self.assertEqual(("dumb mode", 1), (err, len(calls)))
+
+
+class OpenProductTest(unittest.TestCase):
+    P = products.Product("caddy", "goland", "caddyserver/caddy", "v2.11.7", "Apache-2.0", "core")
+    ROOT = Path("/r/live-test")
+
+    def switch(self, error=None):
+        calls = []
+
+        def fn(ide, wanted, post, url=None):
+            calls.append((ide.key, wanted))
+            return error
+        return fn, calls
+
+    FIXTURE, PRODUCT = "/r/live-test/fixtures/go", "/r/live-test/real-products/caddy"
+
+    def test_opens_the_product_next_to_the_fixtures(self):
+        fn, calls = self.switch()
+        with mock.patch.object(run, "check_ready", return_value=None):
+            err, _, _, switched = run.open_product(self.ROOT, self.P, switch=fn, current=lambda url, post: [self.FIXTURE])
+        self.assertEqual((None, True), (err, switched))
+        self.assertEqual([("goland", [self.FIXTURE, self.PRODUCT])], calls)
+
+    def test_product_that_is_open_needs_no_switch(self):
+        fn, calls = self.switch()
+        with mock.patch.object(run, "check_ready", return_value=None):
+            err, _, _, switched = run.open_product(self.ROOT, self.P, switch=fn,
+                                                   current=lambda url, post: [self.PRODUCT, self.FIXTURE])
+        self.assertEqual((None, False, []), (err, switched, calls))
+
+    def test_switch_error_is_returned_without_a_readiness_wait(self):
+        fn, _ = self.switch("goland did not stop in 90 s")
+        with mock.patch.object(run, "check_ready") as ready:
+            err, _, _, switched = run.open_product(self.ROOT, self.P, switch=fn, current=lambda url, post: [self.FIXTURE])
+        self.assertEqual(("goland did not stop in 90 s", True), (err, switched))
+        ready.assert_not_called()
+
+    def test_close_products_leaves_the_fixtures(self):
+        fn, calls = self.switch()
+        self.assertIsNone(run.close_products(self.ROOT, fleet.IDES["intellij"], switch=fn))
+        self.assertEqual([("intellij", ["/r/live-test/fixtures/java", "/r/live-test/fixtures/kotlin"])], calls)
 
 
 if __name__ == "__main__":

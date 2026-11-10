@@ -15,11 +15,14 @@ import difflib
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
+import fleet
+import products
 from fleet import PORT_BY_LANG
 
 DROP_FIELDS = {
@@ -186,6 +189,54 @@ def check_ready(url: str, project_path: str) -> str | None:
     if result.get("isDumbMode") is True:
         return "project is in dumb mode (still indexing)"
     return None
+
+
+def wait_until(check: Callable[[], str | None], timeout_s: float, poll_s: float = 5.0,
+               sleep=time.sleep, clock=time.monotonic) -> tuple[str | None, float]:
+    """Call `check` until it returns None or `timeout_s` is over.
+
+    Returns (the last error or None, the seconds waited)."""
+    start = clock()
+    while True:
+        err = check()
+        waited = clock() - start
+        if err is None or waited >= timeout_s:
+            return err, waited
+        sleep(poll_s)
+
+
+def _fixture_paths(root: Path, ide: fleet.Ide) -> list[str]:
+    return [str(root / "fixtures" / lang) for lang in ide.languages]
+
+
+def open_product(root: Path, p: products.Product, url: str | None = None,
+                 switch=fleet.set_open_projects, current=fleet.open_projects) -> tuple[str | None, float, float, bool]:
+    """Make the product the one open product of its IDE, next to the fixtures, and wait until it is ready.
+
+    `root` is the live-test folder. Returns (error, switch seconds, ready
+    seconds, switched). `switched` is False when the product was open before
+    the call; then the IDE is not restarted."""
+    ide = fleet.IDES[p.ide]
+    url = url or fleet.ide_url(ide)
+    product_path = str(root / "real-products" / p.folder)
+    wanted = _fixture_paths(root, ide) + [product_path]
+    now = current(url, post_jsonrpc)
+    switched = now is None or set(now) != set(wanted)
+    switch_s = 0.0
+    if switched:
+        start = time.monotonic()
+        err = switch(ide, wanted, post_jsonrpc, url=url)
+        switch_s = time.monotonic() - start
+        if err is not None:
+            return err, switch_s, 0.0, True
+    err, ready_s = wait_until(lambda: check_ready(url, product_path), p.ready_timeout)
+    return err, switch_s, ready_s, switched
+
+
+def close_products(root: Path, ide: fleet.Ide, url: str | None = None,
+                   switch=fleet.set_open_projects) -> str | None:
+    """Leave only the fixture projects open in the IDE. `root` is the live-test folder."""
+    return switch(ide, _fixture_paths(root, ide), post_jsonrpc, url=url or fleet.ide_url(ide))
 
 
 def diff_lines(expected: Any, actual: Any) -> str:
@@ -716,9 +767,45 @@ def main() -> int:
         action="store_true",
         help="Regenerate _snapshots/<lang>/ANCHORS.md from inputs + fixture sources (offline).",
     )
+    parser.add_argument(
+        "--open-product",
+        metavar="NAME",
+        help="Restart the IDE of one real product with that product open next to its fixtures, then exit.",
+    )
+    parser.add_argument(
+        "--close-products",
+        action="store_true",
+        help="Leave only the fixture projects open in every IDE (restarts an IDE that has a product open), then exit.",
+    )
     args = parser.parse_args()
 
-    root = Path(__file__).resolve().parent / "fixtures"
+    here = Path(__file__).resolve().parent
+    root = here / "fixtures"
+
+    if args.close_products:
+        failed = 0
+        for ide in fleet.IDES.values():
+            err = close_products(here, ide)
+            print(f"[{ide.key}] {'fixtures only' if err is None else 'ERROR: ' + err}")
+            failed += err is not None
+        return 0 if failed == 0 else 1
+
+    if args.open_product:
+        table = {p.folder: p for p in products.load_products(here / "real-products" / "products.json")}
+        product = table.get(args.open_product)
+        if product is None:
+            print(f"No product '{args.open_product}' in real-products/products.json", file=sys.stderr)
+            return 2
+        state = products.checkout_state(here.parent, f"live-test/real-products/{product.folder}")
+        if state != "ok":
+            print(f"[{product.folder}] ERROR: checkout is {state}")
+            return 1
+        err, switch_s, ready_s, _ = open_product(here, product, url=args.url)
+        if err is not None:
+            print(f"[{product.folder}] ERROR: {err}")
+            return 1
+        print(f"[{product.folder}] {product.ide}: switch {switch_s:.0f}s, ready {ready_s:.0f}s")
+        return 0
     langs = discover_languages(root, args.language)
     if not langs:
         print(f"No fixtures found in {root}", file=sys.stderr)
