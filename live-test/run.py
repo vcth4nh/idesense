@@ -20,16 +20,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-PORT_BY_LANG = {
-    "python": 29172,
-    "java": 29170,
-    "kotlin": 29170,
-    "javascript": 29173,
-    "typescript": 29173,
-    "go": 29174,
-    "php": 29175,
-    "rust": 29178,
-}
+from fleet import PORT_BY_LANG
 
 DROP_FIELDS = {
     "preview", "nextCursor", "stale", "hasMore", "truncated",
