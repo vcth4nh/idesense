@@ -106,8 +106,9 @@ class OpenProductTest(unittest.TestCase):
     def switch(self, error=None):
         calls = []
 
-        def fn(ide, wanted, post, url=None):
+        def fn(ide, wanted, post, url=None, may_close=None):
             calls.append((ide.key, wanted))
+            self.may_close = may_close
             return error
         return fn, calls
 
@@ -138,6 +139,52 @@ class OpenProductTest(unittest.TestCase):
         fn, calls = self.switch()
         self.assertIsNone(run.close_products(self.ROOT, fleet.IDES["intellij"], switch=fn))
         self.assertEqual([("intellij", ["/r/live-test/fixtures/java", "/r/live-test/fixtures/kotlin"])], calls)
+
+    def test_switch_may_close_only_a_product_of_this_checkout(self):
+        fn, _ = self.switch()
+        with mock.patch.object(run, "check_ready", return_value=None):
+            run.open_product(self.ROOT, self.P, switch=fn, current=lambda url, post: [self.FIXTURE])
+        open_rule = self.may_close
+        run.close_products(self.ROOT, fleet.IDES["goland"], switch=fn)
+        for rule in (open_rule, self.may_close):
+            self.assertTrue(rule("/r/live-test/real-products/other"))
+            for path in (self.FIXTURE, "/r", "/w/live-test/real-products/caddy", "/w/live-test/fixtures/go"):
+                self.assertFalse(rule(path), path)
+
+    def test_command_from_another_checkout_stops_no_ide(self):
+        # The real switch function. The fleet has the fixture and a product of /r open; the caller is /w.
+        def post(url, request, timeout=60.0):
+            return {"error": "project_not_found", "available_projects": [
+                {"name": "go", "path": self.FIXTURE}, {"name": "caddy", "path": self.PRODUCT}]}
+
+        other = Path("/w/live-test")
+        with mock.patch.object(run, "post_jsonrpc", post), \
+             mock.patch.object(fleet, "find_ide_process", return_value=None) as find:
+            close_error = run.close_products(other, fleet.IDES["goland"])
+            open_error = run.open_product(other, self.P)[0]
+        for err in (close_error, open_error):
+            self.assertIn(f"must not close: {self.FIXTURE}", err)
+        find.assert_not_called()
+
+    OTHER_URL = "http://127.0.0.1:29199/mcp/streamable-http"
+
+    def test_other_server_with_the_product_open_needs_no_switch(self):
+        # `--url` of a throwaway IDE that has only the product open: the rows run there.
+        fn, calls = self.switch()
+        with mock.patch.object(run, "check_ready", return_value=None):
+            err, _, _, switched = run.open_product(self.ROOT, self.P, url=self.OTHER_URL, switch=fn,
+                                                   current=lambda url, post: [self.PRODUCT])
+        self.assertEqual((None, False, []), (err, switched, calls))
+
+    def test_other_server_without_the_product_is_an_error_and_no_switch(self):
+        fn, calls = self.switch()
+        with mock.patch.object(run, "check_ready", return_value=None) as ready:
+            err, _, _, switched = run.open_product(self.ROOT, self.P, url=self.OTHER_URL, switch=fn,
+                                                   current=lambda url, post: [self.FIXTURE])
+        self.assertEqual(f"{self.OTHER_URL} is not the fleet server of goland and does not have {self.PRODUCT} open: "
+                         "the harness restarts only a fleet IDE", err)
+        self.assertEqual((False, []), (switched, calls))
+        ready.assert_not_called()
 
 
 U = "ide_find_usages"
@@ -381,11 +428,44 @@ class ProductRunTest(unittest.TestCase):
             result, _ = self.go(flaky, ready_deadline=time.monotonic() + 60)
         self.assertEqual((4, 0), result)
 
+    def test_first_canary_try_that_differs_is_not_silent(self):
+        # The wait can be the whole readiness time of the product, so the first try shows the difference.
+        wrong = iter([dict(ANSWERS["App"], classes=[])])
+        flaky = dict(ANSWERS, App=lambda: next(wrong, ANSWERS["App"]))
+        with mock.patch.object(run.time, "sleep"):
+            result, _ = self.go(flaky, ready_deadline=time.monotonic() + 60)
+        self.assertEqual((4, 0), result)
+        i = next((n for n, line in enumerate(self.printed) if line.startswith("  canary-find-class-App differs.")), None)
+        self.assertIsNotNone(i, self.printed)
+        self.assertRegex(self.printed[i], r"The harness tries the canary rows again for up to \d+ s\.$")
+        self.assertTrue(self.printed[i + 1].startswith("    "), self.printed[i + 1])      # the diff
+        self.assertNotIn("[demo] MISCONFIGURED: canary row canary-find-class-App differs", self.printed)
+
+    def test_canary_retry_ends_at_the_ready_deadline(self):
+        clock = [1000.0]
+
+        def sleep(seconds):
+            clock[0] += seconds
+            self.assertLess(clock[0], 1100.0, "the retry went on after the deadline")
+
+        bad = dict(ANSWERS, App=dict(ANSWERS["App"], classes=[]))
+        with mock.patch.object(run.time, "sleep", sleep), mock.patch.object(run.time, "monotonic", lambda: clock[0]):
+            result, seen = self.go(bad, ready_deadline=1025.0)
+        self.assertEqual((0, 1), result)
+        self.assertEqual(4, seen.count((FC, {"query": "App"})))          # tries at 0, 10, 20 and 30 s
+        self.assertIn("[demo] MISCONFIGURED: canary row canary-find-class-App differs", self.printed)
+
     def test_tool_filter_keeps_the_canary_gate(self):
         result, seen = self.go(tool_filter=U)
         self.assertEqual((2, 0), result)
         self.assertIn((FC, {"query": "App"}), seen)
         self.assertNotIn((FC, {"query": "Zed"}), seen)
+
+    def test_canary_that_differs_stops_a_tool_filtered_run(self):
+        result, seen = self.go(dict(ANSWERS, App=dict(ANSWERS["App"], classes=[])), tool_filter=U)
+        self.assertEqual((0, 1), result)
+        self.assertNotIn((U, {"query": "p1", "pageSize": 2}), seen)
+        self.assertIn("[demo] MISCONFIGURED: canary row canary-find-class-App differs", self.printed)
 
     def test_chained_row_that_repeats_an_item_fails(self):
         repeat = dict(ANSWERS["CUR"], usages=[ANSWERS["p1"]["usages"][0], ANSWERS["CUR"]["usages"][1]])
@@ -405,6 +485,25 @@ class ProductRunTest(unittest.TestCase):
         self.go(dict(ANSWERS, Zed=dict(ANSWERS["Zed"], totalCollected=7)), bless=True)
         self.assertEqual(7, self.expected()["find-class-Zed"]["totalCollected"])
         self.assertNotIn("usage-Bug", self.expected())
+
+    def test_bless_does_not_write_a_failed_chained_row(self):
+        before = self.expected()["usage-App-page2"]
+        changed = dict(ANSWERS, p1=dict(ANSWERS["p1"], nextCursor=None), Zed=dict(ANSWERS["Zed"], totalCollected=7))
+        self.go(changed, bless=True)
+        self.assertEqual(before, self.expected()["usage-App-page2"])
+        self.assertEqual(7, self.expected()["find-class-Zed"]["totalCollected"])        # the bless itself ran
+
+    def test_bless_refuses_a_new_error_of_a_product_row(self):
+        # The two gates of the fixture suite, a structured tool error and a transport error, also hold for a product.
+        for answer in ({"error": "internal_error", "message": "boom"}, {"transport_error": "timed out"}):
+            self.go(dict(ANSWERS, Zed=answer), bless=True)
+            self.assertEqual(0, self.expected()["find-class-Zed"]["totalCollected"], answer)
+            self.assertTrue(any("refusing to bless 1 rows" in line for line in self.printed), answer)
+
+    def test_bless_errors_lets_the_error_of_a_product_row_through(self):
+        error = {"error": "scope_matches_no_files", "message": "m"}
+        self.go(dict(ANSWERS, Zed=error), bless=True, bless_errors=True)
+        self.assertEqual(error, self.expected()["find-class-Zed"])
 
     def test_bless_is_refused_when_a_canary_differs(self):
         bad = dict(ANSWERS, App=dict(ANSWERS["App"], classes=[]), Zed=dict(ANSWERS["Zed"], totalCollected=7))
@@ -455,12 +554,16 @@ class RunProductsTest(unittest.TestCase):
     C = products.Product("gamma", "pycharm", "o/c", "v1", "MIT", "core", ready_timeout=120.0)
 
     def go(self, prods, named=False, state="ok", open_error=None, raises=None, bless=False, switched=True,
-           close_error=None, **kw):
+           close_error=None, open_raises=None, during_open=None, **kw):
         self.opened, self.closed, self.ran, self.events, self.calls = [], [], [], [], []
 
         def open_product(root, p, url=None):
             self.opened.append(p.folder)
             self.events.append(f"open {p.folder}")
+            if open_raises:
+                raise open_raises
+            if during_open:
+                during_open()
             return (open_error, 1.0, 2.0, switched)
 
         def close_products(root, ide, url=None):
@@ -523,6 +626,30 @@ class RunProductsTest(unittest.TestCase):
     def test_product_that_was_open_before_the_run_stays_open(self):
         self.assertEqual((3, 0, 0), self.go([self.A], switched=False))
         self.assertEqual([], self.closed)
+
+    def test_interrupt_in_the_open_still_closes_the_product(self):
+        # The switch or the readiness wait was interrupted: the state is not known, so the fixtures-only state is made.
+        with self.assertRaises(KeyboardInterrupt):
+            self.go([self.A], open_raises=KeyboardInterrupt())
+        self.assertEqual(["goland"], self.closed)
+
+    def test_product_that_was_open_gets_a_short_canary_retry(self):
+        # No switch, so no build tool is still at work: a canary that differs is a real difference.
+        before = time.monotonic()
+        self.go([self.C], switched=False)
+        deadline = self.calls[0][2]["ready_deadline"]
+        self.assertTrue(before + 60.0 <= deadline <= time.monotonic() + 60.0)
+
+    def test_short_canary_retry_starts_when_the_product_is_ready(self):
+        # The product was open but not ready: the wait for its index must not use up the short retry time.
+        clock = [1000.0]
+
+        def wait_for_the_index():
+            clock[0] += 100.0
+
+        with mock.patch.object(run.time, "monotonic", lambda: clock[0]):
+            self.go([self.C], switched=False, during_open=wait_for_the_index)
+        self.assertEqual(1160.0, self.calls[0][2]["ready_deadline"])
 
     def test_close_error_is_one_failure(self):
         self.assertEqual((3, 1, 0), self.go([self.A], close_error="goland did not open [...] in 300 s"))
@@ -619,6 +746,57 @@ class MainSuiteTest(unittest.TestCase):
                 self.main(*argv)
             self.assertEqual(2, stop.exception.code)
             self.assertEqual(([], []), (self.languages, self.product_calls))
+
+
+class MainFleetTest(unittest.TestCase):
+    """The two commands of main() that only change the open projects of the fleet."""
+    A = RunProductsTest.A
+    HERE = Path(run.__file__).resolve().parent
+
+    def main(self, *argv, state="ok", close_error=None):
+        self.closed, self.opened = [], []
+
+        def close_products(root, ide, url=None):
+            self.closed.append((root, ide.key))
+            return close_error
+
+        def open_product(root, p, url=None):
+            self.opened.append((root, p.folder, url))
+            return (None, 11.0, 2.0, True)
+
+        printed = io.StringIO()
+        with mock.patch.object(sys, "argv", ["run.py", *argv]), \
+             mock.patch.object(run, "close_products", close_products), \
+             mock.patch.object(run, "open_product", open_product), \
+             mock.patch.object(products, "load_products", lambda path: [self.A]), \
+             mock.patch.object(products, "checkout_state", lambda repo, rel: state), \
+             contextlib.redirect_stdout(printed), contextlib.redirect_stderr(io.StringIO()):
+            code = run.main()
+        self.printed = printed.getvalue().splitlines()
+        return code
+
+    def test_close_products_goes_to_every_ide_with_the_live_test_folder(self):
+        self.assertEqual(0, self.main("--close-products"))
+        self.assertEqual([(self.HERE, key) for key in fleet.IDES], self.closed)
+        self.assertIn("[goland] fixtures only", self.printed)
+
+    def test_close_products_error_gives_exit_code_1(self):
+        self.assertEqual(1, self.main("--close-products", close_error="goland did not stop in 90 s"))
+        self.assertIn("[goland] ERROR: goland did not stop in 90 s", self.printed)
+
+    def test_open_product_opens_the_product_of_the_live_test_folder(self):
+        self.assertEqual(0, self.main("--open-product", "alpha"))
+        self.assertEqual([(self.HERE, "alpha", None)], self.opened)
+        self.assertEqual(["[alpha] goland: switch 11s, ready 2s"], self.printed)
+
+    def test_open_product_needs_a_checkout_at_the_pin(self):
+        self.assertEqual(1, self.main("--open-product", "alpha", state="modified: 1 tracked file(s)"))
+        self.assertEqual([], self.opened)
+        self.assertEqual(["[alpha] ERROR: checkout is modified: 1 tracked file(s)"], self.printed)
+
+    def test_open_product_with_an_unknown_name_is_exit_code_2(self):
+        self.assertEqual(2, self.main("--open-product", "nope"))
+        self.assertEqual([], self.opened)
 
 
 class ProductOfflineTest(unittest.TestCase):

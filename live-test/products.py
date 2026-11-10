@@ -115,7 +115,8 @@ def snapshot_form(mode: str, normalized: Any) -> Any:
     type body, and a product snapshot holds no source lines.
     `shape` keeps the item count of each result list at any depth, plus the
     pagination and cap fields of the top level. A result that a page size or a
-    cap cuts is in arrival order, so its content cannot be pinned.
+    cap cuts is in arrival order, so its content cannot be pinned. The tree of
+    `ide_file_structure` is one text and no list: its count is its line count.
     """
     if mode not in COMPARE_MODES:
         raise ValueError(f"unknown compare mode {mode!r}")
@@ -132,6 +133,8 @@ def snapshot_form(mode: str, normalized: Any) -> Any:
     _count_lists(normalized, counts)
     out: dict[str, Any] = {"counts": counts}
     if isinstance(normalized, dict):
+        if isinstance(normalized.get("structure"), str):
+            counts["structure"] = len(normalized["structure"].splitlines())
         for key, value in normalized.items():
             if key in _SHAPE_FIELDS or key.endswith("Truncated"):
                 out[key] = value

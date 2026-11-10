@@ -3,7 +3,9 @@
 import os
 import shutil
 import signal
+import subprocess
 import tempfile
+import threading
 import time
 import unittest
 import xml.etree.ElementTree as ET
@@ -90,6 +92,33 @@ class ParseIdeProcessTest(unittest.TestCase):
         self.assertIsNone(self.parse(CMD[:-1]))
 
 
+class FindIdeProcessTest(unittest.TestCase):
+    """The real /proc of the test machine. parse_ide_process is replaced, so no IDE is necessary."""
+
+    def find(self, matches):
+        # `matches` processes look like a fleet instance: this test process and one child of it.
+        child = subprocess.Popen(["sleep", "30"])
+        self.addCleanup(child.wait)
+        self.addCleanup(child.kill)
+        pids = [os.getpid(), child.pid][:matches]
+
+        def parse(ide, pid, *rest):
+            return fleet.IdeProcess(pid, Path("/x"), Path("/y"), {}, "/") if pid in pids else None
+
+        with mock.patch.object(fleet, "parse_ide_process", parse):
+            return fleet.find_ide_process(GOLAND)
+
+    def test_no_fleet_process(self):
+        self.assertIsNone(self.find(0))
+
+    def test_one_fleet_process(self):
+        self.assertEqual(os.getpid(), self.find(1).pid)
+
+    def test_two_fleet_processes_are_an_error_and_no_process_is_chosen(self):
+        with self.assertRaisesRegex(RuntimeError, "2 goland fleet processes run"):
+            self.find(2)
+
+
 class RewriteRecentProjectsTest(unittest.TestCase):
     def test_adds_an_entry_for_a_new_project(self):
         out = fleet.rewrite_recent_projects(RECENT, [FIX, CADDY], "/home/u")
@@ -150,7 +179,20 @@ class SetOpenProjectsTest(unittest.TestCase):
         self.addCleanup(shutil.rmtree, cfg)
         (cfg / "options").mkdir()
         (cfg / "options" / "recentProjects.xml").write_text(RECENT)
-        return fleet.IdeProcess(4242, Path("/opt/tb/apps/goland/bin/goland.sh"), cfg, {"HOME": "/home/u"}, "/home/u")
+        launcher = cfg / "goland.sh"
+        launcher.write_text("#!/bin/sh\n")
+        launcher.chmod(0o755)
+        return fleet.IdeProcess(4242, launcher, cfg, {"HOME": "/home/u"}, "/home/u")
+
+    def switch(self, proc, post, stop=None, start=None, **kw):
+        """Run a switch with a fake stop and a fake start. Returns (error, stop mock, start mock)."""
+        kw.setdefault("start_timeout", 1.0)  # the wait for the IDE has no sleep here: keep a failure short
+        with mock.patch.object(fleet, "find_ide_process", return_value=proc), \
+             mock.patch.object(fleet, "_stop", side_effect=stop, return_value=None) as stop_mock, \
+             mock.patch.object(fleet, "_start", side_effect=start) as start_mock, \
+             mock.patch.object(fleet.time, "sleep"):
+            err = fleet.set_open_projects(GOLAND, kw.pop("wanted", [FIX, CADDY]), post, log=lambda s: None, **kw)
+        return err, stop_mock, start_mock
 
     def test_no_restart_when_the_set_is_already_open(self):
         with mock.patch.object(fleet, "find_ide_process") as find:
@@ -170,12 +212,9 @@ class SetOpenProjectsTest(unittest.TestCase):
         self.assertEqual("true", opened((proc.config_dir / "options" / "recentProjects.xml").read_text())[CADDY_KEY])
 
     def test_reports_the_start_command_when_the_ide_does_not_come_back(self):
-        with mock.patch.object(fleet, "find_ide_process", return_value=self.proc()), \
-             mock.patch.object(fleet, "_stop", return_value=None), mock.patch.object(fleet, "_start"), \
-             mock.patch.object(fleet.time, "sleep"):
-            err = fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX), None), log=lambda s: None,
-                                          start_timeout=0.0)
-        self.assertIn("/opt/tb/apps/goland/bin/goland.sh serverMode", err)
+        proc = self.proc()
+        err, _, _ = self.switch(proc, answers(projects(FIX), None), start_timeout=0.0)
+        self.assertIn(f"{proc.launcher} serverMode", err)
 
     def test_stop_error_is_returned_and_nothing_is_written(self):
         proc = self.proc()
@@ -183,10 +222,10 @@ class SetOpenProjectsTest(unittest.TestCase):
              mock.patch.object(fleet, "_stop", return_value="goland did not stop in 90 s"), \
              mock.patch.object(fleet, "_start") as start:
             err = fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX)), log=lambda s: None)
-        self.assertEqual("goland did not stop in 90 s", err)
+        # The IDE has its signal and can still stop later, so the line gives the start command.
+        self.assertEqual(f"goland did not stop in 90 s. If it stops later, start it with: {proc.launcher} serverMode", err)
         start.assert_not_called()
         self.assertEqual(RECENT, (proc.config_dir / "options" / "recentProjects.xml").read_text())
-
 
     def test_recent_projects_file_that_cannot_be_rewritten_is_reported_before_the_ide_stops(self):
         for content in ("<application />", "not xml", None):
@@ -200,6 +239,117 @@ class SetOpenProjectsTest(unittest.TestCase):
             self.assertRegex(err, r"^cannot rewrite .*recentProjects\.xml: ")
             stop.assert_not_called()
             start.assert_not_called()
+
+    def test_project_that_the_caller_did_not_name_is_never_closed(self):
+        # A command from another checkout wants its own fixture folder. The IDE has the fleet fixture open.
+        other = "/home/u/worktree/live-test/fixtures/go"
+        with mock.patch.object(fleet, "find_ide_process", return_value=None) as find:
+            err = fleet.set_open_projects(GOLAND, [other], answers(projects(FIX)), log=lambda s: None)
+        self.assertIn(f"must not close: {FIX}", err)
+        find.assert_not_called()
+
+    def test_project_that_the_caller_named_is_closed(self):
+        proc = self.proc()
+        recent = proc.config_dir / "options" / "recentProjects.xml"
+        recent.write_text(fleet.rewrite_recent_projects(RECENT, [FIX, CADDY], "/home/u"))
+        err, stop, _ = self.switch(proc, answers(projects(FIX, CADDY), None, projects(FIX)), wanted=[FIX],
+                                   may_close=lambda path: path == CADDY)
+        self.assertIsNone(err)
+        stop.assert_called_once()
+        self.assertEqual({FIX_KEY: "true", CADDY_KEY: None},
+                         {k: v for k, v in opened(recent.read_text()).items() if k in (FIX_KEY, CADDY_KEY)})
+
+    def test_server_that_is_not_the_fleet_server_is_never_restarted(self):
+        # `--url` of a throwaway IDE: its projects must not make the harness restart the fleet process.
+        with mock.patch.object(fleet, "find_ide_process", return_value=None) as find:
+            err = fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX)), log=lambda s: None,
+                                          url="http://127.0.0.1:29199/mcp/streamable-http")
+        self.assertIn("is not the fleet server of goland", err)
+        find.assert_not_called()
+
+    def test_ide_is_started_again_when_the_rewrite_fails_after_the_stop(self):
+        proc = self.proc()
+        with mock.patch.object(fleet.os, "replace", side_effect=PermissionError("no write")):
+            err, _, start = self.switch(proc, answers(projects(FIX)))
+        start.assert_called_once_with(proc)
+        self.assertRegex(err, r"^cannot rewrite .*recentProjects\.xml: no write")
+
+    def test_interrupt_after_the_stop_is_held_back_until_the_ide_is_started(self):
+        proc = self.proc()
+
+        def stop(*args):
+            os.kill(os.getpid(), signal.SIGINT)  # Ctrl+C while the IDE stops
+
+        with mock.patch.object(fleet, "find_ide_process", return_value=proc), \
+             mock.patch.object(fleet, "_stop", side_effect=stop, return_value=None), \
+             mock.patch.object(fleet, "_start") as start, mock.patch.object(fleet.time, "sleep"):
+            with self.assertRaises(KeyboardInterrupt):
+                fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX), None, projects(FIX, CADDY)),
+                                        log=lambda s: None)
+        start.assert_called_once_with(proc)
+
+    def test_interrupt_that_another_thread_receives_is_held_back_too(self):
+        # A signal mask of the main thread would not be sufficient: the kernel gives the signal to any thread.
+        proc = self.proc()
+        go, sent = threading.Event(), threading.Event()
+
+        def send():
+            go.wait(5)
+            os.kill(os.getpid(), signal.SIGINT)
+            sent.set()
+
+        # The thread starts before the switch, so it has its own signal mask (a new thread copies the mask).
+        sender = threading.Thread(target=send)
+        sender.start()
+        self.addCleanup(sender.join)
+
+        def stop(*args):
+            go.set()
+            sent.wait(5)
+
+        with mock.patch.object(fleet, "find_ide_process", return_value=proc), \
+             mock.patch.object(fleet, "_stop", side_effect=stop, return_value=None), \
+             mock.patch.object(fleet, "_start") as start, mock.patch.object(fleet.time, "sleep"):
+            with self.assertRaises(KeyboardInterrupt):
+                fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX), None, projects(FIX, CADDY)),
+                                        log=lambda s: None)
+        start.assert_called_once_with(proc)
+
+    def test_sigterm_after_the_stop_is_delivered_after_the_start(self):
+        events = []
+        before = signal.signal(signal.SIGTERM, lambda signum, frame: events.append("SIGTERM delivered"))
+        self.addCleanup(signal.signal, signal.SIGTERM, before)
+        mine = signal.getsignal(signal.SIGTERM)
+
+        def stop(*args):
+            os.kill(os.getpid(), signal.SIGTERM)  # for example the timeout of a tool that runs the harness
+
+        err, _, _ = self.switch(self.proc(), answers(projects(FIX), None, projects(FIX, CADDY)),
+                                stop=stop, start=lambda proc: events.append("start"))
+        self.assertIsNone(err)
+        self.assertEqual(["start", "SIGTERM delivered"], events)
+        self.assertIs(mine, signal.getsignal(signal.SIGTERM))    # the handler of the caller is back
+
+    def test_launcher_that_is_no_executable_file_is_reported_before_the_ide_stops(self):
+        # For example an IDE update that replaced the application folder while the IDE ran.
+        proc = self.proc()
+        proc.launcher.chmod(0o644)
+        err, stop, start = self.switch(proc, answers(projects(FIX)))
+        self.assertEqual(f"cannot restart goland: launcher {proc.launcher} is not an executable file", err)
+        stop.assert_not_called()
+        start.assert_not_called()
+
+    def test_missing_setsid_program_is_reported_before_the_ide_stops(self):
+        proc = self.proc()
+        proc.env["PATH"] = "/nonexistent"
+        err, stop, _ = self.switch(proc, answers(projects(FIX)))
+        self.assertEqual("cannot restart goland: no `setsid` program on the PATH of the IDE process", err)
+        stop.assert_not_called()
+
+    def test_start_error_is_returned_with_the_start_command(self):
+        proc = self.proc()
+        err, _, _ = self.switch(proc, answers(projects(FIX)), start=OSError("no memory"))
+        self.assertEqual(f"cannot start goland: no memory. Start command: {proc.launcher} serverMode", err)
 
 
 class StartStopTest(unittest.TestCase):

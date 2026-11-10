@@ -211,23 +211,43 @@ def _fixture_paths(root: Path, ide: fleet.Ide) -> list[str]:
     return [str(root / "fixtures" / lang) for lang in ide.languages]
 
 
+def _is_product(root: Path, path: str) -> bool:
+    """True for a folder directly below real-products/ of this checkout.
+
+    These are the only projects that a switch may close. Each other open
+    project stops the switch: the fixture projects of the fleet belong to one
+    checkout, and a command from another checkout must not take them away."""
+    return Path(path).parent == root / "real-products"
+
+
 def open_product(root: Path, p: products.Product, url: str | None = None,
                  switch=fleet.set_open_projects, current=fleet.open_projects) -> tuple[str | None, float, float, bool]:
     """Make the product the one open product of its IDE, next to the fixtures, and wait until it is ready.
 
     `root` is the live-test folder. Returns (error, switch seconds, ready
     seconds, switched). `switched` is False when the product was open before
-    the call; then the IDE is not restarted."""
+    the call; then the IDE is not restarted. A `url` that is not the fleet
+    server of the IDE (a throwaway IDE) is never switched: the product must
+    be open there."""
     ide = fleet.IDES[p.ide]
-    url = url or fleet.ide_url(ide)
+    fleet_url = fleet.ide_url(ide)
+    url = url or fleet_url
     product_path = str(root / "real-products" / p.folder)
     wanted = _fixture_paths(root, ide) + [product_path]
     now = current(url, post_jsonrpc)
-    switched = now is None or set(now) != set(wanted)
     switch_s = 0.0
+    if url != fleet_url:
+        if now is None:
+            return f"cannot reach {url}", 0.0, 0.0, False
+        if product_path not in now:
+            return (f"{url} is not the fleet server of {ide.key} and does not have {product_path} open: "
+                    "the harness restarts only a fleet IDE"), 0.0, 0.0, False
+        switched = False
+    else:
+        switched = now is None or set(now) != set(wanted)
     if switched:
         start = time.monotonic()
-        err = switch(ide, wanted, post_jsonrpc, url=url)
+        err = switch(ide, wanted, post_jsonrpc, url=url, may_close=lambda path: _is_product(root, path))
         switch_s = time.monotonic() - start
         if err is not None:
             return err, switch_s, 0.0, True
@@ -238,7 +258,8 @@ def open_product(root: Path, p: products.Product, url: str | None = None,
 def close_products(root: Path, ide: fleet.Ide, url: str | None = None,
                    switch=fleet.set_open_projects) -> str | None:
     """Leave only the fixture projects open in the IDE. `root` is the live-test folder."""
-    return switch(ide, _fixture_paths(root, ide), post_jsonrpc, url=url or fleet.ide_url(ide))
+    return switch(ide, _fixture_paths(root, ide), post_jsonrpc, url=url or fleet.ide_url(ide),
+                  may_close=lambda path: _is_product(root, path))
 
 
 def diff_lines(expected: Any, actual: Any) -> str:
@@ -619,19 +640,28 @@ def _run_product_rows(
     # every other diff would only show a wrong import, not a plugin change.
     # After a project switch the build tool can still be at work while the IDE
     # reports smart mode, so the gate tries again until the readiness budget
-    # of the product is used.
+    # of the product is used. The first try that differs prints the difference:
+    # the wait can be long, and the reader must see what the gate waits for.
     canaries = [e for e in inputs if _is_canary(e)]
     gate: dict[str, tuple[Any, Any]] = {}
     if bless and not canaries:
         print("  ERROR: the product has no canary row; a bless needs green canary rows")
         return None
     if not bless_canary:
+        first_try = True
         while True:
             gate = {e["id"]: fetch(e) for e in canaries}
             differs = [e["id"] for e in canaries
                        if e["id"] in expected_by_id and gate[e["id"]][1] != expected_by_id[e["id"]]]
             if not differs or ready_deadline is None or time.monotonic() >= ready_deadline:
                 break
+            if first_try:
+                left = ready_deadline - time.monotonic()
+                for eid in differs:
+                    print(f"  {eid} differs. The harness tries the canary rows again for up to {left:.0f} s.")
+                    for line in diff_lines(expected_by_id[eid], gate[eid][1]).splitlines():
+                        print(f"    {line}")
+                first_try = False
             time.sleep(10)
         for eid in differs:
             print(f"[{name}] MISCONFIGURED: canary row {eid} differs")
@@ -864,6 +894,12 @@ def resolve_suite(suite: str | None, language: str | None, product: str | None, 
     return "all" if offline else "fixtures"
 
 
+# After a project switch the canary rows are tried again for the whole readiness time of
+# the product: the build tool can still be at work. With no switch in this run a canary that
+# differs is a real difference, and a short time is enough for an IDE that just became ready.
+CANARY_RETRY_WITHOUT_SWITCH_S = 60.0
+
+
 def run_products(
     root: Path,
     prods: list[products.Product],
@@ -881,8 +917,10 @@ def run_products(
     time. After the last product of an IDE the harness leaves only the
     fixtures open there, also after a failure or an interrupt. A product that
     was open before the run stays open: a hunt session opens it one time and
-    runs its rows many times. `named` says that the user named the products;
-    then a missing checkout is a failure and not only a skip.
+    runs its rows many times. An interrupt inside the open is the exception:
+    the state is then not known, so the harness closes the product. `named`
+    says that the user named the products; then a missing checkout is a
+    failure and not only a skip.
     """
     passed = failed = skipped = 0
     by_ide: dict[str, list[products.Product]] = {}
@@ -905,17 +943,25 @@ def run_products(
                     failed += 1
                     continue
                 start = time.monotonic()
-                err, switch_s, ready_s, did_switch = open_product(root, p, url=url)
+                try:
+                    err, switch_s, ready_s, did_switch = open_product(root, p, url=url)
+                except BaseException:
+                    switched = True
+                    raise
                 switched = switched or did_switch
                 if err is not None:
                     print(f"[{p.folder}] ERROR: {err}")
                     failed += 1
                     continue
                 print(f"[{p.folder}] {p.ide}: switch {switch_s:.0f}s, ready {ready_s:.0f}s")
+                if did_switch:
+                    ready_deadline = start + p.ready_timeout
+                else:
+                    ready_deadline = time.monotonic() + min(p.ready_timeout, CANARY_RETRY_WITHOUT_SWITCH_S)
                 ok, bad = run_language(
                     p.folder, root / "real-products" / p.folder, root / "real-products" / "_snapshots" / p.folder,
                     url or fleet.ide_url(ide), tool_filter, bless, bless_errors=bless_errors, prune=prune,
-                    product=p, bless_canary=bless_canary, ready_deadline=start + p.ready_timeout,
+                    product=p, bless_canary=bless_canary, ready_deadline=ready_deadline,
                 )
                 passed += ok
                 failed += bad

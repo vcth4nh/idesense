@@ -5,13 +5,16 @@ IDE, and which projects that IDE opens at its next start. Linux only (/proc).
 """
 from __future__ import annotations
 
+import contextlib
 import os
+import shutil
 import signal
 import subprocess
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 
 @dataclass(frozen=True)
@@ -164,20 +167,64 @@ def _start(proc: IdeProcess) -> None:
                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
+@contextlib.contextmanager
+def _signals_held_back():
+    """Deliver a SIGINT or a SIGTERM of this block only when the block has ended.
+
+    Handlers and no signal mask: the kernel can give a signal of the process
+    to any thread, and a mask holds for one thread only. Main thread only."""
+    seen: list[int] = []
+    before = {number: signal.signal(number, lambda signum, frame: seen.append(signum))
+              for number in (signal.SIGINT, signal.SIGTERM)}
+    try:
+        yield
+    finally:
+        for number, handler in before.items():
+            signal.signal(number, handler)
+        for number in tuple(seen):
+            signal.raise_signal(number)
+
+
+def _start_problem(proc: IdeProcess) -> str | None:
+    """Why `_start` cannot work, or None. The switch asks this while the IDE still runs."""
+    if not (proc.launcher.is_file() and os.access(proc.launcher, os.X_OK)):
+        return f"launcher {proc.launcher} is not an executable file"
+    if shutil.which("setsid", path=proc.env.get("PATH", os.defpath)) is None:
+        return "no `setsid` program on the PATH of the IDE process"
+    return None
+
+
 def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None, log=print,
-                      stop_timeout: float = 90.0, start_timeout: float = 300.0) -> str | None:
+                      stop_timeout: float = 90.0, start_timeout: float = 300.0,
+                      may_close: Callable[[str], bool] = lambda path: False) -> str | None:
     """Make `wanted` the open projects of the IDE. None on success, else one error line.
 
     The plugin has no tool that opens or closes a project, so a change is a
     restart: stop the IDE, mark the wanted projects in recentProjects.xml,
     start the IDE, and wait until the server lists exactly those projects.
+
+    The IDEs are shared, so the switch has four rules. It restarts only the
+    fleet server of the IDE, never the server of another `url`. It closes an
+    open project only when `may_close` accepts its path; a command from
+    another checkout can thus not take the fixture projects from the fleet.
+    It proves before the stop what the start needs. From the stop to the
+    start it holds back the signals that can end the harness, and it starts
+    the IDE also after an error: the fleet must not stay without an IDE.
     """
-    url = url or ide_url(ide)
+    fleet_url = ide_url(ide)
+    url = url or fleet_url
     now = open_projects(url, post)
     if now is None:
         return f"cannot reach {url}: start the IDE first"
     if set(now) == set(wanted):
         return None
+    if url != fleet_url:
+        return f"{url} is not the fleet server of {ide.key} ({fleet_url}): the harness restarts only a fleet IDE"
+    kept = [path for path in now if path not in wanted and not may_close(path)]
+    if kept:
+        return (f"{ide.key} has projects open that this command must not close: {', '.join(kept)}. "
+                "Run the command from the checkout whose fixture projects the IDE has open, "
+                "or close these projects by hand")
     proc = find_ide_process(ide)
     if proc is None:
         return f"no {ide.key} fleet process found"
@@ -188,15 +235,30 @@ def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None,
         rewrite_recent_projects(recent.read_text(), wanted, home)
     except (OSError, ET.ParseError, ValueError) as e:
         return f"cannot rewrite {recent}: {e}"
+    problem = _start_problem(proc)
+    if problem is not None:
+        return f"cannot restart {ide.key}: {problem}"
     command = f"{proc.launcher} serverMode"
     log(f"[{ide.key}] restart for a project switch. Start command: {command}")
-    err = _stop(proc, stop_timeout, ide.key)
+    # A Ctrl+C or a SIGTERM between the stop and the start would leave the IDE down, and no
+    # harness command can start it again. The signals wait until the IDE is started.
+    with _signals_held_back():
+        err = _stop(proc, stop_timeout, ide.key)
+        if err is not None:
+            return f"{err}. If it stops later, start it with: {command}"
+        try:
+            tmp = recent.with_name(f".{recent.name}.tmp.{os.getpid()}")
+            tmp.write_text(rewrite_recent_projects(recent.read_text(), wanted, home))
+            os.replace(tmp, recent)
+        except (OSError, ET.ParseError, ValueError) as e:
+            err = f"cannot rewrite {recent}: {e}. {ide.key} runs again with its old projects"
+        finally:
+            try:
+                _start(proc)
+            except (OSError, subprocess.SubprocessError) as e:
+                err = f"cannot start {ide.key}: {e}. Start command: {command}"
     if err is not None:
         return err
-    tmp = recent.with_name(f".{recent.name}.tmp.{os.getpid()}")
-    tmp.write_text(rewrite_recent_projects(recent.read_text(), wanted, home))
-    os.replace(tmp, recent)
-    _start(proc)
     deadline = time.monotonic() + start_timeout
     while True:
         now = open_projects(url, post)

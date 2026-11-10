@@ -107,6 +107,14 @@ class CheckoutStateTest(unittest.TestCase):
         git(self.sub, "commit", "-qm", "two")
         self.assertRegex(self.state(), r"^pin mismatch: HEAD [0-9a-f]{12} != gitlink [0-9a-f]{12}$")
 
+    def test_staged_gitlink_is_the_pin(self):
+        # "Change a pin": the new commit is checked out in the submodule and its entry is staged, not yet committed.
+        (self.sub / "b.txt").write_text("2\n")
+        git(self.sub, "add", "b.txt")
+        git(self.sub, "commit", "-qm", "two")
+        git(self.repo, "add", self.REL)
+        self.assertEqual("ok", self.state())
+
     def test_checkout_that_is_not_a_submodule_of_the_repository(self):
         other = self.repo / "other"
         other.mkdir()
@@ -144,6 +152,11 @@ class SnapshotFormTest(unittest.TestCase):
         self.assertEqual({"counts": {"implementations": 1, "supers": 0, "topUsages": 2},
                           "implementationsTruncated": False, "usageCount": 3, "usagesTruncated": False,
                           "documentationTruncated": None}, products.snapshot_form("shape", r))
+
+    def test_shape_counts_the_lines_of_a_file_structure(self):
+        # ide_file_structure returns its tree as one text and no list. With no count the row would pin nothing.
+        r = {"file": "a.json", "language": "JSON", "structure": "a.json\n\nservers (line 2)\n  srv0 (line 3)"}
+        self.assertEqual({"counts": {"structure": 4}}, products.snapshot_form("shape", r))
 
     def test_shape_of_a_tool_error_keeps_the_error_code(self):
         self.assertEqual({"counts": {}, "error": "scope_matches_no_files"},
