@@ -537,6 +537,9 @@ product anchor map hold identifiers, kinds, paths and positions, and no source t
   drops `nextCursor` and `stale`. The pagination and cap fields stay, because a product
   exists to pin them.
 - `signature` keeps only its first line: the signature of a type is the type body.
+- The `structure` text of `ide_file_structure` stays in an `exact` row. It is an outline with
+  one line for each declaration: the name, the signature and the line number. It has no body
+  and no comment.
 - `topUsages` of `ide_explain_symbol` becomes its item count.
 - The `ANCHORS.md` of a product shows the identifier at each anchor and never the source line.
 - `--check-fixtures` fails on an expected row above 64 KB, so each probe needs a cap.
