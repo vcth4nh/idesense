@@ -67,6 +67,8 @@ classes, camelCase methods, snake_case Python identifiers, UPPER enum constants)
 | `file-structure-` | `ide_file_structure` | |
 | `diagnostics-` | `ide_diagnostics` | |
 | `status-` | `ide_index_status` | |
+| `explain-` | `ide_explain_symbol` | |
+| `canary-` | any tool, real products only | project-model row, see "Real products" |
 | `search-text-` | `ide_search_text` | entity = the query word; `-comments`/`-strings`/`-code` = the `context` param |
 
 ### Entity
@@ -481,7 +483,8 @@ A fixture row with one of these keys fails `--check-fixtures`.
 - **`shape`**: the snapshot holds only the item count of each result list and the pagination
   and cap fields. **A cut result is always a `shape` row.** A cut result is in arrival order:
   the tools put the first results of a parallel search into the cursor cache with no sort, so
-  the content of a page can differ between two equal calls.
+  the content of a page can differ between two equal calls. For `ide_file_structure` the
+  count is the line count of the `structure` text.
 
 ### Canary rows
 
@@ -490,9 +493,15 @@ definition that resolves into a dependency, and queries with a known result that
 empty. The harness runs them first, whatever `--tool` is. When one differs from its expected
 row, the product is `MISCONFIGURED` and its other rows do not run: each other difference
 would show a wrong import and not a change of the plugin. After a project switch the gate
-tries again until the readiness time of the product is used.
+tries again until the readiness time of the product is used; with no switch in the run it
+tries for 60 seconds. The first try that differs prints the difference.
 
-- Never bless a product that is `MISCONFIGURED`. Repair the checkout or the IDE first.
+- Never bless a product that is `MISCONFIGURED` because of its project model. Repair the
+  checkout or the IDE first.
+- A change of the plugin can also alter a canary row, because a canary row is an exact
+  snapshot of a normal tool. The printed difference shows it, and the fixture suite shows
+  the same change. Only then is `--bless --bless-canary` correct, with permission. Read the
+  `git diff` of the expected files before the commit.
 - A normal `--bless` does not rewrite the canary rows. `--bless-canary` does, and no gate
   protects that bless. Use it for a new product and for a new pin, after a check of the
   canary results by hand.
@@ -504,6 +513,20 @@ tries again until the readiness time of the product is used.
 A row that shows an open defect gets `"parked": <issue number>`. The row runs, and the run
 prints `PARKED (#n)` and counts it apart. The harness does not compare it and does not bless
 it. Remove the key in the change that corrects the defect, and bless the row then.
+
+### Rows that pin an expected error
+
+Some rows pin an error on purpose, for example a scope that a language does not have. The
+two error gates of the bless refuse a new error row, also for a product. Bless such a row
+in two steps:
+
+1. `--product <folder> --tool <tool> --bless --bless-canary --bless-errors` for the tool
+   file of that row. Read the new expected file: each error in it must be an intended one.
+2. `--product <folder> --bless --bless-canary` for all rows. The gates are on in this step,
+   and a row that already has an expected error passes them.
+
+Never use `--bless-errors` for all rows of a product: it switches off both gates, and a
+timeout or an IDE failure becomes an expected row.
 
 ### No source text in a snapshot
 
@@ -525,6 +548,12 @@ an instruction for an agent that works in this repository.
 
 - A product run restarts the IDE of the product. Look for an active run of another session
   before a product run.
+- Run product commands from the checkout whose fixture projects the fleet has open, never
+  from a git worktree or a second clone. The harness refuses a switch that would close a
+  project that is no product of the calling checkout.
+- A product row uses a read-only tool. A row with `ide_refactor_rename`, `ide_move_file`,
+  `ide_install_plugin`, `ide_restart` or `ide_sync_files` changes pinned test data or a
+  shared IDE.
 - **Hazard, open defect:** `ide_find_implementations` on a Go interface method can make
   GoLand rebuild its stub index when one implementer embeds a pointer. Until the correction,
   add no row with such an anchor (`String`, `Validate`, `Close`, `Error`), and do not send

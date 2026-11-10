@@ -17,6 +17,14 @@ A second suite runs the same tools on pinned real products. See "Real products" 
 - Python 3.10+ (stdlib only — no third-party deps)
 - The dev plugin installed in each IDE you intend to test against (see below).
 - The corresponding fixture project open in that IDE, fully indexed.
+- For the real-product suite also: Linux (the harness reads `/proc`), the programs `git` and
+  `setsid`, and a checkout of each product (see "Real products").
+
+The harness has unit tests that need no IDE and no product checkout:
+
+```bash
+python3 -B -m unittest discover -s live-test -p "test_*_unit.py"
+```
 
 ## Per-IDE fixture setup
 
@@ -106,6 +114,9 @@ run of `--suite all`, and it fails a run that names it with `--product`.
 
 The plain `./run.py` is the fixture suite. It never restarts an IDE.
 
+With `--url` the rows of a product run against that server, for example a throwaway IDE.
+The harness restarts only a fleet IDE, so the product must be open at that server.
+
 ### One product per IDE
 
 An IDE always has its fixture projects open, and at most one product next to them. Before
@@ -116,7 +127,20 @@ costs one IDE restart, and the close costs one more. A product that was open bef
 stays open. `--open-product` uses this for a session with many runs.
 
 The IDEs are shared. A fixture run of another session fails on an IDE while it restarts, so
-check for an active run before a product run.
+check for an active run before a product run. The switch has these safety rules:
+
+- **Only a product is closed.** A switch closes only a folder directly below
+  `real-products/` of the checkout that runs the command. When the IDE has another project
+  open that the command does not want, the switch stops with `must not close: …` and
+  restarts nothing. So a command from a git worktree or a second clone cannot take the
+  fixture projects from the fleet. Run product commands from the checkout whose fixtures
+  the fleet has open.
+- **The IDE comes back.** The harness proves the launcher before the stop. From the stop to
+  the start it holds back Ctrl+C and SIGTERM, and it starts the IDE also after an error. An
+  IDE that does not stop in 90 seconds gets no second signal: the error line gives the
+  start command.
+- **An interrupt closes the product.** After Ctrl+C in a product run the harness still
+  closes the product that this run opened.
 
 Measured for `caddy` (GoLand 2026.2, 2026-11-10):
 
@@ -130,13 +154,24 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-10):
 
 ### Add a product
 
-1. **Submodule and pin.** `git submodule add -f --depth 1 <url> live-test/real-products/<folder>`,
-   check out the release tag, and set `shallow = true` and `ignore = dirty` for the entry in
-   `.gitmodules`. The `-f` is necessary because `live-test/real-products/.gitignore` ignores
-   the product folders.
+1. **Submodule and pin.** The `-f` is necessary because
+   `live-test/real-products/.gitignore` ignores the product folders. A shallow clone has no
+   tags, so fetch the release tag by name:
+
+   ```bash
+   P=live-test/real-products/<folder>
+   git submodule add -f --depth 1 <url> $P
+   git -C $P fetch --depth 1 origin tag <tag>
+   git -C $P checkout --detach <tag>
+   git config -f .gitmodules submodule.$P.shallow true
+   git config -f .gitmodules submodule.$P.ignore dirty
+   git add .gitmodules $P
+   ```
 2. **Table entry** in `products.json`: folder, IDE, repository, pin, license, tier, timeouts.
 3. **Search hygiene.** From the repository root, search for one identifier of the product
-   with `rg` and with `grep -r`. The search must find nothing in the checkout.
+   with `rg` and with `git grep`. The search must find nothing in the checkout. The `grep`
+   of an agent shell (ugrep with `--ignore-files`) also skips the checkout. GNU `grep -r`
+   reads no ignore file and does search it.
 4. **Bootstrap.** Write `_setup/<folder>/bootstrap.sh`. It is idempotent and changes no
    tracked file. It gets the dependencies and writes the IDE project files that the product
    needs: GoLand restores a project at its start only when the folder has an `.idea` folder
@@ -153,6 +188,11 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-10):
     setup correction, or a ground-truth note.
 11. **Bless, with permission.** Park the rows that show an open defect. Then
     `--bless --bless-canary`, `--write-anchors`, `--check-fixtures`, and two verify runs.
+    A row that pins an expected error stops this bless: the error gates refuse a new error
+    row. Bless the file of that tool first, with
+    `--tool <tool> --bless --bless-canary --bless-errors`, and read the new expected file.
+    Then bless all rows with no `--bless-errors`. Never use `--bless-errors` for all rows:
+    it switches off both error gates, and a timeout becomes an expected row.
 12. **Notes.** Complete `notes.md` and the ground-truth notes in `CLAUDE.md`.
 
 ### Change a pin
@@ -166,7 +206,10 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-10):
 
 - Never initialize the submodules of a product.
 - No file or folder below `_setup/` or `_snapshots/` may have the name `build`, `bin`, `tmp`,
-  `cache`, `logs` or `.idea`, or end in `.log`. The root `.gitignore` ignores these names.
+  `cache`, `logs` or `.idea`, or end in `.log` or `.iml`. The root `.gitignore` and
+  `live-test/.gitignore` ignore these names.
+- A product row uses a read-only tool. No row calls `ide_refactor_rename`, `ide_move_file`,
+  `ide_install_plugin`, `ide_restart` or `ide_sync_files` on a product.
 - A product checkout is test data. Change no tracked file in it, and never copy a plugin zip
   into it. Use a fixture project for `ide_install_plugin`.
 
@@ -190,7 +233,8 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-10):
    - Read each diff carefully. Is the change intentional (matches the
      CHANGELOG entry for the new version) or a regression?
    - Intentional: `./live-test/run.py --bless` and commit alongside the
-     version bump.
+     version bump. For a product: `./live-test/run.py --product <folder> --bless`. When the
+     change also alters a canary row, see `MISCONFIGURED` in "Troubleshooting".
    - Regression: file an issue or revert the change.
 
 > **Automating install/restart across IDEs.** Steps 2–3 above can be driven headlessly
@@ -219,10 +263,22 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-10):
 - **`ORPHAN expected id …`** — an expected entry whose id is no longer in
   any `inputs/<tool>.jsonl`. Either restore the input row or run
   `--bless --prune` to drop the orphan.
-- **`[<product>] MISCONFIGURED: canary row … differs`** — the project model of the
-  product is not the one that its canary rows pin (dependencies not resolved, another
-  SDK, index not complete). The other rows of the product did not run. Run the
-  `bootstrap.sh` of the product, look at the IDE, and run again. Never bless in this state.
+- **`[<product>] MISCONFIGURED: canary row … differs`** — a canary row differs from its
+  expected row, and the other rows of the product did not run. The first try prints the
+  difference. After a project switch the harness tries again for the readiness time of the
+  product, because the build tool can still be at work. With no switch it tries for
+  60 seconds. Two causes are possible, and the printed difference shows which one:
+  - The project model is wrong (dependencies not resolved, another SDK, index not
+    complete). Run the `bootstrap.sh` of the product, look at the IDE, and run again.
+    Never bless in this state.
+  - The plugin changed the output of the tool of that canary row, and the fixture suite
+    shows the same change. Then run `--product <folder> --bless --bless-canary` with
+    permission, and read the `git diff` of the expected files before the commit.
+- **`… has projects open that this command must not close: …`** — the IDE has a project
+  open that is no product of this checkout, and the command does not want it. Run the
+  command from the checkout whose fixtures the IDE has open, or close that project by hand.
+- **`… is not the fleet server of …`** — `--url` names another server. The harness
+  restarts only a fleet IDE. Open the product at that server by hand.
 - **`[<product>] SKIPPED (checkout is missing: …)`** — run the printed
   `git submodule update` command, then the `bootstrap.sh` of the product.
 - **`[<product>] FAIL pin mismatch: …` or `FAIL modified: …`** — the checkout is not at
