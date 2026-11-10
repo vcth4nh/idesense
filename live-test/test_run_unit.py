@@ -14,7 +14,7 @@ import fleet
 import products
 import run
 from run import _result_has_error, _result_is_structured_error, _structured_error_bless_refusals
-from run import wait_until
+from run import row_snapshot, wait_until
 
 
 class ResultIsStructuredErrorTest(unittest.TestCase):
@@ -132,6 +132,46 @@ class OpenProductTest(unittest.TestCase):
         fn, calls = self.switch()
         self.assertIsNone(run.close_products(self.ROOT, fleet.IDES["intellij"], switch=fn))
         self.assertEqual([("intellij", ["/r/live-test/fixtures/java", "/r/live-test/fixtures/kotlin"])], calls)
+
+
+U = "ide_find_usages"
+
+
+class RowSnapshotTest(unittest.TestCase):
+    RAW = {"usages": [{"file": "b.go", "line": 2, "column": 1, "preview": "x := y"},
+                      {"file": "a.go", "line": 1, "column": 1, "preview": "y()"}],
+           "hasMore": False, "totalCollected": 2, "offset": 0, "pageSize": 100, "truncated": False,
+           "nextCursor": None, "stale": False}
+    SORTED = [{"file": "a.go", "line": 1, "column": 1}, {"file": "b.go", "line": 2, "column": 1}]
+    PAGING = {"hasMore": False, "totalCollected": 2, "offset": 0, "pageSize": 100, "truncated": False}
+
+    def test_fixture_snapshot_is_what_it_was(self):
+        self.assertEqual({"usages": self.SORTED}, row_snapshot({"id": "u", "tool": U}, self.RAW, "/p", product=False))
+
+    def test_product_exact_keeps_the_pagination_fields_and_drops_the_source_text(self):
+        self.assertEqual({"usages": self.SORTED, **self.PAGING},
+                         row_snapshot({"id": "u", "tool": U}, self.RAW, "/p", product=True))
+
+    def test_product_ordered_keeps_the_arrival_order(self):
+        snap = row_snapshot({"id": "u", "tool": U, "compare": "ordered"}, self.RAW, "/p", product=True)
+        self.assertEqual(["b.go", "a.go"], [u["file"] for u in snap["usages"]])
+
+    def test_product_shape(self):
+        self.assertEqual({"counts": {"usages": 2}, **self.PAGING},
+                         row_snapshot({"id": "u", "tool": U, "compare": "shape"}, self.RAW, "/p", product=True))
+
+    def test_product_snapshot_drops_context_and_documentation(self):
+        raw = {"matches": [{"file": "a.go", "line": 1, "column": 1, "context": "a source line", "contextType": "CODE"}],
+               "documentation": "prose", "signature": "func A()"}
+        self.assertEqual({"matches": [{"file": "a.go", "line": 1, "column": 1, "contextType": "CODE"}],
+                          "signature": "func A()"},
+                         row_snapshot({"id": "s", "tool": "ide_search_text"}, raw, "/p", product=True))
+
+    def test_harness_errors_pass_through_every_mode(self):
+        for mode in ("exact", "ordered", "shape"):
+            self.assertEqual({"transport_error": "timed out"},
+                             row_snapshot({"id": "u", "tool": U, "compare": mode}, {"transport_error": "timed out"},
+                                          "/p", product=True))
 
 
 if __name__ == "__main__":

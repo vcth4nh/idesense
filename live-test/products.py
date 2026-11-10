@@ -1,4 +1,4 @@
-"""Real products of the live-test harness: the product table and the pin guard."""
+"""Real products of the live-test harness: the product table, the pin guard and the snapshot forms."""
 from __future__ import annotations
 
 import json
@@ -6,6 +6,7 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import fleet
 
@@ -74,3 +75,68 @@ def checkout_state(repo_root: Path, rel_path: str) -> str:
     if modified:
         return f"modified: {len(modified)} tracked file(s)"
     return "ok"
+
+
+# Result fields that never reach a product snapshot: `preview`, `context` and
+# `documentation` quote product source text or prose; `nextCursor` and `stale`
+# belong to one call. The pagination and cap fields stay: they are what a
+# product pins.
+PRODUCT_DROP_FIELDS = {"preview", "context", "documentation", "nextCursor", "stale"}
+
+COMPARE_MODES = ("exact", "ordered", "shape")
+
+# Keys whose list value is a result list.
+COUNTED_LISTS = {
+    "usages", "references", "implementations", "subtypes", "supertypes", "classes", "symbols", "files",
+    "matches", "hierarchy", "calls", "children", "supers", "topUsages", "candidates", "problems",
+}
+
+_SHAPE_FIELDS = ("hasMore", "totalCollected", "offset", "pageSize", "truncated", "usageCount", "error")
+
+
+def _count_lists(node: Any, counts: dict[str, int]) -> None:
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key in COUNTED_LISTS and isinstance(value, list):
+                counts[key] = counts.get(key, 0) + len(value)
+            _count_lists(value, counts)
+    elif isinstance(node, list):
+        for item in node:
+            _count_lists(item, counts)
+
+
+def snapshot_form(mode: str, normalized: Any) -> Any:
+    """The part of a normalized product result that its compare mode pins.
+
+    `exact` and `ordered` keep the result; only `topUsages` becomes its item
+    count, because the tool keeps the first five results of a parallel search.
+    `shape` keeps the item count of each result list at any depth, plus the
+    pagination and cap fields of the top level. A result that a page size or a
+    cap cuts is in arrival order, so its content cannot be pinned.
+    """
+    if mode not in COMPARE_MODES:
+        raise ValueError(f"unknown compare mode {mode!r}")
+    if mode != "shape":
+        if isinstance(normalized, dict) and isinstance(normalized.get("topUsages"), list):
+            return {**normalized, "topUsages": len(normalized["topUsages"])}
+        return normalized
+    counts: dict[str, int] = {}
+    _count_lists(normalized, counts)
+    out: dict[str, Any] = {"counts": counts}
+    if isinstance(normalized, dict):
+        for key, value in normalized.items():
+            if key in _SHAPE_FIELDS or key.endswith("Truncated"):
+                out[key] = value
+    return out
+
+
+def repeated_items(source: Any, page: Any) -> int:
+    """How many items of `page` are also in `source`, over the result lists of the top level."""
+    if not isinstance(source, dict) or not isinstance(page, dict):
+        return 0
+    repeated = 0
+    for key in COUNTED_LISTS:
+        if isinstance(source.get(key), list) and isinstance(page.get(key), list):
+            seen = {json.dumps(item, sort_keys=True) for item in source[key]}
+            repeated += sum(json.dumps(item, sort_keys=True) in seen for item in page[key])
+    return repeated

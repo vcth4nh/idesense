@@ -121,5 +121,53 @@ class CheckoutStateTest(unittest.TestCase):
         self.assertEqual("modified: 1 tracked file(s)", self.state())
 
 
+class SnapshotFormTest(unittest.TestCase):
+    PAGE = {"usages": [{"file": "a.go", "line": 1, "column": 2, "usageType": "REFERENCE", "enclosingScope": ["F"]},
+                       {"file": "b.go", "line": 3, "column": 4, "usageType": "REFERENCE", "enclosingScope": None}],
+            "truncated": True, "hasMore": True, "totalCollected": 500, "offset": 0, "pageSize": 2, "warnings": None}
+
+    def test_shape_keeps_counts_and_pagination_fields_only(self):
+        self.assertEqual({"counts": {"usages": 2}, "truncated": True, "hasMore": True, "totalCollected": 500,
+                          "offset": 0, "pageSize": 2}, products.snapshot_form("shape", self.PAGE))
+
+    def test_shape_counts_the_nodes_of_a_hierarchy(self):
+        tree = {"element": {"name": "f", "children": None},
+                "calls": [{"name": "a", "children": [{"name": "b", "children": None}, {"name": "c", "children": []}]},
+                          {"name": "d", "children": None}],
+                "truncated": True}
+        self.assertEqual({"counts": {"calls": 2, "children": 2}, "truncated": True}, products.snapshot_form("shape", tree))
+
+    def test_shape_keeps_the_cap_fields_of_explain_symbol(self):
+        r = {"symbol": {"name": "Area"}, "supers": [], "implementations": [{"name": "Area"}],
+             "implementationsTruncated": False, "usageCount": 3, "usagesTruncated": False,
+             "documentationTruncated": None, "topUsages": [{"line": 1}, {"line": 2}], "signature": "func Area()"}
+        self.assertEqual({"counts": {"implementations": 1, "supers": 0, "topUsages": 2},
+                          "implementationsTruncated": False, "usageCount": 3, "usagesTruncated": False,
+                          "documentationTruncated": None}, products.snapshot_form("shape", r))
+
+    def test_shape_of_a_tool_error_keeps_the_error_code(self):
+        self.assertEqual({"counts": {}, "error": "scope_matches_no_files"},
+                         products.snapshot_form("shape", {"error": "scope_matches_no_files", "message": "x"}))
+
+    def test_exact_and_ordered_replace_top_usages_by_their_count(self):
+        r = {"usageCount": 3, "topUsages": [{"line": 1}, {"line": 2}]}
+        for mode in ("exact", "ordered"):
+            self.assertEqual({"usageCount": 3, "topUsages": 2}, products.snapshot_form(mode, r))
+
+    def test_exact_keeps_every_other_field(self):
+        self.assertEqual(self.PAGE, products.snapshot_form("exact", self.PAGE))
+
+    def test_unknown_mode(self):
+        with self.assertRaises(ValueError):
+            products.snapshot_form("fuzzy", {})
+
+    def test_repeated_items(self):
+        a = {"usages": [{"file": "a.go", "line": 1}, {"file": "a.go", "line": 2}]}
+        b = {"usages": [{"line": 2, "file": "a.go"}, {"file": "a.go", "line": 3}]}
+        self.assertEqual(1, products.repeated_items(a, b))
+        self.assertEqual(0, products.repeated_items(a, {"usages": [{"file": "z.go", "line": 9}]}))
+        self.assertEqual(0, products.repeated_items({"error": "x"}, b))
+
+
 if __name__ == "__main__":
     unittest.main()

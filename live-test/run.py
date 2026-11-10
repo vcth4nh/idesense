@@ -68,7 +68,7 @@ def _sort_key(item: Any) -> tuple:
     return ("", 0, 0, json.dumps(item, sort_keys=True) if item is not None else "")
 
 
-def normalize(obj: Any, project_root: str) -> Any:
+def normalize(obj: Any, project_root: str, drop_fields: set[str] = DROP_FIELDS, sort_arrays: bool = True) -> Any:
     """Reduce a tool result to a host- and toolchain-stable snapshot.
 
     Project files keep their project-relative path + line/column — we control
@@ -76,12 +76,14 @@ def normalize(obj: Any, project_root: str) -> Any:
     qualifiedName, kind): their directory is machine-specific and their
     line/column track the IDE's decompiler, neither of which signals a plugin
     regression. Noisy fields are dropped and known result arrays sorted.
+    `drop_fields` and `sort_arrays` let a product row keep the pagination
+    fields and the arrival order (see row_snapshot).
     """
     if isinstance(obj, dict):
         is_lib = isinstance(obj.get("file"), str) and _is_library(obj["file"], project_root)
         out: dict[str, Any] = {}
         for k, v in obj.items():
-            if k in DROP_FIELDS:
+            if k in drop_fields:
                 continue
             if k == "file" and isinstance(v, str):
                 if is_lib:
@@ -99,13 +101,13 @@ def normalize(obj: Any, project_root: str) -> Any:
                 # like ['ShapeCollection','Add'] are relative — kept as semantic
                 # signal.)
                 continue
-            v = normalize(v, project_root)
-            if k in SORTABLE_ARRAYS and isinstance(v, list):
+            v = normalize(v, project_root, drop_fields, sort_arrays)
+            if sort_arrays and k in SORTABLE_ARRAYS and isinstance(v, list):
                 v = sorted(v, key=_sort_key)
             out[k] = v
         return out
     if isinstance(obj, list):
-        return [normalize(item, project_root) for item in obj]
+        return [normalize(item, project_root, drop_fields, sort_arrays) for item in obj]
     return obj
 
 
@@ -458,6 +460,21 @@ def _structured_error_bless_refusals(
         if _result_is_structured_error(r)
         and not _result_is_structured_error(expected_by_id.get(eid))
     ]
+
+
+def row_snapshot(entry: dict, raw: Any, project_root: str, product: bool) -> Any:
+    """The snapshot of one raw tool result: what a run compares and what a bless writes.
+
+    A harness-level error is returned as it is. A fixture row is normalized as
+    before. A product row keeps the pagination fields, drops every field that
+    quotes source text, and is reduced to the form of its compare mode."""
+    if _result_has_error(raw):
+        return raw
+    if not product:
+        return normalize(raw, project_root)
+    mode = entry.get("compare", "exact")
+    normalized = normalize(raw, project_root, drop_fields=products.PRODUCT_DROP_FIELDS, sort_arrays=mode != "ordered")
+    return products.snapshot_form(mode, normalized)
 
 
 def run_language(
