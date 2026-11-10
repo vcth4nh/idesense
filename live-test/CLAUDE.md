@@ -4,14 +4,14 @@ Working notes for the snapshot harness. See `README.md` for user-facing docs.
 
 ## Snapshot file format
 
-Snapshots are split per tool and live under `live-test/_snapshots/<lang>/`:
+Snapshots are split per tool and live under `live-test/fixtures/_snapshots/<lang>/`:
 
 ```
-live-test/_snapshots/<lang>/
+live-test/fixtures/_snapshots/<lang>/
   inputs/<tool>.jsonl      # e.g. inputs/ide_find_usages.jsonl — rows sorted by id
   expected/<tool>.jsonl    # mirrors its input file 1:1, same order (bless-written)
   output.jsonl             # per-language run artifact (gitignored)
-live-test/<lang>/          # fixture SOURCES only — the IDE-indexed project
+live-test/fixtures/<lang>/ # fixture SOURCES only — the IDE-indexed project
 ```
 
 - **input row**: `{"id":…,"tool":"ide_X","params":{…}}` — canonical compact
@@ -39,7 +39,7 @@ mentions every fixture symbol, and once a symbol's name occurs in >10 files
 of the project IntelliJ's unused-symbol inspection silently gives up
 (`PsiSearchHelperImpl.isCheapEnoughToSearch` → `TOO_MANY_OCCURRENCES`),
 which flips "Class 'X' is never used" warnings out of diagnostics
-snapshots. Never move harness artifacts into `live-test/<lang>/`.
+snapshots. Never move harness artifacts into `live-test/fixtures/<lang>/`.
 
 ## ID convention
 
@@ -182,7 +182,7 @@ Every fixture source file carries comments that make it readable cold:
   `writeProbe` in `setter_super.js` pins WebStorm reporting setter write-sites
   as REFERENCE, not WRITE).
 
-The per-probe join lives in `_snapshots/<lang>/ANCHORS.md` (regenerate:
+The per-probe join lives in `fixtures/_snapshots/<lang>/ANCHORS.md` (regenerate:
 `./run.py --write-anchors`; `--check-fixtures` fails while stale). Comments
 never enumerate probe ids — they explain intent; the map owns the inventory.
 
@@ -274,10 +274,10 @@ redundant with `file`.
 
 1. Pick an `id` following the convention above.
 2. Add the row at its id-sorted position in
-   `_snapshots/<lang>/inputs/<tool>.jsonl` (canonical compact serialization).
+   `fixtures/_snapshots/<lang>/inputs/<tool>.jsonl` (canonical compact serialization).
 3. `./run.py --check-fixtures` — verify the new probe is offline-valid.
 4. `./run.py --language <lang>` — see the new row reported as MISSING.
-5. Inspect the IDE response in `_snapshots/<lang>/output.jsonl` for that id.
+5. Inspect the IDE response in `fixtures/_snapshots/<lang>/output.jsonl` for that id.
    Confirm it looks like the truth you expected.
 6. Ask the user to bless.
 7. On approval: `./run.py --bless --language <lang>`. The new row's

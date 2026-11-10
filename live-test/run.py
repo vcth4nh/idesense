@@ -727,7 +727,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parent / "fixtures"
     langs = discover_languages(root, args.language)
     if not langs:
         print(f"No fixtures found in {root}", file=sys.stderr)
