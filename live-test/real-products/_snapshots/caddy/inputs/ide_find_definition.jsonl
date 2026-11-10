@@ -1,0 +1,6 @@
+{"id":"canary-def-Logger-into-dependency","tool":"ide_find_definition","params":{"column":51,"file":"caddy.go","line":758}}
+{"id":"def-ModuleInfo-cross-file","tool":"ide_find_definition","params":{"column":32,"file":"modules/caddyhttp/app.go","line":180}}
+{"id":"def-ResponseWriterWrapper.Header-promoted","tool":"ide_find_definition","params":{"column":72,"file":"modules/caddyhttp/responsewriter.go","line":161}}
+{"id":"def-Warning-via-alias","tool":"ide_find_definition","params":{"column":70,"file":"caddyconfig/caddyfile/adapter.go","line":69}}
+{"id":"def-certmagic.Config-into-dependency","tool":"ide_find_definition","params":{"column":22,"file":"modules/caddytls/automation.go","line":174}}
+{"id":"def-semconv.WebEngineName-into-generated","tool":"ide_find_definition","params":{"column":11,"file":"modules/caddyhttp/tracing/tracer.go","line":155}}

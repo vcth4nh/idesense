@@ -1,0 +1,4 @@
+{"id":"find-file-caddyfile.go-paged","tool":"ide_find_file","params":{"pageSize":5,"query":"caddyfile.go"},"compare":"shape"}
+{"id":"find-file-index.php","tool":"ide_find_file","params":{"query":"index.php"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-reverseproxy.go","tool":"ide_find_file","params":{"query":"reverseproxy.go"}}

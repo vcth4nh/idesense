@@ -1,0 +1,3 @@
+{"id":"file-structure-caddy_config_http_servers.json","tool":"ide_file_structure","params":{"file":"modules/caddyhttp/encode/testdata/caddy_config_http_servers.json"},"compare":"shape"}
+{"id":"file-structure-headers.go","tool":"ide_file_structure","params":{"file":"modules/caddyhttp/headers/headers.go"}}
+{"id":"file-structure-reverseproxy.go","tool":"ide_file_structure","params":{"file":"modules/caddyhttp/reverseproxy/reverseproxy.go"}}

@@ -1,0 +1,4 @@
+{"id":"impls-CleanerUpper.Cleanup","tool":"ide_find_implementations","params":{"column":2,"file":"modules.go","line":316,"pageSize":100}}
+{"id":"impls-Module","tool":"ide_find_implementations","params":{"column":6,"file":"modules.go","line":54,"pageSize":500}}
+{"id":"impls-Module-paged","tool":"ide_find_implementations","params":{"column":6,"file":"modules.go","line":54,"pageSize":50},"compare":"shape"}
+{"id":"impls-ModuleInfo-struct-empty","tool":"ide_find_implementations","params":{"column":6,"file":"modules.go","line":63,"pageSize":100}}
