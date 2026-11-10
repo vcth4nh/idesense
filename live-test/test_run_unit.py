@@ -9,6 +9,7 @@ must not silently replace a previously non-error expected row.
 import contextlib
 import io
 import shutil
+import sys
 import tempfile
 import time
 import unittest
@@ -433,6 +434,191 @@ class ProductRunTest(unittest.TestCase):
     def test_bless_canary_writes_the_canary_rows(self):
         self.go(dict(ANSWERS, App=dict(ANSWERS["App"], totalCollected=2)), bless=True, bless_canary=True)
         self.assertEqual(2, self.expected()["canary-find-class-App"]["totalCollected"])
+
+
+class ResolveSuiteTest(unittest.TestCase):
+    def test_defaults(self):
+        self.assertEqual("fixtures", run.resolve_suite(None, None, None, offline=False))
+        self.assertEqual("all", run.resolve_suite(None, None, None, offline=True))
+        self.assertEqual("fixtures", run.resolve_suite(None, "go", None, offline=True))
+        self.assertEqual("real-products", run.resolve_suite(None, None, "caddy", offline=False))
+        self.assertEqual("all", run.resolve_suite(None, "go", "caddy", offline=False))
+
+    def test_explicit_suite_wins(self):
+        self.assertEqual("all", run.resolve_suite("all", None, "caddy", offline=False))
+        self.assertEqual("fixtures", run.resolve_suite("fixtures", None, None, offline=True))
+
+
+class RunProductsTest(unittest.TestCase):
+    A = products.Product("alpha", "goland", "o/a", "v1", "MIT", "core")
+    B = products.Product("beta", "goland", "o/b", "v1", "MIT", "core")
+    C = products.Product("gamma", "pycharm", "o/c", "v1", "MIT", "core", ready_timeout=120.0)
+
+    def go(self, prods, named=False, state="ok", open_error=None, raises=None, bless=False, switched=True,
+           close_error=None, **kw):
+        self.opened, self.closed, self.ran, self.events, self.calls = [], [], [], [], []
+
+        def open_product(root, p, url=None):
+            self.opened.append(p.folder)
+            self.events.append(f"open {p.folder}")
+            return (open_error, 1.0, 2.0, switched)
+
+        def close_products(root, ide, url=None):
+            self.closed.append(ide.key)
+            self.events.append(f"close {ide.key}")
+            return close_error
+
+        def run_language(name, *a, **kw):
+            self.ran.append(name)
+            self.calls.append((name, a, kw))
+            if raises:
+                raise raises
+            return (3, 0)
+
+        printed = io.StringIO()
+        try:
+            with mock.patch.object(run, "open_product", open_product), \
+                 mock.patch.object(run, "close_products", close_products), \
+                 mock.patch.object(run, "run_language", run_language), \
+                 mock.patch.object(products, "checkout_state", lambda repo, rel: state), \
+                 contextlib.redirect_stdout(printed):
+                return run.run_products(Path("/r/live-test"), prods, named, None, bless, **kw)
+        finally:
+            self.printed = printed.getvalue().splitlines()
+
+    def test_products_of_one_ide_run_in_turn_and_the_last_one_is_closed(self):
+        self.assertEqual((6, 0, 0), self.go([self.A, self.B]))
+        self.assertEqual((["alpha", "beta"], ["goland"]), (self.opened, self.closed))
+
+    def test_an_ide_is_closed_before_a_product_of_the_next_ide_opens(self):
+        # One product at a time in the whole fleet.
+        self.assertEqual((9, 0, 0), self.go([self.A, self.C, self.B]))
+        self.assertEqual(["open alpha", "open beta", "close goland", "open gamma", "close pycharm"], self.events)
+
+    def test_missing_checkout_is_skipped_in_a_suite_run(self):
+        self.assertEqual((0, 0, 1), self.go([self.A], state="missing"))
+        self.assertEqual(([], []), (self.opened, self.closed))
+        self.assertEqual(["[alpha] SKIPPED (checkout is missing: "
+                          "git submodule update --init --depth 1 live-test/real-products/alpha)"], self.printed)
+
+    def test_missing_checkout_fails_when_the_product_was_named(self):
+        self.assertEqual((0, 1, 1), self.go([self.A], named=True, state="missing"))
+
+    def test_pin_mismatch_fails_and_does_not_open_the_product(self):
+        mismatch = "pin mismatch: HEAD aaaaaaaaaaaa != gitlink bbbbbbbbbbbb"
+        self.assertEqual((0, 1, 0), self.go([self.A], state=mismatch, bless=True))
+        self.assertEqual(([], []), (self.opened, self.ran))
+        self.assertEqual([f"[alpha] FAIL {mismatch}"], self.printed)
+
+    def test_switch_error_fails_the_product_and_still_closes(self):
+        self.assertEqual((0, 1, 0), self.go([self.A], open_error="goland did not stop in 90 s"))
+        self.assertEqual(([], ["goland"]), (self.ran, self.closed))
+        self.assertEqual(["[alpha] ERROR: goland did not stop in 90 s"], self.printed)
+
+    def test_interrupt_still_closes_the_product(self):
+        with self.assertRaises(KeyboardInterrupt):
+            self.go([self.A], raises=KeyboardInterrupt())
+        self.assertEqual(["goland"], self.closed)
+
+    def test_product_that_was_open_before_the_run_stays_open(self):
+        self.assertEqual((3, 0, 0), self.go([self.A], switched=False))
+        self.assertEqual([], self.closed)
+
+    def test_close_error_is_one_failure(self):
+        self.assertEqual((3, 1, 0), self.go([self.A], close_error="goland did not open [...] in 300 s"))
+        self.assertEqual("[goland] ERROR: goland did not open [...] in 300 s", self.printed[-1])
+
+    def test_reports_the_switch_the_readiness_and_the_elapsed_time(self):
+        self.go([self.A])
+        self.assertEqual("[alpha] goland: switch 1s, ready 2s", self.printed[0])
+        self.assertRegex(self.printed[1], r"^\[alpha\] elapsed \d+s$")
+
+    def test_product_run_gets_its_paths_its_url_and_its_readiness_deadline(self):
+        before = time.monotonic()
+        self.go([self.C], bless=True, bless_errors=True, prune=True, bless_canary=True)
+        name, args, kw = self.calls[0]
+        self.assertEqual(("gamma", (Path("/r/live-test/real-products/gamma"),
+                                    Path("/r/live-test/real-products/_snapshots/gamma"),
+                                    "http://127.0.0.1:29172/mcp/streamable-http", None, True)), (name, args))
+        deadline = kw.pop("ready_deadline")
+        self.assertEqual({"bless_errors": True, "prune": True, "product": self.C, "bless_canary": True}, kw)
+        self.assertTrue(before + 120.0 <= deadline <= time.monotonic() + 120.0)
+
+    def test_url_override_reaches_the_product_run(self):
+        self.go([self.A], url="http://127.0.0.1:1/mcp")
+        self.assertEqual("http://127.0.0.1:1/mcp", self.calls[0][1][2])
+
+
+class MainSuiteTest(unittest.TestCase):
+    A, B = RunProductsTest.A, RunProductsTest.B
+
+    def main(self, *argv, product_result=(3, 0, 0)):
+        self.languages, self.product_calls = [], []
+
+        def run_language(lang, *a, **kw):
+            self.languages.append(lang)
+            return (5, 0)
+
+        def run_products(root, prods, named, tool_filter, bless, **kw):
+            self.product_calls.append(([p.folder for p in prods], named, tool_filter, bless, kw))
+            return product_result
+
+        printed, errors = io.StringIO(), io.StringIO()
+        try:
+            with mock.patch.object(sys, "argv", ["run.py", *argv]), \
+                 mock.patch.object(run, "discover_languages", lambda root, only: [only or "go"]), \
+                 mock.patch.object(run, "run_language", run_language), \
+                 mock.patch.object(run, "run_products", run_products), \
+                 mock.patch.object(products, "load_products", lambda path: [self.A, self.B]), \
+                 contextlib.redirect_stdout(printed), contextlib.redirect_stderr(errors):
+                return run.main()
+        finally:
+            self.printed, self.errors = printed.getvalue().splitlines(), errors.getvalue()
+
+    def test_plain_command_runs_the_fixtures_and_no_product(self):
+        self.assertEqual(0, self.main())
+        self.assertEqual((["go"], []), (self.languages, self.product_calls))
+        self.assertEqual(["fixtures: 5 passed, 0 failed", "ALL: 5 passed, 0 failed"], self.printed)
+
+    def test_product_switch_runs_that_product_and_no_fixture(self):
+        self.assertEqual(0, self.main("--product", "beta"))
+        self.assertEqual([], self.languages)
+        self.assertEqual((["beta"], True), self.product_calls[0][:2])
+        self.assertEqual(["real-products: 3 passed, 0 failed, 0 skipped", "ALL: 3 passed, 0 failed"], self.printed)
+
+    def test_suite_all_runs_both_and_prints_the_sums(self):
+        self.assertEqual(0, self.main("--suite", "all"))
+        self.assertEqual(["go"], self.languages)
+        self.assertEqual((["alpha", "beta"], False), self.product_calls[0][:2])
+        self.assertEqual(["fixtures: 5 passed, 0 failed", "real-products: 3 passed, 0 failed, 0 skipped",
+                          "ALL: 8 passed, 0 failed"], self.printed)
+
+    def test_language_and_product_together_run_both(self):
+        self.assertEqual(0, self.main("--language", "php", "--product", "alpha"))
+        self.assertEqual((["php"], ["alpha"]), (self.languages, self.product_calls[0][0]))
+
+    def test_unknown_product_is_exit_code_2_and_nothing_runs(self):
+        self.assertEqual(2, self.main("--suite", "all", "--product", "nope"))
+        self.assertEqual(([], []), (self.languages, self.product_calls))
+        self.assertIn("No product 'nope'", self.errors)
+
+    def test_failed_product_gives_exit_code_1(self):
+        self.assertEqual(1, self.main("--product", "alpha", product_result=(2, 1, 0)))
+        self.assertEqual("ALL: 2 passed, 1 failed", self.printed[-1])
+
+    def test_product_run_gets_the_switches(self):
+        self.main("--product", "alpha", "--tool", "ide_find_usages", "--bless", "--bless-canary", "--bless-errors",
+                  "--prune", "--url", "http://127.0.0.1:1/mcp")
+        self.assertEqual((["alpha"], True, "ide_find_usages", True,
+                          {"bless_errors": True, "prune": True, "bless_canary": True, "url": "http://127.0.0.1:1/mcp"}),
+                         self.product_calls[0])
+
+    def test_bless_canary_needs_bless_and_a_product_run(self):
+        for argv in (["--product", "alpha", "--bless-canary"], ["--bless", "--bless-canary"]):
+            with self.assertRaises(SystemExit) as stop:
+                self.main(*argv)
+            self.assertEqual(2, stop.exception.code)
+            self.assertEqual(([], []), (self.languages, self.product_calls))
 
 
 if __name__ == "__main__":

@@ -826,6 +826,88 @@ def run_language(
     return passed, failed
 
 
+def resolve_suite(suite: str | None, language: str | None, product: str | None, offline: bool) -> str:
+    """Which suite a command covers: "fixtures", "real-products" or "all".
+
+    An explicit --suite wins. Else --language and --product select their own
+    suite. With neither, an offline command covers both suites, and a live run
+    covers the fixtures only: the plain command never restarts an IDE."""
+    if suite is not None:
+        return suite
+    if language is not None and product is not None:
+        return "all"
+    if product is not None:
+        return "real-products"
+    if language is not None:
+        return "fixtures"
+    return "all" if offline else "fixtures"
+
+
+def run_products(
+    root: Path,
+    prods: list[products.Product],
+    named: bool,
+    tool_filter: str | None,
+    bless: bool,
+    bless_errors: bool = False,
+    prune: bool = False,
+    bless_canary: bool = False,
+    url: str | None = None,
+) -> tuple[int, int, int]:
+    """Run real products, IDE by IDE. `root` is the live-test folder. Returns (passed, failed, skipped).
+
+    Each product is opened next to the fixtures of its IDE, one product at a
+    time. After the last product of an IDE the harness leaves only the
+    fixtures open there, also after a failure or an interrupt. A product that
+    was open before the run stays open: a hunt session opens it one time and
+    runs its rows many times. `named` says that the user named the products;
+    then a missing checkout is a failure and not only a skip.
+    """
+    passed = failed = skipped = 0
+    by_ide: dict[str, list[products.Product]] = {}
+    for p in prods:
+        by_ide.setdefault(p.ide, []).append(p)
+    for ide_key, group in by_ide.items():
+        ide = fleet.IDES[ide_key]
+        switched = False
+        try:
+            for p in group:
+                checkout = f"{root.name}/real-products/{p.folder}"
+                state = products.checkout_state(root.parent, checkout)
+                if state == "missing":
+                    print(f"[{p.folder}] SKIPPED (checkout is missing: git submodule update --init --depth 1 {checkout})")
+                    skipped += 1
+                    failed += named
+                    continue
+                if state != "ok":
+                    print(f"[{p.folder}] FAIL {state}")
+                    failed += 1
+                    continue
+                start = time.monotonic()
+                err, switch_s, ready_s, did_switch = open_product(root, p, url=url)
+                switched = switched or did_switch
+                if err is not None:
+                    print(f"[{p.folder}] ERROR: {err}")
+                    failed += 1
+                    continue
+                print(f"[{p.folder}] {p.ide}: switch {switch_s:.0f}s, ready {ready_s:.0f}s")
+                ok, bad = run_language(
+                    p.folder, root / "real-products" / p.folder, root / "real-products" / "_snapshots" / p.folder,
+                    url or fleet.ide_url(ide), tool_filter, bless, bless_errors=bless_errors, prune=prune,
+                    product=p, bless_canary=bless_canary, ready_deadline=start + p.ready_timeout,
+                )
+                passed += ok
+                failed += bad
+                print(f"[{p.folder}] elapsed {time.monotonic() - start:.0f}s")
+        finally:
+            if switched:
+                err = close_products(root, ide, url=url)
+                if err is not None:
+                    print(f"[{ide.key}] ERROR: {err}")
+                    failed += 1
+    return passed, failed, skipped
+
+
 def check_fixtures(root: Path, langs: list[str]) -> int:
     """Offline validation: no IDE contact. Returns failure count.
 
@@ -949,10 +1031,18 @@ def main() -> int:
             "  ./run.py --language java          # one language\n"
             "  ./run.py --tool ide_find_definition\n"
             "  ./run.py --url http://127.0.0.1:29170/mcp/streamable-http\n"
-            "  ./run.py --write-anchors          # regenerate ANCHORS.md anchor maps"
+            "  ./run.py --write-anchors          # regenerate ANCHORS.md anchor maps\n"
+            "  ./run.py --product caddy          # one real product (restarts its IDE)\n"
+            "  ./run.py --suite all              # the fixtures, then every real product"
         ),
     )
-    parser.add_argument("--language", help="Restrict to one language.")
+    parser.add_argument(
+        "--suite",
+        choices=("fixtures", "real-products", "all"),
+        help="Which suite to cover. Default: fixtures (real-products with --product; all for the offline commands).",
+    )
+    parser.add_argument("--language", help="Restrict the fixtures to one language.")
+    parser.add_argument("--product", metavar="NAME", help="Restrict the real products to one product.")
     parser.add_argument("--tool", help="Restrict to one MCP tool.")
     parser.add_argument("--url", help="Override server URL for the run.")
     parser.add_argument(
@@ -965,6 +1055,11 @@ def main() -> int:
         action="store_true",
         help="Allow blessing rows that returned tool_error_text / transport_error / jsonrpc_error, "
         "or whose structured {\"error\": ...} result would replace a non-error (or new) expected row.",
+    )
+    parser.add_argument(
+        "--bless-canary",
+        action="store_true",
+        help="With --bless on real products: also rewrite the canary rows. No canary gate protects this bless.",
     )
     parser.add_argument(
         "--prune",
@@ -1020,10 +1115,27 @@ def main() -> int:
             return 1
         print(f"[{product.folder}] {product.ide}: switch {switch_s:.0f}s, ready {ready_s:.0f}s")
         return 0
-    langs = discover_languages(root, args.language)
-    if not langs:
+
+    offline = args.check_fixtures or args.write_anchors
+    suite = resolve_suite(args.suite, args.language, args.product, offline)
+    with_fixtures, with_products = suite in ("fixtures", "all"), suite in ("real-products", "all")
+    if args.bless_canary and not (args.bless and with_products):
+        parser.error("--bless-canary needs --bless and a run of real products")
+
+    prods: list[products.Product] = []
+    if with_products:
+        prods = products.load_products(here / "real-products" / "products.json")
+        if args.product is not None:
+            prods = [p for p in prods if p.folder == args.product]
+            if not prods:
+                print(f"No product '{args.product}' in real-products/products.json", file=sys.stderr)
+                return 2
+
+    langs = discover_languages(root, args.language) if with_fixtures else []
+    if with_fixtures and not langs:
         print(f"No fixtures found in {root}", file=sys.stderr)
-        return 0
+        if not with_products:
+            return 0
 
     if args.write_anchors:
         return write_anchor_maps(root, langs)
@@ -1034,19 +1146,29 @@ def main() -> int:
         return 0 if failures == 0 else 1
 
     total_pass = total_fail = 0
-    for lang in langs:
-        if args.url:
-            url = args.url
-        else:
-            port = PORT_BY_LANG.get(lang)
-            if port is None:
-                print(f"No port mapped for language '{lang}'", file=sys.stderr)
-                return 1
-            url = f"http://127.0.0.1:{port}/mcp/streamable-http"
-        passed, failed = run_language(
-            lang, root / lang, root / "_snapshots" / lang, url, args.tool, args.bless,
-            bless_errors=args.bless_errors, prune=args.prune,
+    if with_fixtures:
+        for lang in langs:
+            if args.url:
+                url = args.url
+            else:
+                port = PORT_BY_LANG.get(lang)
+                if port is None:
+                    print(f"No port mapped for language '{lang}'", file=sys.stderr)
+                    return 1
+                url = f"http://127.0.0.1:{port}/mcp/streamable-http"
+            passed, failed = run_language(
+                lang, root / lang, root / "_snapshots" / lang, url, args.tool, args.bless,
+                bless_errors=args.bless_errors, prune=args.prune,
+            )
+            total_pass += passed
+            total_fail += failed
+        print(f"fixtures: {total_pass} passed, {total_fail} failed")
+    if with_products:
+        passed, failed, skipped = run_products(
+            here, prods, args.product is not None, args.tool, args.bless,
+            bless_errors=args.bless_errors, prune=args.prune, bless_canary=args.bless_canary, url=args.url,
         )
+        print(f"real-products: {passed} passed, {failed} failed, {skipped} skipped")
         total_pass += passed
         total_fail += failed
 
