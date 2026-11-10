@@ -621,5 +621,158 @@ class MainSuiteTest(unittest.TestCase):
             self.assertEqual(([], []), (self.languages, self.product_calls))
 
 
+class ProductOfflineTest(unittest.TestCase):
+    CAN = {"id": "canary-def-baseShape", "tool": "ide_find_definition", "params": {"file": "a.go", "line": 1, "column": 9}}
+    SOURCE = 'func (b baseShape) Describe() string { return "private text" }\n'
+
+    def make(self, input_rows, expected_rows, source=None):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        snap = root / "_snapshots" / "demo"
+        for sub in ("inputs", "expected"):
+            (snap / sub).mkdir(parents=True)
+        for r in input_rows:
+            with (snap / "inputs" / f"{r['tool']}.jsonl").open("a") as f:
+                f.write(serialize_input_row(r) + "\n")
+        for r in input_rows:
+            if r["id"] in expected_rows:
+                with (snap / "expected" / f"{r['tool']}.jsonl").open("a") as f:
+                    f.write(run._serialize_row(r["id"], expected_rows[r["id"]]) + "\n")
+        if source is not None:
+            (root / "demo").mkdir()
+            (root / "demo" / "a.go").write_text(source)
+        return root
+
+    def check(self, root, state=None, **kw):
+        self.state_calls = []
+
+        def checkout_state(repo, rel):
+            self.state_calls.append((repo, rel))
+            return state
+
+        printed = io.StringIO()
+        with mock.patch.object(products, "checkout_state", checkout_state), contextlib.redirect_stdout(printed):
+            issues = run.check_fixtures(root, ["demo"], **kw)
+        self.printed = printed.getvalue().splitlines()
+        return issues
+
+    def test_map_shows_the_identifier_and_no_source_line(self):
+        root = self.make([self.CAN], {}, source=self.SOURCE)
+        text = "\n".join(run._anchor_map_lines("demo", root / "demo", root / "_snapshots" / "demo", product=True))
+        self.assertIn("| line:col | probe id | tool | identifier |", text)
+        self.assertIn("| 1:9 | canary-def-baseShape | find_definition | `baseShape` |", text)
+        self.assertIn("--write-anchors --product demo", text)
+        self.assertNotIn("private text", text)
+
+    def test_parked_row_needs_no_expected_row(self):
+        parked = {"id": "usage-Bug", "tool": U, "params": {}, "parked": 131}
+        root = self.make([self.CAN, parked], {self.CAN["id"]: {"name": "baseShape"}})
+        self.assertEqual(0, self.check(root, product=True))
+
+    def test_row_that_is_not_parked_needs_an_expected_row(self):
+        row = {"id": "usage-A", "tool": U, "params": {}}
+        root = self.make([self.CAN, row], {self.CAN["id"]: {}})
+        self.assertEqual(1, self.check(root, product=True))
+        self.assertIn("[demo] input id 'usage-A' has no expected entry — bless needed", self.printed)
+
+    def test_expected_row_above_64_kb_is_an_issue(self):
+        big = {"structure": "x" * (64 * 1024)}
+        root = self.make([self.CAN], {self.CAN["id"]: big})
+        self.assertEqual(1, self.check(root, product=True))
+
+    def test_row_problems_are_issues(self):
+        bad = {"id": "usage-A", "tool": U, "params": {}, "compare": "fuzzy"}
+        root = self.make([self.CAN, bad], {self.CAN["id"]: {}, "usage-A": {}})
+        self.assertEqual(1, self.check(root, product=True))
+        self.assertIn("[demo] usage-A: compare must be one of exact, ordered, shape", self.printed)
+
+    def test_fixture_suite_refuses_product_keys(self):
+        row = {"id": "usage-A", "tool": U, "params": {}, "compare": "shape"}
+        root = self.make([row], {"usage-A": {}})
+        (root / "_snapshots" / "demo" / "ANCHORS.md").write_text(
+            "\n".join(run._anchor_map_lines("demo", root / "demo", root / "_snapshots" / "demo")) + "\n")
+        self.assertEqual(1, self.check(root))
+
+    def test_anchors_are_checked_only_for_a_checkout_at_the_pin(self):
+        gone = {"id": "def-gone", "tool": "ide_find_definition", "params": {"file": "gone.go", "line": 1, "column": 1}}
+        root = self.make([self.CAN, gone], {self.CAN["id"]: {}, "def-gone": {}}, source=self.SOURCE)
+        self.assertEqual(0, self.check(root, state="missing", product=True, repo_root=root))
+        self.assertIn("[demo] anchors not checked: checkout is missing", self.printed)
+        self.assertEqual([(root, "demo")], self.state_calls)
+        # At the pin, the absent file and the absent map are one issue each.
+        self.assertEqual(2, self.check(root, state="ok", product=True, repo_root=root))
+
+    def test_written_product_map_passes_the_stale_check(self):
+        root = self.make([self.CAN], {self.CAN["id"]: {}}, source=self.SOURCE)
+        self.assertEqual(1, self.check(root, state="ok", product=True, repo_root=root))
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(0, run.write_anchor_maps(root, ["demo"], product=True))
+        self.assertEqual(0, self.check(root, state="ok", product=True, repo_root=root))
+        self.assertNotIn("private text", (root / "_snapshots" / "demo" / "ANCHORS.md").read_text())
+
+    def test_product_without_rows_gets_no_map(self):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(0, run.write_anchor_maps(root, ["demo"], product=True))
+        self.assertEqual([], list(root.iterdir()))
+
+
+class MainOfflineTest(unittest.TestCase):
+    A, B = RunProductsTest.A, RunProductsTest.B
+
+    def main(self, *argv, state="ok"):
+        self.checks, self.writes = [], []
+
+        def check_fixtures(root, langs, product=False, repo_root=None):
+            self.checks.append((root.name, langs, product, repo_root and repo_root.name))
+            return 1 if product else 0
+
+        def write_anchor_maps(root, langs, product=False):
+            self.writes.append((root.name, langs, product))
+            return 0
+
+        printed = io.StringIO()
+        with mock.patch.object(sys, "argv", ["run.py", *argv]), \
+             mock.patch.object(run, "discover_languages", lambda root, only: [only or "go"]), \
+             mock.patch.object(run, "check_fixtures", check_fixtures), \
+             mock.patch.object(run, "write_anchor_maps", write_anchor_maps), \
+             mock.patch.object(products, "load_products", lambda path: [self.A, self.B]), \
+             mock.patch.object(products, "checkout_state", lambda repo, rel: state), \
+             contextlib.redirect_stdout(printed):
+            code = run.main()
+        self.printed = printed.getvalue().splitlines()
+        return code
+
+    def test_check_covers_both_suites_by_default(self):
+        self.assertEqual(1, self.main("--check-fixtures"))
+        repo = Path(run.__file__).resolve().parent.parent.name
+        self.assertEqual([("fixtures", ["go"], False, None), ("real-products", ["alpha", "beta"], True, repo)],
+                         self.checks)
+        self.assertEqual("ALL: 1 issues", self.printed[-1])
+
+    def test_check_of_one_suite(self):
+        self.assertEqual(0, self.main("--check-fixtures", "--suite", "fixtures"))
+        self.assertEqual([("fixtures", ["go"], False, None)], self.checks)
+        self.main("--check-fixtures", "--product", "beta")
+        self.assertEqual([("real-products", ["beta"], True)], [c[:3] for c in self.checks])
+
+    def test_write_anchors_covers_both_suites_by_default(self):
+        self.assertEqual(0, self.main("--write-anchors"))
+        self.assertEqual([("fixtures", ["go"], False), ("real-products", ["alpha"], True),
+                          ("real-products", ["beta"], True)], self.writes)
+
+    def test_product_map_is_not_written_from_a_checkout_that_is_not_at_the_pin(self):
+        self.assertEqual(1, self.main("--write-anchors", state="modified: 1 tracked file(s)"))
+        self.assertEqual([("fixtures", ["go"], False)], self.writes)
+        self.assertIn("[alpha] anchors not written: checkout is modified: 1 tracked file(s)", self.printed)
+
+    def test_missing_checkout_is_a_skip_and_a_failure_only_for_a_named_product(self):
+        self.assertEqual(0, self.main("--write-anchors", state="missing"))
+        self.assertIn("[beta] anchors not written: checkout is missing", self.printed)
+        self.assertEqual(1, self.main("--write-anchors", "--product", "alpha", state="missing"))
+        self.assertEqual([], self.writes)
+
+
 if __name__ == "__main__":
     unittest.main()

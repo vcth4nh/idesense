@@ -169,5 +169,21 @@ class SnapshotFormTest(unittest.TestCase):
         self.assertEqual(0, products.repeated_items({"error": "x"}, b))
 
 
+class IdentifierAtTest(unittest.TestCase):
+    LINE = "func (b baseShape) Describe() string {"
+
+    def test_identifier_around_the_column(self):
+        self.assertEqual("baseShape", products.identifier_at(self.LINE, 9))
+        self.assertEqual("baseShape", products.identifier_at(self.LINE, 17))
+        self.assertEqual("$scope_1", products.identifier_at("  $scope_1 = 2", 5))
+
+    def test_other_character_is_returned_alone(self):
+        self.assertEqual("(", products.identifier_at(self.LINE, 6))
+
+    def test_column_outside_the_line(self):
+        self.assertEqual("", products.identifier_at(self.LINE, 99))
+        self.assertEqual("", products.identifier_at(self.LINE, 0))
+
+
 if __name__ == "__main__":
     unittest.main()

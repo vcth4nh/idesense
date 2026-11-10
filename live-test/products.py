@@ -1,4 +1,5 @@
-"""Real products of the live-test harness: the product table, the pin guard and the snapshot forms."""
+"""Real products of the live-test harness: the product table, the pin guard, the snapshot forms
+and the identifier lookup of the anchor maps."""
 from __future__ import annotations
 
 import json
@@ -140,3 +141,31 @@ def repeated_items(source: Any, page: Any) -> int:
             seen = {json.dumps(item, sort_keys=True) for item in source[key]}
             repeated += sum(json.dumps(item, sort_keys=True) in seen for item in page[key])
     return repeated
+
+
+# An expected row above this size is an issue of the offline check: every
+# product probe must be capped (page size, depth, scope).
+MAX_EXPECTED_ROW_BYTES = 64 * 1024
+
+
+def _is_identifier_char(ch: str) -> bool:
+    return ch.isalnum() or ch in "_$"
+
+
+def identifier_at(line_text: str, column: int) -> str:
+    """The identifier at the 1-based `column` of a source line, for a product anchor map.
+
+    On an identifier character (alphanumeric, `_`, `$`): the longest run of
+    such characters around the column. On another character: that character.
+    Outside the line: "". A product map shows this and never the source line.
+    """
+    if not 1 <= column <= len(line_text):
+        return ""
+    start = end = column - 1
+    if not _is_identifier_char(line_text[start]):
+        return line_text[start]
+    while start > 0 and _is_identifier_char(line_text[start - 1]):
+        start -= 1
+    while end + 1 < len(line_text) and _is_identifier_char(line_text[end + 1]):
+        end += 1
+    return line_text[start:end + 1]
