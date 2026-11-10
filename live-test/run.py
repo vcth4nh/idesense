@@ -553,6 +553,124 @@ def row_snapshot(entry: dict, raw: Any, project_root: str, product: bool) -> Any
     return products.snapshot_form(mode, normalized)
 
 
+def _compare_row(eid: str, result: Any, expected_by_id: dict[str, Any], bless: bool) -> bool:
+    """Print the outcome of one row. True when the row counts as passed."""
+    if bless:
+        print(f"  {eid} BLESS")
+        return True
+    if eid not in expected_by_id:
+        print(f"  {eid} MISSING (no expected entry for this id — bless?)")
+        return False
+    if expected_by_id[eid] == result:
+        print(f"  {eid} PASS")
+        return True
+    print(f"  {eid} FAIL")
+    for line in diff_lines(expected_by_id[eid], result).splitlines():
+        print(f"    {line}")
+    return False
+
+
+def _run_product_rows(
+    name: str,
+    url: str,
+    project_root: str,
+    product: products.Product,
+    inputs: list[dict],
+    filtered_inputs: list[dict],
+    expected_by_id: dict[str, Any],
+    bless: bool,
+    bless_canary: bool,
+    ready_deadline: float | None,
+) -> tuple[dict[str, Any], dict[str, Any], int, int, int] | None:
+    """The rows of one product run: the canary gate, then the filtered rows.
+
+    Returns (snapshot of every row that ran, the snapshots that a bless can
+    write, passed, failed, parked), or None when the canary gate stops the
+    product. The bless set has no canary row (unless `bless_canary`), no parked
+    row and no failed chained row.
+    """
+    def fetch(entry: dict, request: dict | None = None) -> tuple[Any, Any]:
+        raw = post_jsonrpc(url, request or build_request(entry, project_root), timeout=product.request_timeout)
+        return raw, row_snapshot(entry, raw, project_root, product=True)
+
+    # The canary rows pin the project model. They run first, whatever --tool
+    # is, and a canary that differs from its expected row stops the product:
+    # every other diff would only show a wrong import, not a plugin change.
+    # After a project switch the build tool can still be at work while the IDE
+    # reports smart mode, so the gate tries again until the readiness budget
+    # of the product is used.
+    canaries = [e for e in inputs if _is_canary(e)]
+    gate: dict[str, tuple[Any, Any]] = {}
+    if bless and not canaries:
+        print("  ERROR: the product has no canary row; a bless needs green canary rows")
+        return None
+    if not bless_canary:
+        while True:
+            gate = {e["id"]: fetch(e) for e in canaries}
+            differs = [e["id"] for e in canaries
+                       if e["id"] in expected_by_id and gate[e["id"]][1] != expected_by_id[e["id"]]]
+            if not differs or ready_deadline is None or time.monotonic() >= ready_deadline:
+                break
+            time.sleep(10)
+        for eid in differs:
+            print(f"[{name}] MISCONFIGURED: canary row {eid} differs")
+            for line in diff_lines(expected_by_id[eid], gate[eid][1]).splitlines():
+                print(f"    {line}")
+        if differs:
+            return None
+        if bless and any(e["id"] not in expected_by_id for e in canaries):
+            print("  ERROR: canary rows have no expected entry (bless them with --bless-canary)")
+            return None
+
+    snapshots: dict[str, Any] = {}
+    fresh_results: dict[str, Any] = {}
+    raws: dict[str, Any] = {}
+    passed = failed = parked = 0
+    for entry in order_rows(filtered_inputs):
+        eid = entry["id"]
+        if eid in gate:
+            # Counted from its gate result; a canary is never part of a plain bless.
+            raws[eid], snapshots[eid] = gate[eid]
+            if eid in expected_by_id:
+                print(f"  {eid} PASS")
+                passed += 1
+            else:
+                print(f"  {eid} MISSING (no expected entry for this id — bless with --bless-canary)")
+                failed += 1
+            continue
+
+        failure = None
+        if "cursorFrom" in entry:
+            source_raw = raws.get(entry["cursorFrom"])
+            request = chained_request(entry, source_raw, project_root)
+            if isinstance(request, str):
+                failure = request
+                snapshots[eid] = {"chain_error": request}
+            else:
+                raws[eid], snapshots[eid] = fetch(entry, request)
+                repeats = products.repeated_items(
+                    normalize(source_raw, project_root, drop_fields=products.PRODUCT_DROP_FIELDS),
+                    normalize(raws[eid], project_root, drop_fields=products.PRODUCT_DROP_FIELDS))
+                if repeats:
+                    failure = f"repeats {repeats} item(s) of its source page"
+        else:
+            raws[eid], snapshots[eid] = fetch(entry)
+
+        if "parked" in entry:
+            print(f"  {eid} PARKED (#{entry['parked']})")
+            parked += 1
+        elif failure is not None:
+            print(f"  {eid} FAIL: {failure}")
+            failed += 1
+        else:
+            fresh_results[eid] = snapshots[eid]
+            if _compare_row(eid, snapshots[eid], expected_by_id, bless):
+                passed += 1
+            else:
+                failed += 1
+    return snapshots, fresh_results, passed, failed, parked
+
+
 def run_language(
     lang: str,
     project_path: Path,
@@ -562,6 +680,9 @@ def run_language(
     bless: bool,
     bless_errors: bool = False,
     prune: bool = False,
+    product: products.Product | None = None,
+    bless_canary: bool = False,
+    ready_deadline: float | None = None,
 ) -> tuple[int, int]:
     """Returns (passed, failed).
 
@@ -573,6 +694,11 @@ def run_language(
     them 1:1 in expected/<tool>.jsonl. Rows are matched by `id`, not by
     position, so the snapshot survives row insertions, reorderings, and
     `--tool` filtered blesses.
+
+    With `product` set, the run is a real-product run: `lang` is the product
+    folder, the canary rows gate the product, each row is compared in its
+    compare mode, a parked row is not compared, and a chained row continues
+    the cursor of its source row (see _run_product_rows).
     """
     print(f"[{lang}] {url}")
 
@@ -607,34 +733,27 @@ def run_language(
 
     # Process filtered inputs
     fresh_results: dict[str, Any] = {}
-    passed = failed = 0
-    for entry in filtered_inputs:
-        eid = entry["id"]
-        request = build_request(entry, str(project_path))
-        result = normalize(post_jsonrpc(url, request), str(project_path))
-        fresh_results[eid] = result
-
-        if bless:
-            print(f"  {eid} BLESS")
-            passed += 1
-            continue
-
-        if eid not in expected_by_id:
-            print(f"  {eid} MISSING (no expected entry for this id — bless?)")
-            failed += 1
-            continue
-
-        if expected_by_id[eid] == result:
-            print(f"  {eid} PASS")
-            passed += 1
-        else:
-            print(f"  {eid} FAIL")
-            for line in diff_lines(expected_by_id[eid], result).splitlines():
-                print(f"    {line}")
-            failed += 1
+    passed = failed = parked = 0
+    if product is None:
+        for entry in filtered_inputs:
+            eid = entry["id"]
+            request = build_request(entry, str(project_path))
+            result = normalize(post_jsonrpc(url, request), str(project_path))
+            fresh_results[eid] = result
+            if _compare_row(eid, result, expected_by_id, bless):
+                passed += 1
+            else:
+                failed += 1
+        snapshots = fresh_results
+    else:
+        outcome = _run_product_rows(lang, url, str(project_path), product, inputs, filtered_inputs,
+                                    expected_by_id, bless, bless_canary, ready_deadline)
+        if outcome is None:
+            return 0, 1
+        snapshots, fresh_results, passed, failed, parked = outcome
 
     # Output reflects only the rows we ran (filtered or full).
-    output_lines = [_serialize_row(e["id"], fresh_results[e["id"]]) for e in filtered_inputs]
+    output_lines = [_serialize_row(e["id"], snapshots[e["id"]]) for e in filtered_inputs if e["id"] in snapshots]
     _atomic_write(output_path, "\n".join(output_lines) + ("\n" if output_lines else ""))
 
     # Detect orphan expected rows (ids present in expected but not in input).
@@ -700,8 +819,10 @@ def run_language(
                 if f.stem not in by_stem:
                     f.unlink()
         print(f"[{lang}] BLESSED {exp_dir}/")
-    else:
+    elif product is None:
         print(f"[{lang}] {passed} passed, {failed} failed")
+    if product is not None:
+        print(f"[{lang}] {passed} passed, {failed} failed, {parked} parked")
     return passed, failed
 
 

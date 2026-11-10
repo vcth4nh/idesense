@@ -6,6 +6,11 @@ Run: python3 -m unittest test_run_unit -v   (from live-test/)
 Covers the bless error gate (#82): structured {"error": ...} tool payloads
 must not silently replace a previously non-error expected row.
 """
+import contextlib
+import io
+import shutil
+import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -275,6 +280,159 @@ class ChainedRequestTest(unittest.TestCase):
 
     def test_source_that_failed(self):
         self.assertEqual(self.NO_CURSOR, chained_request(self.ROW, {"transport_error": "timed out"}, "/p/caddy"))
+
+
+FC = "ide_find_class"
+DEMO = products.Product("demo", "goland", "o/demo", "v1", "MIT", "core")
+CANARY = {"id": "canary-find-class-App", "tool": FC, "params": {"query": "App"}}
+NORMAL = {"id": "find-class-Zed", "tool": FC, "params": {"query": "Zed"}}
+PAGE1 = {"id": "usage-App-page1", "tool": U, "params": {"query": "p1", "pageSize": 2}, "compare": "shape"}
+PAGE2 = {"id": "usage-App-page2", "tool": U, "params": {"pageSize": 2}, "compare": "shape", "cursorFrom": "usage-App-page1"}
+PARKED = {"id": "usage-Bug", "tool": U, "params": {"query": "bug"}, "parked": 131}
+PAGING = {"hasMore": False, "totalCollected": 1, "offset": 0, "pageSize": 25, "nextCursor": None, "stale": False}
+ANSWERS = {
+    "App": {"classes": [{"name": "App", "file": "app.go", "line": 1, "column": 6}], **PAGING},
+    "Zed": {"classes": [], **PAGING, "totalCollected": 0},
+    "p1": {"usages": [{"file": "a.go", "line": 1, "column": 1, "preview": "x"}, {"file": "a.go", "line": 2, "column": 1, "preview": "y"}],
+           "hasMore": True, "totalCollected": 4, "offset": 0, "pageSize": 2, "nextCursor": "CUR", "stale": False, "truncated": True},
+    "CUR": {"usages": [{"file": "a.go", "line": 3, "column": 1, "preview": "z"}, {"file": "a.go", "line": 4, "column": 1, "preview": "w"}],
+            "hasMore": False, "totalCollected": 4, "offset": 2, "pageSize": 2, "nextCursor": None, "stale": False, "truncated": False},
+    "bug": {"error": "internal_error", "message": "boom"},
+}
+
+
+def fake_post(answers):
+    seen = []
+
+    def post(url, request, timeout=60.0):
+        name, args = request["params"]["name"], dict(request["params"]["arguments"])
+        args.pop("project_path")
+        seen.append((name, args))
+        if name == "ide_index_status":
+            return {"isDumbMode": False}
+        value = answers[args.get("cursor") or args.get("query")]
+        return value() if callable(value) else value
+    post.seen = seen
+    return post
+
+
+class ProductRunTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.snap, self.project = self.tmp / "_snapshots" / "demo", self.tmp / "demo"
+        (self.snap / "inputs").mkdir(parents=True)
+        (self.snap / "expected").mkdir()
+        for tool, specs in ((FC, [CANARY, NORMAL]), (U, [PAGE1, PAGE2, PARKED])):
+            (self.snap / "inputs" / f"{tool}.jsonl").write_text("".join(serialize_input_row(s) + "\n" for s in specs))
+        self.write_expected(CANARY, NORMAL, PAGE1, PAGE2)
+
+    def write_expected(self, *specs):
+        key = {CANARY["id"]: "App", NORMAL["id"]: "Zed", PAGE1["id"]: "p1", PAGE2["id"]: "CUR"}
+        for tool in (FC, U):
+            lines = [run._serialize_row(s["id"], row_snapshot(s, ANSWERS[key[s["id"]]], str(self.project), product=True))
+                     for s in specs if s["tool"] == tool]
+            (self.snap / "expected" / f"{tool}.jsonl").write_text("".join(l + "\n" for l in lines))
+
+    def go(self, answers=ANSWERS, tool_filter=None, bless=False, **kw):
+        post = fake_post(answers)
+        printed = io.StringIO()
+        with mock.patch.object(run, "post_jsonrpc", post), contextlib.redirect_stdout(printed):
+            result = run.run_language("demo", self.project, self.snap, "http://x", tool_filter, bless, product=DEMO, **kw)
+        self.printed = printed.getvalue().splitlines()
+        return result, post.seen
+
+    def expected(self):
+        return run._load_expected(self.snap)
+
+    def test_green_run_counts_every_row_but_the_parked_one(self):
+        self.assertEqual((4, 0), self.go()[0])
+
+    def test_last_line_counts_the_parked_rows(self):
+        self.go()
+        self.assertIn("  usage-Bug PARKED (#131)", self.printed)
+        self.assertEqual("[demo] 4 passed, 0 failed, 1 parked", self.printed[-1])
+
+    def test_parked_row_is_written_to_the_output_file(self):
+        self.go()
+        output = run._load_expected_by_id(self.snap / "output.jsonl")
+        self.assertEqual({"error": "internal_error", "message": "boom"}, output["usage-Bug"])
+
+    def test_canary_rows_run_first(self):
+        self.assertEqual((FC, {"query": "App"}), self.go()[1][1])        # index 0 is the readiness call
+
+    def test_chained_row_follows_its_source_with_the_fresh_cursor(self):
+        seen = self.go()[1]
+        i = seen.index((U, {"query": "p1", "pageSize": 2}))
+        self.assertEqual((U, {"pageSize": 2, "cursor": "CUR"}), seen[i + 1])
+
+    def test_failed_canary_stops_the_product(self):
+        result, seen = self.go(dict(ANSWERS, App=dict(ANSWERS["App"], classes=[])))
+        self.assertEqual((0, 1), result)
+        self.assertNotIn((FC, {"query": "Zed"}), seen)
+        self.assertIn("[demo] MISCONFIGURED: canary row canary-find-class-App differs", self.printed)
+        self.assertFalse((self.snap / "output.jsonl").exists())
+
+    def test_canary_is_retried_until_the_ready_deadline(self):
+        wrong = iter([dict(ANSWERS["App"], classes=[])] * 2)
+        flaky = dict(ANSWERS, App=lambda: next(wrong, ANSWERS["App"]))
+        with mock.patch.object(run.time, "sleep"):
+            result, _ = self.go(flaky, ready_deadline=time.monotonic() + 60)
+        self.assertEqual((4, 0), result)
+
+    def test_tool_filter_keeps_the_canary_gate(self):
+        result, seen = self.go(tool_filter=U)
+        self.assertEqual((2, 0), result)
+        self.assertIn((FC, {"query": "App"}), seen)
+        self.assertNotIn((FC, {"query": "Zed"}), seen)
+
+    def test_chained_row_that_repeats_an_item_fails(self):
+        repeat = dict(ANSWERS["CUR"], usages=[ANSWERS["p1"]["usages"][0], ANSWERS["CUR"]["usages"][1]])
+        self.assertEqual((3, 1), self.go(dict(ANSWERS, CUR=repeat))[0])
+        self.assertIn("  usage-App-page2 FAIL: repeats 1 item(s) of its source page", self.printed)
+
+    def test_source_without_a_cursor_fails_the_chained_row_only(self):
+        self.assertEqual((3, 1), self.go(dict(ANSWERS, p1=dict(ANSWERS["p1"], nextCursor=None)))[0])
+
+    def test_canary_without_an_expected_row_does_not_stop_the_sweep(self):
+        self.write_expected(NORMAL, PAGE1, PAGE2)
+        result, seen = self.go()
+        self.assertEqual((3, 1), result)
+        self.assertIn((FC, {"query": "Zed"}), seen)
+
+    def test_bless_writes_the_changed_row_and_no_parked_row(self):
+        self.go(dict(ANSWERS, Zed=dict(ANSWERS["Zed"], totalCollected=7)), bless=True)
+        self.assertEqual(7, self.expected()["find-class-Zed"]["totalCollected"])
+        self.assertNotIn("usage-Bug", self.expected())
+
+    def test_bless_is_refused_when_a_canary_differs(self):
+        bad = dict(ANSWERS, App=dict(ANSWERS["App"], classes=[]), Zed=dict(ANSWERS["Zed"], totalCollected=7))
+        self.assertEqual((0, 1), self.go(bad, bless=True)[0])
+        self.assertEqual(0, self.expected()["find-class-Zed"]["totalCollected"])
+
+    def test_bless_needs_blessed_canaries(self):
+        self.write_expected(NORMAL, PAGE1, PAGE2)
+        self.assertEqual((0, 1), self.go(bless=True)[0])
+        self.assertNotIn("canary-find-class-App", self.expected())
+
+    def test_bless_needs_a_canary_row(self):
+        (self.snap / "inputs" / f"{FC}.jsonl").write_text(serialize_input_row(NORMAL) + "\n")
+        self.write_expected(NORMAL, PAGE1, PAGE2)
+        changed = dict(ANSWERS, Zed=dict(ANSWERS["Zed"], totalCollected=7))
+        for bless_canary in (False, True):
+            self.assertEqual((0, 1), self.go(changed, bless=True, bless_canary=bless_canary)[0])
+        self.assertEqual(0, self.expected()["find-class-Zed"]["totalCollected"])
+
+    def test_parked_chained_row_does_not_fail_the_run(self):
+        parked_page2 = dict(PAGE2, parked=132)
+        (self.snap / "inputs" / f"{U}.jsonl").write_text(
+            "".join(serialize_input_row(s) + "\n" for s in (PAGE1, parked_page2, PARKED)))
+        self.write_expected(CANARY, NORMAL, PAGE1)
+        self.assertEqual((3, 0), self.go(dict(ANSWERS, p1=dict(ANSWERS["p1"], nextCursor=None)))[0])
+
+    def test_bless_canary_writes_the_canary_rows(self):
+        self.go(dict(ANSWERS, App=dict(ANSWERS["App"], totalCollected=2)), bless=True, bless_canary=True)
+        self.assertEqual(2, self.expected()["canary-find-class-App"]["totalCollected"])
 
 
 if __name__ == "__main__":
