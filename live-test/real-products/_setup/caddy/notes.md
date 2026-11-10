@@ -31,6 +31,11 @@ the switch time has that resolution.
 | Module dependencies that GoLand reports | 595 |
 | Go fixture rows while `caddy` is open | 99 passed |
 | Go fixture rows directly after a close | 99 passed |
+| Resident memory of GoLand, fixture plus `caddy`, directly after the open | 2160 MB |
+| Resident memory after the import check | 2421 MB |
+| Used heap after a full collection | 218 MB after the open, 281 MB after the import check |
+
+The used heap stays far below 1200 MB (60% of the limit), so GoLand keeps `-Xmx2048m`.
 
 Facts about the switch:
 
@@ -45,3 +50,37 @@ Facts about the switch:
   first open; the canary rows are.
 - `goland.sh serverMode <path>` opens only that one project and restores no other project.
   A second path argument is ignored. So the harness always starts a bare `serverMode`.
+
+## Import check
+
+Done on 2026-11-10 with plugin 2.1.1-dev.05. The product is accepted.
+
+| Call | Result |
+|---|---|
+| `ide_find_class`, query `Module` | the interface `Module`, `modules.go:54` |
+| `ide_find_definition`, `caddy.go:758:51` | `logger.go:41` of `go.uber.org/zap@v1.28.0`, outside the project |
+| `ide_find_usages`, `modules.go:54:6`, `pageSize` 100 | 100 usages, `hasMore` true, `totalCollected` 187 |
+| `ide_type_hierarchy`, `modules.go:54:6` | 144 subtypes |
+| `ide_file_structure`, `caddy.go` | a structure of 29 KB |
+
+Comparison with GoLand itself. A second GoLand with a window opened a copy of the pin that
+had no IDE files, so that GoLand made the project model by itself:
+
+- The tools give the same results on that import and on the fleet project with the three
+  written IDE files: usages (187), type hierarchy (144), class search, file structure and
+  symbol search (104). The written files are a correct model.
+- Type hierarchy: the IDE shows "144 implementations" at the interface, and all 23 subtypes
+  on the first screen of its Hierarchy window are in the tool result.
+- Find Usages: the IDE lists 200 results, the tool 187. The 13 others are the IDE group
+  "Usage in comments" (`context.go` 561 and 661, `modules.go` 29 and 91,
+  `internal/testmocks/dummyverifier.go` 22, and 8 lines of `modules/caddytls/capools.go`).
+  The option "Text occurrences" was off. This is a finding about the tool, not about the
+  import.
+
+Project model facts that the probe rows rely on:
+
+- A Go project has no source roots in GoLand. `project_production_files` and
+  `project_test_files` give the error `scope_matches_no_files`, and the Find Usages dialog
+  of GoLand offers no production scope and no test scope. The Go fixture pins the same.
+- The hierarchy scope `test` is different: it follows the Go test file names. On `Module`
+  it gives 8 subtypes, and the scope `production` gives none.
