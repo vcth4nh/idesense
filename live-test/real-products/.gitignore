@@ -1,0 +1,5 @@
+# Product checkouts are test data. Keep repository-wide text searches (ripgrep, ugrep) out of them.
+# The submodule entries stay tracked; a new product needs `git submodule add -f`.
+/*/
+!/_setup/
+!/_snapshots/

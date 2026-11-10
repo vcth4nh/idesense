@@ -1,0 +1,5 @@
+[submodule "live-test/real-products/caddy"]
+	path = live-test/real-products/caddy
+	url = https://github.com/caddyserver/caddy
+	shallow = true
+	ignore = dirty
