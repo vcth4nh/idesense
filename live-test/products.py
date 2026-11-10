@@ -109,8 +109,10 @@ def _count_lists(node: Any, counts: dict[str, int]) -> None:
 def snapshot_form(mode: str, normalized: Any) -> Any:
     """The part of a normalized product result that its compare mode pins.
 
-    `exact` and `ordered` keep the result; only `topUsages` becomes its item
-    count, because the tool keeps the first five results of a parallel search.
+    `exact` and `ordered` keep the result, with two changes. `topUsages` becomes
+    its item count, because the tool keeps the first five results of a parallel
+    search. `signature` keeps its first line: the signature of a type is the
+    type body, and a product snapshot holds no source lines.
     `shape` keeps the item count of each result list at any depth, plus the
     pagination and cap fields of the top level. A result that a page size or a
     cap cuts is in arrival order, so its content cannot be pinned.
@@ -118,9 +120,14 @@ def snapshot_form(mode: str, normalized: Any) -> Any:
     if mode not in COMPARE_MODES:
         raise ValueError(f"unknown compare mode {mode!r}")
     if mode != "shape":
-        if isinstance(normalized, dict) and isinstance(normalized.get("topUsages"), list):
-            return {**normalized, "topUsages": len(normalized["topUsages"])}
-        return normalized
+        if not isinstance(normalized, dict):
+            return normalized
+        out = dict(normalized)
+        if isinstance(out.get("topUsages"), list):
+            out["topUsages"] = len(out["topUsages"])
+        if isinstance(out.get("signature"), str):
+            out["signature"] = out["signature"].split("\n", 1)[0]
+        return out
     counts: dict[str, int] = {}
     _count_lists(normalized, counts)
     out: dict[str, Any] = {"counts": counts}

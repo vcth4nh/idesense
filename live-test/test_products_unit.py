@@ -154,6 +154,15 @@ class SnapshotFormTest(unittest.TestCase):
         for mode in ("exact", "ordered"):
             self.assertEqual({"usageCount": 3, "topUsages": 2}, products.snapshot_form(mode, r))
 
+    def test_exact_and_ordered_keep_only_the_first_line_of_a_signature(self):
+        r = {"signature": "type CA struct {\nName string `json:\"name\"`\n}", "usageCount": 3}
+        for mode in ("exact", "ordered"):
+            self.assertEqual({"signature": "type CA struct {", "usageCount": 3}, products.snapshot_form(mode, r))
+
+    def test_signature_of_one_line_stays(self):
+        r = {"signature": "func RegisterModule(instance Module)", "usageCount": 3}
+        self.assertEqual(r, products.snapshot_form("exact", r))
+
     def test_exact_keeps_every_other_field(self):
         self.assertEqual(self.PAGE, products.snapshot_form("exact", self.PAGE))
 
