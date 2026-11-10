@@ -14,7 +14,7 @@ import fleet
 import products
 import run
 from run import _result_has_error, _result_is_structured_error, _structured_error_bless_refusals
-from run import row_snapshot, wait_until
+from run import chained_request, order_rows, row_problems, row_snapshot, serialize_input_row, wait_until
 
 
 class ResultIsStructuredErrorTest(unittest.TestCase):
@@ -172,6 +172,109 @@ class RowSnapshotTest(unittest.TestCase):
             self.assertEqual({"transport_error": "timed out"},
                              row_snapshot({"id": "u", "tool": U, "compare": mode}, {"transport_error": "timed out"},
                                           "/p", product=True))
+
+
+def rows(*specs):
+    return [dict(s, _stem=s["tool"]) for s in specs]
+
+
+class SerializeInputRowTest(unittest.TestCase):
+    def test_fixture_row_is_unchanged(self):
+        self.assertEqual('{"id":"find-class-Circle","tool":"ide_find_class","params":{"query":"Circle"}}',
+                         serialize_input_row({"id": "find-class-Circle", "tool": "ide_find_class",
+                                              "params": {"query": "Circle"}}))
+
+    def test_product_keys_follow_params_in_a_fixed_order(self):
+        row = {"parked": 131, "cursorFrom": "usage-Module-page1", "compare": "shape", "params": {"pageSize": 100},
+               "tool": U, "id": "usage-Module-page2"}
+        self.assertEqual('{"id":"usage-Module-page2","tool":"ide_find_usages","params":{"pageSize":100},'
+                         '"compare":"shape","cursorFrom":"usage-Module-page1","parked":131}', serialize_input_row(row))
+
+
+class RowProblemsTest(unittest.TestCase):
+    CANARY = {"id": "canary-usage-App", "tool": U, "params": {}}
+    PAGE1 = {"id": "a", "tool": U, "params": {}, "compare": "shape"}
+
+    def one(self, *specs, product=True):
+        problems = row_problems(rows(*specs), product=product)
+        self.assertEqual(1, len(problems), problems)
+        return problems[0]
+
+    def test_clean_product_rows(self):
+        r = rows(self.CANARY, self.PAGE1,
+                 {"id": "b", "tool": U, "params": {}, "compare": "shape", "cursorFrom": "a"},
+                 {"id": "c", "tool": U, "params": {}, "parked": 131})
+        self.assertEqual([], row_problems(r, product=True))
+
+    def test_fixture_rows_cannot_use_product_keys(self):
+        self.assertEqual("usage-A: only a product row can have 'compare'",
+                         self.one({"id": "usage-A", "tool": U, "params": {}, "compare": "shape"}, product=False))
+
+    def test_fixture_rows_need_no_canary(self):
+        self.assertEqual([], row_problems(rows({"id": "usage-A", "tool": U, "params": {}}), product=False))
+
+    def test_bad_compare_mode(self):
+        self.assertEqual("x: compare must be one of exact, ordered, shape",
+                         self.one(self.CANARY, {"id": "x", "tool": U, "params": {}, "compare": "fuzzy"}))
+
+    def test_cursor_source_must_exist(self):
+        self.assertEqual("b: cursorFrom names no row 'zz'",
+                         self.one(self.CANARY, {"id": "b", "tool": U, "params": {}, "compare": "shape", "cursorFrom": "zz"}))
+
+    def test_cursor_source_must_have_the_same_tool(self):
+        self.assertEqual("b: cursorFrom must name a row of the same tool",
+                         self.one(self.CANARY, self.PAGE1, {"id": "b", "tool": "ide_search_text", "params": {},
+                                                            "compare": "shape", "cursorFrom": "a"}))
+
+    def test_chained_row_must_be_a_shape_row(self):
+        self.assertEqual("b: a chained row must have compare 'shape'",
+                         self.one(self.CANARY, self.PAGE1, {"id": "b", "tool": U, "params": {}, "cursorFrom": "a"}))
+
+    def test_chain_of_chains_is_refused(self):
+        self.assertEqual("c: cursorFrom must not name a chained row",
+                         self.one(self.CANARY, self.PAGE1,
+                                  {"id": "b", "tool": U, "params": {}, "compare": "shape", "cursorFrom": "a"},
+                                  {"id": "c", "tool": U, "params": {}, "compare": "shape", "cursorFrom": "b"}))
+
+    def test_parked_must_be_an_issue_number(self):
+        for bad in (True, 0, "131"):
+            self.assertEqual("x: parked must be an issue number",
+                             self.one(self.CANARY, {"id": "x", "tool": U, "params": {}, "parked": bad}))
+
+    def test_canary_cannot_be_parked_or_chained(self):
+        self.assertEqual("canary-usage-App: a canary row cannot be chained or parked",
+                         self.one(dict(self.CANARY, parked=131)))
+
+    def test_product_needs_a_canary_row(self):
+        self.assertEqual("no canary row", self.one(self.PAGE1))
+
+
+class OrderRowsTest(unittest.TestCase):
+    def test_canary_rows_first_and_chained_rows_after_their_source(self):
+        r = rows({"id": "a-page2", "tool": U, "cursorFrom": "z-page1"}, {"id": "b", "tool": U},
+                 {"id": "canary-x", "tool": U}, {"id": "z-page1", "tool": U})
+        self.assertEqual(["canary-x", "b", "z-page1", "a-page2"], [x["id"] for x in order_rows(r)])
+
+    def test_chained_row_without_its_source_stays_in_the_run(self):
+        r = rows({"id": "b-page2", "tool": U, "cursorFrom": "gone"}, {"id": "a", "tool": U})
+        self.assertEqual(["a", "b-page2"], [x["id"] for x in order_rows(r)])
+
+
+class ChainedRequestTest(unittest.TestCase):
+    ROW = {"id": "usage-M-page2", "tool": U, "params": {"pageSize": 100}, "compare": "shape",
+           "cursorFrom": "usage-M-page1"}
+    NO_CURSOR = "cursor source 'usage-M-page1' returned no nextCursor"
+
+    def test_passes_the_fresh_cursor(self):
+        req = chained_request(self.ROW, {"usages": [], "nextCursor": "abc", "hasMore": True}, "/p/caddy")
+        self.assertEqual(U, req["params"]["name"])
+        self.assertEqual({"pageSize": 100, "cursor": "abc", "project_path": "/p/caddy"}, req["params"]["arguments"])
+
+    def test_source_without_a_next_cursor(self):
+        self.assertEqual(self.NO_CURSOR, chained_request(self.ROW, {"usages": [], "nextCursor": None}, "/p/caddy"))
+
+    def test_source_that_failed(self):
+        self.assertEqual(self.NO_CURSOR, chained_request(self.ROW, {"transport_error": "timed out"}, "/p/caddy"))
 
 
 if __name__ == "__main__":

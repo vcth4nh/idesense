@@ -287,14 +287,90 @@ def _canon_params(v: Any) -> Any:
     return v
 
 
+# Keys that only a product row can have, in their canonical order after `params`:
+# the compare mode, the id of the row whose `nextCursor` this row continues, and
+# the issue number of the open defect that keeps this row out of the comparison.
+PRODUCT_ROW_KEYS = ("compare", "cursorFrom", "parked")
+
+CANARY_PREFIX = "canary-"
+
+
+def _is_canary(row: dict) -> bool:
+    return row["id"].startswith(CANARY_PREFIX)
+
+
 def serialize_input_row(row: dict) -> str:
     """Canonical input-row serialization: {"id":…,"tool":…,"params":{…}} with
-    params keys recursively sorted, compact separators. --check-fixtures
-    enforces that every committed input line equals this exactly."""
+    params keys recursively sorted, compact separators, then the product keys
+    in the order of PRODUCT_ROW_KEYS. --check-fixtures enforces that every
+    committed input line equals this exactly."""
     obj: dict[str, Any] = {"id": row["id"], "tool": row["tool"]}
     if "params" in row:
         obj["params"] = _canon_params(row["params"])
+    for key in PRODUCT_ROW_KEYS:
+        if key in row:
+            obj[key] = row[key]
     return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+
+
+def row_problems(rows: list[dict], product: bool) -> list[str]:
+    """Rule breaks of the product keys in loaded input rows, one line each."""
+    problems: list[str] = []
+    by_id = {r["id"]: r for r in rows}
+    for r in rows:
+        eid = r["id"]
+        if not product:
+            used = [k for k in PRODUCT_ROW_KEYS if k in r]
+            if used:
+                problems.append(f"{eid}: only a product row can have '{used[0]}'")
+            continue
+        if r.get("compare", "exact") not in products.COMPARE_MODES:
+            problems.append(f"{eid}: compare must be one of {', '.join(products.COMPARE_MODES)}")
+        if "cursorFrom" in r:
+            source = by_id.get(r["cursorFrom"])
+            if source is None:
+                problems.append(f"{eid}: cursorFrom names no row '{r['cursorFrom']}'")
+            elif source["tool"] != r["tool"]:
+                problems.append(f"{eid}: cursorFrom must name a row of the same tool")
+            if r.get("compare") != "shape":
+                problems.append(f"{eid}: a chained row must have compare 'shape'")
+            if source is not None and "cursorFrom" in source:
+                problems.append(f"{eid}: cursorFrom must not name a chained row")
+        if "parked" in r and not (type(r["parked"]) is int and r["parked"] > 0):
+            problems.append(f"{eid}: parked must be an issue number")
+        if _is_canary(r) and ("cursorFrom" in r or "parked" in r):
+            problems.append(f"{eid}: a canary row cannot be chained or parked")
+    if product and not any(_is_canary(r) for r in rows):
+        problems.append("no canary row")
+    return problems
+
+
+def order_rows(rows: list[dict]) -> list[dict]:
+    """Run order of product rows: the canary rows, then each other row, with
+    the rows that continue its cursor directly after it."""
+    chained = [r for r in rows if "cursorFrom" in r and not _is_canary(r)]
+    out = [r for r in rows if _is_canary(r)]
+    for r in rows:
+        if _is_canary(r) or "cursorFrom" in r:
+            continue
+        out.append(r)
+        out += [c for c in chained if c["cursorFrom"] == r["id"]]
+    placed = {c["id"] for c in out}
+    return out + [c for c in chained if c["id"] not in placed]
+
+
+def chained_request(entry: dict, source_raw: Any, project_path: str) -> dict | str:
+    """The request of a row that continues the cursor of its source row, or the failure text.
+
+    A cursor is a server-side entry with a random id and a short lifetime, so
+    it comes from the source result of this run. The tools ignore the search
+    parameters when a cursor is given."""
+    cursor = source_raw.get("nextCursor") if isinstance(source_raw, dict) else None
+    if not cursor:
+        return f"cursor source '{entry['cursorFrom']}' returned no nextCursor"
+    request = build_request(entry, project_path)
+    request["params"]["arguments"]["cursor"] = cursor
+    return request
 
 
 def _input_files(snap_dir: Path) -> list[Path]:
