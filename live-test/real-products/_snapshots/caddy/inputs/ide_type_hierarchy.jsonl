@@ -2,6 +2,6 @@
 {"id":"hier-sub-MiddlewareHandler","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"modules/caddyhttp/caddyhttp.go","line":90}}
 {"id":"hier-sub-Module","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"modules.go","line":54},"compare":"shape"}
 {"id":"hier-sub-Module-production-scope","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"modules.go","line":54,"scope":"production"}}
-{"id":"hier-super-Metrics-byname","tool":"ide_type_hierarchy","params":{"className":"Metrics","direction":"supertypes"}}
+{"id":"hier-super-Metrics-byname","tool":"ide_type_hierarchy","params":{"className":"Metrics","direction":"supertypes"},"parked":131}
 {"id":"hier-super-caddyhttp.App-byname","tool":"ide_type_hierarchy","params":{"className":"caddyhttp.App","direction":"supertypes"}}
 {"id":"hier-super-reverseproxy.Handler","tool":"ide_type_hierarchy","params":{"column":6,"direction":"supertypes","file":"modules/caddyhttp/reverseproxy/reverseproxy.go","line":101}}

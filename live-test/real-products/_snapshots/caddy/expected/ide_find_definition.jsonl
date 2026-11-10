@@ -1,0 +1,6 @@
+{"id":"canary-def-Logger-into-dependency","result":{"enclosingScope":null,"file":"logger.go","kind":"STRUCT","name":"Logger","qualifiedName":"zap.Logger"}}
+{"id":"def-ModuleInfo-cross-file","result":{"column":6,"enclosingScope":null,"file":"modules.go","kind":"STRUCT","line":63,"name":"ModuleInfo","qualifiedName":"caddy.ModuleInfo"}}
+{"id":"def-ResponseWriterWrapper.Header-promoted","result":{"enclosingScope":null,"file":"server.go","kind":"METHOD","name":"Header","qualifiedName":"http.ResponseWriter.Header"}}
+{"id":"def-Warning-via-alias","result":{"column":6,"enclosingScope":null,"file":"caddyconfig/configadapters.go","kind":"TYPE_ALIAS","line":32,"name":"Warning","qualifiedName":"caddyconfig.Warning"}}
+{"id":"def-certmagic.Config-into-dependency","result":{"enclosingScope":null,"file":"config.go","kind":"STRUCT","name":"Config","qualifiedName":"certmagic.Config"}}
+{"id":"def-semconv.WebEngineName-into-generated","result":{"enclosingScope":null,"file":"resource.go","kind":"FUNCTION","name":"WebEngineName","qualifiedName":"semconv.WebEngineName"}}
