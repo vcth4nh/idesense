@@ -99,6 +99,8 @@ def rewrite_recent_projects(xml_text: str, wanted: list[str], user_home: str) ->
     """
     root = ET.fromstring(xml_text)
     projects = root.find(".//option[@name='additionalInfo']/map")
+    if projects is None:
+        raise ValueError("no project map (option 'additionalInfo')")
     missing = list(wanted)
     for entry in projects.findall("entry"):
         meta = entry.find("value/RecentProjectMetaInfo")
@@ -179,14 +181,20 @@ def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None,
     proc = find_ide_process(ide)
     if proc is None:
         return f"no {ide.key} fleet process found"
+    recent = proc.config_dir / "options" / "recentProjects.xml"
+    home = proc.env.get("HOME") or str(Path.home())
+    try:
+        # Prove the rewrite while the IDE still runs: an error after the stop would leave the IDE down.
+        rewrite_recent_projects(recent.read_text(), wanted, home)
+    except (OSError, ET.ParseError, ValueError) as e:
+        return f"cannot rewrite {recent}: {e}"
     command = f"{proc.launcher} serverMode"
     log(f"[{ide.key}] restart for a project switch. Start command: {command}")
     err = _stop(proc, stop_timeout, ide.key)
     if err is not None:
         return err
-    recent = proc.config_dir / "options" / "recentProjects.xml"
     tmp = recent.with_name(f".{recent.name}.tmp.{os.getpid()}")
-    tmp.write_text(rewrite_recent_projects(recent.read_text(), wanted, proc.env.get("HOME") or str(Path.home())))
+    tmp.write_text(rewrite_recent_projects(recent.read_text(), wanted, home))
     os.replace(tmp, recent)
     _start(proc)
     deadline = time.monotonic() + start_timeout

@@ -107,6 +107,10 @@ class RewriteRecentProjectsTest(unittest.TestCase):
         self.assertIn('projectWorkspaceId="ws2"', out)
         self.assertIn('value="GO-262.8665.336"', out)
 
+    def test_file_without_a_project_map_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "no project map"):
+            fleet.rewrite_recent_projects("<application />", [FIX], "/home/u")
+
     def test_matches_an_entry_key_without_the_home_macro(self):
         out = fleet.rewrite_recent_projects(RECENT.replace(FIX_KEY, FIX), [FIX], "/home/u")
         self.assertEqual({"$APPLICATION_CONFIG_DIR$/projects/GoLandWorkspace": None, FIX: "true"}, opened(out))
@@ -143,6 +147,7 @@ class OpenProjectsTest(unittest.TestCase):
 class SetOpenProjectsTest(unittest.TestCase):
     def proc(self):
         cfg = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, cfg)
         (cfg / "options").mkdir()
         (cfg / "options" / "recentProjects.xml").write_text(RECENT)
         return fleet.IdeProcess(4242, Path("/opt/tb/apps/goland/bin/goland.sh"), cfg, {"HOME": "/home/u"}, "/home/u")
@@ -181,6 +186,20 @@ class SetOpenProjectsTest(unittest.TestCase):
         self.assertEqual("goland did not stop in 90 s", err)
         start.assert_not_called()
         self.assertEqual(RECENT, (proc.config_dir / "options" / "recentProjects.xml").read_text())
+
+
+    def test_recent_projects_file_that_cannot_be_rewritten_is_reported_before_the_ide_stops(self):
+        for content in ("<application />", "not xml", None):
+            proc = self.proc()
+            recent = proc.config_dir / "options" / "recentProjects.xml"
+            recent.write_text(content) if content is not None else recent.unlink()
+            with mock.patch.object(fleet, "find_ide_process", return_value=proc), \
+                 mock.patch.object(fleet, "_stop", return_value=None) as stop, \
+                 mock.patch.object(fleet, "_start") as start:
+                err = fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX)), log=lambda s: None)
+            self.assertRegex(err, r"^cannot rewrite .*recentProjects\.xml: ")
+            stop.assert_not_called()
+            start.assert_not_called()
 
 
 class StartStopTest(unittest.TestCase):
