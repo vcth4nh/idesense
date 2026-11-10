@@ -274,6 +274,9 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-10):
   - The plugin changed the output of the tool of that canary row, and the fixture suite
     shows the same change. Then run `--product <folder> --bless --bless-canary` with
     permission, and read the `git diff` of the expected files before the commit.
+- **Some rows of a fixture fail in the first seconds after an IDE restart** — the IDE
+  lists its projects and reports smart mode, but it still loads the SDK or the build
+  model. Seen one time in three restarts of GoLand: 2 of 99 Go rows. Run the fixture again.
 - **`… has projects open that this command must not close: …`** — the IDE has a project
   open that is no product of this checkout, and the command does not want it. Run the
   command from the checkout whose fixtures the IDE has open, or close that project by hand.
