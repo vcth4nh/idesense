@@ -2,7 +2,7 @@
 
 Snapshot-based regression suite for the IdeSense plugin. Drives real
 HTTP POST requests against running JetBrains IDEs and diffs the responses
-against committed `_snapshots/<lang>/expected/<tool>.jsonl` files.
+against committed `fixtures/_snapshots/<lang>/expected/<tool>.jsonl` files.
 
 Run after every plugin version bump.
 
@@ -18,6 +18,8 @@ Run after every plugin version bump.
 
 ## Per-IDE fixture setup
 
+The fixture projects are in `live-test/fixtures/`.
+
 | Language fixture | Open in | Default port |
 |---|---|---|
 | `python/` | PyCharm | 29172 |
@@ -31,7 +33,7 @@ Each fixture is a real IDE-openable project. Open it, wait for indexing,
 then run the harness.
 
 Snapshots (`inputs/`, `expected/`, `output.jsonl`) live under
-`live-test/_snapshots/<lang>/`, deliberately **outside** the fixture
+`live-test/fixtures/_snapshots/<lang>/`, deliberately **outside** the fixture
 project roots: snapshot text mentions every fixture symbol, and past
 IntelliJ's 10-file text-occurrence threshold the unused-symbol inspection
 silently stops reporting — which would change diagnostics snapshots.
@@ -40,7 +42,7 @@ silently stops reporting — which would change diagnostics snapshots.
 
 ```bash
 ./run.py                                 # runs every language, fails on diff
-./run.py --bless                         # rewrite _snapshots/<lang>/expected/<tool>.jsonl from server output
+./run.py --bless                         # rewrite fixtures/_snapshots/<lang>/expected/<tool>.jsonl from server output
 ./run.py --bless --bless-errors          # allow blessing tool errors / non-error→error transitions (rare)
 ./run.py --bless --prune                 # allow bless to drop orphan expected ids
 ./run.py --language python               # one language only
@@ -49,11 +51,11 @@ silently stops reporting — which would change diagnostics snapshots.
 ./run.py --check-fixtures                # validate input/expected files offline (no IDE calls)
 ```
 
-Each run writes `live-test/_snapshots/<lang>/output.jsonl` (gitignored) with the raw
+Each run writes `live-test/fixtures/_snapshots/<lang>/output.jsonl` (gitignored) with the raw
 normalized response per entry. Useful for inspecting current responses
 without re-blessing.
 
-Per-language anchor maps live at `_snapshots/<lang>/ANCHORS.md` — a generated
+Per-language anchor maps live at `fixtures/_snapshots/<lang>/ANCHORS.md` — a generated
 index mapping every probe id to the fixture line it anchors (regenerate with
 `./run.py --write-anchors`; `--check-fixtures` fails while the map is stale).
 
@@ -86,8 +88,8 @@ index mapping every probe id to the fixture line it anchors (regenerate with
 >
 > `ide_install_plugin` only accepts a zip **inside the open project** (out-of-root paths are
 > rejected), and the fixture projects are not the plugin repo — so first copy the built zip
-> into each fixture root (`cp build/distributions/*.zip live-test/<lang>/`) and pass that
-> in-project path. The copies are gitignored (`live-test/*/*.zip`); delete them afterwards.
+> into each fixture root (`cp build/distributions/*.zip live-test/fixtures/<lang>/`) and pass that
+> in-project path. The copies are gitignored (`live-test/fixtures/*/*.zip`); delete them afterwards.
 
 ## Troubleshooting
 
