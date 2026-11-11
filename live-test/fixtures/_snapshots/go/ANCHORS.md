@@ -28,6 +28,8 @@ fails when this file is stale.
 | 31:6 | hier-super-ILeaf-embedded | type_hierarchy | `type ILeaf interface {` |
 | 37:21 | super-ChainImpl.Chain | find_super_methods | `func (c *ChainImpl) Chain() string { return "chain" }` |
 | 49:6 | super-IFull-type | find_super_methods | `type IFull interface {` |
+| 50:2 | super-IFull.IMidM-embedded | find_super_methods | `IMidM` |
+| 51:2 | super-IFull.Full | find_super_methods | `Full() string` |
 | 56:20 | super-FullImpl.Base | find_super_methods | `func (f *FullImpl) Base() string { return "base" }` |
 | 58:20 | super-FullImpl.Full | find_super_methods | `func (f *FullImpl) Full() string { return "full" }` |
 | 65:6 | super-Outer-type | find_super_methods | `type Outer struct{ Inner }` |
@@ -86,6 +88,14 @@ fails when this file is stale.
 | 100:6 | hier-callee-MakeDefault | call_hierarchy | `func MakeDefaultShapes() []Shape {` |
 | 100:6 | hier-callee-MakeDefault-d3 | call_hierarchy | `func MakeDefaultShapes() []Shape {` |
 
+## promoted.go
+
+| line:col | probe id | tool | source |
+|---|---|---|---|
+| 10:6 | impls-Stamper-promoted | find_implementations | `type Stamper interface {` |
+| 11:2 | explain-Stamper.Stamp-promoted | explain_symbol | `Stamp() string` |
+| 11:2 | impls-Stamper.Stamp-promoted | find_implementations | `Stamp() string` |
+
 ## quirks.go
 
 | line:col | probe id | tool | source |
@@ -106,6 +116,7 @@ fails when this file is stale.
 
 | probe id | tool | params |
 |---|---|---|
+| explain-Main-name | explain_symbol | `{"symbol":"Main"}` |
 | explain-Shape-name | explain_symbol | `{"symbol":"Shape"}` |
 | find-class-Circle | find_class | `{"query":"Circle"}` |
 | find-class-Circle-exact | find_class | `{"fuzzySearch":false,"query":"Circle"}` |

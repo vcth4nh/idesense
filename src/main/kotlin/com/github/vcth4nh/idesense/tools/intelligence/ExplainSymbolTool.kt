@@ -114,7 +114,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
                     is SymbolResolution.Ambiguous -> return@suspendingReadAction null to createJsonResult(
                         ExplainSymbolResult(
                             candidates = resolution.candidates,
-                            message = "Ambiguous symbol '${anchor.symbol}': ${resolution.candidates.size} matches. " +
+                            message = "Ambiguous symbol '${anchor.symbol}': ${resolution.matchCount}. " +
                                 "Pass a qualified name or a file/line/column position.",
                         )
                     )
@@ -266,14 +266,14 @@ class ExplainSymbolTool : AbstractMcpTool() {
         var implementations: List<ImplementationLocation>? = null
         var implementationsTruncated: Boolean? = null
         try {
-            val collected = mutableListOf<ImplementationLocation>()
+            val collector = ImplementationLocations.Collector(MAX_IMPLEMENTATIONS + 1)
             DefinitionsScopedSearch.search(target, searchScope, true).forEach(Processor { impl ->
                 ProgressManager.checkCanceled()
-                ImplementationLocations.convert(impl, project)?.let { collected.add(it) }
-                collected.size <= MAX_IMPLEMENTATIONS
+                collector.addInCallback { ImplementationLocations.convert(impl, project, searchScope) }
             })
-            implementationsTruncated = collected.size > MAX_IMPLEMENTATIONS
-            implementations = collected.take(MAX_IMPLEMENTATIONS)
+            collector.throwFailure()
+            implementationsTruncated = collector.results.size > MAX_IMPLEMENTATIONS
+            implementations = collector.results.take(MAX_IMPLEMENTATIONS)
         } catch (e: ProcessCanceledException) {
             throw e
         } catch (e: Exception) {

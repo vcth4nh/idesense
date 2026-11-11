@@ -46,6 +46,10 @@ file is stale.
 | 164:6 | canary-usage-GetModule | find_usages | `GetModule` |
 | 164:6 | usage-GetModule-production-scope | find_usages | `GetModule` |
 | 164:6 | usage-GetModule-test-scope | find_usages | `GetModule` |
+| 305:6 | impls-Validator | find_implementations | `Validator` |
+| 305:6 | impls-Validator-libraries-scope-page1 | find_implementations | `Validator` |
+| 306:2 | impls-Validator.Validate | find_implementations | `Validate` |
+| 306:2 | impls-Validator.Validate-libraries-scope-paged | find_implementations | `Validate` |
 | 316:2 | impls-CleanerUpper.Cleanup | find_implementations | `Cleanup` |
 
 ## modules/caddyhttp/app.go
@@ -127,6 +131,7 @@ file is stale.
 | find-file-nosuchfile.xyz-no-match | find_file | `{"query":"nosuchfile.xyz"}` |
 | find-file-reverseproxy.go | find_file | `{"query":"reverseproxy.go"}` |
 | find-symbol-App.Provision-qualified | find_symbol | `{"query":"App.Provision"}` |
+| find-symbol-CA | find_symbol | `{"pageSize":100,"query":"CA"}` |
 | find-symbol-CaddyModule-paged | find_symbol | `{"pageSize":50,"query":"CaddyModule"}` |
 | find-symbol-Cleanup | find_symbol | `{"pageSize":25,"query":"Cleanup"}` |
 | find-symbol-Cleanup-lang-go | find_symbol | `{"language":"Go","pageSize":25,"query":"Cleanup"}` |
@@ -134,6 +139,7 @@ file is stale.
 | hier-caller-GetModule-bysymbol | call_hierarchy | `{"direction":"callers","maxDepth":1,"symbol":"caddy.GetModule"}` |
 | hier-super-Metrics-byname | type_hierarchy | `{"className":"Metrics","direction":"supertypes"}` |
 | hier-super-caddyhttp.App-byname | type_hierarchy | `{"className":"caddyhttp.App","direction":"supertypes"}` |
+| impls-Validator-libraries-scope-page2 | find_implementations | `{"pageSize":500}` |
 | search-text-caddy-paged | search_text | `{"pageSize":50,"query":"caddy"}` |
 | search-text-tailscale | search_text | `{"pageSize":100,"query":"tailscale"}` |
 | search-text-tailscale-code | search_text | `{"context":"code","pageSize":100,"query":"tailscale"}` |

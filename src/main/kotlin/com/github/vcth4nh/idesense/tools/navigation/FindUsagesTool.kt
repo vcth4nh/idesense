@@ -145,7 +145,7 @@ class FindUsagesTool : AbstractMcpTool() {
                     is SymbolResolution.Ambiguous -> return@suspendingReadAction null to createJsonResult(
                         SymbolCandidatesResult(
                             candidates = resolution.candidates,
-                            message = "Ambiguous symbol '${anchor.symbol}': ${resolution.candidates.size} matches. Pass a qualified name or a file/line/column position.",
+                            message = "Ambiguous symbol '${anchor.symbol}': ${resolution.matchCount}. Pass a qualified name or a file/line/column position.",
                         )
                     )
                     SymbolResolution.NotFound -> return@suspendingReadAction null to createErrorResult(

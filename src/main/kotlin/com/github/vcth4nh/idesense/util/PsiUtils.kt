@@ -18,6 +18,7 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.PsiReference
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.util.PsiTreeUtil
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -399,6 +400,31 @@ object PsiUtils {
     fun identifierOffset(element: PsiElement): Int {
         val anchor = (element as? PsiNameIdentifierOwner)?.nameIdentifier ?: element
         return anchor.textRange?.startOffset ?: 0
+    }
+
+    /**
+     * The element that gives the position of [element] in [scope]: [element] itself, or else its
+     * navigation element, which is where the IDE opens the editor for [element]. Two kinds of
+     * element have no position of their own in a scope:
+     * - A light element has no text: its text offset is -1 (`LightElement.getTextOffset`). GoLand
+     *   gives a method that a struct gets through an embedded pointer as such an element
+     *   (`GoLightMethodDeclaration`, #129).
+     * - RustRover keeps the expansion of a macro call in a file of its own, which no scope holds.
+     *   The navigation element of an element in it is the macro call.
+     *
+     * The file is examined before the text offset: an element from an index knows its file, and
+     * its text offset can need the syntax tree of the file. Null when neither element has a
+     * position in [scope].
+     */
+    fun positionElement(element: PsiElement, scope: GlobalSearchScope): PsiElement? {
+        if (hasPositionIn(element, scope)) return element
+        val navigation = element.navigationElement
+        return navigation?.takeIf { it !== element && hasPositionIn(it, scope) }
+    }
+
+    private fun hasPositionIn(element: PsiElement, scope: GlobalSearchScope): Boolean {
+        val file = element.containingFile?.virtualFile ?: return false
+        return scope.contains(file) && element.textOffset >= 0
     }
 
     fun findNamedElement(element: PsiElement): PsiNamedElement? {

@@ -173,4 +173,6 @@ fails when this file is stale.
 | find-symbol-totalArea | find_symbol | `{"query":"totalArea"}` |
 | hier-caller-Shape.area-bysymbol | call_hierarchy | `{"direction":"callers","maxDepth":2,"symbol":"Shape.area"}` |
 | hier-type-Shape-byname | type_hierarchy | `{"className":"Shape"}` |
+| search-text-javascript | search_text | `{"query":"javascript"}` |
+| search-text-javascript-strings | search_text | `{"context":"strings","query":"javascript"}` |
 | usage-Shape-bysymbol | find_usages | `{"symbol":"Shape"}` |

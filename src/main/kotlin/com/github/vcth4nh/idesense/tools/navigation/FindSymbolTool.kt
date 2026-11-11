@@ -168,10 +168,14 @@ class FindSymbolTool : AbstractMcpTool() {
      *
      * Owns the over-fetch loop: [PopupFaithfulSymbolSearch] returns NavigationItems, some of
      * which get filtered out by [SymbolDataConverter] (scope mismatch, language mismatch,
-     * dedup, and (when fuzzySearch is false) the exact-name filter). When that happens, we
+     * dedup). When that happens, we
      * re-request with a larger limit, doubling each iteration up
      * to a cap of `max(limit * 8, limit + 200)`, until we have enough results, the popup
      * exhausts, or we hit the cap.
+     *
+     * When fuzzySearch is false, the search itself takes only the items with the exact name
+     * ([PopupFaithfulSymbolSearch.searchExactName]). So the limit counts exact names only, and an
+     * exact name that the popup ranks after many other items is not lost (#131).
      *
      * Failures from the popup search log at WARN with diagnostic context (pattern, scope,
      * popupLimit) and propagate to the caller. [ProcessCanceledException] propagates without
@@ -190,7 +194,8 @@ class FindSymbolTool : AbstractMcpTool() {
         val popupLimitCap = maxOf(limit * 8, limit + 200)
         while (true) {
             val popupResults = try {
-                PopupFaithfulSymbolSearch.search(project, pattern, scope, popupLimit)
+                if (fuzzySearch) PopupFaithfulSymbolSearch.search(project, pattern, scope, popupLimit)
+                else PopupFaithfulSymbolSearch.searchExactName(project, pattern, scope, popupLimit, ignoreCase = true)
             } catch (e: ProcessCanceledException) {
                 throw e
             } catch (e: Exception) {
@@ -202,7 +207,6 @@ class FindSymbolTool : AbstractMcpTool() {
             }
             val results = popupResults.candidates
                 .mapNotNull { SymbolDataConverter.convert(it.item, project, scope, languageFilter) }
-                .filter { fuzzySearch || it.name.equals(popupResults.localPattern, ignoreCase = true) }
                 .distinctBy { "${it.file}:${it.line}:${it.column}:${it.name}" }
                 .let { SameNameSymbolOrder.sort(it) { symbol -> symbol } }
             if (results.size >= limit ||

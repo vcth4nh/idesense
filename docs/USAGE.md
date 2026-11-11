@@ -93,12 +93,21 @@ Most tools operate on a specific location in code and require these parameters:
 
 When `ide_find_usages`, `ide_call_hierarchy` or `ide_find_implementations` finds no symbol at `line`/`column`, the error message names up to 3 named elements of that line with their columns (or says that the line is blank). Retry with one of these columns.
 
+### Name Anchors
+
+`ide_find_usages`, `ide_call_hierarchy` and `ide_explain_symbol` (`symbol`) and `ide_type_hierarchy` (`className`) accept a name instead of a position:
+
+- A declaration with the case of the name wins: `Handler` does not match a field `handler`. When no declaration has that case, the name is compared without case.
+- When more than one declaration has the name, the tool returns a `candidates` list instead of a result. The list holds at most 10 declarations. The `message` gives the number of the matches, for example `103 matches, the first 10 are listed`. The search stops at 200 matches, and the message then gives a minimum: `200 or more matches`.
+- Call again with a qualified name, or with the `file`/`line`/`column` of one candidate.
+
 ### Pagination and Result Size
 
 Paginated tools (`ide_find_usages`, `ide_find_class`, `ide_find_file`, `ide_search_text`, `ide_find_implementations`, `ide_find_symbol`) return `nextCursor`, `hasMore`, `offset`, `pageSize` and `totalCollected`:
 
 - `pageSize` is the page size of the call (the requested value, or the value stored in the cursor). An empty page reports it too.
 - `totalCollected` counts the results collected so far for this cursor. While `hasMore` is `true`, more results can exist, so the value is not a total.
+- A cursor stops the collection at 5,000 results. After them `hasMore` is `false`, also when more results exist.
 
 Fields that quote a source line (`preview`, and `context` in `ide_search_text` matches) hold at most 200 characters of the line. A longer line, for example in a minified file, is cut to a 200-character window around the match, and `…` marks each cut end. Thus `pageSize` also bounds the size of a page.
 
@@ -388,7 +397,7 @@ Searches for text using the IDE's pre-built word index. Significantly faster tha
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `query` | string | Yes* | Exact word to search for (not a pattern/regex). Required for a fresh search; ignored when `cursor` is provided. |
-| `context` | string | No | Where to search: `"code"`, `"comments"`, `"strings"`, or `"all"` (default) |
+| `context` | string | No | Where to search: `"code"`, `"comments"`, `"strings"`, or `"all"` (default). A filter keeps the matches whose `contextType` is `CODE`, `COMMENT` or `STRING_LITERAL`, so each match of `"all"` is in the filtered result of its label. `CODE` is each match outside a comment and a string literal, also in a file that is no program source. A result has one match for each line: a line with the word in two contexts has one match in `"all"` and one match in each of the two filtered results. |
 | `caseSensitive` | boolean | No | Case sensitive search (default: true) |
 | `cursor` | string | No | Pagination cursor from a previous response. When provided, returns the next page; search parameters are ignored. |
 | `pageSize` | integer | No | Results per page (default: 100, max: 500) |
@@ -1338,7 +1347,7 @@ Analyzes method call relationships to find callers or callees.
 
 ### ide_find_implementations
 
-Finds implementation, inheritor, and override locations for a class/interface/trait/protocol or method (anchored at a declaration or a resolvable reference). Results are collected up to an internal per-cursor cap.
+Finds implementation, inheritor, and override locations for a class/interface/trait/protocol or method (anchored at a declaration or a resolvable reference). Only results whose file is in the `scope` are returned. A large result is paged: while `hasMore` is `true`, a cursor call continues the search. A Go method that a type gets through an embedded pointer is listed one time, at its declaration. An implementation that a Rust macro writes is listed at the macro call.
 
 **Languages:** Java, Kotlin, Python, JS/TS, Go, PHP, Rust.
 
@@ -1412,6 +1421,8 @@ Finds implementation, inheritor, and override locations for a class/interface/tr
 Finds IDE Go-to-Super targets for a code element — methods that override/implement a member, the direct supertypes of a class/interface/struct/trait, the SAM a lambda implements, or an overridden field/property/constant.
 
 **Languages:** Java, Kotlin, Python, JS/TS, PHP, Go (returns interface method(s) a struct method satisfies via `GoSuperMethodSearch`), Rust (returns trait fn/const/type alias the impl satisfies via `RsGotoSuperHandlerKt.gotoSuperTargets`).
+
+**Go interface methods:** A method that a Go interface declares has no super method, so the result is that method with an empty hierarchy. At that position Go to Super of GoLand shows the interfaces that the enclosing type satisfies. A position on the type name returns them.
 
 **Use when:**
 - Finding which interface method an implementation overrides

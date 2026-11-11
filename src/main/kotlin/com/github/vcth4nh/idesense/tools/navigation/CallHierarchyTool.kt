@@ -113,7 +113,7 @@ class CallHierarchyTool : AbstractMcpTool() {
                     is SymbolResolution.Ambiguous -> return@suspendingReadAction createJsonResult(
                         SymbolCandidatesResult(
                             candidates = resolution.candidates,
-                            message = "Ambiguous symbol '${anchor.symbol}': ${resolution.candidates.size} matches. Pass a qualified name or a file/line/column position.",
+                            message = "Ambiguous symbol '${anchor.symbol}': ${resolution.matchCount}. Pass a qualified name or a file/line/column position.",
                         )
                     )
                     SymbolResolution.NotFound -> return@suspendingReadAction createErrorResult(

@@ -1,0 +1,2 @@
+{"id":"search-text-javascript","result":{"matches":[{"column":22,"context":"\"name\": \"live-test-javascript\",","contextType":"STRING_LITERAL","file":"package.json","line":2}],"query":"javascript"}}
+{"id":"search-text-javascript-strings","result":{"matches":[{"column":22,"context":"\"name\": \"live-test-javascript\",","contextType":"STRING_LITERAL","file":"package.json","line":2}],"query":"javascript"}}

@@ -1,2 +1,4 @@
 {"id":"explain-Circle-pos","tool":"ide_explain_symbol","params":{"column":6,"file":"normal.go","line":37}}
+{"id":"explain-Main-name","tool":"ide_explain_symbol","params":{"symbol":"Main"}}
 {"id":"explain-Shape-name","tool":"ide_explain_symbol","params":{"symbol":"Shape"}}
+{"id":"explain-Stamper.Stamp-promoted","tool":"ide_explain_symbol","params":{"column":2,"file":"promoted.go","line":11}}

@@ -11,6 +11,7 @@ import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
 import com.github.vcth4nh.idesense.tools.models.ImplementationLocation
 import com.github.vcth4nh.idesense.tools.models.ImplementationResult
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.PsiUtils
@@ -21,6 +22,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNamedElement
+import com.intellij.psi.SmartPointerManager
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.searches.DefinitionsScopedSearch
 import com.intellij.psi.util.PsiModificationTracker
 import kotlinx.serialization.json.JsonObject
@@ -121,32 +124,35 @@ class FindImplementationsTool : AbstractMcpTool() {
                     "No method or class found at position." + caretHint(element, arguments)
                 )
             }
-            val searchScope = BuiltInSearchScopeResolver.resolveGlobalScope(project, scope)
             val collectLimit = maxOf(PaginationService.DEFAULT_OVERCOLLECT, pageSize)
-            val results = mutableListOf<ImplementationLocation>()
-            DefinitionsScopedSearch.search(target, searchScope, true).forEach(com.intellij.util.Processor { impl ->
-                val location = ImplementationLocations.convert(impl, project) ?: return@Processor true
-                results.add(location)
-                results.size < collectLimit
-            })
+            val collector = ImplementationLocations.Collector(collectLimit)
+            collectImplementations(project, target, scope, collector)
 
-            if (results.size < collectLimit) {
-                addFunctionalExpressionImpls(target, searchScope, collectLimit, results, project)
-            }
+            // A search that stopped at the limit can have more results: the next pages search again.
+            // A search that came to its end is complete and needs no second search.
+            val searchExtender: (suspend (Set<String>, Int) -> List<PaginationService.SerializedResult>)? =
+                if (!collector.isFull) null else {
+                    val targetPointer = SmartPointerManager.getInstance(project).createSmartPsiElementPointer(target)
+                    val extender: suspend (Set<String>, Int) -> List<PaginationService.SerializedResult> = { seenKeys, limit ->
+                        suspendingReadAction {
+                            val element = targetPointer.element
+                                ?: throw IllegalStateException("Target element no longer valid")
+                            val more = ImplementationLocations.Collector(limit, seenKeys)
+                            collectImplementations(project, element, scope, more)
+                            more.results.map(::serialize)
+                        }
+                    }
+                    extender
+                }
 
-            val serializedResults = results.map { impl ->
-                PaginationService.SerializedResult(
-                    key = "${impl.file}:${impl.line}:${impl.column}:${impl.name}",
-                    data = json.encodeToJsonElement(impl)
-                )
-            }
+            val serializedResults = collector.results.map(::serialize)
 
             val paginationService = ApplicationManager.getApplication().getService(PaginationService::class.java)
             val token = paginationService.createCursor(
                 toolName = name,
                 results = serializedResults,
                 seenKeys = serializedResults.map { it.key }.toSet(),
-                searchExtender = null,
+                searchExtender = searchExtender,
                 psiModCount = PsiModificationTracker.getInstance(project).modificationCount,
                 projectBasePath = ProjectResolver.normalizePath(project.basePath ?: "")
             )
@@ -170,11 +176,32 @@ class FindImplementationsTool : AbstractMcpTool() {
         }
     }
 
-    private fun addFunctionalExpressionImpls(
+    private fun serialize(impl: ImplementationLocation) = PaginationService.SerializedResult(
+        key = ImplementationLocations.key(impl),
+        data = json.encodeToJsonElement(impl)
+    )
+
+    /** Runs the searches of this tool for [target] and gives each hit to [collector]. */
+    private fun collectImplementations(
+        project: Project,
+        target: PsiElement,
+        scope: BuiltInSearchScope,
+        collector: ImplementationLocations.Collector
+    ) {
+        val searchScope = BuiltInSearchScopeResolver.resolveGlobalScope(project, scope)
+        DefinitionsScopedSearch.search(target, searchScope, true).forEach(com.intellij.util.Processor { impl ->
+            collector.addInCallback { ImplementationLocations.convert(impl, project, searchScope) }
+        })
+        collector.throwFailure()
+        if (!collector.isFull) {
+            addFunctionalExpressionImpls(target, searchScope, collector, project)
+        }
+    }
+
+    internal fun addFunctionalExpressionImpls(
         target: PsiElement,
         searchScope: com.intellij.psi.search.GlobalSearchScope,
-        collectLimit: Int,
-        results: MutableList<ImplementationLocation>,
+        collector: ImplementationLocations.Collector,
         project: Project
     ) {
         val psiClass = psiClassClass ?: return
@@ -197,13 +224,13 @@ class FindImplementationsTool : AbstractMcpTool() {
             val query = searchMethod.invoke(null, targetClass, searchScope)
             val forEachMethod = query.javaClass.getMethod("forEach", com.intellij.util.Processor::class.java)
             forEachMethod.invoke(query, com.intellij.util.Processor<PsiElement> { funExpr ->
-                val location = convertFunctionalExprToLocation(funExpr, project) ?: return@Processor true
-                results.add(location)
-                results.size < collectLimit
+                collector.addInCallback { convertFunctionalExprToLocation(funExpr, project) }
             })
         } catch (e: Exception) {
+            rethrowIfCancellation(e)
             LOG.debug("FunctionalExpressionSearch failed: ${e.message}")
         }
+        collector.throwFailure()
     }
 
     private fun convertFunctionalExprToLocation(element: PsiElement, project: Project): ImplementationLocation? {
@@ -304,12 +331,64 @@ internal object ImplementationLocations {
         try { Class.forName("org.rust.lang.core.psi.RsFunction") } catch (_: ClassNotFoundException) { null }
     }
 
-    fun convert(element: PsiElement, project: Project): ImplementationLocation? {
-        val file = element.containingFile?.virtualFile ?: return null
-        val document = PsiDocumentManager.getInstance(project).getDocument(element.containingFile) ?: return null
-        val line = document.getLineNumber(element.textOffset) + 1
-        val lineStart = document.getLineStartOffset(document.getLineNumber(element.textOffset))
-        val column = element.textOffset - lineStart + 1
+    /** The identity of a hit. It is also the pagination key of ide_find_implementations. */
+    fun key(location: ImplementationLocation): String =
+        "${location.file}:${location.line}:${location.column}:${location.name}"
+
+    /** Collects the hits of a search: each position one time, none of [skipKeys], at most [limit]. */
+    class Collector(private val limit: Int, skipKeys: Set<String> = emptySet()) {
+        private val seenKeys = HashSet(skipKeys)
+        private var failure: Exception? = null
+        val results = mutableListOf<ImplementationLocation>()
+
+        /** True when the search stopped at the limit, so it can have more hits. */
+        val isFull: Boolean get() = results.size >= limit
+
+        /** Adds [location] when it is new. Returns false when the search must stop. */
+        fun add(location: ImplementationLocation?): Boolean {
+            if (location != null && seenKeys.add(key(location))) results.add(location)
+            return !isFull
+        }
+
+        /**
+         * Converts and adds one hit, inside the callback of a search. Returns false when the search
+         * must stop. A failure of [convert] that is no cancellation stops the search and does not
+         * leave the callback: GoLand calls the callback inside `StubIndexEx.processElements`, and
+         * that function takes an IndexOutOfBoundsException from the callback for index damage and
+         * rebuilds the stub index (#129). [throwFailure] throws the failure after the search.
+         */
+        fun addInCallback(convert: () -> ImplementationLocation?): Boolean =
+            try {
+                add(convert())
+            } catch (e: Exception) {
+                rethrowIfCancellation(e)
+                failure = e
+                false
+            }
+
+        /** Throws the conversion failure that stopped the search. Call it after the search. */
+        fun throwFailure() {
+            failure?.let {
+                failure = null
+                throw it
+            }
+        }
+    }
+
+    /**
+     * Converts one hit. Null for a hit with no position in [scope] ([PsiUtils.positionElement]):
+     * not every search keeps to the scope that it gets (the Go search returns library types under
+     * the project scope, #134).
+     */
+    fun convert(element: PsiElement, project: Project, scope: GlobalSearchScope): ImplementationLocation? {
+        val positioned = PsiUtils.positionElement(element, scope) ?: return null
+        val psiFile = positioned.containingFile ?: return null
+        val file = psiFile.virtualFile ?: return null
+        val document = PsiDocumentManager.getInstance(project).getDocument(psiFile) ?: return null
+        val offset = positioned.textOffset
+        val lineIndex = document.getLineNumber(offset)
+        val line = lineIndex + 1
+        val column = offset - document.getLineStartOffset(lineIndex) + 1
 
         val qualifiedName = QualifiedNameUtil.getQualifiedName(element)
         val name: String

@@ -1,4 +1,4 @@
 {"id":"explain-ListenerWrapper-name","tool":"ide_explain_symbol","params":{"symbol":"ListenerWrapper"}}
-{"id":"explain-PKI-name","tool":"ide_explain_symbol","params":{"symbol":"PKI"},"parked":131}
+{"id":"explain-PKI-name","tool":"ide_explain_symbol","params":{"symbol":"PKI"}}
 {"id":"explain-RegisterModule-name","tool":"ide_explain_symbol","params":{"symbol":"RegisterModule"}}
 {"id":"explain-Replacer.ReplaceAll-pos","tool":"ide_explain_symbol","params":{"column":20,"file":"replacer.go","line":163}}

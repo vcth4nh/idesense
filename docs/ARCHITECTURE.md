@@ -273,6 +273,7 @@ Symbol search across all languages drives IntelliJ's headless "Go to Symbol" pop
 - Wraps `GotoSymbolModel2` + `ChooseByNameModelEx` — the same APIs as IntelliJ's own Ctrl+Alt+Shift+N popup
 - Inherits the IDE's parallel execution, dumb-mode safety, cancellation, proximity-aware sorting, and qualified-query support (e.g. `BasicSolver.run`)
 - `FindSymbolTool` owns the over-fetch loop and converts NavigationItems to wire-format `SymbolData` via `SymbolDataConverter`
+- An exact-name search (`searchExactName`) serves the exact mode of `ide_find_symbol` and the name anchors of `SymbolAnchorResolver`. The popup ranks its items by a fuzzy match, so an item with the exact name can come after any number of other items (GoLand indexes a symbol as `package.name`, and the text `PKI` matches each symbol of the package `caddypki`). The exact-name search gives the popup stack only the index names that end with the name, and it keeps only the items with the exact name (#131)
 - `SymbolDataConverter` delegates `kind` classification to `LanguageServices.getKind()` and qualified names to `QualifiedNameUtil`
 - Supports language filtering (e.g., `languageFilter = setOf("Java", "Kotlin")`)
 

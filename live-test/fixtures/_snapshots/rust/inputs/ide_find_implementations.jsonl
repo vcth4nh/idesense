@@ -1,5 +1,7 @@
 {"id":"impls-Coercer","tool":"ide_find_implementations","params":{"column":11,"file":"src/quirks.rs","line":42}}
 {"id":"impls-Drawable.draw","tool":"ide_find_implementations","params":{"column":8,"file":"src/normal.rs","line":7}}
+{"id":"impls-Glazed-via-macro","tool":"ide_find_implementations","params":{"column":7,"file":"tests/macro_impls.rs","line":3}}
+{"id":"impls-Glazed.glaze-via-macro","tool":"ide_find_implementations","params":{"column":8,"file":"tests/macro_impls.rs","line":4}}
 {"id":"impls-Shape-trait","tool":"ide_find_implementations","params":{"column":11,"file":"src/normal.rs","line":12}}
 {"id":"impls-Shape.area","tool":"ide_find_implementations","params":{"column":8,"file":"src/normal.rs","line":13}}
 {"id":"impls-Shape.describe","tool":"ide_find_implementations","params":{"column":8,"file":"src/normal.rs","line":15}}

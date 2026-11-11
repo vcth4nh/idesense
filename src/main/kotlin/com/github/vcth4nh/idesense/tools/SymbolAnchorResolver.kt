@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.tools
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
 import com.github.vcth4nh.idesense.handlers.PopupFaithfulSymbolSearch
+import com.github.vcth4nh.idesense.handlers.PopupSearchResult
 import com.github.vcth4nh.idesense.handlers.SameNameSymbolOrder
 import com.github.vcth4nh.idesense.handlers.SymbolData
 import com.github.vcth4nh.idesense.handlers.SymbolDataConverter
@@ -19,14 +20,32 @@ import com.intellij.psi.search.GlobalSearchScope
 /** Outcome of [SymbolAnchorResolver.resolve]. */
 internal sealed interface SymbolResolution {
     data class Resolved(val element: PsiElement) : SymbolResolution
-    data class Ambiguous(val candidates: List<SymbolMatch>) : SymbolResolution
+    /**
+     * [candidates] holds the first matches. [totalMatches] is the number of all matches, or a
+     * minimum when [searchWasCut] says that the search stopped at its limit.
+     */
+    data class Ambiguous(
+        val candidates: List<SymbolMatch>,
+        val totalMatches: Int = candidates.size,
+        val searchWasCut: Boolean = false,
+    ) : SymbolResolution {
+        /** The match count for the message of a tool, for example "107 matches, the first 10 are listed". */
+        val matchCount: String
+            get() = when {
+                searchWasCut -> "$totalMatches or more matches, the first ${candidates.size} are listed"
+                totalMatches > candidates.size -> "$totalMatches matches, the first ${candidates.size} are listed"
+                else -> "$totalMatches matches"
+            }
+    }
     data object NotFound : SymbolResolution
 }
 
 /**
  * Resolves a symbol name to its declaration: exact qualified-name lookup first
- * (ClassResolver, so library FQNs work), then the Go to Symbol popup stack with the
- * same exact-name filter ide_find_symbol applies when fuzzySearch=false.
+ * (ClassResolver, so library FQNs work), then the Go to Symbol popup stack. From the popup it
+ * takes each item whose name is the name in the query, wherever the popup ranks it
+ * ([PopupFaithfulSymbolSearch.searchExactName], #131). An item with the case of the query wins
+ * ([exactCaseFirst]).
  *
  * Shared by ide_explain_symbol (#41), the ide_type_hierarchy className shortcut (#59) and
  * the symbol anchor of ide_call_hierarchy / ide_find_usages (#40). Call inside a read action.
@@ -39,7 +58,19 @@ internal sealed interface SymbolResolution {
 internal object SymbolAnchorResolver {
     internal const val MAX_CANDIDATES = 10
 
+    /** The popup search stops at this number of different items with the exact name. */
+    internal const val MAX_EXACT_MATCHES = 200
+
     private data class Match(val element: PsiElement, val data: SymbolData)
+
+    /**
+     * The result of [search] for the name in the case of the query. When no item has that case,
+     * the result for the name in any case. So the field `handler` is not the type `Handler`
+     * (#131), and a name of a language that ignores case is found: the PHP class `Shape` as
+     * `shape`.
+     */
+    internal fun exactCaseFirst(search: (ignoreCase: Boolean) -> PopupSearchResult): PopupSearchResult =
+        search(false).takeIf { it.candidates.isNotEmpty() } ?: search(true)
 
     fun resolve(project: Project, symbol: String): SymbolResolution {
         val scope = BuiltInSearchScopeResolver.resolveGlobalScope(project, BuiltInSearchScope.PROJECT_FILES)
@@ -50,11 +81,12 @@ internal object SymbolAnchorResolver {
             return SymbolResolution.Resolved(exact)
         }
 
-        val popup = PopupFaithfulSymbolSearch.search(project, symbol, scope, MAX_CANDIDATES * 4)
+        val popup = exactCaseFirst { ignoreCase ->
+            PopupFaithfulSymbolSearch.searchExactName(project, symbol, scope, MAX_EXACT_MATCHES, ignoreCase)
+        }
         val matches = popup.candidates
             .mapNotNull { candidate ->
                 val data = SymbolDataConverter.convert(candidate.item, project, scope) ?: return@mapNotNull null
-                if (!data.name.equals(popup.localPattern, ignoreCase = true)) return@mapNotNull null
                 val element = candidate.item as? PsiElement ?: extractPsiElement(candidate.item) ?: return@mapNotNull null
                 Match(element, data)
             }
@@ -63,7 +95,7 @@ internal object SymbolAnchorResolver {
         return when (matches.size) {
             0 -> SymbolResolution.NotFound
             1 -> SymbolResolution.Resolved(matches.single().element)
-            else -> ambiguous(matches)
+            else -> ambiguous(matches, searchWasCut = popup.candidates.size >= MAX_EXACT_MATCHES)
         }
     }
 
@@ -86,9 +118,9 @@ internal object SymbolAnchorResolver {
         return if (matches.size > 1) ambiguous(matches) else null
     }
 
-    private fun ambiguous(matches: List<Match>): SymbolResolution.Ambiguous =
+    private fun ambiguous(matches: List<Match>, searchWasCut: Boolean = false): SymbolResolution.Ambiguous =
         SymbolResolution.Ambiguous(
-            SameNameSymbolOrder.sort(matches) { match -> match.data }.take(MAX_CANDIDATES).map { match ->
+            candidates = SameNameSymbolOrder.sort(matches) { match -> match.data }.take(MAX_CANDIDATES).map { match ->
                 SymbolMatch(
                     name = match.data.name,
                     qualifiedName = match.data.qualifiedName,
@@ -97,7 +129,9 @@ internal object SymbolAnchorResolver {
                     line = match.data.line,
                     column = match.data.column,
                 )
-            }
+            },
+            totalMatches = matches.size,
+            searchWasCut = searchWasCut,
         )
 
     private fun extractPsiElement(item: NavigationItem): PsiElement? = try {
