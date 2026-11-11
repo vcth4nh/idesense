@@ -429,13 +429,22 @@ will just snapshot a different empty/odd result.
   returns an empty `hierarchy` (method found, no super), matching
   Java/Python/Kotlin. Verified in GoLand: no gutter icon, Ctrl+U no-ops.
   Resolved in #25 (was previously a misleading `tool_error`).
+- **Go `super-IFull.Full` returns the interface method with an empty hierarchy.** A method that
+  an interface declares has no super method. By design (#135), and the same rule as
+  `super-Standalone.Compute-negative` and the Rust inherent method: at this position Go to
+  Super of GoLand works on the type, and its popup says so ("Type 'IFull' Implements 3
+  Interfaces"). The tool gives that type result for a position on the type name
+  (`super-IFull-type`) and on an embedded interface (`super-IFull.IMidM-embedded`).
 - **Go `impls-Stamper.Stamp-promoted` has one row for two hits.** `Pad` embeds `*Ink` and
   gets `Stamp` by promotion. GoLand's search gives the declared method of `Ink` and a second
   element for the promoted method (`GoLightMethodDeclaration`). That element has no text of
   its own, only the declared method as its navigation element, and it does not name `Pad`. So
-  both hits have the same position, and the tool returns the position one time. The Choose
-  Implementation popup of GoLand shows two equal rows. The type anchor
-  (`impls-Stamper-promoted`) lists both `Ink` and `Pad`.
+  both hits have the same position, and the tool returns the position one time. By design
+  (#129): the Choose Implementation popup of GoLand shows two equal rows `Ink` for this small
+  result, and both rows open the declared method. For a long list the popup keeps its rows in
+  a set that compares only the row texts (`BackgroundUpdaterTaskBase`, a `TreeSet`), so the
+  equal row is absent there: caddy `Validate` shows "1,933 found", the count of the tool. The
+  type anchor (`impls-Stamper-promoted`) lists both `Ink` and `Pad`.
 - **Go `explain-Main-name` resolves a type with the name of its package.** GoLand's symbol
   index knows a symbol as `package.name`, so the text `Main` matches each symbol of the
   package `main`, and the popup ranks the type after dozens of them. The name anchors take
