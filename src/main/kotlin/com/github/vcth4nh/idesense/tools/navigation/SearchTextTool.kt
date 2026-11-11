@@ -44,6 +44,23 @@ class SearchTextTool : AbstractMcpTool() {
     companion object {
         private const val DEFAULT_PAGE_SIZE = 100
         private const val MAX_PAGE_SIZE = PaginationService.MAX_PAGE_SIZE
+
+        /**
+         * The occurrence mask for the word index: no context filter, for each `context` value.
+         * The index and the `contextType` label are two classifications. The index puts plain
+         * text under IN_PLAIN_TEXT, HTML text under IN_PLAIN_TEXT | IN_FOREIGN_LANGUAGES and a
+         * JSON string under IN_CODE. So a search with the mask of one context loses matches that
+         * have the label of that context (#133). The label alone selects the matches.
+         */
+        private const val WORD_INDEX_CONTEXT: Short = UsageSearchContext.ANY
+
+        /** The `contextType` label that the `context` value keeps. Null keeps each label. */
+        internal fun requestedContextType(context: String): String? = when (context.lowercase()) {
+            "code" -> "CODE"
+            "comments" -> "COMMENT"
+            "strings" -> "STRING_LITERAL"
+            else -> null
+        }
     }
 
     override val name = ToolNames.SEARCH_TEXT
@@ -65,7 +82,7 @@ class SearchTextTool : AbstractMcpTool() {
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
         .stringProperty(ParamNames.QUERY, "Exact word to search for (no wildcards or regex). Required for fresh search; ignored when cursor is provided.")
-        .enumProperty(ParamNames.CONTEXT, "Where to search: \"code\", \"comments\", \"strings\", \"all\". Default: \"all\".", listOf("code", "comments", "strings", "all"))
+        .enumProperty(ParamNames.CONTEXT, "Where to search: \"code\" (each match outside a comment and a string literal, also in a file that is no program source), \"comments\", \"strings\", \"all\". Default: \"all\".", listOf("code", "comments", "strings", "all"))
         .booleanProperty(ParamNames.CASE_SENSITIVE, "Case sensitive search. Default: true.")
         .intProperty(ParamNames.LIMIT, "Maximum results per page (deprecated, use pageSize). Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
         .stringProperty("cursor", "Pagination cursor from a previous response. When provided, returns the next page of results. Search parameters are ignored; project_path and pageSize may still be provided.")
@@ -101,17 +118,17 @@ class SearchTextTool : AbstractMcpTool() {
             return createErrorResult("Query cannot be empty")
         }
 
-        val searchContext = parseSearchContext(contextStr)
+        val requestedType = requestedContextType(contextStr)
 
         requireSmartMode(project)
 
         val cursorToken = suspendingReadAction {
             val scope = createFilteredScope(project)
-            val matches = searchText(project, query, scope, searchContext, caseSensitive, collectLimit)
+            val matches = searchText(project, query, scope, requestedType, caseSensitive, collectLimit)
 
             val searchExtender: suspend (Set<String>, Int) -> List<PaginationService.SerializedResult> = extender@{ seenKeys, limit ->
                 suspendingReadAction {
-                    extendSearchText(project, query, searchContext, caseSensitive, seenKeys, limit)
+                    extendSearchText(project, query, requestedType, caseSensitive, seenKeys, limit)
                 }
             }
 
@@ -148,21 +165,11 @@ class SearchTextTool : AbstractMcpTool() {
         }
     }
 
-    private fun parseSearchContext(contextStr: String): Short {
-        return when (contextStr.lowercase()) {
-            "code" -> UsageSearchContext.IN_CODE
-            "comments" -> UsageSearchContext.IN_COMMENTS
-            "strings" -> UsageSearchContext.IN_STRINGS
-            "all" -> UsageSearchContext.ANY
-            else -> UsageSearchContext.ANY
-        }
-    }
-
     private fun searchText(
         project: Project,
         word: String,
         scope: com.intellij.psi.search.GlobalSearchScope,
-        searchContext: Short,
+        requestedType: String?,
         caseSensitive: Boolean,
         limit: Int
     ): List<TextMatch> {
@@ -183,7 +190,7 @@ class SearchTextTool : AbstractMcpTool() {
                 return@TextOccurenceProcessor true
             }
 
-            val match = convertToTextMatch(project, element, occurrence, word.length, searchContext)
+            val match = convertToTextMatch(project, element, occurrence, word.length, requestedType)
             if (match != null) {
                 val lineKey = "${match.file}:${match.line}"
                 if (seenLines.add(lineKey)) {
@@ -204,7 +211,7 @@ class SearchTextTool : AbstractMcpTool() {
             processor,
             scope,
             word,
-            searchContext,
+            WORD_INDEX_CONTEXT,
             caseSensitive
         )
 
@@ -220,7 +227,7 @@ class SearchTextTool : AbstractMcpTool() {
     private fun extendSearchText(
         project: Project,
         word: String,
-        searchContext: Short,
+        requestedType: String?,
         caseSensitive: Boolean,
         seenKeys: Set<String>,
         limit: Int
@@ -244,7 +251,7 @@ class SearchTextTool : AbstractMcpTool() {
                 return@TextOccurenceProcessor true
             }
 
-            val match = convertToTextMatch(project, element, occurrence, word.length, searchContext)
+            val match = convertToTextMatch(project, element, occurrence, word.length, requestedType)
             if (match != null) {
                 val lineKey = "${match.file}:${match.line}"
                 if (seenLines.add(lineKey)) {
@@ -268,7 +275,7 @@ class SearchTextTool : AbstractMcpTool() {
             processor,
             scope,
             word,
-            searchContext,
+            WORD_INDEX_CONTEXT,
             caseSensitive
         )
 
@@ -290,7 +297,7 @@ class SearchTextTool : AbstractMcpTool() {
         element: PsiElement,
         occurrence: Int,
         wordLength: Int,
-        searchContext: Short
+        requestedType: String?
     ): TextMatch? {
         val containingFile = element.containingFile ?: return null
         val virtualFile = containingFile.virtualFile ?: return null
@@ -303,10 +310,8 @@ class SearchTextTool : AbstractMcpTool() {
 
         val contextType = resolveActualContextType(element)
 
-        // When a specific context filter is active, skip elements that don't match.
-        // processElementsWithWord may return false positives (e.g., code occurrences
-        // from files that also have the word in a comment).
-        if (searchContext != UsageSearchContext.ANY && !matchesRequestedContext(contextType, searchContext)) {
+        // The context filter. The word index search has none (see WORD_INDEX_CONTEXT).
+        if (requestedType != null && contextType != requestedType) {
             return null
         }
 
@@ -342,15 +347,6 @@ class SearchTextTool : AbstractMcpTool() {
             elementType.contains("STRING", ignoreCase = true) -> "STRING_LITERAL"
             elementType.contains("LITERAL", ignoreCase = true) -> "STRING_LITERAL"
             else -> "CODE"
-        }
-    }
-
-    private fun matchesRequestedContext(actualType: String, searchContext: Short): Boolean {
-        return when (searchContext) {
-            UsageSearchContext.IN_COMMENTS -> actualType == "COMMENT"
-            UsageSearchContext.IN_STRINGS -> actualType == "STRING_LITERAL"
-            UsageSearchContext.IN_CODE -> actualType == "CODE"
-            else -> true
         }
     }
 }

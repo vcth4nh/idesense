@@ -20,6 +20,9 @@
   `candidates`, and `demo.Quirks#parse(java.lang.String)` selects one exactly. A file path is no
   longer accepted as a symbol (IntelliJ IDEA's qualified-name provider resolved paths as a last
   fallback); it returns "Symbol not found" (#40).
+- The name anchors (`symbol`, `className`) prefer a declaration with the case of the name:
+  `Handler` no longer matches a field `handler`. A name with no declaration in that case is still
+  found without case. The exact mode of `ide_find_symbol` still ignores case (#131).
 
 ### Fixed
 - `ide_type_hierarchy` and `ide_call_hierarchy` dispose the per-call hierarchy browser once the
@@ -32,6 +35,35 @@
   `RsQualifiedNameProvider.qualifiedNameToElement` returns null and GoLand registers no provider, so
   every Go/Rust name reported "Class not found". The lookup now falls back to the Go to Symbol popup;
   a name that is not a class-like declaration returns a clear error (#59).
+- `ide_find_implementations` and `ide_explain_symbol` no longer make GoLand rebuild its stub index.
+  For a Go method that a type gets through an embedded pointer, GoLand's search returns a light
+  element (`GoLightMethodDeclaration`) whose text offset is -1. The tool used that offset inside the
+  search callback; the platform took the `IndexOutOfBoundsException` for index damage, rebuilt the
+  stub index and put every open project into dumb mode. The tool now takes the position from the
+  navigation element, lets no exception except a cancellation leave the search callback, and
+  returns the promoted method one time, at its declaration (#129).
+- `ide_find_implementations` returns only results whose file is in the `scope`: in GoLand the
+  default `project_files` scope returned library types. A result above the collection limit of 500
+  no longer ends with `hasMore: false`: a cursor call continues the search, up to the cursor limit
+  of 5,000 results. An implementation that a Rust macro writes is listed at the macro call (#134).
+- `ide_find_implementations` no longer hides a cancellation of its search for Java lambdas and
+  method references. The call then returned a partial list as a success.
+- The name anchors of `ide_explain_symbol`, `ide_type_hierarchy`, `ide_call_hierarchy` and
+  `ide_find_usages` find a name on a large project. They took the first 40 items of the Go to Symbol
+  search and filtered by exact name after that. A name that the popup ranks after many other items
+  gave "Symbol not found", a silent choice between two types of the same name, or a cut
+  `candidates` list. They now take each item with the exact name, and the message of an ambiguous
+  name gives the number of all matches. The exact mode of `ide_find_symbol` had the same cause: it
+  lost an exact name that came after its collection cap (#131).
+- `ide_search_text` with `context` `code`, `comments` or `strings` returns each match whose
+  `contextType` has the related label. The filter was the occurrence mask of the word index, which
+  is a different classification: matches in plain text, in HTML and in JSON strings were absent from
+  the filtered results. One case is lost: `strings` no longer finds a word that follows an escape
+  sequence with no space (`World` in `"Hello\nWorld"`). `all` did not find it before (#133).
+- A `FindUsagesProvider` that throws from `getType` no longer fails the whole call with
+  `internal_error`. `XmlFindUsagesProvider` throws for an `HtmlFile`, which failed
+  `ide_call_hierarchy` when a tree node was an HTML file. The kind then comes from the class name of
+  the element (#126).
 
 ## [2.1.0] - 2026-11-09
 

@@ -25,20 +25,7 @@ internal object SymbolDataConverter {
         scope: GlobalSearchScope,
         languageFilter: Set<String>? = null
     ): SymbolData? {
-        val element = when (item) {
-            is PsiElement -> item
-            else -> {
-                // Try to extract PsiElement from NavigationItem
-                try {
-                    val method = item.javaClass.getMethod("getElement")
-                    method.invoke(item) as? PsiElement
-                } catch (e: Exception) {
-                    null
-                }
-            }
-        } ?: return null
-
-        val targetElement = element.navigationElement ?: element
+        val targetElement = targetElement(item) ?: return null
         val language = getLanguageName(targetElement)
 
         // Apply language filter if specified (case-insensitive — the tool's `language`
@@ -51,17 +38,7 @@ internal object SymbolDataConverter {
         if (!scope.contains(file)) return null
         val relativePath = ProjectUtils.getToolFilePath(project, file)
 
-        val name = when (targetElement) {
-            is PsiNamedElement -> targetElement.name
-            else -> {
-                try {
-                    val method = targetElement.javaClass.getMethod("getName")
-                    method.invoke(targetElement) as? String
-                } catch (e: Exception) {
-                    null
-                }
-            }
-        } ?: return null
+        val name = nameOf(targetElement) ?: return null
 
         val qualifiedName = QualifiedNameUtil.getQualifiedName(targetElement)
 
@@ -76,6 +53,37 @@ internal object SymbolDataConverter {
             line = line,
             column = getColumnNumber(project, targetElement) ?: 1,
         )
+    }
+
+    /** The name that [convert] gives for [item], with no other work. Null when it has none. */
+    fun nameOf(item: NavigationItem): String? = targetElement(item)?.let(::nameOf)
+
+    private fun targetElement(item: NavigationItem): PsiElement? {
+        val element = when (item) {
+            is PsiElement -> item
+            else -> {
+                // Try to extract PsiElement from NavigationItem
+                try {
+                    val method = item.javaClass.getMethod("getElement")
+                    method.invoke(item) as? PsiElement
+                } catch (e: Exception) {
+                    null
+                }
+            }
+        } ?: return null
+        return element.navigationElement ?: element
+    }
+
+    private fun nameOf(targetElement: PsiElement): String? = when (targetElement) {
+        is PsiNamedElement -> targetElement.name
+        else -> {
+            try {
+                val method = targetElement.javaClass.getMethod("getName")
+                method.invoke(targetElement) as? String
+            } catch (e: Exception) {
+                null
+            }
+        }
     }
 
     private fun getLanguageName(element: PsiElement): String {

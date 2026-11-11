@@ -1,10 +1,13 @@
 package com.github.vcth4nh.idesense.handlers
 
 import com.intellij.lang.findUsages.LanguageFindUsages
+import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 
 object LanguageServices {
+    private val LOG = logger<LanguageServices>()
 
     fun getKind(element: PsiElement): String {
         // Tier 1: per-language EP-registered kind resolver
@@ -12,11 +15,24 @@ object LanguageServices {
         element.language.baseLanguage?.let { base ->
             LanguageKindResolver.EP.forLanguage(base)?.resolveKind(element)?.let { return it }
         }
-        // Tier 2: platform FindUsagesProvider
-        val ideType = LanguageFindUsages.getType(element)
-        if (ideType.isNotEmpty()) return normalizeKind(ideType)
-        // Tier 3: className fallback
-        return fallbackKindFromClassName(element.javaClass.simpleName)
+        return kindFromIdeTypeOrClassName(element.javaClass.simpleName) { LanguageFindUsages.getType(element) }
+    }
+
+    /**
+     * Tier 2, the platform FindUsagesProvider ([ideType]), then tier 3, the class name. A provider
+     * can throw for an element that it does not know: `XmlFindUsagesProvider.getType` throws
+     * IllegalArgumentException for an HTML file (#126). Then the class name gives the kind.
+     */
+    internal fun kindFromIdeTypeOrClassName(simpleName: String, ideType: () -> String): String {
+        val type = try {
+            ideType()
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: Exception) {
+            LOG.debug("FindUsagesProvider.getType threw for $simpleName: ${e.message}")
+            ""
+        }
+        return if (type.isNotEmpty()) normalizeKind(type) else fallbackKindFromClassName(simpleName)
     }
 
     fun findSuperMethods(element: PsiElement, project: Project): SuperMethodsData? {
