@@ -50,6 +50,10 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
         try { Class.forName("com.goide.psi.GoTypeSpec") } catch (_: ClassNotFoundException) { null }
     }
 
+    private val goMethodSpecClass: Class<*>? by lazy {
+        try { Class.forName("com.goide.psi.GoMethodSpec") } catch (_: ClassNotFoundException) { null }
+    }
+
     /**
      * Type anchor (caret on an interface/struct declaration). GoGotoSuperHandler.SUPER_SEARCH is the
      * GoSuperSearch instance behind BOTH Ctrl+U and the "implementing" gutter for types
@@ -71,7 +75,9 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
     }
 
     override fun findSuperMethods(element: PsiElement, project: Project): SuperMethodsData? =
-        tryMethodAnchor(element, project) ?: tryTypeAnchor(element, project)
+        tryMethodAnchor(element, project)
+            ?: tryInterfaceMethodAnchor(element, project)
+            ?: tryTypeAnchor(element, project)
 
     /**
      * Method anchor: caret on a Go method declaration -> the interface method spec(s) it satisfies.
@@ -101,6 +107,35 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
         )
         return SuperMethodsData(method = methodData, hierarchy = results.map { toSuperMethodData(it, project) })
     }
+
+    /**
+     * Interface method anchor: caret in a method that an interface declares -> that method with an
+     * empty hierarchy, because no super method exists for it (#135). At this position Go to Super
+     * of GoLand works on the interface that holds the method, and its popup says so ("Type 'X'
+     * Implements N Interfaces"). The type anchor gives that result for a caret on the type name.
+     */
+    private fun tryInterfaceMethodAnchor(element: PsiElement, project: Project): SuperMethodsData? {
+        val methodSpecClass = goMethodSpecClass ?: return null
+
+        @Suppress("UNCHECKED_CAST")
+        val methodSpec = interfaceMethodAt(element, methodSpecClass as Class<out PsiElement>, ::hasSignature)
+            ?: return null
+
+        val file = methodSpec.containingFile?.virtualFile
+        val methodData = MethodData(
+            name = getName(methodSpec) ?: "unknown",
+            qualifiedName = QualifiedNameUtil.getQualifiedName(methodSpec),
+            kind = LanguageServices.getKind(methodSpec),
+            file = file?.let { getRelativePath(project, it) } ?: "unknown",
+            line = getLineNumber(project, methodSpec) ?: 0,
+            column = getColumnNumber(project, methodSpec) ?: 0,
+        )
+        return SuperMethodsData(method = methodData, hierarchy = emptyList())
+    }
+
+    private fun hasSignature(methodSpec: PsiElement): Boolean = runCatching {
+        methodSpec.javaClass.getMethod("getSignature").invoke(methodSpec) != null
+    }.getOrDefault(false)
 
     /**
      * Type anchor: caret on an interface/struct declaration -> the interfaces it structurally
@@ -173,6 +208,24 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
             line = getLineNumber(project, resultElement),
             column = getColumnNumber(project, resultElement),
         )
+    }
+
+    internal companion object {
+        /**
+         * The interface method that holds [element]: [element] itself or its nearest parent of
+         * [methodSpecClass] (`GoMethodSpec`, one line in the body of an interface), when that
+         * line declares a method. Null for an embedded type, which is a method spec with no
+         * signature.
+         */
+        internal fun interfaceMethodAt(
+            element: PsiElement,
+            methodSpecClass: Class<out PsiElement>,
+            hasSignature: (PsiElement) -> Boolean,
+        ): PsiElement? {
+            val methodSpec = if (methodSpecClass.isInstance(element)) element
+            else PsiTreeUtil.getParentOfType(element, methodSpecClass) ?: return null
+            return methodSpec.takeIf(hasSignature)
+        }
     }
 
     private fun getName(element: PsiElement): String? = runCatching {

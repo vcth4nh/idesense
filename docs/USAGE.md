@@ -1422,6 +1422,8 @@ Finds IDE Go-to-Super targets for a code element — methods that override/imple
 
 **Languages:** Java, Kotlin, Python, JS/TS, PHP, Go (returns interface method(s) a struct method satisfies via `GoSuperMethodSearch`), Rust (returns trait fn/const/type alias the impl satisfies via `RsGotoSuperHandlerKt.gotoSuperTargets`).
 
+**Go interface methods:** A method that a Go interface declares has no super method, so the result is that method with an empty hierarchy. At that position Go to Super of GoLand shows the interfaces that the enclosing type satisfies. A position on the type name returns them.
+
 **Use when:**
 - Finding which interface method an implementation overrides
 - Navigating to the original method declaration in a parent class

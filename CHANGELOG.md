@@ -60,6 +60,10 @@
   is a different classification: matches in plain text, in HTML and in JSON strings were absent from
   the filtered results. One case is lost: `strings` no longer finds a word that follows an escape
   sequence with no space (`World` in `"Hello\nWorld"`). `all` did not find it before (#133).
+- `ide_find_super_methods` at a method that a Go interface declares returns that method with an
+  empty hierarchy. The `method` field named the interface, and the hierarchy listed the super
+  interfaces of the interface: the result of Go to Super in GoLand for the type. A position on the
+  type name still returns them (#135).
 - A `FindUsagesProvider` that throws from `getType` no longer fails the whole call with
   `internal_error`. `XmlFindUsagesProvider` throws for an `HtmlFile`, which failed
   `ide_call_hierarchy` when a tree node was an HTML file. The kind then comes from the class name of
