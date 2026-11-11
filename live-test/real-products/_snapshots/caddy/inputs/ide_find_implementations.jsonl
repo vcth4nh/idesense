@@ -2,3 +2,8 @@
 {"id":"impls-Module","tool":"ide_find_implementations","params":{"column":6,"file":"modules.go","line":54,"pageSize":500}}
 {"id":"impls-Module-paged","tool":"ide_find_implementations","params":{"column":6,"file":"modules.go","line":54,"pageSize":50},"compare":"shape"}
 {"id":"impls-ModuleInfo-struct-empty","tool":"ide_find_implementations","params":{"column":6,"file":"modules.go","line":63,"pageSize":100}}
+{"id":"impls-Validator","tool":"ide_find_implementations","params":{"column":6,"file":"modules.go","line":305,"pageSize":500}}
+{"id":"impls-Validator-libraries-scope-page1","tool":"ide_find_implementations","params":{"column":6,"file":"modules.go","line":305,"pageSize":500,"scope":"project_and_libraries"},"compare":"shape"}
+{"id":"impls-Validator-libraries-scope-page2","tool":"ide_find_implementations","params":{"pageSize":500},"compare":"shape","cursorFrom":"impls-Validator-libraries-scope-page1"}
+{"id":"impls-Validator.Validate","tool":"ide_find_implementations","params":{"column":2,"file":"modules.go","line":306,"pageSize":500}}
+{"id":"impls-Validator.Validate-libraries-scope-paged","tool":"ide_find_implementations","params":{"column":2,"file":"modules.go","line":306,"pageSize":500,"scope":"project_and_libraries"},"compare":"shape"}

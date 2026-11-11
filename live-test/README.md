@@ -142,15 +142,15 @@ check for an active run before a product run. The switch has these safety rules:
 - **An interrupt closes the product.** After Ctrl+C in a product run the harness still
   closes the product that this run opened.
 
-Measured for `caddy` (GoLand 2026.2, 2026-11-10):
+Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-10):
 
 | Step | Time |
 |---|---|
 | Project switch (stop, mark, start, both projects listed) | 11 s |
 | Ready after a switch, product indexed before | 0 to 5 s |
 | First indexing (16,329 files with the dependencies) | 34 s |
-| 63 rows, product open before | 11 to 16 s |
-| 63 rows with the switch | 33 s |
+| 69 rows, product open before | 11 to 20 s |
+| 69 rows with the switch | 38 s |
 
 ### Add a product
 

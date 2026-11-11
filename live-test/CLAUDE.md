@@ -148,12 +148,14 @@ pins first — appending to a pinned file drifts its blessed row.
 | go | normal.go (+normal_test.go) | Shape/Drawable interfaces, baseShape, Circle/Rectangle/Square, MakeDefaultShapes |
 | go | quirks.go | q* dispatch fns, IntCoercer, CoerceLimit iota consts |
 | go | embed.go | Labeled embed (cross-file baseShape embed + promoted method) |
+| go | promoted.go | Stamper/Ink/Pad (method promoted through an embedded pointer), Main (type with the name of its package) |
 | go | multisuper.go, generic_super.go, negative_super.go, wedge_test.go | interface-satisfaction fixtures (IFull/ChainImpl, IBase/IMid/ILeaf embedding chain, Storage[T]/IntStore, Standalone, wedge) |
 | rust | src/normal.rs | Shape trait hierarchy, ShapeCollection, area/largest |
 | rust | src/quirks.rs | q* dispatch fns, CoerceMode enum, parse_or_zero (fn-pointer) |
 | rust | src/macros.rs | square! macro_rules, derive Point |
 | rust | src/supertrait_super.rs, generic_super.rs, default_super.rs, multisuper.rs, negative_super.rs, extra.rs | trait-super fixtures (Sub supertrait, Storage generic, Inherent, MyTrait family) |
 | rust | src/scopes.rs, tests/scope_probe.rs | Probe/target scope fixtures, TestShape |
+| rust | tests/macro_impls.rs | Glazed + glazed_impl! (implementations that a macro writes), Tile/Brick/Slate |
 | python | src/normal.py | Shape hierarchy, Drawable protocol, ShapeCollection, make_default_shapes |
 | python | src/quirks.py | quirk_* dispatch fns (incl. function-local Coercer) |
 | python | src/multi_super.py | diamond MRO (DiamondBottom…), ConcreteShape, deep chains |
@@ -427,6 +429,17 @@ will just snapshot a different empty/odd result.
   returns an empty `hierarchy` (method found, no super), matching
   Java/Python/Kotlin. Verified in GoLand: no gutter icon, Ctrl+U no-ops.
   Resolved in #25 (was previously a misleading `tool_error`).
+- **Go `impls-Stamper.Stamp-promoted` has one row for two hits.** `Pad` embeds `*Ink` and
+  gets `Stamp` by promotion. GoLand's search gives the declared method of `Ink` and a second
+  element for the promoted method (`GoLightMethodDeclaration`). That element has no text of
+  its own, only the declared method as its navigation element, and it does not name `Pad`. So
+  both hits have the same position, and the tool returns the position one time. The Choose
+  Implementation popup of GoLand shows two equal rows. The type anchor
+  (`impls-Stamper-promoted`) lists both `Ink` and `Pad`.
+- **Go `explain-Main-name` resolves a type with the name of its package.** GoLand's symbol
+  index knows a symbol as `package.name`, so the text `Main` matches each symbol of the
+  package `main`, and the popup ranks the type after dozens of them. The name anchors take
+  each item with the exact name, wherever the popup ranks it (#131).
 - **Go `file_structure` is package-scoped**: `file-structure-Normal` /
   `file-structure-Quirks` list *every* type in package `main` (each tagged
   with its origin file), not just the queried file's. Adding any `.go` fixture
@@ -447,6 +460,12 @@ will just snapshot a different empty/odd result.
   `package.json` (`.js` ⊂ `.json`) and `*.kt` matches `build.gradle.kts` / `settings.gradle.kts`.
   MinusculeMatcher fragments are not end-anchored without a trailing space; matcher-level
   behavior shared with the IDE popup, not a tool bug.
+- **Rust `impls-Glazed-via-macro` lists a macro implementation at its macro call.** RustRover
+  keeps the expansion of `glazed_impl!(Tile)` in a file of its own, which no search scope
+  holds. The navigation element of the implementation in that file is the macro call
+  (`RsNavigationElementProviderServiceImpl`, read from the bytecode). So the rows of `Tile`
+  and `Brick` are at lines 24 and 25, column 1, and their names come from the expansion
+  (`impl Glazed for Tile`). The row of `Slate` is at its hand-written `impl`.
 - **Rust `super-Inherent.foo-inherent`**: empty hierarchy — *correct*. An
   inherent `impl` method (no trait) has no super. Don't be misled by RustRover's
   raw Ctrl+U "Go to Super", which jumps to the enclosing `pub mod` declaration
@@ -557,10 +576,11 @@ an instruction for an agent that works in this repository.
 - A product row uses a read-only tool. A row with `ide_refactor_rename`, `ide_move_file`,
   `ide_install_plugin`, `ide_restart` or `ide_sync_files` changes pinned test data or a
   shared IDE.
-- **Hazard, open defect:** `ide_find_implementations` on a Go interface method can make
-  GoLand rebuild its stub index when one implementer embeds a pointer. Until the correction,
-  add no row with such an anchor (`String`, `Validate`, `Close`, `Error`), and do not send
-  this call to a shared IDE.
+- **Hazard on an old build:** a plugin build before the correction of #129 (2.1.0 and older)
+  can make GoLand rebuild its stub index: `ide_find_implementations` or `ide_explain_symbol`
+  on a Go interface method, when one implementer embeds a pointer. The suites have such rows
+  (`impls-Stamper.Stamp-promoted`, `impls-Validator.Validate`). Read `serverInfo.version`
+  before a run against an IDE that you did not deploy.
 - A probe that can harm an IDE goes to a throwaway IDE. Prove the target port with one
   harmless call before the probe.
 
@@ -585,6 +605,13 @@ These results look wrong, but GoLand returns the same. Do not change the probe t
   IDE host.
 - **One match for each line.** `ide_search_text` returns one match for a line that has the
   word two times.
+- **`CODE` in a file that is no program source.** `search-text-tailscale-code` has matches in
+  `go.mod`, `go.sum` and an HTML file. The label of a match that is not in a comment and not
+  in a string literal is `CODE`, and the `context` filter keeps the matches by this label.
+- **More types than methods.** `impls-Validator` has 24 types and `impls-Validator.Validate`
+  has 21 methods. Three types get the method from an embedded type, and that method is
+  already in the list. With the library scope the two anchors gave 1,947 types and 1,933
+  methods at v2.11.7; the `shape` rows pin only the first pages.
 - **Library supertypes.** The supertypes of a Go struct include library interfaces that it
   satisfies by structure (`hier-super-caddyhttp.App-byname`).
 - **Usage scopes in Go.** `ide_find_usages` with `project_production_files` or

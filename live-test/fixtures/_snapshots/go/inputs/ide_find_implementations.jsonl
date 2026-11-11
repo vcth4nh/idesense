@@ -1,2 +1,4 @@
 {"id":"impls-Drawable","tool":"ide_find_implementations","params":{"column":6,"file":"normal.go","line":16}}
 {"id":"impls-Shape","tool":"ide_find_implementations","params":{"column":6,"file":"normal.go","line":20}}
+{"id":"impls-Stamper-promoted","tool":"ide_find_implementations","params":{"column":6,"file":"promoted.go","line":10}}
+{"id":"impls-Stamper.Stamp-promoted","tool":"ide_find_implementations","params":{"column":2,"file":"promoted.go","line":11}}

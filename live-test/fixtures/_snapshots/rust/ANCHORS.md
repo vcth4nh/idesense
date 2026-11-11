@@ -128,6 +128,13 @@ fails when this file is stale.
 | 15:8 | super-SubImpl.method-supertrait | find_super_methods | `fn method(&self) -> String { "via-a".to_string() }` |
 | 34:8 | super-SingleImpl.child-single-supertrait | find_super_methods | `fn child(&self) -> String { "child".to_string() }` |
 
+## tests/macro_impls.rs
+
+| line:col | probe id | tool | source |
+|---|---|---|---|
+| 3:7 | impls-Glazed-via-macro | find_implementations | `trait Glazed {` |
+| 4:8 | impls-Glazed.glaze-via-macro | find_implementations | `fn glaze(&self) -> i32;` |
+
 ## Query-only probes (no file anchor)
 
 | probe id | tool | params |
