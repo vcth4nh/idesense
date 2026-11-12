@@ -10,7 +10,7 @@ file is stale.
 | line:col | probe id | tool | identifier |
 |---|---|---|---|
 | 758:51 | canary-def-Logger-into-dependency | find_definition | `Logger` |
-| 851:6 | usage-OnExit-empty | find_usages | `OnExit` |
+| 851:6 | usage-OnExit-comments-only | find_usages | `OnExit` |
 
 ## caddyconfig/caddyfile/adapter.go
 

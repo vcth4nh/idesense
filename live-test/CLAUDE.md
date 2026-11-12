@@ -197,9 +197,11 @@ Hard rules (they keep the pinned snapshots stable):
   type inference), Python docstrings (become structure nodes), Rust `///`,
   phpdoc, `/* */` blocks.
 - **Only name symbols declared in the same file** (10-file word-occurrence
-  threshold — see "Snapshot file format"). In Go, prefer lowercase paraphrase
-  over capitalized exported names: GoLand counts comment text occurrences as
-  usages under the libraries scope.
+  threshold — see "Snapshot file format"). In Go, a comment word that spells a
+  declared name is a usage of that declaration in every scope, also the default
+  `project_files` (`usageType` `COMMENT`, #132), and this applies to unexported
+  names too (`baseShape`). Prefer a paraphrase that does not spell the name
+  (`circle` for `Circle`), or re-bless the `find_usages` rows of that name.
 - **Dictionary words only** in the diagnostics-pinned java files
   (`Broken.java`, `Quirks.java`, `Normal.java`) — a typo can spawn a
   spell-check inspection row.
@@ -455,7 +457,7 @@ will just snapshot a different empty/odd result.
   to the package changes these snapshots — re-bless them when you add Go
   fixtures (this is why they drift after `multisuper.go` / `*_super.go` land).
 - **Go `find_usages` on a type counts the method receiver as a usage**:
-  `usage-baseShape-embed` (find_usages of the `baseShape` struct) returns 17
+  `usage-baseShape-embed` (find_usages of the `baseShape` struct) returns 20
   usages — the three embed sites (`Labeled` embed.go:9, `Circle` normal.go:38,
   `Rectangle` normal.go:51), the receiver declaration
   `func (b baseShape) Describe()` at normal.go:33, **plus 13 in `normal_test.go`**:
@@ -464,7 +466,32 @@ will just snapshot a different empty/odd result.
   type, so GoLand counts it as a reference. Verified in GoLand (Find Usages lists the
   receiver). The keys name the embedded field (`ide_find_definition` on one
   resolves to the `ANONYMOUS_FIELD` at normal.go:38); GoLand 2026.1 did not list
-  them (11 usages), 2026.2 does. Not a tool artifact.
+  them (11 usages), 2026.2 does. The other 3 are the word `baseShape` in the
+  fixture comments at normal.go:25, 28 and 29 (`usageType` `COMMENT`, see the next
+  entry). Not a tool artifact.
+- **Go `find_usages` gives what the Find Usages action of GoLand lists (#130, #132).**
+  For a method that implements an interface method, the result also has the
+  usages of the interface method, and the first page has a `notes` entry that
+  says so: `usage-area-libraries-scope` and `usage-Rectangle.Area-files-scope`
+  list the `s.Area()` calls through `Shape` in `TotalArea` and `Largest`. A
+  method with no super method gets no note (`usage-ShapeCollection.add`). A
+  comment word that spells the name is a usage with `usageType` `COMMENT`, at the
+  position of the word: the "Usage in comments" group of GoLand
+  (`usage-Circle-struct`, `usage-Shape-iface`). `ide_explain_symbol` counts these
+  usages in `usageCount`, and its `topUsages` lists the code usages first.
+- **JavaScript and Rust usage rows with a `warnings` entry.** JavaScript
+  `usage-Derived.value-write` and `usage-area-libraries-scope`, and Rust
+  `usage-area-libraries-scope`, carry a `warnings` entry. The find-usages handler
+  factory of the IDE opens a dialog off the EDT ("search the base member?") and
+  throws, so the tool falls back to the references of the anchor. This is the
+  same form as the Java and Kotlin warning rows. The usages did not change when
+  the warning came in.
+- **A reference inside a doc comment is a `COMMENT` usage in every language.**
+  PHP `usage-Shape-class` lists `Shape` in `/** @var Shape[] */`
+  (src/Normal.php:53) with `usageType` `COMMENT`. The platform rule of the
+  "Usage in comments" group (`UsageTypeGroupingRule`) gives this type to each
+  usage inside a comment, and a doc comment is a comment, before a language
+  gives its own usage type.
 - **`find_file` extension queries substring-match longer extensions**: `*.js` matches
   `package.json` (`.js` ⊂ `.json`) and `*.kt` matches `build.gradle.kts` / `settings.gradle.kts`.
   MinusculeMatcher fragments are not end-anchored without a trailing space; matcher-level
