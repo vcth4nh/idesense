@@ -1,0 +1,4 @@
+{"id":"file-structure-defs.rs","tool":"ide_file_structure","params":{"file":"crates/core/flags/defs.rs"},"compare":"shape"}
+{"id":"file-structure-fnv.rs","tool":"ide_file_structure","params":{"file":"crates/globset/src/fnv.rs"}}
+{"id":"file-structure-messages.rs","tool":"ide_file_structure","params":{"file":"crates/core/messages.rs"}}
+{"id":"file-structure-pathutil.rs","tool":"ide_file_structure","params":{"file":"crates/ignore/src/pathutil.rs"}}

@@ -18,3 +18,8 @@
 	url = https://github.com/sebastianbergmann/phpunit
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/ripgrep"]
+	path = live-test/real-products/ripgrep
+	url = https://github.com/BurntSushi/ripgrep
+	shallow = true
+	ignore = dirty

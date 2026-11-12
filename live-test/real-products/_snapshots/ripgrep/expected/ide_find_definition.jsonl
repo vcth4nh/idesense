@@ -1,0 +1,8 @@
+{"id":"canary-def-ByteSlice-into-dependency","result":{"enclosingScope":null,"file":"ext_slice.rs","kind":"TRAIT","name":"ByteSlice","qualifiedName":"bstr::ext_slice::ByteSlice"}}
+{"id":"def-LineBuffer.fill-call","result":{"column":8,"enclosingScope":null,"file":"crates/searcher/src/line_buffer.rs","kind":"METHOD","line":406,"name":"fill","qualifiedName":"grep_searcher::line_buffer::LineBuffer::fill"}}
+{"id":"def-Searcher-via-reexport","result":{"column":12,"enclosingScope":null,"file":"crates/searcher/src/searcher/mod.rs","kind":"STRUCT","line":597,"name":"Searcher","qualifiedName":"grep_searcher::searcher::Searcher"}}
+{"id":"def-Vec-into-stdlib","result":{"enclosingScope":null,"file":"mod.rs","kind":"STRUCT","name":"Vec","qualifiedName":"alloc::vec::Vec"}}
+{"id":"def-add_parents-call-cross-file","result":{"column":19,"enclosingScope":null,"file":"crates/ignore/src/dir.rs","kind":"METHOD","line":178,"name":"add_parents","qualifiedName":"ignore::dir::Ignore::add_parents"}}
+{"id":"def-debug-macro-cfg-feature","result":{"column":14,"enclosingScope":null,"file":"crates/globset/src/lib.rs","kind":"MACRO","line":146,"name":"debug","qualifiedName":"globset::debug"}}
+{"id":"def-err_message-macro","result":{"column":14,"enclosingScope":null,"file":"crates/core/messages.rs","kind":"MACRO","line":82,"name":"err_message","qualifiedName":"rg::err_message"}}
+{"id":"def-file_name-call-windows-cfg","result":{"column":15,"enclosingScope":null,"file":"crates/ignore/src/pathutil.rs","kind":"FUNCTION","line":113,"name":"file_name","qualifiedName":"ignore::pathutil::file_name"}}

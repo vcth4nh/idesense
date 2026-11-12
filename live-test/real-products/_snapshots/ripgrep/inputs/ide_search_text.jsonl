@@ -1,0 +1,7 @@
+{"id":"search-text-BOM","tool":"ide_search_text","params":{"pageSize":100,"query":"BOM"}}
+{"id":"search-text-BOM-code","tool":"ide_search_text","params":{"context":"code","pageSize":100,"query":"BOM"}}
+{"id":"search-text-BOM-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"BOM"}}
+{"id":"search-text-BOM-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"BOM"}}
+{"id":"search-text-Sherlock-paged","tool":"ide_search_text","params":{"pageSize":100,"query":"Sherlock"},"compare":"shape"}
+{"id":"search-text-UNC-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"UNC"}}
+{"id":"search-text-set_errored","tool":"ide_search_text","params":{"pageSize":100,"query":"set_errored"},"parked":184}

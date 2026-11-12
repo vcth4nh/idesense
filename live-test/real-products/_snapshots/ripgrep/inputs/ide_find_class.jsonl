@@ -1,0 +1,5 @@
+{"id":"canary-find-class-LineBuffer","tool":"ide_find_class","params":{"query":"LineBuffer"}}
+{"id":"find-class-ErrorKind","tool":"ide_find_class","params":{"query":"ErrorKind"}}
+{"id":"find-class-Glob","tool":"ide_find_class","params":{"query":"Glob"}}
+{"id":"find-class-LinBuf-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"LinBuf"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}

@@ -1,0 +1,6 @@
+{"id":"impls-Flag-trait","tool":"ide_find_implementations","params":{"column":7,"file":"crates/core/flags/mod.rs","line":71,"pageSize":500}}
+{"id":"impls-LineBuffer-struct","tool":"ide_find_implementations","params":{"column":19,"file":"crates/searcher/src/line_buffer.rs","line":294,"pageSize":100}}
+{"id":"impls-Matcher-test-scope","tool":"ide_find_implementations","params":{"column":11,"file":"crates/matcher/src/lib.rs","line":546,"pageSize":100,"scope":"project_test_files"}}
+{"id":"impls-Matcher-trait","tool":"ide_find_implementations","params":{"column":11,"file":"crates/matcher/src/lib.rs","line":546,"pageSize":100}}
+{"id":"impls-Matcher.find_at","tool":"ide_find_implementations","params":{"column":8,"file":"crates/matcher/src/lib.rs","line":571,"pageSize":100}}
+{"id":"impls-Sink-trait","tool":"ide_find_implementations","params":{"column":11,"file":"crates/searcher/src/sink.rs","line":102,"pageSize":100}}

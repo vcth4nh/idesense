@@ -1,0 +1,10 @@
+{"id":"canary-def-ByteSlice-into-dependency","tool":"ide_find_definition","params":{"column":11,"file":"crates/searcher/src/line_buffer.rs","line":3}}
+{"id":"def-LineBuffer.fill-call","tool":"ide_find_definition","params":{"column":26,"file":"crates/searcher/src/line_buffer.rs","line":257}}
+{"id":"def-Searcher-via-reexport","tool":"ide_find_definition","params":{"column":35,"file":"crates/core/search.rs","line":66}}
+{"id":"def-Vec-into-stdlib","tool":"ide_find_definition","params":{"column":10,"file":"crates/searcher/src/line_buffer.rs","line":298}}
+{"id":"def-add_parents-call-cross-file","tool":"ide_find_definition","params":{"column":62,"file":"crates/ignore/src/walk.rs","line":1111}}
+{"id":"def-debug-macro-cfg-feature","tool":"ide_find_definition","params":{"column":21,"file":"crates/globset/src/lib.rs","line":506}}
+{"id":"def-err_message-macro","tool":"ide_find_definition","params":{"column":17,"file":"crates/core/main.rs","line":131}}
+{"id":"def-file_name-call-windows-cfg","tool":"ide_find_definition","params":{"column":25,"file":"crates/ignore/src/pathutil.rs","line":40}}
+{"id":"def-messages-from-macro-body","tool":"ide_find_definition","params":{"column":29,"file":"crates/core/messages.rs","line":73},"parked":189}
+{"id":"def-pathutil-mod-decl","tool":"ide_find_definition","params":{"column":5,"file":"crates/globset/src/lib.rs","line":140},"parked":187}

@@ -7,6 +7,8 @@
     {"folder": "beets", "ide": "pycharm", "repo": "beetbox/beets", "pin": "v2.14.1",
      "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
     {"folder": "phpunit", "ide": "phpstorm", "repo": "sebastianbergmann/phpunit", "pin": "13.3.1",
-     "license": "BSD-3-Clause", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
+     "license": "BSD-3-Clause", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "ripgrep", "ide": "rustrover", "repo": "BurntSushi/ripgrep", "pin": "15.0.0",
+     "license": "Unlicense OR MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
   ]
 }

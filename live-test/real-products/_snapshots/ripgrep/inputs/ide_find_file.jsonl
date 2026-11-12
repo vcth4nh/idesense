@@ -1,0 +1,6 @@
+{"id":"find-file-Cargo.toml-paged","tool":"ide_find_file","params":{"pageSize":5,"query":"Cargo.toml"},"compare":"shape"}
+{"id":"find-file-line_buffer.rs","tool":"ide_find_file","params":{"query":"line_buffer.rs"}}
+{"id":"find-file-mod.rs","tool":"ide_find_file","params":{"query":"mod.rs"}}
+{"id":"find-file-mod.rs-production-scope","tool":"ide_find_file","params":{"query":"mod.rs","scope":"project_production_files"}}
+{"id":"find-file-mod.rs-test-scope","tool":"ide_find_file","params":{"query":"mod.rs","scope":"project_test_files"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
