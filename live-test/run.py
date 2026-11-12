@@ -631,6 +631,16 @@ def _compare_row(eid: str, result: Any, expected_by_id: dict[str, Any], bless: b
     return False
 
 
+def met_dumb_mode(raw: Any, differs: bool, is_dumb: Callable[[], bool]) -> bool:
+    """True when the result of a row shows that the IDE was in dumb mode.
+
+    A result that differs from its expected row asks the IDE. A row that
+    passes costs no extra request."""
+    if isinstance(raw, dict) and raw.get("error") == "index_not_ready":
+        return True
+    return differs and is_dumb()
+
+
 def _run_product_rows(
     name: str,
     url: str,
@@ -692,6 +702,25 @@ def _run_product_rows(
             print("  ERROR: canary rows have no expected entry (bless them with --bless-canary)")
             return None
 
+    # The IDE can go to dumb mode again after the canary rows match: a build tool
+    # sync, then a refresh. A row that meets dumb mode waits until the IDE is
+    # ready and runs one more time. All waits of the product run share the
+    # readiness time of the product. A parked row runs one time.
+    wait_left = product.ready_timeout
+
+    def fetch_row(entry: dict, request: dict | None = None) -> tuple[Any, Any]:
+        nonlocal wait_left
+        raw, snapshot = fetch(entry, request)
+        eid = entry["id"]
+        differs = bless or eid not in expected_by_id or snapshot != expected_by_id[eid]
+        if "parked" in entry or wait_left <= 0 or not met_dumb_mode(
+                raw, differs, lambda: check_ready(url, project_root) is not None):
+            return raw, snapshot
+        _, waited = wait_until(lambda: check_ready(url, project_root), wait_left)
+        wait_left -= waited
+        print(f"  {eid} met dumb mode: waited {waited:.0f} s, the row runs again")
+        return fetch(entry, request)
+
     snapshots: dict[str, Any] = {}
     fresh_results: dict[str, Any] = {}
     raws: dict[str, Any] = {}
@@ -717,14 +746,14 @@ def _run_product_rows(
                 failure = request
                 snapshots[eid] = {"chain_error": request}
             else:
-                raws[eid], snapshots[eid] = fetch(entry, request)
+                raws[eid], snapshots[eid] = fetch_row(entry, request)
                 repeats = products.repeated_items(
                     normalize(source_raw, project_root, drop_fields=products.PRODUCT_DROP_FIELDS),
                     normalize(raws[eid], project_root, drop_fields=products.PRODUCT_DROP_FIELDS))
                 if repeats:
                     failure = f"repeats {repeats} item(s) of its source page"
         else:
-            raws[eid], snapshots[eid] = fetch(entry)
+            raws[eid], snapshots[eid] = fetch_row(entry)
 
         if "parked" in entry:
             print(f"  {eid} PARKED (#{entry['parked']})")

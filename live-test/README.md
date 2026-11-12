@@ -290,6 +290,10 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
   - The plugin changed the output of the tool of that canary row, and the fixture suite
     shows the same change. Then run `--product <folder> --bless --bless-canary` with
     permission, and read the `git diff` of the expected files before the commit.
+- **`<id> met dumb mode: waited <n> s, the row runs again`** — the IDE went to dumb mode
+  again after the canary rows matched (a build tool sync, then a refresh). The row waited
+  until the IDE was ready and then ran one more time. All waits of a product run share the
+  readiness time of the product. When no time is left, a row runs one time only.
 - **Some rows of a fixture fail in the first seconds after an IDE restart** — the IDE
   lists its projects and reports smart mode, but it still loads the SDK or the build
   model. Seen one time in three restarts of GoLand: 2 of 99 Go rows. Run the fixture again.

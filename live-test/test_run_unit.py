@@ -21,7 +21,7 @@ import fleet
 import products
 import run
 from run import _result_has_error, _result_is_structured_error, _structured_error_bless_refusals
-from run import chained_request, order_rows, row_problems, row_snapshot, serialize_input_row, wait_until
+from run import chained_request, met_dumb_mode, order_rows, row_problems, row_snapshot, serialize_input_row, wait_until
 
 
 def setUpModule():
@@ -106,6 +106,22 @@ class WaitUntilTest(unittest.TestCase):
     def test_zero_timeout_checks_one_time(self):
         (err, _), calls = self.run_with(["dumb mode"], timeout=0.0)
         self.assertEqual(("dumb mode", 1), (err, len(calls)))
+
+
+def never_called():
+    raise AssertionError("the ready check was called")
+
+
+class MetDumbModeTest(unittest.TestCase):
+    def test_index_not_ready_error_needs_no_ready_check(self):
+        self.assertTrue(met_dumb_mode({"error": "index_not_ready", "message": "x"}, False, never_called))
+
+    def test_row_that_does_not_differ_needs_no_ready_check(self):
+        self.assertFalse(met_dumb_mode({"usages": []}, False, never_called))
+
+    def test_row_that_differs_asks_the_ready_check(self):
+        self.assertTrue(met_dumb_mode({"usages": []}, True, lambda: True))
+        self.assertFalse(met_dumb_mode({"usages": []}, True, lambda: False))
 
 
 class OpenProductTest(unittest.TestCase):
@@ -407,6 +423,7 @@ ANSWERS = {
             "hasMore": False, "totalCollected": 4, "offset": 2, "pageSize": 2, "nextCursor": None, "stale": False, "truncated": False},
     "bug": {"error": "internal_error", "message": "boom"},
 }
+NOT_READY = {"error": "index_not_ready", "message": "IDE is in dumb mode, indexes not available"}
 
 
 def fake_post(answers):
@@ -593,6 +610,54 @@ class ProductRunTest(unittest.TestCase):
     def test_bless_canary_writes_the_canary_rows(self):
         self.go(dict(ANSWERS, App=dict(ANSWERS["App"], totalCollected=2)), bless=True, bless_canary=True)
         self.assertEqual(2, self.expected()["canary-find-class-App"]["totalCollected"])
+
+    def test_row_that_meets_dumb_mode_waits_and_runs_again(self):
+        first = iter([NOT_READY])
+        result, seen = self.go(dict(ANSWERS, Zed=lambda: next(first, ANSWERS["Zed"])))
+        self.assertEqual((4, 0), result)
+        self.assertEqual(2, seen.count((FC, {"query": "Zed"})))
+        met = [line for line in self.printed if " met dumb mode: " in line]
+        self.assertEqual(1, len(met), self.printed)
+        self.assertRegex(met[0], r"^  find-class-Zed met dumb mode: waited \d+ s, the row runs again$")
+
+    def test_row_that_differs_runs_again_only_when_the_ide_reports_dumb_mode(self):
+        wrong = dict(ANSWERS, Zed=dict(ANSWERS["Zed"], totalCollected=7))
+        for states, fetches in (([None, "project is in dumb mode (still indexing)"], 2), ([None], 1)):
+            ready = iter(states)        # the precheck of the run, then the check after the row; then ready
+            with mock.patch.object(run, "check_ready", lambda url, path: next(ready, None)):
+                result, seen = self.go(wrong)
+            self.assertEqual((3, 1), result, states)
+            self.assertEqual(fetches, seen.count((FC, {"query": "Zed"})), states)
+            self.assertIn("  find-class-Zed FAIL", self.printed)
+
+    def test_second_result_in_dumb_mode_is_the_result_of_the_row(self):
+        result, seen = self.go(dict(ANSWERS, Zed=NOT_READY))
+        self.assertEqual((3, 1), result)
+        self.assertEqual(2, seen.count((FC, {"query": "Zed"})))
+
+    def test_parked_row_in_dumb_mode_runs_one_time(self):
+        result, seen = self.go(dict(ANSWERS, bug=NOT_READY))
+        self.assertEqual((4, 0), result)
+        self.assertEqual(1, seen.count((U, {"query": "bug"})))
+
+    def test_no_row_runs_again_when_the_waits_used_the_readiness_time(self):
+        waits = []
+
+        def wait(check, timeout_s):
+            waits.append(timeout_s)
+            return "project is in dumb mode (still indexing)", timeout_s
+
+        with mock.patch.object(run, "wait_until", wait):
+            result, seen = self.go(dict(ANSWERS, Zed=NOT_READY, p1=NOT_READY))
+        self.assertEqual([DEMO.ready_timeout], waits)
+        self.assertEqual(2, seen.count((FC, {"query": "Zed"})))
+        self.assertEqual(1, seen.count((U, {"query": "p1", "pageSize": 2})))
+        self.assertIn("  usage-App-page1 FAIL", self.printed)
+
+    def test_bless_writes_the_second_result_of_a_row_that_met_dumb_mode(self):
+        first = iter([NOT_READY])
+        self.go(dict(ANSWERS, Zed=lambda: next(first, dict(ANSWERS["Zed"], totalCollected=7))), bless=True)
+        self.assertEqual(7, self.expected()["find-class-Zed"]["totalCollected"])
 
 
 class ResolveSuiteTest(unittest.TestCase):
