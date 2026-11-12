@@ -184,7 +184,9 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
 4. **Bootstrap.** Write `_setup/<folder>/bootstrap.sh`. It is idempotent and changes no
    tracked file. It gets the dependencies and writes the IDE project files that the product
    needs: GoLand restores a project at its start only when the folder has an `.idea` folder
-   with a module file. PhpStorm and RustRover also need a trust entry for the product path.
+   with a module file. The bootstrap writes no trust entry: a `serverMode` IDE checks the
+   trust of a project, so the switch that opens a product adds a trust entry for the product
+   path to `options/trusted-paths.xml` of the IDE while the IDE is down.
 5. **Import check.** `--open-product <folder>`, then compare some tool calls with the IDE
    itself. Record the times and the memory in `_setup/<folder>/notes.md`.
 6. **Canary rows.** 2 or 3 rows with the id prefix `canary-` that pin the project model.

@@ -14,7 +14,7 @@ import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 
 
 @dataclass(frozen=True)
@@ -123,6 +123,34 @@ def rewrite_recent_projects(xml_text: str, wanted: list[str], user_home: str) ->
     return ET.tostring(root, encoding="unicode")
 
 
+def trust_project_paths(xml_text: str | None, paths: list[str], user_home: str) -> str:
+    """Return trusted-paths.xml with an explicit trust entry for each of the `paths`.
+
+    A `serverMode` IDE is not headless, so it checks the trust of a project
+    (TrustedProjects.isTrustedCheckDisabled). `None` is a file that does not
+    exist. Write the result only while the IDE is down.
+    """
+    root = ET.Element("application") if xml_text is None else ET.fromstring(xml_text)
+    component = root.find("component[@name='Trusted.Paths']")
+    if component is None:
+        component = ET.SubElement(root, "component", {"name": "Trusted.Paths"})
+    option = component.find("option[@name='TRUSTED_PROJECT_PATHS']")
+    if option is None:
+        option = ET.SubElement(component, "option", {"name": "TRUSTED_PROJECT_PATHS"})
+    entries = option.find("map")
+    if entries is None:
+        entries = ET.SubElement(option, "map")
+    for path in paths:
+        entry = next((e for e in entries.findall("entry")
+                      if e.get("key", "").replace("$USER_HOME$", user_home) == path), None)
+        if entry is None:
+            key = "$USER_HOME$" + path[len(user_home):] if path.startswith(user_home + "/") else path
+            entry = ET.SubElement(entries, "entry", {"key": key})
+        entry.set("value", "true")
+    ET.indent(root, space="  ")
+    return ET.tostring(root, encoding="unicode")
+
+
 _PROBE_PATH = "/nonexistent/idesense-open-projects-probe"
 
 
@@ -196,12 +224,14 @@ def _start_problem(proc: IdeProcess) -> str | None:
 
 def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None, log=print,
                       stop_timeout: float = 90.0, start_timeout: float = 300.0,
-                      may_close: Callable[[str], bool] = lambda path: False) -> str | None:
+                      may_close: Callable[[str], bool] = lambda path: False,
+                      trust: Sequence[str] = ()) -> str | None:
     """Make `wanted` the open projects of the IDE. None on success, else one error line.
 
     The plugin has no tool that opens or closes a project, so a change is a
     restart: stop the IDE, mark the wanted projects in recentProjects.xml,
-    start the IDE, and wait until the server lists exactly those projects.
+    give each path of `trust` a trust entry in trusted-paths.xml, start the
+    IDE, and wait until the server lists exactly those projects.
 
     The IDEs are shared, so the switch has four rules. It restarts only the
     fleet server of the IDE, never the server of another `url`. It closes an
@@ -229,12 +259,20 @@ def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None,
     if proc is None:
         return f"no {ide.key} fleet process found"
     recent = proc.config_dir / "options" / "recentProjects.xml"
+    trusted = proc.config_dir / "options" / "trusted-paths.xml"
     home = proc.env.get("HOME") or str(Path.home())
-    try:
-        # Prove the rewrite while the IDE still runs: an error after the stop would leave the IDE down.
-        rewrite_recent_projects(recent.read_text(), wanted, home)
-    except (OSError, ET.ParseError, ValueError) as e:
-        return f"cannot rewrite {recent}: {e}"
+    # The trust file comes first: when its write fails, recentProjects.xml is not changed.
+    rewrites: list[tuple[Path, Callable[[], str]]] = []
+    if trust:
+        rewrites.append((trusted, lambda: trust_project_paths(
+            trusted.read_text() if trusted.exists() else None, list(trust), home)))
+    rewrites.append((recent, lambda: rewrite_recent_projects(recent.read_text(), wanted, home)))
+    for path, rewrite in rewrites:
+        try:
+            # Prove the rewrite while the IDE still runs: an error after the stop would leave the IDE down.
+            rewrite()
+        except (OSError, ET.ParseError, ValueError) as e:
+            return f"cannot rewrite {path}: {e}"
     problem = _start_problem(proc)
     if problem is not None:
         return f"cannot restart {ide.key}: {problem}"
@@ -247,11 +285,12 @@ def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None,
         if err is not None:
             return f"{err}. If it stops later, start it with: {command}"
         try:
-            tmp = recent.with_name(f".{recent.name}.tmp.{os.getpid()}")
-            tmp.write_text(rewrite_recent_projects(recent.read_text(), wanted, home))
-            os.replace(tmp, recent)
+            for path, rewrite in rewrites:
+                tmp = path.with_name(f".{path.name}.tmp.{os.getpid()}")
+                tmp.write_text(rewrite())
+                os.replace(tmp, path)
         except (OSError, ET.ParseError, ValueError) as e:
-            err = f"cannot rewrite {recent}: {e}. {ide.key} runs again with its old projects"
+            err = f"cannot rewrite {path}: {e}. {ide.key} runs again with its old projects"
         finally:
             try:
                 _start(proc)

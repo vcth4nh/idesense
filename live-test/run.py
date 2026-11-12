@@ -265,7 +265,8 @@ def open_product(root: Path, p: products.Product, url: str | None = None,
         switched = now is None or set(now) != set(wanted)
     if switched:
         start = time.monotonic()
-        err = switch(ide, wanted, post_jsonrpc, url=url, may_close=lambda path: _is_product(root, path))
+        err = switch(ide, wanted, post_jsonrpc, url=url, may_close=lambda path: _is_product(root, path),
+                     trust=[product_path])
         switch_s = time.monotonic() - start
         if err is not None:
             return err, switch_s, 0.0, True

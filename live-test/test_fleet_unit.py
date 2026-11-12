@@ -49,6 +49,31 @@ def opened(xml_text):
             for e in ET.fromstring(xml_text).iter("entry")}
 
 
+TRUSTED = f"""<application>
+  <component name="Trusted.Paths">
+    <option name="TRUSTED_PROJECT_PATHS">
+      <map>
+        <entry key="$APPLICATION_CONFIG_DIR$/projects/GoLandWorkspace" value="true" />
+        <entry key="{FIX_KEY}" value="true" />
+      </map>
+    </option>
+  </component>
+  <component name="Trusted.Paths.Settings">
+    <option name="TRUSTED_PATHS">
+      <list>
+        <option value="$USER_HOME$/dev/idesense/live-test" />
+      </list>
+    </option>
+  </component>
+</application>"""
+
+
+def trusted(xml_text):
+    """The entries of the map TRUSTED_PROJECT_PATHS of component Trusted.Paths."""
+    return {e.get("key"): e.get("value") for e in ET.fromstring(xml_text).findall(
+        "component[@name='Trusted.Paths']/option[@name='TRUSTED_PROJECT_PATHS']/map/entry")}
+
+
 class IdeTableTest(unittest.TestCase):
     def test_port_by_lang_matches_the_fleet(self):
         self.assertEqual({"python": 29172, "java": 29170, "kotlin": 29170, "javascript": 29173,
@@ -143,6 +168,40 @@ class RewriteRecentProjectsTest(unittest.TestCase):
     def test_matches_an_entry_key_without_the_home_macro(self):
         out = fleet.rewrite_recent_projects(RECENT.replace(FIX_KEY, FIX), [FIX], "/home/u")
         self.assertEqual({"$APPLICATION_CONFIG_DIR$/projects/GoLandWorkspace": None, FIX: "true"}, opened(out))
+
+
+class TrustProjectPathsTest(unittest.TestCase):
+    def test_adds_an_entry_for_a_new_path(self):
+        out = fleet.trust_project_paths(TRUSTED, [CADDY], "/home/u")
+        self.assertEqual("true", trusted(out)[CADDY_KEY])
+
+    def test_second_call_changes_nothing(self):
+        once = fleet.trust_project_paths(TRUSTED, [CADDY], "/home/u")
+        self.assertEqual(once, fleet.trust_project_paths(once, [CADDY], "/home/u"))
+
+    def test_absent_file_gives_a_new_component(self):
+        out = fleet.trust_project_paths(None, [CADDY], "/home/u")
+        self.assertEqual({CADDY_KEY: "true"}, trusted(out))
+        self.assertEqual("application", ET.fromstring(out).tag)
+
+    def test_file_without_the_component_gives_a_new_component(self):
+        settings_only = TRUSTED.replace(TRUSTED[TRUSTED.index('  <component name="Trusted.Paths">'):
+                                                TRUSTED.index('  <component name="Trusted.Paths.Settings">')], "")
+        out = fleet.trust_project_paths(settings_only, [CADDY], "/home/u")
+        self.assertEqual({CADDY_KEY: "true"}, trusted(out))
+        self.assertIsNotNone(ET.fromstring(out).find("component[@name='Trusted.Paths.Settings']"))
+
+    def test_keeps_the_other_entries_and_the_settings_component(self):
+        out = fleet.trust_project_paths(TRUSTED, [CADDY], "/home/u")
+        self.assertEqual({"$APPLICATION_CONFIG_DIR$/projects/GoLandWorkspace": "true", FIX_KEY: "true",
+                          CADDY_KEY: "true"}, trusted(out))
+        roots = ET.fromstring(out).findall("component[@name='Trusted.Paths.Settings']/option[@name='TRUSTED_PATHS']/list/option")
+        self.assertEqual(["$USER_HOME$/dev/idesense/live-test"], [o.get("value") for o in roots])
+
+    def test_path_outside_the_home_folder_keeps_its_absolute_form(self):
+        out = fleet.trust_project_paths(TRUSTED, ["/srv/products/caddy"], "/home/u")
+        self.assertEqual("true", trusted(out)["/srv/products/caddy"])
+        self.assertNotIn("$USER_HOME$/srv", out)
 
 
 def answers(*results):
@@ -273,6 +332,58 @@ class SetOpenProjectsTest(unittest.TestCase):
             err, _, start = self.switch(proc, answers(projects(FIX)))
         start.assert_called_once_with(proc)
         self.assertRegex(err, r"^cannot rewrite .*recentProjects\.xml: no write")
+
+    def test_trust_entry_is_written_between_the_stop_and_the_start(self):
+        proc = self.proc()
+        path = proc.config_dir / "options" / "trusted-paths.xml"
+        path.write_text(TRUSTED)
+        seen = {}
+
+        def at_stop(*a):
+            seen["stop"] = path.read_text()
+
+        def at_start(*a):
+            seen["start"] = path.read_text()
+        err, _, _ = self.switch(proc, answers(projects(FIX), None, projects(FIX, CADDY)), trust=[CADDY],
+                                stop=at_stop, start=at_start)
+        self.assertIsNone(err)
+        self.assertEqual(TRUSTED, seen["stop"])
+        self.assertEqual("true", trusted(seen["start"])[CADDY_KEY])
+        self.assertEqual(["recentProjects.xml", "trusted-paths.xml"], sorted(p.name for p in path.parent.iterdir()))
+
+    def test_absent_trust_file_is_created(self):
+        proc = self.proc()
+        err, _, _ = self.switch(proc, answers(projects(FIX), None, projects(FIX, CADDY)), trust=[CADDY])
+        self.assertIsNone(err)
+        self.assertEqual({CADDY_KEY: "true"}, trusted((proc.config_dir / "options" / "trusted-paths.xml").read_text()))
+
+    def test_switch_with_no_trust_leaves_the_trust_file_alone(self):
+        proc = self.proc()
+        err, _, _ = self.switch(proc, answers(projects(FIX), None, projects(FIX, CADDY)))
+        self.assertIsNone(err)
+        self.assertFalse((proc.config_dir / "options" / "trusted-paths.xml").exists())
+
+    def test_trust_file_that_cannot_be_rewritten_is_reported_before_the_ide_stops(self):
+        proc = self.proc()
+        (proc.config_dir / "options" / "trusted-paths.xml").write_text("not xml")
+        err, stop, start = self.switch(proc, answers(projects(FIX)), trust=[CADDY])
+        self.assertRegex(err, r"^cannot rewrite .*trusted-paths\.xml: ")
+        stop.assert_not_called()
+        start.assert_not_called()
+
+    def test_failed_trust_write_after_the_stop_keeps_the_old_projects(self):
+        proc = self.proc()
+        replace = os.replace
+
+        def replace_all_but_the_trust_file(src, dst):
+            if Path(dst).name == "trusted-paths.xml":
+                raise PermissionError("no write")
+            replace(src, dst)
+        with mock.patch.object(fleet.os, "replace", side_effect=replace_all_but_the_trust_file):
+            err, _, start = self.switch(proc, answers(projects(FIX)), trust=[CADDY])
+        start.assert_called_once_with(proc)
+        self.assertRegex(err, r"^cannot rewrite .*trusted-paths\.xml: no write. goland runs again with its old projects")
+        self.assertEqual(RECENT, (proc.config_dir / "options" / "recentProjects.xml").read_text())
 
     def test_interrupt_after_the_stop_is_held_back_until_the_ide_is_started(self):
         proc = self.proc()

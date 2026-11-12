@@ -107,9 +107,10 @@ class OpenProductTest(unittest.TestCase):
     def switch(self, error=None):
         calls = []
 
-        def fn(ide, wanted, post, url=None, may_close=None):
+        def fn(ide, wanted, post, url=None, may_close=None, trust=()):
             calls.append((ide.key, wanted))
             self.may_close = may_close
+            self.trust = trust
             return error
         return fn, calls
 
@@ -140,6 +141,14 @@ class OpenProductTest(unittest.TestCase):
         fn, calls = self.switch()
         self.assertIsNone(run.close_products(self.ROOT, fleet.IDES["intellij"], switch=fn))
         self.assertEqual([("intellij", ["/r/live-test/fixtures/java", "/r/live-test/fixtures/kotlin"])], calls)
+
+    def test_switch_trusts_the_product_that_it_opens_and_the_close_trusts_nothing(self):
+        fn, _ = self.switch()
+        with mock.patch.object(run, "check_ready", return_value=None):
+            run.open_product(self.ROOT, self.P, switch=fn, current=lambda url, post: [self.FIXTURE])
+        self.assertEqual([self.PRODUCT], self.trust)
+        run.close_products(self.ROOT, fleet.IDES["goland"], switch=fn)
+        self.assertEqual((), self.trust)
 
     def test_switch_may_close_only_a_product_of_this_checkout(self):
         fn, _ = self.switch()
