@@ -24,6 +24,14 @@ from run import _result_has_error, _result_is_structured_error, _structured_erro
 from run import chained_request, order_rows, row_problems, row_snapshot, serialize_input_row, wait_until
 
 
+def setUpModule():
+    # The tests set LIVE_TEST_FLEET_FIXTURES themselves. A value of the shell must not change their paths.
+    environ = mock.patch.dict(os.environ)
+    environ.start()
+    unittest.addModuleCleanup(environ.stop)
+    os.environ.pop(run.FLEET_FIXTURES_ENV, None)
+
+
 class ResultIsStructuredErrorTest(unittest.TestCase):
     def test_structured_tool_errors_detected(self):
         self.assertTrue(_result_is_structured_error({"error": "internal_error", "message": "Wrong offset: -1"}))
