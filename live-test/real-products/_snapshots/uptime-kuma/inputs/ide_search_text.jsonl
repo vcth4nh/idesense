@@ -1,0 +1,5 @@
+{"id":"search-text-TODO-comments","tool":"ide_search_text","params":{"context":"comments","query":"TODO"}}
+{"id":"search-text-heartbeat-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"heartbeat"},"compare":"shape"}
+{"id":"search-text-sleep","tool":"ide_search_text","params":{"query":"sleep"}}
+{"id":"search-text-startDateTime","tool":"ide_search_text","params":{"query":"startDateTime"},"parked":184}
+{"id":"search-text-startDateTime-code","tool":"ide_search_text","params":{"context":"code","query":"startDateTime"},"parked":184}

@@ -1,0 +1,9 @@
+{"id":"hier-callee-add_parents-d1","tool":"ide_call_hierarchy","params":{"column":19,"direction":"callees","file":"crates/ignore/src/dir.rs","line":178,"maxDepth":1}}
+{"id":"hier-callee-search-d1","tool":"ide_call_hierarchy","params":{"column":4,"direction":"callees","file":"crates/core/main.rs","line":107,"maxDepth":1}}
+{"id":"hier-caller-add_parents-d1","tool":"ide_call_hierarchy","params":{"column":19,"direction":"callers","file":"crates/ignore/src/dir.rs","line":178,"maxDepth":1}}
+{"id":"hier-caller-matched_path_or_any_parents-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"Gitignore::matched_path_or_any_parents"}}
+{"id":"hier-caller-search_path-d1","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callers","file":"crates/searcher/src/searcher/mod.rs","line":643,"maxDepth":1}}
+{"id":"hier-caller-search_path-production-scope","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callers","file":"crates/searcher/src/searcher/mod.rs","line":643,"maxDepth":1,"scope":"production"}}
+{"id":"hier-caller-search_slice-d1","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callers","file":"crates/searcher/src/searcher/mod.rs","line":769,"maxDepth":1},"parked":186}
+{"id":"hier-caller-search_slice-d2","tool":"ide_call_hierarchy","params":{"column":12,"direction":"callers","file":"crates/searcher/src/searcher/mod.rs","line":769,"maxDepth":2},"compare":"shape"}
+{"id":"hier-caller-set_errored-macro-body","tool":"ide_call_hierarchy","params":{"column":15,"direction":"callers","file":"crates/core/messages.rs","line":137,"maxDepth":1}}

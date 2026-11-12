@@ -1,0 +1,5 @@
+{"id":"find-file-bean-model.d.ts-libraries-scope","tool":"ide_find_file","params":{"query":"bean-model.d.ts","scope":"project_and_libraries"}}
+{"id":"find-file-dayjs.min.js-libraries-scope","tool":"ide_find_file","params":{"query":"dayjs.min.js","scope":"project_and_libraries"}}
+{"id":"find-file-index.js","tool":"ide_find_file","params":{"query":"index.js"},"compare":"ordered"}
+{"id":"find-file-index.js-production-scope","tool":"ide_find_file","params":{"query":"index.js","scope":"project_production_files"}}
+{"id":"find-file-util.js","tool":"ide_find_file","params":{"query":"util.js"},"compare":"ordered"}

@@ -1,0 +1,3 @@
+{"id":"explain-BeetsPlugin-name","tool":"ide_explain_symbol","params":{"symbol":"BeetsPlugin"},"compare":"shape"}
+{"id":"explain-ImportAbortError-name","tool":"ide_explain_symbol","params":{"symbol":"ImportAbortError"}}
+{"id":"explain-split_into_lines-pos","tool":"ide_explain_symbol","params":{"column":5,"file":"beets/util/layout.py","line":58}}

@@ -1,0 +1,6 @@
+{"id":"canary-find-file-Differ.php","tool":"ide_find_file","params":{"query":"Differ.php"}}
+{"id":"find-file-DeferringDispatcher.php","tool":"ide_find_file","params":{"query":"DeferringDispatcher.php"}}
+{"id":"find-file-Facade.php-libraries-scope","tool":"ide_find_file","params":{"query":"Facade.php","scope":"project_and_libraries"}}
+{"id":"find-file-MyExtensionBootstrap.php","tool":"ide_find_file","params":{"pageSize":50,"query":"MyExtensionBootstrap.php"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-phpunit.xml-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"phpunit.xml"},"compare":"shape"}

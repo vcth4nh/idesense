@@ -8,6 +8,7 @@ must not silently replace a previously non-error expected row.
 """
 import contextlib
 import io
+import os
 import shutil
 import sys
 import tempfile
@@ -20,7 +21,15 @@ import fleet
 import products
 import run
 from run import _result_has_error, _result_is_structured_error, _structured_error_bless_refusals
-from run import chained_request, order_rows, row_problems, row_snapshot, serialize_input_row, wait_until
+from run import chained_request, met_dumb_mode, order_rows, row_problems, row_snapshot, serialize_input_row, wait_until
+
+
+def setUpModule():
+    # The tests set LIVE_TEST_FLEET_FIXTURES themselves. A value of the shell must not change their paths.
+    environ = mock.patch.dict(os.environ)
+    environ.start()
+    unittest.addModuleCleanup(environ.stop)
+    os.environ.pop(run.FLEET_FIXTURES_ENV, None)
 
 
 class ResultIsStructuredErrorTest(unittest.TestCase):
@@ -99,6 +108,22 @@ class WaitUntilTest(unittest.TestCase):
         self.assertEqual(("dumb mode", 1), (err, len(calls)))
 
 
+def never_called():
+    raise AssertionError("the ready check was called")
+
+
+class MetDumbModeTest(unittest.TestCase):
+    def test_index_not_ready_error_needs_no_ready_check(self):
+        self.assertTrue(met_dumb_mode({"error": "index_not_ready", "message": "x"}, False, never_called))
+
+    def test_row_that_does_not_differ_needs_no_ready_check(self):
+        self.assertFalse(met_dumb_mode({"usages": []}, False, never_called))
+
+    def test_row_that_differs_asks_the_ready_check(self):
+        self.assertTrue(met_dumb_mode({"usages": []}, True, lambda: True))
+        self.assertFalse(met_dumb_mode({"usages": []}, True, lambda: False))
+
+
 class OpenProductTest(unittest.TestCase):
     P = products.Product("caddy", "goland", "caddyserver/caddy", "v2.11.7", "Apache-2.0", "core")
     ROOT = Path("/r/live-test")
@@ -106,9 +131,10 @@ class OpenProductTest(unittest.TestCase):
     def switch(self, error=None):
         calls = []
 
-        def fn(ide, wanted, post, url=None, may_close=None):
+        def fn(ide, wanted, post, url=None, may_close=None, trust=()):
             calls.append((ide.key, wanted))
             self.may_close = may_close
+            self.trust = trust
             return error
         return fn, calls
 
@@ -139,6 +165,14 @@ class OpenProductTest(unittest.TestCase):
         fn, calls = self.switch()
         self.assertIsNone(run.close_products(self.ROOT, fleet.IDES["intellij"], switch=fn))
         self.assertEqual([("intellij", ["/r/live-test/fixtures/java", "/r/live-test/fixtures/kotlin"])], calls)
+
+    def test_switch_trusts_the_product_that_it_opens_and_the_close_trusts_nothing(self):
+        fn, _ = self.switch()
+        with mock.patch.object(run, "check_ready", return_value=None):
+            run.open_product(self.ROOT, self.P, switch=fn, current=lambda url, post: [self.FIXTURE])
+        self.assertEqual([self.PRODUCT], self.trust)
+        run.close_products(self.ROOT, fleet.IDES["goland"], switch=fn)
+        self.assertEqual((), self.trust)
 
     def test_switch_may_close_only_a_product_of_this_checkout(self):
         fn, _ = self.switch()
@@ -185,6 +219,48 @@ class OpenProductTest(unittest.TestCase):
                          "the harness restarts only a fleet IDE", err)
         self.assertEqual((False, []), (switched, calls))
         ready.assert_not_called()
+
+    def fleet_fixtures(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        return folder, mock.patch.dict(os.environ, {run.FLEET_FIXTURES_ENV: folder})
+
+    def test_worktree_opens_its_product_next_to_the_fleet_fixtures(self):
+        folder, env = self.fleet_fixtures()
+        fn, calls = self.switch()
+        with env, mock.patch.object(run, "check_ready", return_value=None):
+            err, _, _, switched = run.open_product(self.ROOT, self.P, switch=fn,
+                                                   current=lambda url, post: [f"{folder}/go"])
+        self.assertEqual((None, True), (err, switched))
+        self.assertEqual([("goland", [f"{folder}/go", self.PRODUCT])], calls)
+        self.assertTrue(self.may_close("/r/live-test/real-products/x"))
+        self.assertFalse(self.may_close(f"{folder}/go"))
+
+    def test_worktree_close_leaves_the_fleet_fixtures(self):
+        folder, env = self.fleet_fixtures()
+        fn, calls = self.switch()
+        with env:
+            self.assertIsNone(run.close_products(self.ROOT, fleet.IDES["intellij"], switch=fn))
+        self.assertEqual([("intellij", [f"{folder}/java", f"{folder}/kotlin"])], calls)
+        self.assertFalse(self.may_close(f"{folder}/java"))
+
+
+class FleetFixturesRootTest(unittest.TestCase):
+    ROOT = Path("/a/live-test")
+
+    def test_default_is_the_fixtures_folder_of_the_checkout(self):
+        self.assertEqual(Path("/a/live-test/fixtures"), run.fleet_fixtures_root(self.ROOT, {}))
+        self.assertEqual(Path("/a/live-test/fixtures"), run.fleet_fixtures_root(self.ROOT, {"LIVE_TEST_FLEET_FIXTURES": ""}))
+
+    def test_variable_names_the_folder(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        self.assertEqual(Path(folder), run.fleet_fixtures_root(self.ROOT, {"LIVE_TEST_FLEET_FIXTURES": folder}))
+
+    def test_relative_path_or_missing_folder_is_an_error(self):
+        for value in (".", "/nonexistent/idesense-fleet-fixtures"):
+            with self.assertRaises(ValueError, msg=value):
+                run.fleet_fixtures_root(self.ROOT, {"LIVE_TEST_FLEET_FIXTURES": value})
 
 
 U = "ide_find_usages"
@@ -347,6 +423,7 @@ ANSWERS = {
             "hasMore": False, "totalCollected": 4, "offset": 2, "pageSize": 2, "nextCursor": None, "stale": False, "truncated": False},
     "bug": {"error": "internal_error", "message": "boom"},
 }
+NOT_READY = {"error": "index_not_ready", "message": "IDE is in dumb mode, indexes not available"}
 
 
 def fake_post(answers):
@@ -534,6 +611,54 @@ class ProductRunTest(unittest.TestCase):
         self.go(dict(ANSWERS, App=dict(ANSWERS["App"], totalCollected=2)), bless=True, bless_canary=True)
         self.assertEqual(2, self.expected()["canary-find-class-App"]["totalCollected"])
 
+    def test_row_that_meets_dumb_mode_waits_and_runs_again(self):
+        first = iter([NOT_READY])
+        result, seen = self.go(dict(ANSWERS, Zed=lambda: next(first, ANSWERS["Zed"])))
+        self.assertEqual((4, 0), result)
+        self.assertEqual(2, seen.count((FC, {"query": "Zed"})))
+        met = [line for line in self.printed if " met dumb mode: " in line]
+        self.assertEqual(1, len(met), self.printed)
+        self.assertRegex(met[0], r"^  find-class-Zed met dumb mode: waited \d+ s, the row runs again$")
+
+    def test_row_that_differs_runs_again_only_when_the_ide_reports_dumb_mode(self):
+        wrong = dict(ANSWERS, Zed=dict(ANSWERS["Zed"], totalCollected=7))
+        for states, fetches in (([None, "project is in dumb mode (still indexing)"], 2), ([None], 1)):
+            ready = iter(states)        # the precheck of the run, then the check after the row; then ready
+            with mock.patch.object(run, "check_ready", lambda url, path: next(ready, None)):
+                result, seen = self.go(wrong)
+            self.assertEqual((3, 1), result, states)
+            self.assertEqual(fetches, seen.count((FC, {"query": "Zed"})), states)
+            self.assertIn("  find-class-Zed FAIL", self.printed)
+
+    def test_second_result_in_dumb_mode_is_the_result_of_the_row(self):
+        result, seen = self.go(dict(ANSWERS, Zed=NOT_READY))
+        self.assertEqual((3, 1), result)
+        self.assertEqual(2, seen.count((FC, {"query": "Zed"})))
+
+    def test_parked_row_in_dumb_mode_runs_one_time(self):
+        result, seen = self.go(dict(ANSWERS, bug=NOT_READY))
+        self.assertEqual((4, 0), result)
+        self.assertEqual(1, seen.count((U, {"query": "bug"})))
+
+    def test_no_row_runs_again_when_the_waits_used_the_readiness_time(self):
+        waits = []
+
+        def wait(check, timeout_s):
+            waits.append(timeout_s)
+            return "project is in dumb mode (still indexing)", timeout_s
+
+        with mock.patch.object(run, "wait_until", wait):
+            result, seen = self.go(dict(ANSWERS, Zed=NOT_READY, p1=NOT_READY))
+        self.assertEqual([DEMO.ready_timeout], waits)
+        self.assertEqual(2, seen.count((FC, {"query": "Zed"})))
+        self.assertEqual(1, seen.count((U, {"query": "p1", "pageSize": 2})))
+        self.assertIn("  usage-App-page1 FAIL", self.printed)
+
+    def test_bless_writes_the_second_result_of_a_row_that_met_dumb_mode(self):
+        first = iter([NOT_READY])
+        self.go(dict(ANSWERS, Zed=lambda: next(first, dict(ANSWERS["Zed"], totalCollected=7))), bless=True)
+        self.assertEqual(7, self.expected()["find-class-Zed"]["totalCollected"])
+
 
 class ResolveSuiteTest(unittest.TestCase):
     def test_defaults(self):
@@ -680,10 +805,11 @@ class MainSuiteTest(unittest.TestCase):
     A, B = RunProductsTest.A, RunProductsTest.B
 
     def main(self, *argv, product_result=(3, 0, 0)):
-        self.languages, self.product_calls = [], []
+        self.languages, self.product_calls, self.language_paths = [], [], []
 
         def run_language(lang, *a, **kw):
             self.languages.append(lang)
+            self.language_paths.append(a[:2])
             return (5, 0)
 
         def run_products(root, prods, named, tool_filter, bless, **kw):
@@ -747,6 +873,22 @@ class MainSuiteTest(unittest.TestCase):
             self.assertEqual(2, stop.exception.code)
             self.assertEqual(([], []), (self.languages, self.product_calls))
 
+    def test_fixture_row_runs_against_the_fleet_fixtures_and_keeps_the_snapshots_of_this_checkout(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        here = Path(run.__file__).resolve().parent
+        with mock.patch.dict(os.environ, {run.FLEET_FIXTURES_ENV: folder}):
+            self.assertEqual(0, self.main("--language", "go"))
+        self.assertEqual([(Path(folder) / "go", here / "fixtures" / "_snapshots" / "go")], self.language_paths)
+        self.assertEqual(f"fleet fixtures: {folder} (LIVE_TEST_FLEET_FIXTURES)", self.printed[0])
+        self.assertEqual(1, sum(line.startswith("fleet fixtures:") for line in self.printed))
+
+    def test_bad_fleet_fixtures_value_is_exit_code_2_and_nothing_runs(self):
+        with mock.patch.dict(os.environ, {run.FLEET_FIXTURES_ENV: "/nonexistent/idesense-fleet-fixtures"}):
+            self.assertEqual(2, self.main("--suite", "all"))
+        self.assertEqual(([], []), (self.languages, self.product_calls))
+        self.assertIn("/nonexistent/idesense-fleet-fixtures", self.errors)
+
 
 class MainFleetTest(unittest.TestCase):
     """The two commands of main() that only change the open projects of the fleet."""
@@ -797,6 +939,12 @@ class MainFleetTest(unittest.TestCase):
     def test_open_product_with_an_unknown_name_is_exit_code_2(self):
         self.assertEqual(2, self.main("--open-product", "nope"))
         self.assertEqual([], self.opened)
+
+    def test_bad_fleet_fixtures_value_stops_the_fleet_commands(self):
+        with mock.patch.dict(os.environ, {run.FLEET_FIXTURES_ENV: "fixtures"}):
+            self.assertEqual(2, self.main("--close-products"))
+            self.assertEqual(2, self.main("--open-product", "alpha"))
+        self.assertEqual(([], []), (self.closed, self.opened))
 
 
 class ProductOfflineTest(unittest.TestCase):

@@ -1,0 +1,5 @@
+{"id":"hier-callee-Command.getProject-d2","tool":"ide_call_hierarchy","params":{"column":23,"direction":"callees","file":"modules/core/src/main/java/com/google/refine/commands/Command.java","line":189,"maxDepth":2}}
+{"id":"hier-caller-Command.getProject-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"Command.getProject"}}
+{"id":"hier-caller-Row.getCell-d1","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"modules/core/src/main/java/com/google/refine/model/Row.java","line":140,"maxDepth":1}}
+{"id":"hier-caller-Row.getCell-d2","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"modules/core/src/main/java/com/google/refine/model/Row.java","line":140,"maxDepth":2},"compare":"shape"}
+{"id":"hier-caller-Row.getCellValue-production-scope","tool":"ide_call_hierarchy","params":{"column":19,"direction":"callers","file":"modules/core/src/main/java/com/google/refine/model/Row.java","line":148,"maxDepth":1,"scope":"production"}}

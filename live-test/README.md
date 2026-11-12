@@ -133,8 +133,17 @@ check for an active run before a product run. The switch has these safety rules:
   `real-products/` of the checkout that runs the command. When the IDE has another project
   open that the command does not want, the switch stops with `must not close: …` and
   restarts nothing. So a command from a git worktree or a second clone cannot take the
-  fixture projects from the fleet. Run product commands from the checkout whose fixtures
-  the fleet has open.
+  fixture projects from the fleet. Such a checkout sets `LIVE_TEST_FLEET_FIXTURES` to the
+  fixtures folder of the checkout that the fleet has open:
+
+  ```bash
+  LIVE_TEST_FLEET_FIXTURES=<fleet checkout>/live-test/fixtures ./live-test/run.py --product <folder>
+  ```
+
+  Then the switch keeps the fleet fixtures open and opens the product checkouts of the
+  worktree next to them. A fixture run with the variable runs the snapshots of the worktree
+  against the fleet fixtures, so the fixture sources of the two checkouts must be equal. A
+  product of the fleet checkout still stops the switch: close it from that checkout.
 - **The IDE comes back.** The harness proves the launcher before the stop. From the stop to
   the start it holds back Ctrl+C and SIGTERM, and it starts the IDE also after an error. An
   IDE that does not stop in 90 seconds gets no second signal: the error line gives the
@@ -175,14 +184,22 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
 4. **Bootstrap.** Write `_setup/<folder>/bootstrap.sh`. It is idempotent and changes no
    tracked file. It gets the dependencies and writes the IDE project files that the product
    needs: GoLand restores a project at its start only when the folder has an `.idea` folder
-   with a module file. PhpStorm and RustRover also need a trust entry for the product path.
+   with a module file. The module file holds the source folders that the IDE itself writes at
+   a first open: at a later open RustRover applies the module file after the Cargo sync, and a
+   module file with no source folder removes all roots. The bootstrap writes no trust entry:
+   a `serverMode` IDE checks the trust of a project, so the switch that opens a product adds
+   a trust entry for the product path to `options/trusted-paths.xml` of the IDE while the IDE
+   is down. For a JavaScript product use `npm ci --ignore-scripts`: it runs no script of the
+   product and no install script of a package.
 5. **Import check.** `--open-product <folder>`, then compare some tool calls with the IDE
    itself. Record the times and the memory in `_setup/<folder>/notes.md`.
-6. **Canary rows.** 2 or 3 rows with the id prefix `canary-` that pin the project model.
+6. **Canary rows.** 2 to 4 rows with the id prefix `canary-` that pin the project model.
 7. **Sweep.** Draft the probe rows, run them, and give each row a class: OK, EMPTY, ERROR or
    SUSPECT. Check each EMPTY row and each SUSPECT row against the source or the IDE.
 8. **Stability check.** Run the rows three times, and one more time after a project switch.
-   A row that differs between two runs becomes a `shape` row or goes out.
+   A row that differs between two runs becomes a `shape` row or goes out. PhpStorm indexes
+   the content of a `.phar` file, and after a restart this content can be absent: no row may
+   resolve into a phar or count a result in one.
 9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug.
 10. **Triage.** One outcome for each finding: an issue, a decision of the maintainer, a
     setup correction, or a ground-truth note.
@@ -274,12 +291,25 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
   - The plugin changed the output of the tool of that canary row, and the fixture suite
     shows the same change. Then run `--product <folder> --bless --bless-canary` with
     permission, and read the `git diff` of the expected files before the commit.
+- **`MISCONFIGURED` after the first open of a product** — at its first open an IDE can stop
+  before it adds a library root (for example the dependency folder of a JavaScript product).
+  Then the canary row that resolves into a dependency differs: the gate tries again for the
+  readiness time and prints `MISCONFIGURED`. Close the product with `--close-products`, open
+  it again, and run again.
+- **`<id> met dumb mode: waited <n> s, the row runs again`** — the IDE went to dumb mode
+  again after the canary rows matched (a build tool sync, then a refresh). The row waited
+  until the IDE was ready and then ran one more time. All waits of a product run share the
+  readiness time of the product. When no time is left, a row runs one time only.
 - **Some rows of a fixture fail in the first seconds after an IDE restart** — the IDE
   lists its projects and reports smart mode, but it still loads the SDK or the build
   model. Seen one time in three restarts of GoLand: 2 of 99 Go rows. Run the fixture again.
 - **`… has projects open that this command must not close: …`** — the IDE has a project
   open that is no product of this checkout, and the command does not want it. Run the
   command from the checkout whose fixtures the IDE has open, or close that project by hand.
+  From a git worktree or a second clone, set `LIVE_TEST_FLEET_FIXTURES` to the fixtures
+  folder of that checkout. Then the harness opens the product checkouts of the worktree next
+  to the fleet fixtures. For a fixture run the fixture sources of the two checkouts must be
+  equal. When the project is a product of the other checkout, close it from that checkout.
 - **`… is not the fleet server of …`** — `--url` names another server. The harness
   restarts only a fleet IDE. Open the product at that server by hand.
 - **`[<product>] SKIPPED (checkout is missing: …)`** — run the printed

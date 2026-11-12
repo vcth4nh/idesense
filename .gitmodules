@@ -3,3 +3,28 @@
 	url = https://github.com/caddyserver/caddy
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/openrefine"]
+	path = live-test/real-products/openrefine
+	url = https://github.com/OpenRefine/OpenRefine
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/beets"]
+	path = live-test/real-products/beets
+	url = https://github.com/beetbox/beets
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/phpunit"]
+	path = live-test/real-products/phpunit
+	url = https://github.com/sebastianbergmann/phpunit
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/ripgrep"]
+	path = live-test/real-products/ripgrep
+	url = https://github.com/BurntSushi/ripgrep
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/uptime-kuma"]
+	path = live-test/real-products/uptime-kuma
+	url = https://github.com/louislam/uptime-kuma
+	shallow = true
+	ignore = dirty

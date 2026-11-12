@@ -1,0 +1,4 @@
+{"id":"super-Discord.send","tool":"ide_find_super_methods","params":{"column":11,"file":"server/notification-providers/discord.js","line":12}}
+{"id":"super-EmbeddedMariaDB.start-negative","tool":"ide_find_super_methods","params":{"column":5,"file":"server/embedded-mariadb.js","line":57}}
+{"id":"super-Monitor.start-negative","tool":"ide_find_super_methods","params":{"column":11,"file":"server/model/monitor.js","line":414}}
+{"id":"super-PM2MonitorType.check-cross-file","tool":"ide_find_super_methods","params":{"column":11,"file":"server/monitor-types/pm2.js","line":15}}

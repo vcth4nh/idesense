@@ -1,0 +1,9 @@
+{"id":"usage-DeferringDispatcher","tool":"ide_find_usages","params":{"column":13,"file":"src/Event/Dispatcher/DeferringDispatcher.php","line":17,"pageSize":100},"parked":179}
+{"id":"usage-Dispatcher.dispatch","tool":"ide_find_usages","params":{"column":21,"file":"src/Event/Dispatcher/Dispatcher.php","line":22,"pageSize":200},"parked":183}
+{"id":"usage-TestFinishedSubscriber-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"TestFinishedSubscriber"}}
+{"id":"usage-emitter-page1","tool":"ide_find_usages","params":{"column":28,"file":"src/Event/Facade.php","line":40,"pageSize":100},"compare":"shape"}
+{"id":"usage-emitter-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-emitter-page1"}
+{"id":"usage-hasPhpOrUserDeprecations-empty","tool":"ide_find_usages","params":{"column":21,"file":"src/Runner/TestResult/TestResult.php","line":743,"pageSize":100}}
+{"id":"usage-wasSuccessful","tool":"ide_find_usages","params":{"column":21,"file":"src/Runner/TestResult/TestResult.php","line":627,"pageSize":100}}
+{"id":"usage-wasSuccessful-production-scope","tool":"ide_find_usages","params":{"column":21,"file":"src/Runner/TestResult/TestResult.php","line":627,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-wasSuccessful-test-scope","tool":"ide_find_usages","params":{"column":21,"file":"src/Runner/TestResult/TestResult.php","line":627,"pageSize":100,"scope":"project_test_files"}}

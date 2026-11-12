@@ -1,0 +1,8 @@
+{"id":"canary-def-ObjectNode-into-dependency","tool":"ide_find_definition","params":{"column":41,"file":"main/src/com/google/refine/commands/expr/PreviewExpressionCommand.java","line":231}}
+{"id":"def-AddedColumn.getName-method-ref","tool":"ide_find_definition","params":{"column":55,"file":"modules/core/src/main/java/com/google/refine/model/ColumnsDiff.java","line":77}}
+{"id":"def-Command.getProject-cross-module","tool":"ide_find_definition","params":{"column":31,"file":"main/src/com/google/refine/commands/project/ExportRowsCommand.java","line":94}}
+{"id":"def-FunctionDescription.fun_length-into-generated","tool":"ide_find_definition","params":{"column":36,"file":"modules/grel/src/main/java/com/google/refine/expr/functions/Length.java","line":79}}
+{"id":"def-ImportingUtilities.getInputStreamReader-via-static-import","tool":"ide_find_definition","params":{"column":29,"file":"main/src/com/google/refine/importers/FixedWidthImporter.java","line":188}}
+{"id":"def-ObjectMapper.createObjectNode-into-dependency","tool":"ide_find_definition","params":{"column":54,"file":"main/src/com/google/refine/commands/lang/LoadLanguageCommand.java","line":192}}
+{"id":"def-RefineServlet.registerCommand-from-js","tool":"ide_find_definition","params":{"column":6,"file":"main/webapp/modules/core/MOD-INF/controller.js","line":56}}
+{"id":"def-registerCommands-js","tool":"ide_find_definition","params":{"column":3,"file":"main/webapp/modules/core/MOD-INF/controller.js","line":377}}

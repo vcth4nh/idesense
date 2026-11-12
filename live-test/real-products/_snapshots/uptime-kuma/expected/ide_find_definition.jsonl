@@ -1,0 +1,7 @@
+{"id":"canary-def-BeanModel-into-dependency","result":{"column":31,"enclosingScope":null,"file":"node_modules/redbean-node/dist/bean-model.d.ts","kind":"CLASS","line":2,"name":"BeanModel","qualifiedName":"BeanModel"}}
+{"id":"canary-def-log-js-to-ts","result":{"column":14,"enclosingScope":null,"file":"src/util.ts","kind":"CONSTANT","line":404,"name":"log","qualifiedName":"log"}}
+{"id":"def-Dayjs.valueOf-into-dependency","result":{"column":5,"enclosingScope":null,"file":"node_modules/dayjs/index.d.ts","kind":"METHOD","line":314,"name":"valueOf","qualifiedName":"dayjs.Dayjs.valueOf"}}
+{"id":"def-Logger.debug-js-to-ts","result":{"column":5,"enclosingScope":null,"file":"src/util.ts","kind":"METHOD","line":388,"name":"debug","qualifiedName":"Logger.debug"}}
+{"id":"def-SQL_DATETIME_FORMAT_WITHOUT_SECOND-vue-to-ts","result":{"column":14,"enclosingScope":null,"file":"src/util.ts","kind":"CONSTANT","line":44,"name":"SQL_DATETIME_FORMAT_WITHOUT_SECOND","qualifiedName":"SQL_DATETIME_FORMAT_WITHOUT_SECOND"}}
+{"id":"def-beat-call","result":{"column":15,"enclosingScope":null,"file":"server/model/monitor.js","kind":"CONSTANT","line":426,"name":"beat","qualifiedName":"beat"}}
+{"id":"def-dayjs-vue-import-into-dependency","result":{"column":19,"enclosingScope":null,"file":"node_modules/dayjs/index.d.ts","kind":"NAMESPACE","line":11,"name":"dayjs","qualifiedName":"dayjs"}}

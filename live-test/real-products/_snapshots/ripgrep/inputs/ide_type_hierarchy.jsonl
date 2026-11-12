@@ -1,0 +1,8 @@
+{"id":"hier-sub-Flag","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"crates/core/flags/mod.rs","line":71},"parked":185}
+{"id":"hier-sub-Flag-production-scope","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"crates/core/flags/mod.rs","line":71,"scope":"production"}}
+{"id":"hier-sub-Matcher","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"crates/matcher/src/lib.rs","line":546}}
+{"id":"hier-sub-Matcher-production-scope","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"crates/matcher/src/lib.rs","line":546,"scope":"production"}}
+{"id":"hier-sub-Matcher-test-scope","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"crates/matcher/src/lib.rs","line":546,"scope":"test"}}
+{"id":"hier-sub-Sink","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"crates/searcher/src/sink.rs","line":102}}
+{"id":"hier-super-Glob-byname","tool":"ide_type_hierarchy","params":{"className":"Glob","direction":"supertypes"}}
+{"id":"hier-super-RegexMatcher","tool":"ide_type_hierarchy","params":{"column":12,"direction":"supertypes","file":"crates/regex/src/matcher.rs","line":367}}

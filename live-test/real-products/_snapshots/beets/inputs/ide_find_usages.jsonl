@@ -1,0 +1,10 @@
+{"id":"canary-usage-path_as_posix-production-scope","tool":"ide_find_usages","params":{"column":5,"file":"beets/util/__init__.py","line":268,"pageSize":100,"scope":"project_production_files"}}
+{"id":"canary-usage-path_as_posix-test-scope","tool":"ide_find_usages","params":{"column":5,"file":"beets/util/__init__.py","line":268,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-BeetsPlugin-page1","tool":"ide_find_usages","params":{"column":7,"file":"beets/plugins.py","line":89,"pageSize":100},"compare":"shape"}
+{"id":"usage-BeetsPlugin-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-BeetsPlugin-page1"}
+{"id":"usage-ImportAbortError-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"ImportAbortError"}}
+{"id":"usage-TestHelper-production-scope","tool":"ide_find_usages","params":{"column":7,"file":"beets/test/helper.py","line":179,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-TestHelper-test-scope","tool":"ide_find_usages","params":{"column":7,"file":"beets/test/helper.py","line":179,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-before_choose_candidate_event","tool":"ide_find_usages","params":{"column":9,"file":"beetsplug/mbsubmit.py","line":55,"pageSize":100}}
+{"id":"usage-item_at_path-empty","tool":"ide_find_usages","params":{"column":5,"file":"beetsplug/web/__init__.py","line":349,"pageSize":100}}
+{"id":"usage-split_into_lines","tool":"ide_find_usages","params":{"column":5,"file":"beets/util/layout.py","line":58,"pageSize":100}}

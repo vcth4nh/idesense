@@ -1,0 +1,5 @@
+{"id":"impls-ConditionOperator","tool":"ide_find_implementations","params":{"column":7,"file":"server/monitor-conditions/operators.js","line":1}}
+{"id":"impls-ConditionOperator.test","tool":"ide_find_implementations","params":{"column":5,"file":"server/monitor-conditions/operators.js","line":9}}
+{"id":"impls-MonitorType.check","tool":"ide_find_implementations","params":{"column":11,"file":"server/monitor-types/monitor-type.js","line":33}}
+{"id":"impls-NotificationProvider","tool":"ide_find_implementations","params":{"column":7,"file":"server/notification-providers/notification-provider.js","line":7}}
+{"id":"impls-NotificationProvider.send","tool":"ide_find_implementations","params":{"column":11,"file":"server/notification-providers/notification-provider.js","line":23,"pageSize":200}}

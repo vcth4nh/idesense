@@ -1,0 +1,6 @@
+{"id":"canary-find-class-NotificationProvider","tool":"ide_find_class","params":{"query":"NotificationProvider"}}
+{"id":"find-class-BeanModel-libraries-scope","tool":"ide_find_class","params":{"query":"BeanModel","scope":"project_and_libraries"}}
+{"id":"find-class-Logger-lang-javascript-empty","tool":"ide_find_class","params":{"language":"javascript","query":"Logger"}}
+{"id":"find-class-Logger-lang-typescript","tool":"ide_find_class","params":{"language":"typescript","query":"Logger"}}
+{"id":"find-class-Monitor","tool":"ide_find_class","params":{"query":"Monitor"}}
+{"id":"find-class-NotifProv-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"NotifProv"},"compare":"ordered"}

@@ -1,0 +1,5 @@
+{"id":"file-structure-MaintenanceTime.vue","tool":"ide_file_structure","params":{"file":"src/components/MaintenanceTime.vue"},"compare":"shape"}
+{"id":"file-structure-discord.js","tool":"ide_file_structure","params":{"file":"server/notification-providers/discord.js"},"compare":"shape","parked":198}
+{"id":"file-structure-notification-provider.js","tool":"ide_file_structure","params":{"file":"server/notification-providers/notification-provider.js"}}
+{"id":"file-structure-operators.js","tool":"ide_file_structure","params":{"file":"server/monitor-conditions/operators.js"}}
+{"id":"file-structure-util.ts","tool":"ide_file_structure","params":{"file":"src/util.ts"}}

@@ -1,0 +1,11 @@
+{"id":"canary-def-BeanModel-into-dependency","tool":"ide_find_definition","params":{"column":23,"file":"server/model/monitor.js","line":75}}
+{"id":"canary-def-log-js-to-ts","tool":"ide_find_definition","params":{"column":21,"file":"server/model/monitor.js","line":535}}
+{"id":"def-Dayjs.valueOf-into-dependency","tool":"ide_find_definition","params":{"column":45,"file":"server/model/monitor.js","line":475}}
+{"id":"def-Logger.debug-js-to-ts","tool":"ide_find_definition","params":{"column":25,"file":"server/model/monitor.js","line":535}}
+{"id":"def-SQL_DATETIME_FORMAT_WITHOUT_SECOND-vue-to-ts","tool":"ide_find_definition","params":{"column":25,"file":"src/components/MaintenanceTime.vue","line":35}}
+{"id":"def-beat-call","tool":"ide_find_definition","params":{"column":23,"file":"server/model/monitor.js","line":1093}}
+{"id":"def-dayjs-vue-import-into-dependency","tool":"ide_find_definition","params":{"column":8,"file":"src/components/MaintenanceTime.vue","line":21}}
+{"id":"def-notification-provider-require-path","tool":"ide_find_definition","params":{"column":41,"file":"server/notification-providers/discord.js","line":1},"parked":191}
+{"id":"def-startDateTime-decl","tool":"ide_find_definition","params":{"column":9,"file":"src/components/MaintenanceTime.vue","line":32},"parked":193}
+{"id":"def-startDateTime-from-template","tool":"ide_find_definition","params":{"column":20,"file":"src/components/MaintenanceTime.vue","line":8},"parked":189}
+{"id":"def-util.ts-import-path-vue","tool":"ide_find_definition","params":{"column":57,"file":"src/components/MaintenanceTime.vue","line":22},"parked":192}

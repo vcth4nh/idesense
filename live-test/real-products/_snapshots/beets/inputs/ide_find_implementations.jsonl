@@ -1,0 +1,4 @@
+{"id":"impls-BeetsPlugin","tool":"ide_find_implementations","params":{"column":7,"file":"beets/plugins.py","line":89,"pageSize":500},"parked":176}
+{"id":"impls-BeetsPlugin-paged","tool":"ide_find_implementations","params":{"column":7,"file":"beets/plugins.py","line":89,"pageSize":50},"compare":"shape"}
+{"id":"impls-Query.match","tool":"ide_find_implementations","params":{"column":9,"file":"beets/dbcore/query.py","line":91,"pageSize":100}}
+{"id":"impls-split_into_lines-empty","tool":"ide_find_implementations","params":{"column":5,"file":"beets/util/layout.py","line":58,"pageSize":100}}

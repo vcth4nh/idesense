@@ -1,0 +1,5 @@
+{"id":"hier-sub-Exception","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"src/Exception.php","line":17}}
+{"id":"hier-sub-Exception-production-scope","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"src/Exception.php","line":17,"scope":"production"}}
+{"id":"hier-sub-Printer","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"src/TextUI/Output/Printer/Printer.php","line":17}}
+{"id":"hier-super-MockObjectTest","tool":"ide_type_hierarchy","params":{"column":13,"direction":"supertypes","file":"tests/unit/Framework/MockObject/MockObjectTest.php","line":41}}
+{"id":"hier-super-TestFinishedSubscriber-byname","tool":"ide_type_hierarchy","params":{"className":"TestFinishedSubscriber","direction":"supertypes"}}

@@ -1,0 +1,6 @@
+{"id":"file-structure-backbone.js","tool":"ide_file_structure","params":{"file":"beetsplug/web/static/backbone.js"}}
+{"id":"file-structure-layout.py","tool":"ide_file_structure","params":{"file":"beets/util/layout.py"}}
+{"id":"file-structure-mbsubmit.py","tool":"ide_file_structure","params":{"file":"beetsplug/mbsubmit.py"}}
+{"id":"file-structure-plugins.py","tool":"ide_file_structure","params":{"file":"beets/plugins.py"},"compare":"shape"}
+{"id":"file-structure-test_importer.py","tool":"ide_file_structure","params":{"file":"test/test_importer.py"},"compare":"shape"}
+{"id":"file-structure-util.__init__.py","tool":"ide_file_structure","params":{"file":"beets/util/__init__.py"},"compare":"shape"}

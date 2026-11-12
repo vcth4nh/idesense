@@ -1,0 +1,5 @@
+{"id":"find-file-ProjectManager.java","tool":"ide_find_file","params":{"query":"ProjectManager.java"}}
+{"id":"find-file-controller.js","tool":"ide_find_file","params":{"query":"controller.js"}}
+{"id":"find-file-jquery.imgareaselect.js","tool":"ide_find_file","params":{"query":"jquery.imgareaselect.js"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-pom.xml-paged","tool":"ide_find_file","params":{"pageSize":5,"query":"pom.xml"},"compare":"shape"}

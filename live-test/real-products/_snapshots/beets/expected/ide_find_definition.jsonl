@@ -1,0 +1,7 @@
+{"id":"canary-def-LazyConfig-into-dependency","result":{"column":7,"enclosingScope":null,"file":".venv/lib/python3.12/site-packages/confuse/core.py","kind":"CLASS","line":714,"name":"LazyConfig","qualifiedName":"confuse.core.LazyConfig"}}
+{"id":"def-Backbone.Model-into-vendored-js","result":{"column":12,"enclosingScope":null,"file":"beetsplug/web/static/backbone.js","kind":"DEFINITION","line":132,"name":"Model","qualifiedName":"Backbone.Model"}}
+{"id":"def-Item-via-reexport","result":{"column":7,"enclosingScope":null,"file":"beets/library/models.py","kind":"CLASS","line":669,"name":"Item","qualifiedName":"beets.library.models.Item"}}
+{"id":"def-MediaFile-into-dependency","result":{"column":7,"enclosingScope":null,"file":".venv/lib/python3.12/site-packages/mediafile/__init__.py","kind":"CLASS","line":140,"name":"MediaFile","qualifiedName":"mediafile.MediaFile"}}
+{"id":"def-len-builtin","result":{"enclosingScope":null,"file":"builtins.pyi","kind":"FUNCTION","name":"len","qualifiedName":"builtins.len"}}
+{"id":"def-path_as_posix-cross-file","result":{"column":5,"enclosingScope":null,"file":"beets/util/__init__.py","kind":"FUNCTION","line":268,"name":"path_as_posix","qualifiedName":"beets.util.path_as_posix"}}
+{"id":"def-plugins-via-module-getattr","result":{"error":"tool_error","message":"Could not resolve symbol definition"}}

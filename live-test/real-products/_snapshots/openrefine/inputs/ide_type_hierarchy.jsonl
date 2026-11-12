@@ -1,0 +1,6 @@
+{"id":"canary-hier-super-PerformWikibaseEditsCommand","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"extensions/wikibase/src/org/openrefine/wikibase/commands/PerformWikibaseEditsCommand.java","line":36}}
+{"id":"hier-sub-Command-production-scope","tool":"ide_type_hierarchy","params":{"column":23,"direction":"subtypes","file":"modules/core/src/main/java/com/google/refine/commands/Command.java","line":66,"scope":"production"}}
+{"id":"hier-sub-Function","tool":"ide_type_hierarchy","params":{"column":18,"direction":"subtypes","file":"modules/grel/src/main/java/com/google/refine/grel/Function.java","line":46}}
+{"id":"hier-sub-RefineTest-byname","tool":"ide_type_hierarchy","params":{"className":"RefineTest","direction":"subtypes"},"compare":"shape"}
+{"id":"hier-super-Parser-byname","tool":"ide_type_hierarchy","params":{"className":"Parser","direction":"supertypes"}}
+{"id":"hier-super-TextTransformOperation","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"main/src/com/google/refine/operations/cell/TextTransformOperation.java","line":63}}

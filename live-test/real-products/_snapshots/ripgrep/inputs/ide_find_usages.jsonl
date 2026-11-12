@@ -1,0 +1,16 @@
+{"id":"canary-usage-matched_path_or_any_parents-test-scope","tool":"ide_find_usages","params":{"column":12,"file":"crates/ignore/src/gitignore.rs","line":223,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-Flag-trait","tool":"ide_find_usages","params":{"column":7,"file":"crates/core/flags/mod.rs","line":71,"pageSize":200}}
+{"id":"usage-Glob-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"Glob"}}
+{"id":"usage-LineBuffer","tool":"ide_find_usages","params":{"column":19,"file":"crates/searcher/src/line_buffer.rs","line":294,"pageSize":200}}
+{"id":"usage-LineBuffer.fill","tool":"ide_find_usages","params":{"column":8,"file":"crates/searcher/src/line_buffer.rs","line":406,"pageSize":100}}
+{"id":"usage-Match-page1","tool":"ide_find_usages","params":{"column":12,"file":"crates/matcher/src/lib.rs","line":69,"pageSize":100},"compare":"shape"}
+{"id":"usage-Match-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-Match-page1"}
+{"id":"usage-Matcher.find_at","tool":"ide_find_usages","params":{"column":8,"file":"crates/matcher/src/lib.rs","line":571,"pageSize":200}}
+{"id":"usage-RegexMatcher.find_at-trait-impl","tool":"ide_find_usages","params":{"column":8,"file":"crates/regex/src/matcher.rs","line":414,"pageSize":100}}
+{"id":"usage-Sink-trait","tool":"ide_find_usages","params":{"column":11,"file":"crates/searcher/src/sink.rs","line":102,"pageSize":100}}
+{"id":"usage-add_parents","tool":"ide_find_usages","params":{"column":19,"file":"crates/ignore/src/dir.rs","line":178,"pageSize":100}}
+{"id":"usage-file_name","tool":"ide_find_usages","params":{"column":15,"file":"crates/ignore/src/pathutil.rs","line":113,"pageSize":100}}
+{"id":"usage-file_name-not-unix-cfg","tool":"ide_find_usages","params":{"column":15,"file":"crates/ignore/src/pathutil.rs","line":138,"pageSize":100}}
+{"id":"usage-matched_path_or_any_parents","tool":"ide_find_usages","params":{"column":12,"file":"crates/ignore/src/gitignore.rs","line":223,"pageSize":100}}
+{"id":"usage-matched_path_or_any_parents-production-scope","tool":"ide_find_usages","params":{"column":12,"file":"crates/ignore/src/gitignore.rs","line":223,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-messages-macro-body","tool":"ide_find_usages","params":{"column":15,"file":"crates/core/messages.rs","line":101,"pageSize":100},"parked":186}

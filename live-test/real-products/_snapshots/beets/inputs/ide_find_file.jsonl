@@ -1,0 +1,5 @@
+{"id":"find-file-__init__.py-paged","tool":"ide_find_file","params":{"pageSize":5,"query":"__init__.py"},"compare":"shape"}
+{"id":"find-file-jquery.js","tool":"ide_find_file","params":{"query":"jquery.js"}}
+{"id":"find-file-layout.py","tool":"ide_find_file","params":{"query":"layout.py"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-plugins.py","tool":"ide_find_file","params":{"query":"plugins.py"}}

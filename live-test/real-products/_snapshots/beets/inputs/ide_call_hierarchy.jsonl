@@ -1,0 +1,8 @@
+{"id":"hier-callee-get_layout_lines-d1","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"beets/util/layout.py","line":339,"maxDepth":1}}
+{"id":"hier-callee-split_into_lines-d1","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"beets/util/layout.py","line":58,"maxDepth":1},"compare":"shape"}
+{"id":"hier-caller-displayable_path-d2","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"beets/util/__init__.py","line":404,"maxDepth":2},"compare":"shape"}
+{"id":"hier-caller-path_as_posix-d1","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"beets/util/__init__.py","line":268,"maxDepth":1}}
+{"id":"hier-caller-path_as_posix-production-scope","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"beets/util/__init__.py","line":268,"maxDepth":1,"scope":"production"}}
+{"id":"hier-caller-split_into_lines-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"split_into_lines"}}
+{"id":"hier-caller-split_into_lines-d2","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"beets/util/layout.py","line":58,"maxDepth":2}}
+{"id":"hier-caller-syspath-d1","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"beets/util/__init__.py","line":418,"maxDepth":1},"compare":"shape"}

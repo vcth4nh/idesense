@@ -1,0 +1,8 @@
+{"id":"canary-usage-OpenRefineMessage-bysymbol","tool":"ide_find_usages","params":{"pageSize":100,"symbol":"com.google.refine.messages.OpenRefineMessage"}}
+{"id":"usage-Parser-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"Parser"}}
+{"id":"usage-ParsingUtilities.parseUrlParameters-empty","tool":"ide_find_usages","params":{"column":30,"file":"modules/core/src/main/java/com/google/refine/util/ParsingUtilities.java","line":132,"pageSize":100}}
+{"id":"usage-Project-page1","tool":"ide_find_usages","params":{"column":14,"file":"modules/core/src/main/java/com/google/refine/model/Project.java","line":67,"pageSize":100},"compare":"shape"}
+{"id":"usage-Project-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-Project-page1"}
+{"id":"usage-RefineServlet.registerCommand-from-js","tool":"ide_find_usages","params":{"column":27,"file":"modules/core/src/main/java/com/google/refine/RefineServlet.java","line":327,"pageSize":100}}
+{"id":"usage-Row.getCellValue-production-scope","tool":"ide_find_usages","params":{"column":19,"file":"modules/core/src/main/java/com/google/refine/model/Row.java","line":148,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-Row.getCellValue-test-scope","tool":"ide_find_usages","params":{"column":19,"file":"modules/core/src/main/java/com/google/refine/model/Row.java","line":148,"pageSize":100,"scope":"project_test_files"}}

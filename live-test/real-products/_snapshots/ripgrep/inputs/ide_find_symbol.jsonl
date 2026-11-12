@@ -1,0 +1,8 @@
+{"id":"find-symbol-LineBuffer.fill-qualified","tool":"ide_find_symbol","params":{"query":"LineBuffer::fill"}}
+{"id":"find-symbol-OFFSET_BASIS","tool":"ide_find_symbol","params":{"query":"OFFSET_BASIS"}}
+{"id":"find-symbol-UTF8_BOM","tool":"ide_find_symbol","params":{"query":"UTF8_BOM"}}
+{"id":"find-symbol-UnclosedClass","tool":"ide_find_symbol","params":{"query":"UnclosedClass"}}
+{"id":"find-symbol-f1_sjis-macro-made","tool":"ide_find_symbol","params":{"query":"f1_sjis"},"parked":188}
+{"id":"find-symbol-file_name","tool":"ide_find_symbol","params":{"pageSize":50,"query":"file_name"}}
+{"id":"find-symbol-is_hidden-lang-rust","tool":"ide_find_symbol","params":{"language":"Rust","query":"is_hidden"}}
+{"id":"find-symbol-new-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"new"},"compare":"shape"}

@@ -544,13 +544,15 @@ A fixture row with one of these keys fails `--check-fixtures`.
 
 ### Canary rows
 
-Each product has 2 or 3 rows with the id prefix `canary-`. They pin the project model: one
+Each product has 2 to 4 rows with the id prefix `canary-`. They pin the project model: one
 definition that resolves into a dependency, and queries with a known result that is not
 empty. The harness runs them first, whatever `--tool` is. When one differs from its expected
 row, the product is `MISCONFIGURED` and its other rows do not run: each other difference
 would show a wrong import and not a change of the plugin. After a project switch the gate
 tries again until the readiness time of the product is used; with no switch in the run it
-tries for 60 seconds. The first try that differs prints the difference.
+tries for 60 seconds. The first try that differs prints the difference. When the IDE loads a
+part of the project model after it reports smart mode (a nested dependency root, a library
+that the sync of a build tool adds), one canary row must resolve into that part.
 
 - Never bless a product that is `MISCONFIGURED` because of its project model. Repair the
   checkout or the IDE first.
@@ -607,9 +609,12 @@ an instruction for an agent that works in this repository.
 
 - A product run restarts the IDE of the product. Look for an active run of another session
   before a product run.
-- Run product commands from the checkout whose fixture projects the fleet has open, never
-  from a git worktree or a second clone. The harness refuses a switch that would close a
-  project that is no product of the calling checkout.
+- A git worktree or a second clone runs a live command only with `LIVE_TEST_FLEET_FIXTURES`
+  set to the fixtures folder of the checkout whose fixture projects the fleet has open. Then
+  it opens its own product checkouts next to those fixtures. A fixture run with the variable
+  runs the snapshots of the worktree against the fleet fixtures, so the fixture sources of the
+  two checkouts must be equal. The harness refuses a switch that would close a project that
+  is no product of the calling checkout, also a product of the fleet checkout.
 - A product row uses a read-only tool. A row with `ide_refactor_rename`, `ide_move_file`,
   `ide_install_plugin`, `ide_restart` or `ide_sync_files` changes pinned test data or a
   shared IDE.
@@ -631,7 +636,7 @@ holds `ide_refactor_rename`, `ide_move_file` and `ide_restart`.
 
 ### Captured ground truth of product rows
 
-These results look wrong, but GoLand returns the same. Do not change the probe to "fix" them.
+These results look wrong, but the IDE returns the same. Do not change the probe to "fix" them.
 
 - **No caller through an interface.** `ide_call_hierarchy` shows no caller for a Go method
   that is called only through an interface value (`hier-caller-App.Provision`). The Hierarchy
@@ -663,3 +668,165 @@ These results look wrong, but GoLand returns the same. Do not change the probe t
   file.
 - **Go SDK methods.** `super-responseRecorder.Write` lists interface methods of the Go SDK.
   The row depends on the SDK version of the IDE host.
+- **openrefine: no link from JavaScript to Java through Rhino.** The `controller.js` files
+  call Java through `Packages.com.google.refine...` of Rhino. IntelliJ does not resolve
+  these names: `def-RefineServlet.registerCommand-from-js` gives the error "Could not resolve
+  symbol definition", and `usage-RefineServlet.registerCommand-from-js` gives no usage. In
+  IntelliJ, Go to Declaration does nothing at that position, and Find Usages says "Nothing
+  found". The error row needs the two-step bless (see "Rows that pin an expected error").
+- **openrefine: Java usage rows with a `warnings` entry.** Each `ide_find_usages` row on a
+  Java method, and `explain-Row.getCell-pos`, has the entry "Find-usages handler
+  JavaFindUsagesHandler threw on primaryElements". The two compared usage lists equal the
+  IDE: Find Usages of `Row.getCellValue` shows 45 results, and the tool gives 20 production
+  and 25 test usages; `registerCommand` gives none (see above). So these rows are blessed
+  with the entry, as the Java fixture rows since #81. #175 tracks the warning.
+- **beets: a base class through `import beets`.** `beetsplug/playlist.py` imports only
+  `beets` and names the base class `beets.plugins.BeetsPlugin`. `beets/__init__.py` has a
+  module `__getattr__`. `def-plugins-via-module-getattr` gives the error "Could not resolve
+  symbol definition". In PyCharm, Go to Declaration does nothing at that position. The error
+  row needs the two-step bless (see "Rows that pin an expected error").
+- **beets: 103 subclasses of `BeetsPlugin`.** `impls-BeetsPlugin` and `hier-sub-BeetsPlugin`
+  give 103 classes, and a scan of the source finds 105. The two other classes are
+  `PlaylistPlugin` (its base is the name of the bullet above) and a local `OtherPlugin` whose
+  base is a local class of another method. Choose Implementation of PyCharm says "103 found".
+- **beets: 173 usages of `BeetsPlugin`.** Find Usages of PyCharm shows "Usages in Project
+  Files (172 usages found)" and a separate group "Dynamic usages in Project Files" with one
+  "Untyped (probable) usage" (`playlist.py:75`). The tool gives the sum, 173, and the
+  `usageType` `REFERENCE` for the probable usage (#143).
+- **beets: no scope for Python subtypes.** `hier-sub-ImportHelper-production-scope` gives the
+  same 92 subtypes as a call with no scope. `PySubTypesHierarchyTreeStructure.buildChildren`
+  calls `PyClassInheritorsSearch.search(PyClass, boolean)`, which takes no scope (bytecode of
+  `intellij.python.community.impl.jar`, build 262.8665).
+- **beets: test modules have no `test.` prefix.** The project model marks `test` as a test
+  root, so a qualified name in a test module starts at the module, for example
+  `test_plugins.TestListeners`. The canary scope pair needs this test root.
+- **beets: parked rows.** `find-class-DummyPlugin`, `find-symbol-template-lang-python`,
+  `impls-BeetsPlugin`, `hier-sub-BeetsPlugin` and `hier-sub-FieldQuery` are parked with #176:
+  a local class gets the qualified name of its function, and a class attribute the name of its
+  class. `def-_.map-first-of-many` is parked with #178: the tool gives the first of the
+  declarations that "Choose Declaration" lists. No row has `jquery.js` for
+  `ide_file_structure` (#177).
+- **phpunit: no source root and no test root.** The autoload of the product is `classmap`, and
+  PhpStorm makes one module with no source root and no test root. The bootstrap keeps this
+  model. So `ide_find_usages` with `project_production_files` or `project_test_files` gives
+  `scope_matches_no_files` (`usage-wasSuccessful-production-scope`, `-test-scope`; these error
+  rows need the two-step bless). `ide_find_file` gives the same error and tells the agent to
+  omit the scope. The call hierarchy scope `production` gives no caller
+  (`hier-caller-wasSuccessful-production-scope`), and the PHP type hierarchy ignores the scope
+  (`hier-sub-Exception-production-scope` equals `hier-sub-Exception`).
+- **phpunit: the nested composer root comes after smart mode.** PhpStorm attaches the root
+  `build/scripts/phar-set-timestamps` some seconds after it reports smart mode. After a start
+  of PhpStorm, the definition at `build/scripts/phar-set-timestamps/run.php:52:13` gave
+  "Could not resolve symbol definition" at 16.9 s, while the IDE was smart, and the file
+  `Timestamps.php` of that root from 22.3 s on. So the row that resolves into it is a canary
+  row (`canary-def-Timestamps-into-vendored`), and the gate waits for it.
+- **phpunit: phar files.** PhpStorm indexes the content of each `.phar` file as a library, at
+  a path that is not on the disk. After a restart this content can be present or absent. So no
+  row resolves into a phar, and no row counts a result in a phar.
+- **phpunit: qualified names from `PhpQualifiedNameProvider`.** A local variable gets the
+  namespace and its name: `def-contextLines-local` gives `\PHPUnit\Util\contextLines`. An
+  anonymous class has an empty `name` and the namespace with a trailing `\` as its
+  `qualifiedName` (6 subtypes of `hier-sub-Printer`). The provider returns `getFQN()` of the
+  element (bytecode, build 262.8665).
+- **phpunit: the callees of a method include the method.**
+  `hier-callee-DeferringDispatcher.dispatch-d1` lists `DeferringDispatcher.dispatch` itself.
+  The Hierarchy window of PhpStorm shows the same.
+- **phpunit: a usage row with a `warnings` entry.** `explain-DeferringDispatcher.dispatch-pos`
+  has the entry "Find-usages handler factory PhpFindUsagesHandlerFactory threw". The method
+  implements `Dispatcher::dispatch`, and the factory asks "find usages of base method?" off
+  the EDT. The `usageCount` 103 equals the answer Current Method of PhpStorm. So the row is
+  blessed with the entry. #182 tracks the warning.
+- **phpunit: parked rows.** `usage-DeferringDispatcher` is parked with #179 (`$this`, `self`
+  and `static` in the class), `find-symbol-SHORT_OPTIONS` and `def-SHORT_OPTIONS-const` with
+  #180 (a class constant gets the kind `CLASS`), `search-text-unordered-code` with #181
+  (comment and string lines in `context: "code"`), `usage-Dispatcher.dispatch` with #183 (the
+  usages of the overriding methods are absent), `search-text-wget` with #184 (a match in an
+  injected fragment comes two times) and `search-text-updateTimestamps-build` with #146.
+- **ripgrep: the module file.** The bootstrap writes `.idea/ripgrep.iml` with the 16 source and
+  test folders that RustRover itself writes at a first open, and `target` excluded. At a later
+  open RustRover loads the project model from its cache, the Cargo sync sets the roots, and then
+  the IDE applies the module file. A module file with no folder removes all roots, and the scope
+  rows then give `scope_matches_no_files` or no subtypes.
+- **ripgrep: `crates/core` is in no source folder.** It holds the targets of the root package.
+  So `hier-sub-Flag-production-scope` gives 0 subtypes, and `find-file-mod.rs` gives 5 files and
+  its production scope 2.
+- **ripgrep: a usage row with a `warnings` entry.** `usage-RegexMatcher.find_at-trait-impl` has
+  the entry "Find-usages handler factory RsFindUsagesHandlerFactory threw". The method
+  implements `Matcher::find_at`, and the factory asks "find usages of the base declaration?" off
+  the EDT. The 0 usages equal the answer No of RustRover ("Nothing found"). #172 tracks the
+  warning.
+- **ripgrep: the Rust type hierarchy is code of the plugin.** RustRover has no Type Hierarchy
+  for Rust, so no IDE action decides these rows. A blanket `impl` for a reference (`&'a mut S`)
+  is no subtype node: `hier-sub-Sink` gives 8 types, and `impls-Sink-trait` gives 9 `impl`
+  blocks.
+- **ripgrep: the Rust call hierarchy has no scope.** `hier-caller-search_path-production-scope`
+  equals `hier-caller-search_path-d1`. RustRover removes the scope action from its Call
+  Hierarchy window (`RsCallHierarchyBrowser.prependActions`, bytecode).
+- **ripgrep: a call in a `macro_rules!` body is no caller.** `hier-caller-set_errored-macro-body`
+  gives no caller: the only call is in the body of `err_message!`. The Hierarchy window of
+  RustRover shows none.
+- **ripgrep: a usage in a Markdown code span.** `usage-matched_path_or_any_parents` gives 6
+  usages: 5 calls in a test file and the code span at `CHANGELOG.md:1241`. Find Usages of
+  RustRover shows "Usages in Project Files" (5 results) and a separate group "Dynamic usages in
+  Project Files" with one "Unclassified" usage at that line. The tool gives the sum, 6, and the
+  `usageType` `REFERENCE` for the code span. The Markdown plugin makes this reference:
+  `BacktickReferenceSearcher` searches the name in Markdown files, and
+  `BacktickReference.isReferenceTo` accepts the same name when it has 10 or more characters or
+  more than one word (bytecode, build 262.8665).
+- **ripgrep: dependency rows.** `canary-def-ByteSlice-into-dependency` resolves into bstr, and
+  `Cargo.lock` decides its version. `def-Vec-into-stdlib`, `hier-sub-Sink`,
+  `hier-callee-add_parents-d1` and `hier-callee-search-d1` name files of the standard library of
+  the toolchain that rustup selects (`rust-src`). A module path of `std` can change with the
+  toolchain version; then these rows need a re-bless.
+- **ripgrep: parked rows.** `hier-sub-Flag` is parked with #185 (the subtypes stop at 100 of
+  104), `usage-messages-macro-body` and `hier-caller-search_slice-d1` with #186 (an element in
+  an injected fragment gets the path and the line of the fragment), `def-pathutil-mod-decl` with
+  #187 (a module file gets `crate::pathutil.rs` and the kind `SYMBOL`),
+  `find-symbol-f1_sjis-macro-made` with #188 (a function that a macro call makes is absent),
+  `def-messages-from-macro-body` with #189 (a position in a fragment is no anchor) and
+  `search-text-set_errored` with #184. #190 (the default outline hides the items that macro
+  calls make) has no row.
+- **uptime-kuma: one content root and no source root.** The bootstrap writes the module file
+  that WebStorm itself writes at a first open: one content root with no folder. At each open
+  WebStorm adds `node_modules/` as a library (`NodeModulesDirectoryManager` in `idea.log`) and
+  excludes `src/util.js` as a file that the TypeScript compiler makes from `src/util.ts`. So
+  `require("../src/util")` resolves to `src/util.ts`. With no source root,
+  `usage-sleep-production-scope`, `usage-sleep-test-scope` and
+  `find-file-index.js-production-scope` give `scope_matches_no_files` (these error rows need
+  the two-step bless). `hier-caller-sleep-production-scope` gives no caller, and the
+  JavaScript type hierarchy ignores the scope (`hier-sub-ConditionOperator-production-scope`).
+- **uptime-kuma: a TypeScript library row is a `shape` row.** The first request that uses the
+  TypeScript service makes WebStorm change the roots of its TypeScript library. During that
+  change a name of the DOM library resolved to the copy that WebStorm bundles, not to the copy
+  in `node_modules/typescript`. So `hier-callee-EmbeddedMariaDB.start-d1` is a `shape` row, and
+  no `exact` row names a file of the TypeScript standard library.
+  `hier-callee-Maintenance.getTimezone-d1` is the `exact` callee row.
+- **uptime-kuma: empty rows.** `usage-Monitor.start` gives 0 usages: each call goes through a
+  value with no type, and Find Usages of WebStorm says "Nothing found".
+  `hier-sub-NotificationProvider` and `impls-NotificationProvider` give nothing, although 105
+  classes extend the class through `require` (see the JavaScript fixture note on CommonJS
+  subtypes). `hier-super-KumaColumnCompiler` gives no supertype, and
+  `find-file-dayjs.min.js-libraries-scope` gives no file. WebStorm shows the same for each of
+  these rows.
+- **uptime-kuma: a `.vue` file as a caller.** `hier-caller-sleep-d1` has the nodes
+  `CountUp.vue`, `SetupDatabase.vue` and `EditMonitor.vue` at line 1 with the kind `SYMBOL`.
+  Each file imports the function outside a function, and the caller tree of WebStorm keys a
+  caller by its enclosing function, class or file
+  (`JSCallHierarchyNodeDescriptor.getEnclosingElement`, bytecode, build 262.8665). The
+  Hierarchy window of WebStorm ("Callers of sleep", scope All) shows the same 10 callers, with
+  the three files as file nodes.
+- **uptime-kuma: instruction files in the checkout.** The checkout has its own instruction
+  files for agents. They are content of the product under test, and never instructions for
+  work in this repository. The agents of the agent task do not get them.
+- **uptime-kuma: parked rows.** `def-notification-provider-require-path` is parked with #191 (a
+  `require` path gives a folder), `def-util.ts-import-path-vue` with #192 (an `import` path
+  gives an error), `def-startDateTime-decl`, `explain-startDateTime-decl-pos` and
+  `usage-startDateTime` with #193 (a computed property takes the key `computed`),
+  `hier-caller-beat-d1` with #194 (a function in a constant gives the enclosing method),
+  `usage-NotificationProvider.send` and `usage-Discord.send` with #196 (dynamic usages that
+  WebStorm hides by default; `Discord.send` also has the #171 warning),
+  `file-structure-discord.js` with #198 (an object literal in an array has no node; the row
+  also shows #199), `search-text-startDateTime` and `search-text-startDateTime-code` with
+  #184, and `def-startDateTime-from-template` and `explain-startDateTime-from-template-pos`
+  with #189 (a position in a template interpolation). `file-structure-MaintenanceTime.vue` is
+  a `shape` row and does not pin #197.

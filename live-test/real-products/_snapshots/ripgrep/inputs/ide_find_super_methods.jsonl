@@ -1,0 +1,3 @@
+{"id":"super-AfterContext.name_long","tool":"ide_find_super_methods","params":{"column":8,"file":"crates/core/flags/defs.rs","line":165}}
+{"id":"super-LineBuffer.fill-inherent","tool":"ide_find_super_methods","params":{"column":8,"file":"crates/searcher/src/line_buffer.rs","line":406}}
+{"id":"super-RegexMatcher.find_at","tool":"ide_find_super_methods","params":{"column":8,"file":"crates/regex/src/matcher.rs","line":414}}
