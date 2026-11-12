@@ -165,16 +165,21 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
                 void target() {}
             }
         """.trimIndent()) as com.intellij.psi.PsiJavaFile
-        val docOffset = psiFile.text.indexOf("#target") + 1
-        val callOffset = psiFile.text.indexOf("target();")
 
-        val target = psiFile.classes[0].findMethodsByName("target", false)[0]
-        val refs = com.intellij.psi.search.searches.ReferencesSearch.search(target).findAll()
-        val docRef = refs.single { it.element.textRange.containsOffset(docOffset) }
-        val callRef = refs.single { it.element.textRange.containsOffset(callOffset) }
+        val (docType, callType) = com.intellij.openapi.application.ReadAction.compute<Pair<String, String>, Throwable> {
+            val docOffset = psiFile.text.indexOf("#target") + 1
+            val callOffset = psiFile.text.indexOf("target();")
 
-        assertEquals("COMMENT", FindUsagesTool.classifyUsage(docRef.element))
-        assertFalse("A call in code is not a COMMENT usage", FindUsagesTool.classifyUsage(callRef.element) == "COMMENT")
+            val target = psiFile.classes[0].findMethodsByName("target", false)[0]
+            val refs = com.intellij.psi.search.searches.ReferencesSearch.search(target).findAll()
+            val docRef = refs.single { it.element.textRange.containsOffset(docOffset) }
+            val callRef = refs.single { it.element.textRange.containsOffset(callOffset) }
+
+            FindUsagesTool.classifyUsage(docRef.element) to FindUsagesTool.classifyUsage(callRef.element)
+        }
+
+        assertEquals("COMMENT", docType)
+        assertFalse("A call in code is not a COMMENT usage", callType == "COMMENT")
     }
 
     fun testFindFileSurfacesContributorFailureAsWarning() = runBlocking {

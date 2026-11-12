@@ -141,18 +141,27 @@ internal object FindUsagesHandlerSearch {
             for (target in (primary + secondary).distinct()) {
                 ProgressManager.checkCanceled()
                 if (!target.isValid) continue
+                // The caller's processor runs inside processElementUsages. Its exception goes to
+                // the caller, as on the highlight path; only an exception of the handler is a stage warning.
+                var callerFailure: Throwable? = null
                 val completed = try {
                     handler.processElementUsages(target, Processor<UsageInfo> { info ->
                         val usageElement = info.element
                         val offset = info.navigationOffset
                         if (usageElement == null || !usageElement.isValid || offset < 0) true
-                        else processor.process(UsageHit(usageElement, offset))
+                        else try {
+                            processor.process(UsageHit(usageElement, offset))
+                        } catch (e: Throwable) {
+                            callerFailure = e
+                            throw e
+                        }
                     }, options)
                 } catch (e: ProcessCanceledException) {
                     throw e
                 } catch (e: LinkageError) {
                     throw e
                 } catch (e: Throwable) {
+                    callerFailure?.let { throw it }
                     LOG.warn("FindUsagesHandler ${handler.javaClass.name} threw on processElementUsages", e)
                     addStageWarning(warnings, handler, "processElementUsages", "skipped a search target")
                     continue
