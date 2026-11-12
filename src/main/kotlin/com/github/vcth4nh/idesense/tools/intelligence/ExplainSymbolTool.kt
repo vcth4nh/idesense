@@ -7,6 +7,7 @@ import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
 import com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch
 import com.github.vcth4nh.idesense.handlers.LanguageServices
+import com.github.vcth4nh.idesense.handlers.UsageHit
 import com.github.vcth4nh.idesense.server.McpErrors
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
@@ -287,16 +288,17 @@ class ExplainSymbolTool : AbstractMcpTool() {
         try {
             val seen = HashSet<String>()
             val top = mutableListOf<UsageLocation>()
-            val collectRef: (PsiElement) -> Boolean = { refElement ->
+            val collectRef: (UsageHit) -> Boolean = { hit ->
                 ProgressManager.checkCanceled()
+                val refElement = hit.element
                 if (refElement.isValid) {
                     val refFile = refElement.containingFile?.virtualFile
                     val refDocument = refElement.containingFile?.let {
                         PsiDocumentManager.getInstance(project).getDocument(it)
                     }
                     if (refFile != null && refDocument != null && searchScope.contains(refFile)) {
-                        val refLine = refDocument.getLineNumber(refElement.textOffset) + 1
-                        val refColumn = refElement.textOffset - refDocument.getLineStartOffset(refLine - 1) + 1
+                        val refLine = refDocument.getLineNumber(hit.offset) + 1
+                        val refColumn = hit.offset - refDocument.getLineStartOffset(refLine - 1) + 1
                         val path = getRelativePath(project, refFile)
                         if (seen.add("$path:$refLine:$refColumn") && top.size < MAX_TOP_USAGES) {
                             top.add(UsageLocation(
@@ -316,12 +318,12 @@ class ExplainSymbolTool : AbstractMcpTool() {
                 project = project,
                 element = target,
                 scope = searchScope,
-                processor = Processor { refElement -> collectRef(refElement) },
+                processor = Processor { hit -> collectRef(hit) },
                 warnings = warnings
             )
             if (!handlerProcessed) {
                 ReferencesSearch.search(target, searchScope).forEach(Processor { reference ->
-                    collectRef(reference.element)
+                    collectRef(UsageHit(reference.element, reference.element.textOffset))
                 })
             }
             usageCount = seen.size

@@ -7,4 +7,5 @@ object UsageTypes {
     const val IMPORT = "IMPORT"
     const val PARAMETER = "PARAMETER"
     const val VARIABLE = "VARIABLE"
+    const val COMMENT = "COMMENT"
 }
