@@ -678,3 +678,29 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   IDE: Find Usages of `Row.getCellValue` shows 45 results, and the tool gives 20 production
   and 25 test usages; `registerCommand` gives none (see above). So these rows are blessed
   with the entry, as the Java fixture rows since #81. #175 tracks the warning.
+- **beets: a base class through `import beets`.** `beetsplug/playlist.py` imports only
+  `beets` and names the base class `beets.plugins.BeetsPlugin`. `beets/__init__.py` has a
+  module `__getattr__`. `def-plugins-via-module-getattr` gives the error "Could not resolve
+  symbol definition". In PyCharm, Go to Declaration does nothing at that position. The error
+  row needs the two-step bless (see "Rows that pin an expected error").
+- **beets: 103 subclasses of `BeetsPlugin`.** `impls-BeetsPlugin` and `hier-sub-BeetsPlugin`
+  give 103 classes, and a scan of the source finds 105. The two other classes are
+  `PlaylistPlugin` (its base is the name of the bullet above) and a local `OtherPlugin` whose
+  base is a local class of another method. Choose Implementation of PyCharm says "103 found".
+- **beets: 173 usages of `BeetsPlugin`.** Find Usages of PyCharm shows "Usages in Project
+  Files (172 usages found)" and a separate group "Dynamic usages in Project Files" with one
+  "Untyped (probable) usage" (`playlist.py:75`). The tool gives the sum, 173, and the
+  `usageType` `REFERENCE` for the probable usage (#143).
+- **beets: no scope for Python subtypes.** `hier-sub-ImportHelper-production-scope` gives the
+  same 92 subtypes as a call with no scope. `PySubTypesHierarchyTreeStructure.buildChildren`
+  calls `PyClassInheritorsSearch.search(PyClass, boolean)`, which takes no scope (bytecode of
+  `intellij.python.community.impl.jar`, build 262.8665).
+- **beets: test modules have no `test.` prefix.** The project model marks `test` as a test
+  root, so a qualified name in a test module starts at the module, for example
+  `test_plugins.TestListeners`. The canary scope pair needs this test root.
+- **beets: parked rows.** `find-class-DummyPlugin`, `find-symbol-template-lang-python`,
+  `impls-BeetsPlugin`, `hier-sub-BeetsPlugin` and `hier-sub-FieldQuery` are parked with #176:
+  a local class gets the qualified name of its function, and a class attribute the name of its
+  class. `def-_.map-first-of-many` is parked with #178: the tool gives the first of the
+  declarations that "Choose Declaration" lists. No row has `jquery.js` for
+  `ide_file_structure` (#177).

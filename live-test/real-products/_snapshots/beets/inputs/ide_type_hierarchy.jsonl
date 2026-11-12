@@ -1,0 +1,5 @@
+{"id":"hier-sub-BeetsPlugin","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"beets/plugins.py","line":89},"parked":176}
+{"id":"hier-sub-FieldQuery","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"beets/dbcore/query.py","line":120},"parked":176}
+{"id":"hier-sub-ImportHelper-production-scope","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"beets/test/helper.py","line":611,"scope":"production"}}
+{"id":"hier-super-ImportAbortError-byname","tool":"ide_type_hierarchy","params":{"className":"ImportAbortError","direction":"supertypes"}}
+{"id":"hier-super-RegexpQuery","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"beets/dbcore/query.py","line":367}}

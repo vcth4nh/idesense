@@ -1,0 +1,5 @@
+{"id":"find-symbol-BeetsPlugin.register_listener-qualified","tool":"ide_find_symbol","params":{"query":"BeetsPlugin.register_listener"}}
+{"id":"find-symbol-col_clause","tool":"ide_find_symbol","params":{"pageSize":50,"query":"col_clause"},"compare":"ordered"}
+{"id":"find-symbol-commands-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"commands"},"compare":"shape"}
+{"id":"find-symbol-template-lang-javascript","tool":"ide_find_symbol","params":{"language":"JavaScript","pageSize":25,"query":"template"}}
+{"id":"find-symbol-template-lang-python","tool":"ide_find_symbol","params":{"language":"Python","pageSize":25,"query":"template"},"parked":176}

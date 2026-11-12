@@ -8,3 +8,8 @@
 	url = https://github.com/OpenRefine/OpenRefine
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/beets"]
+	path = live-test/real-products/beets
+	url = https://github.com/beetbox/beets
+	shallow = true
+	ignore = dirty

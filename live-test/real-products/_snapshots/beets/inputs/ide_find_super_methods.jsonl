@@ -1,0 +1,3 @@
+{"id":"super-AndQuery.match","tool":"ide_find_super_methods","params":{"column":9,"file":"beets/dbcore/query.py","line":597}}
+{"id":"super-NumericQuery.match","tool":"ide_find_super_methods","params":{"column":9,"file":"beets/dbcore/query.py","line":462}}
+{"id":"super-before_choose_candidate_event-negative","tool":"ide_find_super_methods","params":{"column":9,"file":"beetsplug/mbsubmit.py","line":55}}

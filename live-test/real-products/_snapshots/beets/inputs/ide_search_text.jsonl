@@ -1,0 +1,7 @@
+{"id":"search-text-backslash","tool":"ide_search_text","params":{"pageSize":100,"query":"backslash"}}
+{"id":"search-text-backslash-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"backslash"}}
+{"id":"search-text-config-paged","tool":"ide_search_text","params":{"pageSize":50,"query":"config"},"compare":"shape"}
+{"id":"search-text-picard","tool":"ide_search_text","params":{"pageSize":100,"query":"picard"}}
+{"id":"search-text-picard-code","tool":"ide_search_text","params":{"context":"code","pageSize":100,"query":"picard"}}
+{"id":"search-text-picard-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"picard"}}
+{"id":"search-text-picard-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"picard"}}

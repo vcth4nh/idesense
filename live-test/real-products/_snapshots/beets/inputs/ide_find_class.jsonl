@@ -1,0 +1,5 @@
+{"id":"find-class-BePl-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"BePl"}}
+{"id":"find-class-BeetsPlugin","tool":"ide_find_class","params":{"query":"BeetsPlugin"}}
+{"id":"find-class-DummyPlugin","tool":"ide_find_class","params":{"query":"DummyPlugin"},"parked":176}
+{"id":"find-class-ImportAbortError","tool":"ide_find_class","params":{"query":"ImportAbortError"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}

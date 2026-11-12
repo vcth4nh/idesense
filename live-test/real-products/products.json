@@ -3,6 +3,8 @@
     {"folder": "caddy", "ide": "goland", "repo": "caddyserver/caddy", "pin": "v2.11.7",
      "license": "Apache-2.0", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
     {"folder": "openrefine", "ide": "intellij", "repo": "OpenRefine/OpenRefine", "pin": "3.10.1",
-     "license": "BSD-3-Clause", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
+     "license": "BSD-3-Clause", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "beets", "ide": "pycharm", "repo": "beetbox/beets", "pin": "v2.14.1",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
   ]
 }

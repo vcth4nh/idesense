@@ -1,0 +1,8 @@
+{"id":"canary-def-LazyConfig-into-dependency","tool":"ide_find_definition","params":{"column":33,"file":"beets/__init__.py","line":24}}
+{"id":"def-Backbone.Model-into-vendored-js","tool":"ide_find_definition","params":{"column":21,"file":"beetsplug/web/static/beets.js","line":163}}
+{"id":"def-Item-via-reexport","tool":"ide_find_definition","params":{"column":35,"file":"beetsplug/convert.py","line":375}}
+{"id":"def-MediaFile-into-dependency","tool":"ide_find_definition","params":{"column":20,"file":"beets/library/models.py","line":78}}
+{"id":"def-_.map-first-of-many","tool":"ide_find_definition","params":{"column":28,"file":"beetsplug/web/static/beets.js","line":151},"parked":178}
+{"id":"def-len-builtin","tool":"ide_find_definition","params":{"column":20,"file":"beets/util/layout.py","line":135}}
+{"id":"def-path_as_posix-cross-file","tool":"ide_find_definition","params":{"column":36,"file":"beetsplug/playlist.py","line":176}}
+{"id":"def-plugins-via-module-getattr","tool":"ide_find_definition","params":{"column":29,"file":"beetsplug/playlist.py","line":75}}
