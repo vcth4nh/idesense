@@ -3,3 +3,8 @@
 	url = https://github.com/caddyserver/caddy
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/openrefine"]
+	path = live-test/real-products/openrefine
+	url = https://github.com/OpenRefine/OpenRefine
+	shallow = true
+	ignore = dirty

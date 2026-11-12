@@ -1,0 +1,3 @@
+{"id":"explain-ColumnModel-name","tool":"ide_explain_symbol","params":{"symbol":"ColumnModel"}}
+{"id":"explain-Parser-name","tool":"ide_explain_symbol","params":{"symbol":"Parser"}}
+{"id":"explain-Row.getCell-pos","tool":"ide_explain_symbol","params":{"column":17,"file":"modules/core/src/main/java/com/google/refine/model/Row.java","line":140}}

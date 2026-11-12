@@ -1,0 +1,4 @@
+{"id":"find-class-Command","tool":"ide_find_class","params":{"query":"Command"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-Parser","tool":"ide_find_class","params":{"query":"Parser"}}
+{"id":"find-class-PrExCo-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"PrExCo"}}

@@ -1,0 +1,3 @@
+{"id":"super-ColumnModel.getColumnByName-negative","tool":"ide_find_super_methods","params":{"column":32,"file":"modules/core/src/main/java/com/google/refine/model/ColumnModel.java","line":164}}
+{"id":"super-Length.call","tool":"ide_find_super_methods","params":{"column":19,"file":"modules/grel/src/main/java/com/google/refine/expr/functions/Length.java","line":52}}
+{"id":"super-TextTransformOperation.validate","tool":"ide_find_super_methods","params":{"column":17,"file":"main/src/com/google/refine/operations/cell/TextTransformOperation.java","line":110}}

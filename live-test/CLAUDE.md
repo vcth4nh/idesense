@@ -634,7 +634,7 @@ holds `ide_refactor_rename`, `ide_move_file` and `ide_restart`.
 
 ### Captured ground truth of product rows
 
-These results look wrong, but GoLand returns the same. Do not change the probe to "fix" them.
+These results look wrong, but the IDE returns the same. Do not change the probe to "fix" them.
 
 - **No caller through an interface.** `ide_call_hierarchy` shows no caller for a Go method
   that is called only through an interface value (`hier-caller-App.Provision`). The Hierarchy
@@ -666,3 +666,15 @@ These results look wrong, but GoLand returns the same. Do not change the probe t
   file.
 - **Go SDK methods.** `super-responseRecorder.Write` lists interface methods of the Go SDK.
   The row depends on the SDK version of the IDE host.
+- **openrefine: no link from JavaScript to Java through Rhino.** The `controller.js` files
+  call Java through `Packages.com.google.refine...` of Rhino. IntelliJ does not resolve
+  these names: `def-RefineServlet.registerCommand-from-js` gives the error "Could not resolve
+  symbol definition", and `usage-RefineServlet.registerCommand-from-js` gives no usage. In
+  IntelliJ, Go to Declaration does nothing at that position, and Find Usages says "Nothing
+  found". The error row needs the two-step bless (see "Rows that pin an expected error").
+- **openrefine: Java usage rows with a `warnings` entry.** Each `ide_find_usages` row on a
+  Java method, and `explain-Row.getCell-pos`, has the entry "Find-usages handler
+  JavaFindUsagesHandler threw on primaryElements". The two compared usage lists equal the
+  IDE: Find Usages of `Row.getCellValue` shows 45 results, and the tool gives 20 production
+  and 25 test usages; `registerCommand` gives none (see above). So these rows are blessed
+  with the entry, as the Java fixture rows since #81. #175 tracks the warning.

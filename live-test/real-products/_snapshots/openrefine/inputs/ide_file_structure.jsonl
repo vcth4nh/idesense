@@ -1,0 +1,5 @@
+{"id":"file-structure-Column.java","tool":"ide_file_structure","params":{"file":"modules/core/src/main/java/com/google/refine/model/Column.java"}}
+{"id":"file-structure-FunctionDescription.java","tool":"ide_file_structure","params":{"file":"modules/grel/target/generated-sources/com/google/refine/grel/FunctionDescription.java"},"compare":"shape"}
+{"id":"file-structure-ImportingUtilities.java","tool":"ide_file_structure","params":{"file":"modules/core/src/main/java/com/google/refine/importing/ImportingUtilities.java"},"compare":"shape"}
+{"id":"file-structure-Metaphone3.java","tool":"ide_file_structure","params":{"file":"main/src/com/google/refine/clustering/binning/Metaphone3.java"},"compare":"shape"}
+{"id":"file-structure-Project.java","tool":"ide_file_structure","params":{"file":"modules/core/src/main/java/com/google/refine/model/Project.java"},"compare":"shape"}

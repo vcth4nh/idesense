@@ -1,0 +1,5 @@
+{"id":"impls-ColumnModel.getColumnByName-empty","tool":"ide_find_implementations","params":{"column":32,"file":"modules/core/src/main/java/com/google/refine/model/ColumnModel.java","line":164,"pageSize":100}}
+{"id":"impls-Function","tool":"ide_find_implementations","params":{"column":18,"file":"modules/grel/src/main/java/com/google/refine/grel/Function.java","line":46,"pageSize":500}}
+{"id":"impls-Function-paged","tool":"ide_find_implementations","params":{"column":18,"file":"modules/grel/src/main/java/com/google/refine/grel/Function.java","line":46,"pageSize":50},"compare":"shape"}
+{"id":"impls-Function.call","tool":"ide_find_implementations","params":{"column":19,"file":"modules/grel/src/main/java/com/google/refine/grel/Function.java","line":48,"pageSize":500}}
+{"id":"impls-Project-test-only","tool":"ide_find_implementations","params":{"column":14,"file":"modules/core/src/main/java/com/google/refine/model/Project.java","line":67,"pageSize":100}}

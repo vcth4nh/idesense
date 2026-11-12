@@ -1,0 +1,5 @@
+{"id":"find-symbol-Command.getProject-qualified","tool":"ide_find_symbol","params":{"query":"Command.getProject"}}
+{"id":"find-symbol-Parser","tool":"ide_find_symbol","params":{"pageSize":25,"query":"Parser"},"compare":"ordered"}
+{"id":"find-symbol-call-lang-java","tool":"ide_find_symbol","params":{"language":"Java","pageSize":25,"query":"call"}}
+{"id":"find-symbol-call-lang-javascript","tool":"ide_find_symbol","params":{"language":"JavaScript","pageSize":25,"query":"call"}}
+{"id":"find-symbol-logger-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"logger"},"compare":"shape"}
