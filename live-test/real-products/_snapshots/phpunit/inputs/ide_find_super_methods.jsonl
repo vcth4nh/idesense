@@ -1,0 +1,3 @@
+{"id":"super-LogicalNot.negate-negative","tool":"ide_find_super_methods","params":{"column":28,"file":"src/Framework/Constraint/Operator/LogicalNot.php","line":28}}
+{"id":"super-TestFinishedSubscriber.notify","tool":"ide_find_super_methods","params":{"column":21,"file":"src/Runner/TestResult/Subscriber/TestFinishedSubscriber.php","line":22}}
+{"id":"super-UnaryOperator.count","tool":"ide_find_super_methods","params":{"column":21,"file":"src/Framework/Constraint/Operator/UnaryOperator.php","line":63}}

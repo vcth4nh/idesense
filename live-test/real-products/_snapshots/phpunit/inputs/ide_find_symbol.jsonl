@@ -1,0 +1,5 @@
+{"id":"find-symbol-CLASS_LEVEL","tool":"ide_find_symbol","params":{"query":"CLASS_LEVEL"}}
+{"id":"find-symbol-SHORT_OPTIONS","tool":"ide_find_symbol","params":{"query":"SHORT_OPTIONS"},"parked":180}
+{"id":"find-symbol-TestResult.wasSuccessful-qualified","tool":"ide_find_symbol","params":{"query":"TestResult::wasSuccessful"}}
+{"id":"find-symbol-asInt","tool":"ide_find_symbol","params":{"pageSize":50,"query":"asInt"},"compare":"ordered"}
+{"id":"find-symbol-notify-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"notify"},"compare":"shape"}

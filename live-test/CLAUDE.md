@@ -704,3 +704,33 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   class. `def-_.map-first-of-many` is parked with #178: the tool gives the first of the
   declarations that "Choose Declaration" lists. No row has `jquery.js` for
   `ide_file_structure` (#177).
+- **phpunit: no source root and no test root.** The autoload of the product is `classmap`, and
+  PhpStorm makes one module with no source root and no test root. The bootstrap keeps this
+  model. So `ide_find_usages` with `project_production_files` or `project_test_files` gives
+  `scope_matches_no_files` (`usage-wasSuccessful-production-scope`, `-test-scope`; these error
+  rows need the two-step bless). `ide_find_file` gives the same error and tells the agent to
+  omit the scope. The call hierarchy scope `production` gives no caller
+  (`hier-caller-wasSuccessful-production-scope`), and the PHP type hierarchy ignores the scope
+  (`hier-sub-Exception-production-scope` equals `hier-sub-Exception`).
+- **phpunit: phar files.** PhpStorm indexes the content of each `.phar` file as a library, at
+  a path that is not on the disk. After a restart this content can be present or absent. So no
+  row resolves into a phar, and no row counts a result in a phar.
+- **phpunit: qualified names from `PhpQualifiedNameProvider`.** A local variable gets the
+  namespace and its name: `def-contextLines-local` gives `\PHPUnit\Util\contextLines`. An
+  anonymous class has an empty `name` and the namespace with a trailing `\` as its
+  `qualifiedName` (6 subtypes of `hier-sub-Printer`). The provider returns `getFQN()` of the
+  element (bytecode, build 262.8665).
+- **phpunit: the callees of a method include the method.**
+  `hier-callee-DeferringDispatcher.dispatch-d1` lists `DeferringDispatcher.dispatch` itself.
+  The Hierarchy window of PhpStorm shows the same.
+- **phpunit: a usage row with a `warnings` entry.** `explain-DeferringDispatcher.dispatch-pos`
+  has the entry "Find-usages handler factory PhpFindUsagesHandlerFactory threw". The method
+  implements `Dispatcher::dispatch`, and the factory asks "find usages of base method?" off
+  the EDT. The `usageCount` 103 equals the answer Current Method of PhpStorm. So the row is
+  blessed with the entry. #182 tracks the warning.
+- **phpunit: parked rows.** `usage-DeferringDispatcher` is parked with #179 (`$this`, `self`
+  and `static` in the class), `find-symbol-SHORT_OPTIONS` and `def-SHORT_OPTIONS-const` with
+  #180 (a class constant gets the kind `CLASS`), `search-text-unordered-code` with #181
+  (comment and string lines in `context: "code"`), `usage-Dispatcher.dispatch` with #183 (the
+  usages of the overriding methods are absent), `search-text-wget` with #184 (a match in an
+  injected fragment comes two times) and `search-text-updateTimestamps-build` with #146.

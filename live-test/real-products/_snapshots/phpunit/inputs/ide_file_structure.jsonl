@@ -1,0 +1,4 @@
+{"id":"file-structure-Assert.php","tool":"ide_file_structure","params":{"file":"src/Framework/Assert.php"},"compare":"shape"}
+{"id":"file-structure-DispatchingEmitter.php","tool":"ide_file_structure","params":{"file":"src/Event/Emitter/DispatchingEmitter.php"}}
+{"id":"file-structure-Functions.php","tool":"ide_file_structure","params":{"file":"src/Framework/Assert/Functions.php"},"compare":"shape"}
+{"id":"file-structure-TestResult.php","tool":"ide_file_structure","params":{"file":"src/Runner/TestResult/TestResult.php"},"compare":"shape"}

@@ -193,7 +193,9 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
 7. **Sweep.** Draft the probe rows, run them, and give each row a class: OK, EMPTY, ERROR or
    SUSPECT. Check each EMPTY row and each SUSPECT row against the source or the IDE.
 8. **Stability check.** Run the rows three times, and one more time after a project switch.
-   A row that differs between two runs becomes a `shape` row or goes out.
+   A row that differs between two runs becomes a `shape` row or goes out. PhpStorm indexes
+   the content of a `.phar` file, and after a restart this content can be absent: no row may
+   resolve into a phar or count a result in one.
 9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug.
 10. **Triage.** One outcome for each finding: an issue, a decision of the maintainer, a
     setup correction, or a ground-truth note.

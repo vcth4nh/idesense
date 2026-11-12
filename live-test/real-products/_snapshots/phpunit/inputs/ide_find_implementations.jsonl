@@ -1,0 +1,4 @@
+{"id":"impls-Event","tool":"ide_find_implementations","params":{"column":11,"file":"src/Event/Events/Event.php","line":15,"pageSize":500}}
+{"id":"impls-LogicalNot-empty","tool":"ide_find_implementations","params":{"column":13,"file":"src/Framework/Constraint/Operator/LogicalNot.php","line":23,"pageSize":100}}
+{"id":"impls-Subscriber-paged","tool":"ide_find_implementations","params":{"column":11,"file":"src/Event/Subscriber.php","line":15,"pageSize":100},"compare":"shape"}
+{"id":"impls-TestStatus.asInt","tool":"ide_find_implementations","params":{"column":30,"file":"src/Framework/TestStatus/TestStatus.php","line":192,"pageSize":100}}

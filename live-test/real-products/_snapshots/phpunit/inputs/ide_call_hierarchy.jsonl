@@ -1,0 +1,5 @@
+{"id":"hier-callee-DeferringDispatcher.dispatch-d1","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callees","file":"src/Event/Dispatcher/DeferringDispatcher.php","line":40,"maxDepth":1}}
+{"id":"hier-caller-emitter-d1","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callers","file":"src/Event/Facade.php","line":40,"maxDepth":1}}
+{"id":"hier-caller-emitter-d2","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callers","file":"src/Event/Facade.php","line":40,"maxDepth":2},"compare":"shape"}
+{"id":"hier-caller-wasSuccessful-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"TestResult::wasSuccessful"}}
+{"id":"hier-caller-wasSuccessful-production-scope","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callers","file":"src/Runner/TestResult/TestResult.php","line":627,"maxDepth":1,"scope":"production"}}

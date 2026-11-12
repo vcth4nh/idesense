@@ -1,0 +1,6 @@
+{"id":"canary-find-class-TestFinishedSubscriber","tool":"ide_find_class","params":{"query":"TestFinishedSubscriber"}}
+{"id":"find-class-DefDisp-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"DefDisp"}}
+{"id":"find-class-DeferringDispatcher","tool":"ide_find_class","params":{"query":"DeferringDispatcher"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-Subscriber","tool":"ide_find_class","params":{"query":"Subscriber"}}
+{"id":"find-class-Version-libraries-scope","tool":"ide_find_class","params":{"query":"Version","scope":"project_and_libraries"}}

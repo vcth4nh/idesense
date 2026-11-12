@@ -1,0 +1,4 @@
+{"id":"explain-DeferringDispatcher.dispatch-pos","tool":"ide_explain_symbol","params":{"column":21,"file":"src/Event/Dispatcher/DeferringDispatcher.php","line":40}}
+{"id":"explain-DeferringDispatcher.flush-pos","tool":"ide_explain_symbol","params":{"column":21,"file":"src/Event/Dispatcher/DeferringDispatcher.php","line":85}}
+{"id":"explain-TestFinishedSubscriber-name","tool":"ide_explain_symbol","params":{"symbol":"TestFinishedSubscriber"}}
+{"id":"explain-wasSuccessful-name","tool":"ide_explain_symbol","params":{"symbol":"wasSuccessful"}}

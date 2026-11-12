@@ -1,0 +1,7 @@
+{"id":"search-text-Subscriber-paged","tool":"ide_search_text","params":{"pageSize":50,"query":"Subscriber"},"compare":"shape"}
+{"id":"search-text-unordered","tool":"ide_search_text","params":{"pageSize":100,"query":"unordered"}}
+{"id":"search-text-unordered-code","tool":"ide_search_text","params":{"context":"code","pageSize":100,"query":"unordered"},"parked":181}
+{"id":"search-text-unordered-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"unordered"}}
+{"id":"search-text-unordered-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"unordered"}}
+{"id":"search-text-updateTimestamps-build","tool":"ide_search_text","params":{"pageSize":100,"query":"updateTimestamps"},"parked":146}
+{"id":"search-text-wget","tool":"ide_search_text","params":{"pageSize":50,"query":"wget"},"parked":184}
