@@ -485,7 +485,8 @@ will just snapshot a different empty/odd result.
   factory of the IDE opens a dialog off the EDT ("search the base member?") and
   throws, so the tool falls back to the references of the anchor. This is the
   same form as the Java and Kotlin warning rows. The usages did not change when
-  the warning came in.
+  the warning came in. The result is that of the answer "No" to the IDE's
+  question; #171 (WebStorm) and #172 (RustRover) hold the analysis.
 - **A reference inside a doc comment is a `COMMENT` usage in every language.**
   PHP `usage-Shape-class` lists `Shape` in `/** @var Shape[] */`
   (src/Normal.php:53) with `usageType` `COMMENT`. The platform rule of the
