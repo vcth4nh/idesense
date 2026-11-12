@@ -96,7 +96,7 @@ Done on 2026-11-12 with plugin 2.1.1-dev.12. The product is accepted.
 | `ide_find_implementations` of the trait `Flag` | 104 `impl` blocks |
 | `ide_file_structure`, `crates/core/flags/defs.rs` (235 KB) | 1,094 lines in 0.7 s |
 
-The three files of the hunter are indexed: `file_name` in `crates/ignore/src/pathutil.rs` has
+The three files of the agent task are indexed: `file_name` in `crates/ignore/src/pathutil.rs` has
 5 usages, `LineBuffer::fill` 1 and `Ignore::add_parents` 4.
 
 Comparison with RustRover itself. A second RustRover with a window opened a copy of the pin
