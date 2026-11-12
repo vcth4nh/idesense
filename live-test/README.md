@@ -189,7 +189,8 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
    module file with no source folder removes all roots. The bootstrap writes no trust entry:
    a `serverMode` IDE checks the trust of a project, so the switch that opens a product adds
    a trust entry for the product path to `options/trusted-paths.xml` of the IDE while the IDE
-   is down.
+   is down. For a JavaScript product use `npm ci --ignore-scripts`: it runs no script of the
+   product and no install script of a package.
 5. **Import check.** `--open-product <folder>`, then compare some tool calls with the IDE
    itself. Record the times and the memory in `_setup/<folder>/notes.md`.
 6. **Canary rows.** 2 or 3 rows with the id prefix `canary-` that pin the project model.
@@ -290,6 +291,11 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
   - The plugin changed the output of the tool of that canary row, and the fixture suite
     shows the same change. Then run `--product <folder> --bless --bless-canary` with
     permission, and read the `git diff` of the expected files before the commit.
+- **`MISCONFIGURED` after the first open of a product** — at its first open an IDE can stop
+  before it adds a library root (for example the dependency folder of a JavaScript product).
+  Then the canary row that resolves into a dependency differs: the gate tries again for the
+  readiness time and prints `MISCONFIGURED`. Close the product with `--close-products`, open
+  it again, and run again.
 - **`<id> met dumb mode: waited <n> s, the row runs again`** — the IDE went to dumb mode
   again after the canary rows matched (a build tool sync, then a refresh). The row waited
   until the IDE was ready and then ran one more time. All waits of a product run share the

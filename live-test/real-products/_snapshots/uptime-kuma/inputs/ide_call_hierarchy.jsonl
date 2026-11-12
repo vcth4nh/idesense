@@ -1,0 +1,5 @@
+{"id":"hier-callee-EmbeddedMariaDB.start-d1","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callees","file":"server/embedded-mariadb.js","line":57,"maxDepth":1},"compare":"shape"}
+{"id":"hier-callee-Maintenance.getTimezone-d1","tool":"ide_call_hierarchy","params":{"column":11,"direction":"callees","file":"server/model/maintenance.js","line":402,"maxDepth":1}}
+{"id":"hier-caller-beat-d1","tool":"ide_call_hierarchy","params":{"column":15,"direction":"callers","file":"server/model/monitor.js","line":426,"maxDepth":1},"parked":194}
+{"id":"hier-caller-sleep-d1","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"src/util.ts","line":186,"maxDepth":1}}
+{"id":"hier-caller-sleep-production-scope","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"src/util.ts","line":186,"maxDepth":1,"scope":"production"}}

@@ -9,6 +9,8 @@
     {"folder": "phpunit", "ide": "phpstorm", "repo": "sebastianbergmann/phpunit", "pin": "13.3.1",
      "license": "BSD-3-Clause", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
     {"folder": "ripgrep", "ide": "rustrover", "repo": "BurntSushi/ripgrep", "pin": "15.0.0",
-     "license": "Unlicense OR MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
+     "license": "Unlicense OR MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "uptime-kuma", "ide": "webstorm", "repo": "louislam/uptime-kuma", "pin": "2.5.3",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
   ]
 }

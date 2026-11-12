@@ -23,3 +23,8 @@
 	url = https://github.com/BurntSushi/ripgrep
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/uptime-kuma"]
+	path = live-test/real-products/uptime-kuma
+	url = https://github.com/louislam/uptime-kuma
+	shallow = true
+	ignore = dirty

@@ -1,0 +1,7 @@
+{"id":"explain-EmbeddedMariaDB.start-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"EmbeddedMariaDB.start"}}
+{"id":"explain-Monitor.start-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"Monitor.start"}}
+{"id":"explain-NotificationProvider-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"NotificationProvider"}}
+{"id":"explain-genSecret-ambiguous","tool":"ide_explain_symbol","params":{"symbol":"genSecret"}}
+{"id":"explain-sleep-pos","tool":"ide_explain_symbol","params":{"column":17,"file":"src/util.ts","line":186}}
+{"id":"explain-startDateTime-decl-pos","tool":"ide_explain_symbol","params":{"column":9,"file":"src/components/MaintenanceTime.vue","line":32},"parked":193}
+{"id":"explain-startDateTime-from-template-pos","tool":"ide_explain_symbol","params":{"column":20,"file":"src/components/MaintenanceTime.vue","line":8},"parked":189}

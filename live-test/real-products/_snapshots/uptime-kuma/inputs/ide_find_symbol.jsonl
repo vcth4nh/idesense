@@ -1,0 +1,6 @@
+{"id":"find-symbol-Monitor.start-qualified","tool":"ide_find_symbol","params":{"query":"Monitor.start"}}
+{"id":"find-symbol-send","tool":"ide_find_symbol","params":{"pageSize":200,"query":"send"}}
+{"id":"find-symbol-sleep-lang-typescript","tool":"ide_find_symbol","params":{"language":"typescript","query":"sleep"}}
+{"id":"find-symbol-startDateTime","tool":"ide_find_symbol","params":{"query":"startDateTime"}}
+{"id":"find-symbol-startDateTime-lang-javascript","tool":"ide_find_symbol","params":{"language":"javascript","query":"startDateTime"}}
+{"id":"find-symbol-zzqNoSuchSymbolXyz-no-match","tool":"ide_find_symbol","params":{"query":"zzqNoSuchSymbolXyz"}}
