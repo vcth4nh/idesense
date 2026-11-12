@@ -1,5 +1,7 @@
 package com.github.vcth4nh.idesense.tools.models
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -20,6 +22,7 @@ data class UsageLocation(
     val enclosingScope: List<String>,
 )
 
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class FindUsagesResult(
     val usages: List<UsageLocation>,
@@ -31,7 +34,11 @@ data class FindUsagesResult(
     val pageSize: Int = 0,
     val stale: Boolean = false,
     // null = search ran complete; non-null names handler stages that degraded (#81).
-    val warnings: List<String>? = null
+    val warnings: List<String>? = null,
+    // What the IDE added to the search, e.g. the interface methods of a Go method (#130).
+    // Omitted from the JSON when null.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val notes: List<String>? = null
 )
 
 // find_definition output

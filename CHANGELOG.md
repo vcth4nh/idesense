@@ -23,6 +23,11 @@
 - The name anchors (`symbol`, `className`) prefer a declaration with the case of the name:
   `Handler` no longer matches a field `handler`. A name with no declaration in that case is still
   found without case. The exact mode of `ide_find_symbol` still ignores case (#131).
+- `ide_find_usages` and `ide_explain_symbol` give the `usageType` `COMMENT` to a usage inside a
+  comment or a doc comment, in every language. This is the rule of the "Usage in comments" group
+  of the IDE's Find Usages window. Such a usage had another type before, in most cases
+  `REFERENCE`: for example `Shape` in the PHP doc comment `/** @var Shape[] */`. A caller that
+  filters on `REFERENCE` no longer gets these usages (#132).
 
 ### Fixed
 - `ide_type_hierarchy` and `ide_call_hierarchy` dispose the per-call hierarchy browser once the
@@ -68,6 +73,23 @@
   `internal_error`. `XmlFindUsagesProvider` throws for an `HtmlFile`, which failed
   `ide_call_hierarchy` when a tree node was an HTML file. The kind then comes from the class name of
   the element (#126).
+- `ide_find_usages` on a Go method that implements an interface method also returns the usages of
+  the interface method, as Find Usages of GoLand does. The first page says so in a new `notes`
+  field, which is absent when there is nothing to tell. The tool asked GoLand's handler factory for
+  the handler in a mode that opens the dialog "Find Usages of the Interface Methods?". Off the EDT
+  the dialog threw, and the tool returned only the references to the concrete method, with no
+  warning. The tool now asks for the handler in the mode of the Find Usages action without its
+  dialog. GoLand then shows its notification "Looking for usages of the interface methods" until
+  the user selects "Don't show again". A handler factory that throws now gives a `warnings` entry:
+  WebStorm gives it for a JavaScript member with a base member, and RustRover for a trait method
+  implementation. The `usageCount` and `topUsages` of `ide_explain_symbol` include the same usages
+  (#130).
+- `ide_find_usages` and `ide_explain_symbol` in GoLand return the usages in comments, the "Usage in
+  comments" group of Find Usages. The tool searched on the path of highlight usages, where the Go
+  handler removes the comment references. For Go, the tool now takes the search of the Find Usages
+  action. A usage in a comment points at the word, not at the start of the comment.
+  `ide_explain_symbol` counts these usages in `usageCount`, and its `topUsages` lists the code
+  usages first (#132).
 
 ## [2.1.0] - 2026-11-09
 

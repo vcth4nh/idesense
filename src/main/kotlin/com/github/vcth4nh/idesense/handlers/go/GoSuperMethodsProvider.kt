@@ -7,6 +7,7 @@ import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
@@ -78,6 +79,20 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
         tryMethodAnchor(element, project)
             ?: tryInterfaceMethodAnchor(element, project)
             ?: tryTypeAnchor(element, project)
+
+    /**
+     * True when [method], a Go method declaration, has at least one super method (an interface
+     * method that it implements): the search of the method anchor, stopped at the first result.
+     * Null when the check cannot run: a Go class or member is absent, [method] is not a method
+     * declaration, or the search throws (#130).
+     */
+    internal fun hasSuperMethod(method: PsiElement): Boolean? {
+        val goMethodClass = goMethodDeclarationClass ?: return null
+        val search = goSuperMethodSearch ?: return null
+        val query = processQueryMethod ?: return null
+        if (!goMethodClass.isInstance(method)) return null
+        return hasAnyResult(search, query, DefinitionsScopedSearch.SearchParameters(method))
+    }
 
     /**
      * Method anchor: caret on a Go method declaration -> the interface method spec(s) it satisfies.
@@ -225,6 +240,31 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
             val methodSpec = if (methodSpecClass.isInstance(element)) element
             else PsiTreeUtil.getParentOfType(element, methodSpecClass) ?: return null
             return methodSpec.takeIf(hasSignature)
+        }
+
+        /**
+         * Runs `processQuery(params, processor)` of a Go search by reflection. True when the search
+         * gives a result (the processor stops it at the first one), false when it gives none, null
+         * when it throws. A cancellation or a [LinkageError] passes through, also when the reflective
+         * call wraps it in an [java.lang.reflect.InvocationTargetException].
+         */
+        internal fun hasAnyResult(search: Any, processQuery: java.lang.reflect.Method, params: Any): Boolean? {
+            var found = false
+            try {
+                processQuery.invoke(search, params, Processor<Any> { found = true; false })
+            } catch (e: java.lang.reflect.InvocationTargetException) {
+                val cause = e.cause
+                if (cause is ProcessCanceledException) throw cause
+                if (cause is LinkageError) throw cause
+                return null
+            } catch (e: ProcessCanceledException) {
+                throw e
+            } catch (e: LinkageError) {
+                throw e
+            } catch (_: Throwable) {
+                return null
+            }
+            return found
         }
     }
 

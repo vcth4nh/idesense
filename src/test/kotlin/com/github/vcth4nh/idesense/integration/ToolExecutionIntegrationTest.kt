@@ -98,7 +98,7 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
                 project,
                 target,
                 com.intellij.psi.search.GlobalSearchScope.projectScope(project),
-                com.intellij.util.Processor { true },
+                com.intellij.util.Processor<com.github.vcth4nh.idesense.handlers.UsageHit> { true },
                 warnings
             )
         }
@@ -108,6 +108,78 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             "Warning should name the failed stage and consequence: $warnings",
             warnings.any { it.contains("primaryElements") && it.contains("usages may be incomplete") }
         )
+    }
+
+    fun testFindUsagesSurfacesFactoryFailureAsWarning() {
+        // #130: a factory that throws while it creates the handler sends the caller to the plain
+        // ReferencesSearch fallback (return false) and reports it in warnings, not silently.
+        val psiFile = myFixture.addFileToProject("FactoryWarn.java", """
+            public class FactoryWarn {
+                void target() {}
+                void caller() {
+                    target();
+                }
+            }
+        """.trimIndent()) as com.intellij.psi.PsiJavaFile
+
+        val throwingFactory = object : com.intellij.find.findUsages.FindUsagesHandlerFactory() {
+            override fun canFindUsages(element: com.intellij.psi.PsiElement) = element is com.intellij.psi.PsiMethod
+            override fun createFindUsagesHandler(
+                element: com.intellij.psi.PsiElement,
+                forHighlightUsages: Boolean
+            ): com.intellij.find.findUsages.FindUsagesHandler =
+                throw IllegalStateException("test-induced factory failure")
+        }
+        com.intellij.find.findUsages.FindUsagesHandlerFactory.EP_NAME.getPoint(project)
+            .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
+
+        val warnings = mutableListOf<String>()
+        val processed = com.intellij.openapi.application.ReadAction.compute<Boolean, Throwable> {
+            val target = psiFile.classes[0].findMethodsByName("target", false)[0]
+            com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch.processReferences(
+                project,
+                target,
+                com.intellij.psi.search.GlobalSearchScope.projectScope(project),
+                com.intellij.util.Processor<com.github.vcth4nh.idesense.handlers.UsageHit> { true },
+                warnings
+            )
+        }
+
+        assertFalse("A factory failure should send the caller to the ReferencesSearch fallback", processed)
+        assertEquals("Exactly one warning expected: $warnings", 1, warnings.size)
+        assertTrue(
+            "Warning should name the failure and its consequence: $warnings",
+            warnings[0].contains("threw while creating the handler") && warnings[0].contains("usages may be incomplete")
+        )
+    }
+
+    fun testClassifyUsageMarksCommentReferences() {
+        // #132: a reference inside a comment is a COMMENT usage, the rule of the platform's
+        // "Usage in comments" group (UsageTypeGroupingRule); a reference in code is not.
+        val psiFile = myFixture.addFileToProject("CommentRef.java", """
+            public class CommentRef {
+                /** Calls {@link #target}. */
+                void caller() {
+                    target();
+                }
+                void target() {}
+            }
+        """.trimIndent()) as com.intellij.psi.PsiJavaFile
+
+        val (docType, callType) = com.intellij.openapi.application.ReadAction.compute<Pair<String, String>, Throwable> {
+            val docOffset = psiFile.text.indexOf("#target") + 1
+            val callOffset = psiFile.text.indexOf("target();")
+
+            val target = psiFile.classes[0].findMethodsByName("target", false)[0]
+            val refs = com.intellij.psi.search.searches.ReferencesSearch.search(target).findAll()
+            val docRef = refs.single { it.element.textRange.containsOffset(docOffset) }
+            val callRef = refs.single { it.element.textRange.containsOffset(callOffset) }
+
+            FindUsagesTool.classifyUsage(docRef.element) to FindUsagesTool.classifyUsage(callRef.element)
+        }
+
+        assertEquals("COMMENT", docType)
+        assertFalse("A call in code is not a COMMENT usage", callType == "COMMENT")
     }
 
     fun testFindFileSurfacesContributorFailureAsWarning() = runBlocking {

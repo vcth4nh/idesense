@@ -125,6 +125,7 @@ class ConstantsUnitTest : TestCase() {
         assertEquals("IMPORT", UsageTypes.IMPORT)
         assertEquals("PARAMETER", UsageTypes.PARAMETER)
         assertEquals("VARIABLE", UsageTypes.VARIABLE)
+        assertEquals("COMMENT", UsageTypes.COMMENT)
     }
 
     // ErrorMessages tests

@@ -197,12 +197,35 @@ Finds all references to a symbol across the entire project using IntelliJ's sema
 - `IMPORT` - Import statement
 - `PARAMETER` - Method parameter
 - `VARIABLE` - Variable usage
+- `COMMENT` - Usage inside a comment or a doc comment
+
+**Usages in comments:** a usage inside a comment or a doc comment has the type `COMMENT` in
+every language, before the type that the language gives. This is the "Usage in comments" group
+of the IDE's Find Usages window. An example is `Shape` in the PHP doc comment
+`/** @var Shape[] */`. `line` and `column` point at the word in the comment, not at the start of
+the comment.
+
+**Notes:** `notes` lists what the IDE added to the search. It is on the first page of a fresh
+search. The key is absent when there is nothing to tell.
+
+**Go methods:** for a Go method that implements an interface method, the result also has the
+usages of the interface method, for example the calls through an interface value. Find Usages of
+GoLand does the same by default. The first page then has this `notes` entry: `Usages of the
+interface methods that this method implements are included (the default of Find Usages in
+GoLand).` A method that implements no interface method gets no `notes` key. GoLand also shows its
+notification "Looking for usages of the interface methods" in the IDE window, as it does for
+Find Usages. The notification stops when the user selects "Don't show again".
 
 **Degraded searches:** if the language's find-usages handler throws mid-expansion (e.g.
 broken library roots), the search continues on the remaining targets and `warnings` lists
-each failed stage (`primaryElements` / `secondaryElements` / `findReferencesToHighlight`)
-so partial coverage is visible instead of looking like a complete result. `warnings` is
-`null` when the search ran complete; it is reported on the first page of a fresh search.
+each failed stage (`primaryElements` / `secondaryElements` / `findReferencesToHighlight`, or
+`processElementUsages` in Go) so partial coverage is visible instead of looking like a complete
+result. If the handler factory of the language throws while it creates the handler, the tool
+searches only the references to the anchor element, and `warnings` has the entry `Find-usages
+handler factory <Name> threw while creating the handler; searched the references to the anchor
+element only — usages may be incomplete.` Examples are a JavaScript member with a base member in
+WebStorm and a trait method implementation in RustRover. `warnings` is `null` when the search ran
+complete; it is reported on the first page of a fresh search.
 
 ---
 
@@ -594,6 +617,7 @@ ambiguous name returns a `candidates` list instead of guessing.
 - Facets are capped summaries: `implementations` up to 10 (`implementationsTruncated`), `usageCount` counted up to 200 (`usagesTruncated`), `topUsages` up to 5, `documentation` up to 4000 characters (`documentationTruncated`). Page through the dedicated tools for full sets.
 - A `null` facet means not applicable, not requested, or degraded (degradations are named in `warnings`); an empty list means searched-and-empty — the same convention as `ide_diagnostics`.
 - Usage counting and implementation search run over project files; library usages are not counted.
+- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go method, they include the usages of the interface methods that it implements. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages first, and a `COMMENT` usage takes only a slot that the code usages leave free.
 - On an ambiguous `symbol`, only `candidates` and `message` are populated — re-call with a qualified name or position from the list.
 - `problems` is only populated with `includeDiagnostics: true` and covers problems overlapping the declaration's line range.
 

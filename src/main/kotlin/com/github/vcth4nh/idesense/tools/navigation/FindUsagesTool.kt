@@ -7,6 +7,7 @@ import com.github.vcth4nh.idesense.constants.UsageTypes
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
 import com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch
+import com.github.vcth4nh.idesense.handlers.UsageHit
 import com.github.vcth4nh.idesense.server.PaginationService
 import com.github.vcth4nh.idesense.server.McpErrors
 import com.github.vcth4nh.idesense.server.ProjectResolver
@@ -25,12 +26,14 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.PsiModificationTracker
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.Processor
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -58,6 +61,8 @@ class FindUsagesTool : AbstractMcpTool() {
             val parentClass = parent?.javaClass?.simpleName ?: "Unknown"
 
             return when {
+                // The rule of the platform's "Usage in comments" group (UsageTypeGroupingRule), all languages (#132).
+                PsiTreeUtil.getParentOfType(element, PsiComment::class.java, false) != null -> UsageTypes.COMMENT
                 parentClass.contains("MethodCall") -> UsageTypes.METHOD_CALL
                 parentClass.contains("Reference") -> UsageTypes.REFERENCE
                 parentClass.contains("Field") -> UsageTypes.FIELD_ACCESS
@@ -78,7 +83,8 @@ class FindUsagesTool : AbstractMcpTool() {
         caret on the symbol name (file + line + column).
 
         Returns: file paths, 1-based positions, context snippets, and reference kinds
-        (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE). Paginated (each cursor collects up to an internal cap; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
+        (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE, COMMENT). Paginated (each cursor collects up to an internal cap; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
+        A notes list on the first page tells what the IDE added to the search (for a Go method: the usages of the interface methods it implements).
 
         Gotchas: requires smart mode (not indexing). If the language's find-usages handler degrades
         mid-search, a warnings list on the first page flags the partial coverage. For a quick literal
@@ -138,6 +144,8 @@ class FindUsagesTool : AbstractMcpTool() {
         // FindUsagesHandler stage threw and the search degraded (#81) — surfaced on
         // the first page of a fresh search.
         val handlerWarnings = mutableListOf<String>()
+        // Filled the same way: what the IDE added to the search (#130), first page only.
+        val handlerNotes = mutableListOf<String>()
         val cursorToken = suspendingReadAction {
             val targetElement = when (anchor) {
                 is SymbolAnchor.BySymbol -> when (val resolution = SymbolAnchorResolver.resolve(project, anchor.symbol)) {
@@ -180,8 +188,9 @@ class FindUsagesTool : AbstractMcpTool() {
             val searchScope = BuiltInSearchScopeResolver.resolveGlobalScope(project, scope)
             val seenLocationKeys = ConcurrentHashMap.newKeySet<String>()
 
-            val collectRef: (PsiElement) -> Boolean = { refElement ->
+            val collectRef: (UsageHit) -> Boolean = { hit ->
                 ProgressManager.checkCanceled()
+                val refElement = hit.element
                 if (!refElement.isValid) {
                     true
                 } else {
@@ -190,8 +199,8 @@ class FindUsagesTool : AbstractMcpTool() {
                         PsiDocumentManager.getInstance(project).getDocument(it)
                     }
                     if (refFile != null && document != null && searchScope.contains(refFile)) {
-                        val lineNumber = document.getLineNumber(refElement.textOffset) + 1
-                        val columnNumber = refElement.textOffset -
+                        val lineNumber = document.getLineNumber(hit.offset) + 1
+                        val columnNumber = hit.offset -
                             document.getLineStartOffset(lineNumber - 1) + 1
                         val key = "${getRelativePath(project, refFile)}:$lineNumber:$columnNumber"
 
@@ -222,13 +231,14 @@ class FindUsagesTool : AbstractMcpTool() {
                     project = project,
                     element = targetElement,
                     scope = searchScope,
-                    processor = Processor { refElement -> collectRef(refElement) },
-                    warnings = handlerWarnings
+                    processor = Processor { hit -> collectRef(hit) },
+                    warnings = handlerWarnings,
+                    notes = handlerNotes
                 )
 
                 if (!handlerProcessed) {
                     ReferencesSearch.search(targetElement, searchScope).forEach(Processor { reference ->
-                        collectRef(reference.element)
+                        collectRef(UsageHit(reference.element, reference.element.textOffset))
                     })
                 }
             } catch (e: LinkageError) {
@@ -282,7 +292,8 @@ class FindUsagesTool : AbstractMcpTool() {
                 offset = page.offset,
                 pageSize = page.pageSize,
                 stale = page.stale,
-                warnings = handlerWarnings.takeIf { it.isNotEmpty() }
+                warnings = handlerWarnings.takeIf { it.isNotEmpty() },
+                notes = handlerNotes.takeIf { it.isNotEmpty() }
             )
         }
     }
@@ -306,8 +317,9 @@ class FindUsagesTool : AbstractMcpTool() {
         val seenLocationKeys = ConcurrentHashMap.newKeySet<String>()
         seenLocationKeys.addAll(seenKeys)
 
-        val collectRef: (PsiElement) -> Boolean = { refElement ->
+        val collectRef: (UsageHit) -> Boolean = { hit ->
             ProgressManager.checkCanceled()
+            val refElement = hit.element
             if (!refElement.isValid) {
                 true
             } else {
@@ -316,8 +328,8 @@ class FindUsagesTool : AbstractMcpTool() {
                     PsiDocumentManager.getInstance(project).getDocument(it)
                 }
                 if (refFile != null && document != null && searchScope.contains(refFile)) {
-                    val lineNumber = document.getLineNumber(refElement.textOffset) + 1
-                    val columnNumber = refElement.textOffset -
+                    val lineNumber = document.getLineNumber(hit.offset) + 1
+                    val columnNumber = hit.offset -
                         document.getLineStartOffset(lineNumber - 1) + 1
                     val key = "${getRelativePath(project, refFile)}:$lineNumber:$columnNumber"
 
@@ -351,12 +363,12 @@ class FindUsagesTool : AbstractMcpTool() {
                 project = project,
                 element = targetElement,
                 scope = searchScope,
-                processor = Processor { refElement -> collectRef(refElement) }
+                processor = Processor { hit -> collectRef(hit) }
             )
 
             if (!handlerProcessed) {
                 ReferencesSearch.search(targetElement, searchScope).forEach(Processor { reference ->
-                    collectRef(reference.element)
+                    collectRef(UsageHit(reference.element, reference.element.textOffset))
                 })
             }
         } catch (e: LinkageError) {
