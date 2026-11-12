@@ -45,7 +45,7 @@ bundled stub file keeps only its base name.
 | `def-OriginalExporter-via-alias` | `vendor/sebastian/exporter/src/Exporter.php` | `composer.lock`: sebastian/exporter 8.2.1 |
 | `find-class-Version-libraries-scope` | `vendor/sebastian/version/src/Version.php`, `vendor/phar-io/version/src/Version.php`, `vendor/phpunit/php-code-coverage/src/Version.php` | `composer.lock`: sebastian/version 7.0.0, phar-io/version 3.2.1, phpunit/php-code-coverage 14.3.0 |
 | `find-file-Facade.php-libraries-scope` | `vendor/phpunit/php-file-iterator/src/Facade.php` and three `Facade.php` below `vendor/phpunit/php-code-coverage/src/Report` | `composer.lock`: phpunit/php-file-iterator 7.0.1, phpunit/php-code-coverage 14.3.0 |
-| `def-Timestamps-into-vendored` | `build/scripts/phar-set-timestamps/vendor/seld/phar-utils/src/Timestamps.php` | the pin: the folder is committed (seld/phar-utils 1.2.2 in the `composer.lock` of that root) |
+| `canary-def-Timestamps-into-vendored` | `build/scripts/phar-set-timestamps/vendor/seld/phar-utils/src/Timestamps.php` | the pin: the folder is committed (seld/phar-utils 1.2.2 in the `composer.lock` of that root) |
 | `def-count-into-stubs` | `standard_8.php` | the PHP stubs that the PhpStorm build bundles |
 | `hier-super-MockObjectTest`, `super-UnaryOperator.count` | `Core_c.php` | the PHP stubs that the PhpStorm build bundles |
 
@@ -96,6 +96,12 @@ Project model facts that the probe rows rely on:
   hierarchy scope `production` gives no caller. The rows pin these results. The bootstrap marks
   no root: it keeps the model that PhpStorm makes by itself.
 - `vendor/` itself is no excluded folder: only its package folders and `vendor/composer` are.
+- Canary rows: 4. `canary-def-Differ-into-dependency` pins the include path of the root
+  composer packages, `canary-find-class-TestFinishedSubscriber` the project index, and
+  `canary-find-file-Differ.php` the excluded package folders (no `vendor/` file in the
+  project scope). `canary-def-Timestamps-into-vendored` pins the nested composer root
+  `build/scripts/phar-set-timestamps`: PhpStorm attaches it about 5 s after it reports smart
+  mode, so the gate waits for it.
 - PhpStorm indexes the content of each `.phar` file as a library. A path in a phar has the form
   `tools/.phpstan/vendor/phpstan/phpstan/phpstan.phar/src/...`, a path that is not on the disk.
   After a restart, the content of this phar can be present or absent in the index: `idea.log`

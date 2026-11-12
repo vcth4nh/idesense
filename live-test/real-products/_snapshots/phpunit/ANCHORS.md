@@ -9,7 +9,7 @@ file is stale.
 
 | line:col | probe id | tool | identifier |
 |---|---|---|---|
-| 52:13 | def-Timestamps-into-vendored | find_definition | `Timestamps` |
+| 52:13 | canary-def-Timestamps-into-vendored | find_definition | `Timestamps` |
 
 ## src/Event/Dispatcher/DeferringDispatcher.php
 

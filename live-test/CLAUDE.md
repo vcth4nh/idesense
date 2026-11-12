@@ -544,13 +544,15 @@ A fixture row with one of these keys fails `--check-fixtures`.
 
 ### Canary rows
 
-Each product has 2 or 3 rows with the id prefix `canary-`. They pin the project model: one
+Each product has 2 to 4 rows with the id prefix `canary-`. They pin the project model: one
 definition that resolves into a dependency, and queries with a known result that is not
 empty. The harness runs them first, whatever `--tool` is. When one differs from its expected
 row, the product is `MISCONFIGURED` and its other rows do not run: each other difference
 would show a wrong import and not a change of the plugin. After a project switch the gate
 tries again until the readiness time of the product is used; with no switch in the run it
-tries for 60 seconds. The first try that differs prints the difference.
+tries for 60 seconds. The first try that differs prints the difference. When the IDE loads a
+part of the project model after it reports smart mode (a nested dependency root, a library
+that the sync of a build tool adds), one canary row must resolve into that part.
 
 - Never bless a product that is `MISCONFIGURED` because of its project model. Repair the
   checkout or the IDE first.
@@ -712,6 +714,12 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   omit the scope. The call hierarchy scope `production` gives no caller
   (`hier-caller-wasSuccessful-production-scope`), and the PHP type hierarchy ignores the scope
   (`hier-sub-Exception-production-scope` equals `hier-sub-Exception`).
+- **phpunit: the nested composer root comes after smart mode.** PhpStorm attaches the root
+  `build/scripts/phar-set-timestamps` some seconds after it reports smart mode. After a start
+  of PhpStorm, the definition at `build/scripts/phar-set-timestamps/run.php:52:13` gave
+  "Could not resolve symbol definition" at 16.9 s, while the IDE was smart, and the file
+  `Timestamps.php` of that root from 22.3 s on. So the row that resolves into it is a canary
+  row (`canary-def-Timestamps-into-vendored`), and the gate waits for it.
 - **phpunit: phar files.** PhpStorm indexes the content of each `.phar` file as a library, at
   a path that is not on the disk. After a restart this content can be present or absent. So no
   row resolves into a phar, and no row counts a result in a phar.

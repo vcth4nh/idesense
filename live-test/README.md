@@ -193,7 +193,7 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
    product and no install script of a package.
 5. **Import check.** `--open-product <folder>`, then compare some tool calls with the IDE
    itself. Record the times and the memory in `_setup/<folder>/notes.md`.
-6. **Canary rows.** 2 or 3 rows with the id prefix `canary-` that pin the project model.
+6. **Canary rows.** 2 to 4 rows with the id prefix `canary-` that pin the project model.
 7. **Sweep.** Draft the probe rows, run them, and give each row a class: OK, EMPTY, ERROR or
    SUSPECT. Check each EMPTY row and each SUSPECT row against the source or the IDE.
 8. **Stability check.** Run the rows three times, and one more time after a project switch.

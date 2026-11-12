@@ -1,8 +1,8 @@
 {"id":"canary-def-Differ-into-dependency","tool":"ide_find_definition","params":{"column":20,"file":"src/Util/DifferBuilder.php","line":31}}
+{"id":"canary-def-Timestamps-into-vendored","tool":"ide_find_definition","params":{"column":13,"file":"build/scripts/phar-set-timestamps/run.php","line":52}}
 {"id":"def-OriginalExporter-via-alias","tool":"ide_find_definition","params":{"column":21,"file":"src/Util/Exporter.php","line":28}}
 {"id":"def-SHORT_OPTIONS-const","tool":"ide_find_definition","params":{"column":23,"file":"src/TextUI/Configuration/Cli/Builder.php","line":268},"parked":180}
 {"id":"def-ShellExitCodeCalculator-cross-file","tool":"ide_find_definition","params":{"column":35,"file":"src/TextUI/Application.php","line":347}}
-{"id":"def-Timestamps-into-vendored","tool":"ide_find_definition","params":{"column":13,"file":"build/scripts/phar-set-timestamps/run.php","line":52}}
 {"id":"def-contextLines-local","tool":"ide_find_definition","params":{"column":46,"file":"src/Util/DifferBuilder.php","line":34}}
 {"id":"def-count-into-stubs","tool":"ide_find_definition","params":{"column":16,"file":"src/Runner/TestResult/TestResult.php","line":307}}
 {"id":"def-expects-via-intersection","tool":"ide_find_definition","params":{"column":18,"file":"tests/unit/Framework/MockObject/MockObjectTest.php","line":47}}
