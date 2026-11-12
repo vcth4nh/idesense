@@ -19,7 +19,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Mapping
 
 import fleet
 import products
@@ -207,8 +207,26 @@ def wait_until(check: Callable[[], str | None], timeout_s: float, poll_s: float 
         sleep(poll_s)
 
 
+FLEET_FIXTURES_ENV = "LIVE_TEST_FLEET_FIXTURES"
+
+
+def fleet_fixtures_root(root: Path, environ: Mapping[str, str] = os.environ) -> Path:
+    """The folder of the fixture projects that the fleet IDEs have open. `root` is the live-test folder.
+
+    A git worktree or a second clone names the fixtures folder of the fleet
+    checkout in LIVE_TEST_FLEET_FIXTURES. With no value it is the fixtures
+    folder of this checkout."""
+    value = environ.get(FLEET_FIXTURES_ENV)
+    if not value:
+        return root / "fixtures"
+    path = Path(value)
+    if not path.is_absolute() or not path.is_dir():
+        raise ValueError(f"{FLEET_FIXTURES_ENV}={value} is not an absolute path of an existing folder")
+    return path
+
+
 def _fixture_paths(root: Path, ide: fleet.Ide) -> list[str]:
-    return [str(root / "fixtures" / lang) for lang in ide.languages]
+    return [str(fleet_fixtures_root(root) / lang) for lang in ide.languages]
 
 
 def _is_product(root: Path, path: str) -> bool:
@@ -1186,6 +1204,13 @@ def main() -> int:
 
     here = Path(__file__).resolve().parent
     root = here / "fixtures"
+    try:
+        fleet_root = fleet_fixtures_root(here)
+    except ValueError as e:
+        print(e, file=sys.stderr)
+        return 2
+    if os.environ.get(FLEET_FIXTURES_ENV):
+        print(f"fleet fixtures: {fleet_root} ({FLEET_FIXTURES_ENV})")
 
     if args.close_products:
         failed = 0
@@ -1267,7 +1292,7 @@ def main() -> int:
                     return 1
                 url = f"http://127.0.0.1:{port}/mcp/streamable-http"
             passed, failed = run_language(
-                lang, root / lang, root / "_snapshots" / lang, url, args.tool, args.bless,
+                lang, fleet_root / lang, root / "_snapshots" / lang, url, args.tool, args.bless,
                 bless_errors=args.bless_errors, prune=args.prune,
             )
             total_pass += passed

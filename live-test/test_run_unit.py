@@ -8,6 +8,7 @@ must not silently replace a previously non-error expected row.
 """
 import contextlib
 import io
+import os
 import shutil
 import sys
 import tempfile
@@ -185,6 +186,48 @@ class OpenProductTest(unittest.TestCase):
                          "the harness restarts only a fleet IDE", err)
         self.assertEqual((False, []), (switched, calls))
         ready.assert_not_called()
+
+    def fleet_fixtures(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        return folder, mock.patch.dict(os.environ, {run.FLEET_FIXTURES_ENV: folder})
+
+    def test_worktree_opens_its_product_next_to_the_fleet_fixtures(self):
+        folder, env = self.fleet_fixtures()
+        fn, calls = self.switch()
+        with env, mock.patch.object(run, "check_ready", return_value=None):
+            err, _, _, switched = run.open_product(self.ROOT, self.P, switch=fn,
+                                                   current=lambda url, post: [f"{folder}/go"])
+        self.assertEqual((None, True), (err, switched))
+        self.assertEqual([("goland", [f"{folder}/go", self.PRODUCT])], calls)
+        self.assertTrue(self.may_close("/r/live-test/real-products/x"))
+        self.assertFalse(self.may_close(f"{folder}/go"))
+
+    def test_worktree_close_leaves_the_fleet_fixtures(self):
+        folder, env = self.fleet_fixtures()
+        fn, calls = self.switch()
+        with env:
+            self.assertIsNone(run.close_products(self.ROOT, fleet.IDES["intellij"], switch=fn))
+        self.assertEqual([("intellij", [f"{folder}/java", f"{folder}/kotlin"])], calls)
+        self.assertFalse(self.may_close(f"{folder}/java"))
+
+
+class FleetFixturesRootTest(unittest.TestCase):
+    ROOT = Path("/a/live-test")
+
+    def test_default_is_the_fixtures_folder_of_the_checkout(self):
+        self.assertEqual(Path("/a/live-test/fixtures"), run.fleet_fixtures_root(self.ROOT, {}))
+        self.assertEqual(Path("/a/live-test/fixtures"), run.fleet_fixtures_root(self.ROOT, {"LIVE_TEST_FLEET_FIXTURES": ""}))
+
+    def test_variable_names_the_folder(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        self.assertEqual(Path(folder), run.fleet_fixtures_root(self.ROOT, {"LIVE_TEST_FLEET_FIXTURES": folder}))
+
+    def test_relative_path_or_missing_folder_is_an_error(self):
+        for value in (".", "/nonexistent/idesense-fleet-fixtures"):
+            with self.assertRaises(ValueError, msg=value):
+                run.fleet_fixtures_root(self.ROOT, {"LIVE_TEST_FLEET_FIXTURES": value})
 
 
 U = "ide_find_usages"
@@ -680,10 +723,11 @@ class MainSuiteTest(unittest.TestCase):
     A, B = RunProductsTest.A, RunProductsTest.B
 
     def main(self, *argv, product_result=(3, 0, 0)):
-        self.languages, self.product_calls = [], []
+        self.languages, self.product_calls, self.language_paths = [], [], []
 
         def run_language(lang, *a, **kw):
             self.languages.append(lang)
+            self.language_paths.append(a[:2])
             return (5, 0)
 
         def run_products(root, prods, named, tool_filter, bless, **kw):
@@ -747,6 +791,22 @@ class MainSuiteTest(unittest.TestCase):
             self.assertEqual(2, stop.exception.code)
             self.assertEqual(([], []), (self.languages, self.product_calls))
 
+    def test_fixture_row_runs_against_the_fleet_fixtures_and_keeps_the_snapshots_of_this_checkout(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        here = Path(run.__file__).resolve().parent
+        with mock.patch.dict(os.environ, {run.FLEET_FIXTURES_ENV: folder}):
+            self.assertEqual(0, self.main("--language", "go"))
+        self.assertEqual([(Path(folder) / "go", here / "fixtures" / "_snapshots" / "go")], self.language_paths)
+        self.assertEqual(f"fleet fixtures: {folder} (LIVE_TEST_FLEET_FIXTURES)", self.printed[0])
+        self.assertEqual(1, sum(line.startswith("fleet fixtures:") for line in self.printed))
+
+    def test_bad_fleet_fixtures_value_is_exit_code_2_and_nothing_runs(self):
+        with mock.patch.dict(os.environ, {run.FLEET_FIXTURES_ENV: "/nonexistent/idesense-fleet-fixtures"}):
+            self.assertEqual(2, self.main("--suite", "all"))
+        self.assertEqual(([], []), (self.languages, self.product_calls))
+        self.assertIn("/nonexistent/idesense-fleet-fixtures", self.errors)
+
 
 class MainFleetTest(unittest.TestCase):
     """The two commands of main() that only change the open projects of the fleet."""
@@ -797,6 +857,12 @@ class MainFleetTest(unittest.TestCase):
     def test_open_product_with_an_unknown_name_is_exit_code_2(self):
         self.assertEqual(2, self.main("--open-product", "nope"))
         self.assertEqual([], self.opened)
+
+    def test_bad_fleet_fixtures_value_stops_the_fleet_commands(self):
+        with mock.patch.dict(os.environ, {run.FLEET_FIXTURES_ENV: "fixtures"}):
+            self.assertEqual(2, self.main("--close-products"))
+            self.assertEqual(2, self.main("--open-product", "alpha"))
+        self.assertEqual(([], []), (self.closed, self.opened))
 
 
 class ProductOfflineTest(unittest.TestCase):

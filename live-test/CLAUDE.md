@@ -607,9 +607,12 @@ an instruction for an agent that works in this repository.
 
 - A product run restarts the IDE of the product. Look for an active run of another session
   before a product run.
-- Run product commands from the checkout whose fixture projects the fleet has open, never
-  from a git worktree or a second clone. The harness refuses a switch that would close a
-  project that is no product of the calling checkout.
+- A git worktree or a second clone runs a live command only with `LIVE_TEST_FLEET_FIXTURES`
+  set to the fixtures folder of the checkout whose fixture projects the fleet has open. Then
+  it opens its own product checkouts next to those fixtures. A fixture run with the variable
+  runs the snapshots of the worktree against the fleet fixtures, so the fixture sources of the
+  two checkouts must be equal. The harness refuses a switch that would close a project that
+  is no product of the calling checkout, also a product of the fleet checkout.
 - A product row uses a read-only tool. A row with `ide_refactor_rename`, `ide_move_file`,
   `ide_install_plugin`, `ide_restart` or `ide_sync_files` changes pinned test data or a
   shared IDE.

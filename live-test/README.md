@@ -133,8 +133,17 @@ check for an active run before a product run. The switch has these safety rules:
   `real-products/` of the checkout that runs the command. When the IDE has another project
   open that the command does not want, the switch stops with `must not close: …` and
   restarts nothing. So a command from a git worktree or a second clone cannot take the
-  fixture projects from the fleet. Run product commands from the checkout whose fixtures
-  the fleet has open.
+  fixture projects from the fleet. Such a checkout sets `LIVE_TEST_FLEET_FIXTURES` to the
+  fixtures folder of the checkout that the fleet has open:
+
+  ```bash
+  LIVE_TEST_FLEET_FIXTURES=<fleet checkout>/live-test/fixtures ./live-test/run.py --product <folder>
+  ```
+
+  Then the switch keeps the fleet fixtures open and opens the product checkouts of the
+  worktree next to them. A fixture run with the variable runs the snapshots of the worktree
+  against the fleet fixtures, so the fixture sources of the two checkouts must be equal. A
+  product of the fleet checkout still stops the switch: close it from that checkout.
 - **The IDE comes back.** The harness proves the launcher before the stop. From the stop to
   the start it holds back Ctrl+C and SIGTERM, and it starts the IDE also after an error. An
   IDE that does not stop in 90 seconds gets no second signal: the error line gives the
@@ -280,6 +289,10 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
 - **`… has projects open that this command must not close: …`** — the IDE has a project
   open that is no product of this checkout, and the command does not want it. Run the
   command from the checkout whose fixtures the IDE has open, or close that project by hand.
+  From a git worktree or a second clone, set `LIVE_TEST_FLEET_FIXTURES` to the fixtures
+  folder of that checkout. Then the harness opens the product checkouts of the worktree next
+  to the fleet fixtures. For a fixture run the fixture sources of the two checkouts must be
+  equal. When the project is a product of the other checkout, close it from that checkout.
 - **`… is not the fleet server of …`** — `--url` names another server. The harness
   restarts only a fleet IDE. Open the product at that server by hand.
 - **`[<product>] SKIPPED (checkout is missing: …)`** — run the printed
