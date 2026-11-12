@@ -1,6 +1,8 @@
 package com.github.vcth4nh.idesense.handlers.go
 
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.psi.PsiElement
+import com.intellij.util.Processor
 import io.mockk.every
 import io.mockk.mockk
 import junit.framework.TestCase
@@ -50,5 +52,47 @@ class GoSuperMethodsProviderUnitTest : TestCase() {
 
     fun testAPositionOutsideAnInterfaceBodyIsNoInterfaceMethod() {
         assertNull(interfaceMethodAt(childOf(childOf(null))))
+    }
+
+    // Stands for com.goide.go.GoSuperMethodSearch: processQuery(params, processor), called by reflection.
+    class FakeSearch(private val results: List<Any>, private val failure: Throwable? = null) {
+        var delivered = 0
+
+        fun processQuery(params: Any, processor: Processor<Any>) {
+            failure?.let { throw it }
+            for (result in results) {
+                delivered++
+                if (!processor.process(result)) return
+            }
+        }
+    }
+
+    private fun hasAnyResult(search: FakeSearch): Boolean? = GoSuperMethodsProvider.hasAnyResult(
+        search, FakeSearch::class.java.getMethod("processQuery", Any::class.java, Processor::class.java), "params"
+    )
+
+    // #130: the note of find usages needs only the first super method.
+    fun testASearchWithResultsGivesTrueAndStopsAtTheFirst() {
+        val search = FakeSearch(listOf("first", "second"))
+
+        assertEquals(true, hasAnyResult(search))
+        assertEquals(1, search.delivered)
+    }
+
+    fun testASearchWithNoResultGivesFalse() {
+        assertEquals(false, hasAnyResult(FakeSearch(emptyList())))
+    }
+
+    fun testASearchThatThrowsGivesNull() {
+        assertNull(hasAnyResult(FakeSearch(emptyList(), IllegalStateException("test-induced search failure"))))
+    }
+
+    // Reflection wraps the exception in an InvocationTargetException; the cancellation must still reach the caller.
+    fun testACancellationOfTheSearchIsRethrown() {
+        try {
+            hasAnyResult(FakeSearch(emptyList(), ProcessCanceledException()))
+            fail("The cancellation must reach the caller")
+        } catch (_: ProcessCanceledException) {
+        }
     }
 }

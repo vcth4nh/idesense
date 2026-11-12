@@ -53,9 +53,10 @@ internal object FindUsagesHandlerSearch {
      *   gets [scope] and no text occurrences. The search is
      *   [com.intellij.psi.search.searches.ReferencesSearch], comment references included. When
      *   the options have `findBaseMethods` (a Go method), it also covers the references to the
-     *   interface methods that the method implements, and [notes] gets
-     *   [GoFindUsages.BASE_METHODS_NOTE]. The offset of a hit is `UsageInfo.navigationOffset`,
-     *   so a usage in a comment points at the word.
+     *   interface methods that the method implements. [notes] then gets
+     *   [GoFindUsages.BASE_METHODS_NOTE] only when [element] has a super method, or when that
+     *   check cannot run. The offset of a hit is `UsageInfo.navigationOffset`, so a usage in a
+     *   comment points at the word.
      * - Any other handler: `findReferencesToHighlight` — it's the code path the IDE's
      *   Ctrl+click-on-declaration and highlight-usages actions use. It hands the expanded
      *   set to [com.intellij.psi.search.searches.ReferencesSearch] with language-appropriate
@@ -133,8 +134,11 @@ internal object FindUsagesHandlerSearch {
             val options = handler.findUsagesOptions.clone()
             options.searchScope = scope
             options.isSearchForTextOccurrences = false
+            // GoLand sets findBaseMethods for every method: the note needs a super method too.
+            // A check that cannot run (null) keeps the note.
             if (notes != null && GoFindUsages.searchesBaseMethods(options) &&
-                GoFindUsages.BASE_METHODS_NOTE !in notes
+                GoFindUsages.BASE_METHODS_NOTE !in notes &&
+                GoFindUsages.hasSuperMethod(element) != false
             ) {
                 notes.add(GoFindUsages.BASE_METHODS_NOTE)
             }

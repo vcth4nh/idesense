@@ -1,6 +1,8 @@
 package com.github.vcth4nh.idesense.handlers.go
 
+import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
 import com.intellij.find.findUsages.FindUsagesHandler
+import com.intellij.psi.PsiElement
 
 /**
  * The Go part of [com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch] (#130, #132).
@@ -10,10 +12,13 @@ import com.intellij.find.findUsages.FindUsagesHandler
 internal object GoFindUsages {
 
     /**
-     * The `notes` entry when the options of the Go handler search the interface methods too.
-     * In the mode of the Find Usages action, `GoFindUsagesHandlerFactory` sets `findBaseMethods`
-     * for every Go method (registry key `go.find.usages.always.use.top.hierarchy.methods`), also
-     * for a method that implements no interface, so the text does not say that such usages exist.
+     * The `notes` entry when the options of the Go handler search the interface methods too and
+     * the method has a super method ([hasSuperMethod]). In the mode of the Find Usages action,
+     * `GoFindUsagesHandlerFactory` sets `findBaseMethods` for every Go method (registry key
+     * `go.find.usages.always.use.top.hierarchy.methods`), also for a method that implements no
+     * interface, so the flag alone does not decide the note. When the check cannot run, the note
+     * comes, because the handler did search the base methods. The text does not say that usages
+     * of the interface methods exist.
      */
     const val BASE_METHODS_NOTE =
         "Usages of the interface methods that this method implements are included (the default of Find Usages in GoLand)."
@@ -35,4 +40,11 @@ internal object GoFindUsages {
         field.isAccessible = true
         return field.getBoolean(options)
     }
+
+    /**
+     * True when [element], a Go method declaration, has at least one super method; the search of
+     * [GoSuperMethodsProvider.hasSuperMethod]. Null when the check cannot run.
+     */
+    fun hasSuperMethod(element: PsiElement): Boolean? =
+        (SuperMethodsProvider.EP.forLanguage(element.language) as? GoSuperMethodsProvider)?.hasSuperMethod(element)
 }

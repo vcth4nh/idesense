@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.tools.intelligence
 import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.ToolNames
+import com.github.vcth4nh.idesense.constants.UsageTypes
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
 import com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch
@@ -61,6 +62,15 @@ class ExplainSymbolTool : AbstractMcpTool() {
         internal const val MAX_USAGE_COUNT = 200
         internal const val MAX_DOC_LENGTH = 4000
         private const val MAX_DECLARATION_PROBLEMS = 50
+
+        /**
+         * The first [limit] of [usages], code usages first: a COMMENT usage takes only a slot that
+         * the code usages leave free (#132). Arrival order inside each group.
+         */
+        internal fun preferCodeUsages(usages: List<UsageLocation>, limit: Int): List<UsageLocation> {
+            val (comments, code) = usages.partition { it.usageType == UsageTypes.COMMENT }
+            return (code + comments).take(limit)
+        }
     }
 
     override val name = ToolNames.EXPLAIN_SYMBOL
@@ -287,7 +297,9 @@ class ExplainSymbolTool : AbstractMcpTool() {
         var topUsages: List<UsageLocation>? = null
         try {
             val seen = HashSet<String>()
+            // In arrival order until it has MAX_TOP_USAGES code usages; preferCodeUsages selects.
             val top = mutableListOf<UsageLocation>()
+            var codeUsages = 0
             val collectRef: (UsageHit) -> Boolean = { hit ->
                 ProgressManager.checkCanceled()
                 val refElement = hit.element
@@ -300,15 +312,17 @@ class ExplainSymbolTool : AbstractMcpTool() {
                         val refLine = refDocument.getLineNumber(hit.offset) + 1
                         val refColumn = hit.offset - refDocument.getLineStartOffset(refLine - 1) + 1
                         val path = getRelativePath(project, refFile)
-                        if (seen.add("$path:$refLine:$refColumn") && top.size < MAX_TOP_USAGES) {
-                            top.add(UsageLocation(
+                        if (seen.add("$path:$refLine:$refColumn") && codeUsages < MAX_TOP_USAGES) {
+                            val usage = UsageLocation(
                                 file = path,
                                 line = refLine,
                                 column = refColumn,
                                 preview = LinePreview.ofLine(refDocument, refLine - 1, refColumn - 1),
                                 usageType = FindUsagesTool.classifyUsage(refElement),
                                 enclosingScope = PsiUtils.getEnclosingScope(refElement),
-                            ))
+                            )
+                            if (usage.usageType != UsageTypes.COMMENT) codeUsages++
+                            top.add(usage)
                         }
                     }
                 }
@@ -328,7 +342,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
             }
             usageCount = seen.size
             usagesTruncated = seen.size >= MAX_USAGE_COUNT
-            topUsages = top
+            topUsages = preferCodeUsages(top, MAX_TOP_USAGES)
         } catch (e: ProcessCanceledException) {
             throw e
         } catch (e: LinkageError) {
