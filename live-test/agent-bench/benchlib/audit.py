@@ -20,10 +20,11 @@ line is a result record:
   `extra["outside"]`: a library file (an absolute path, or a URL such as `jar:`), or a relative path
   that starts with one of the `-outside` prefixes (default `.venv/`, `node_modules/`, `vendor/`, `.git/`).
 - `score`: the keys of `keys.score` (`tp`, `fp`, `miss`, `ignored`, `precision`, `recall`, `exact`);
-  `{}` when `error` is set.
+  `{}` when `error` is set. A usages score also has `marked_fp` (see "Marks" below).
 - `extra["fp"]`, `extra["miss"]`: the lines of the false answers and of the missed key items.
   `extra["fp_rows"]` (usages only): `[file, line, usageType]` for each `fp` line, from the first result
   row at that line (null when the row has no `usageType`).
+  `extra["marked_fp"]`, `extra["marks"]` (usages only): see "Marks" below.
   `extra["capped"]` is true when a probe got `CAP` rows or more: the answer can be cut.
 - `error`: the text of the error when the tool gave no answer. An error that names `index_not_ready`
   (the IDE was in dumb mode) is counted apart in the summary.
@@ -40,6 +41,18 @@ Find Usages lists the `self` uses and, for a method, the uses of the interface m
 implements (`super`). So the usages probe scores against a view in which a required site with another
 `rel` is `dnc`, and counts those lines apart in `extra["off_contract"]`. A decoy on such a line with no
 contract site is `dnc` too: the IDE can list the line for the off-contract use.
+
+Marks (usages only): a usage row can have the field `match` (`BASE`: the row refers to a base declaration;
+`DYNAMIC`: only the name matches). A row with no `match` is a sure usage of the symbol. An answer line is
+sure when one of its rows has no `match`. Else it is marked, and its mark is the sorted set of the `match`
+values of its rows, joined with `+`. A sure line that the view does not require and does not ignore is an
+`fp` line. A marked line of that kind is no `fp` line: it is in `extra["marked_fp"]` as `[file, line, mark]`,
+and `score["marked_fp"]` is their count. The score leaves these lines out; then `precision` is the sure
+required lines / (the sure required lines + `fp`), or None with no such line. `recall` counts all required
+lines, sure and marked. `extra["marks"]` is `{mark or "none": {class: n}}` over the answer lines, where the
+class comes from the record, not from the view (see `_record_classes`). A result with no `match` in any row
+has the score and the extra fields of the audit before the marks, and in addition `score["marked_fp"]` 0,
+`extra["marked_fp"]` `[]` and `extra["marks"]` with only the mark `none`.
 """
 import argparse
 import json
@@ -66,7 +79,8 @@ READY_POLL = 5.0
 EXIT_OLD_RESULTS = 2
 EXIT_VERSION_CHANGED = 3
 EXIT_NOT_READY = 4
-AUTO_CLASSES = ("absent", "config", "decoy", "error", "flake", "miss")
+AUTO_CLASSES = ("absent", "config", "decoy", "error", "flake", "marked", "miss")
+NO_MARK = "none"  # the mark of a sure line in `extra["marks"]`
 RELS = ("self", "super", "sub", "sibling", "embedded")
 OFF_CONTRACT = ("sub", "sibling", "embedded")
 IMPLEMENTER_CLASSES = ("required", "dnc")
@@ -185,6 +199,49 @@ def _off_contract(record: dict, answer: set[tuple[str, int]]) -> dict:
     return out
 
 
+def _line_marks(rows: list[dict], answer: set[tuple[str, int]]) -> dict[tuple[str, int], str]:
+    """The mark of each marked answer line: the sorted set of the `match` values of its rows, joined with
+    `+`. A line with a row with no `match` is sure and has no entry."""
+    values: dict[tuple[str, int], set[str]] = {}
+    sure = set()
+    for row in rows:
+        line = (row["file"], row["line"])
+        if line not in answer:
+            continue
+        if row.get("match") is None:
+            sure.add(line)
+        else:
+            values.setdefault(line, set()).add(row["match"])
+    return {line: "+".join(sorted(v)) for line, v in values.items() if line not in sure}
+
+
+def _record_classes(record: dict) -> dict[tuple[str, int], str]:
+    """The class of each site line of the record (not of the view) for `extra["marks"]`: the sorted set of
+    the `rel` values of its required sites joined with `+`, else `forbidden`, else `dnc`."""
+    rels: dict[tuple[str, int], set[str]] = {}
+    others: dict[tuple[str, int], set[str]] = {}
+    for s in record["sites"]:
+        line = (s["file"], s["line"])
+        if s["class"] == "required":
+            rels.setdefault(line, set()).add(_rel(s))
+        else:
+            others.setdefault(line, set()).add(s["class"])
+    out = {line: "forbidden" if "forbidden" in classes else "dnc" for line, classes in others.items()}
+    out.update({line: "+".join(sorted(r)) for line, r in rels.items()})
+    return out
+
+
+def _marks(record: dict, answer: set[tuple[str, int]], line_marks: dict[tuple[str, int], str]) -> dict:
+    """`{mark or "none": {class: n}}` over the answer lines; a line with no site has the class `unknown`."""
+    classes = _record_classes(record)
+    out: dict[str, dict[str, int]] = {}
+    for line in sorted(answer):
+        counts = out.setdefault(line_marks.get(line, NO_MARK), {})
+        cls = classes.get(line, "unknown")
+        counts[cls] = counts.get(cls, 0) + 1
+    return out
+
+
 def _paged_extra(rows: list[dict], outside: int, fp, miss) -> dict:
     extra = {"rows": len(rows), "outside": outside, "fp": _listed(fp), "miss": _listed(miss)}
     if len(rows) >= CAP:
@@ -194,7 +251,8 @@ def _paged_extra(rows: list[dict], outside: int, fp, miss) -> dict:
 
 def probe_usages(client: McpClient, record: dict, repeat: int, outside: tuple[str, ...] = OUTSIDE) -> dict:
     """`ide_find_usages` at the declaration, all pages, scored against the audit view of the key
-    (`usages_view`). `fp` and `miss` come from the view."""
+    (`usages_view`). `fp` and `miss` come from the view. A marked line is no `fp` line (see "Marks" in the
+    module text)."""
     try:
         rows, head = client.call_all_pages(USAGES, {**_anchor(record["decl"]), "pageSize": PAGE_SIZE}, "usages")
         answer, out = _tree_lines(rows, outside)
@@ -203,17 +261,26 @@ def probe_usages(client: McpClient, record: dict, repeat: int, outside: tuple[st
     view = usages_view(record)
     classes = keys.line_classes(view)
     required = {line for line, cls in classes.items() if cls in REQUIRED}
-    fp = {line for line in answer if line not in required and classes.get(line) != "dnc"}
+    line_marks = _line_marks(rows, answer)
+    sure = answer - set(line_marks)
+    false = {line for line in answer if line not in required and classes.get(line) != "dnc"}
+    fp, marked_fp = false & sure, false - sure
     extra = _paged_extra(rows, out, fp, required - answer)
     first_type: dict[tuple[str, int], str | None] = {}
     for row in rows:
         first_type.setdefault((row["file"], row["line"]), row.get("usageType"))
     extra["fp_rows"] = [[file, line, first_type[(file, line)]] for file, line in sorted(fp)]
+    extra["marked_fp"] = [[file, line, line_marks[(file, line)]] for file, line in sorted(marked_fp)]
+    extra["marks"] = _marks(record, answer, line_marks)
     extra["off_contract"] = _off_contract(record, answer)
     for field in ("warnings", "notes"):
         if head.get(field):
             extra[field] = head[field]
-    return _result(record, USAGES, repeat, answer, keys.score(answer, view), extra)
+    score = keys.score(answer - marked_fp, view)
+    sure_tp = len(sure & required)
+    score["precision"] = _ratio(sure_tp, sure_tp + len(fp))
+    score["marked_fp"] = len(marked_fp)
+    return _result(record, USAGES, repeat, answer, score, extra)
 
 
 def probe_implementers(client: McpClient, record: dict, repeat: int,
@@ -373,7 +440,8 @@ def summary_rows(results: list[dict], hardness_by_id: dict[str, str]) -> list[di
     errors counts the symbols with an error in a repeat, not_ready the symbols with an `index_not_ready`
     error (they are not in errors), flakes the symbols whose repeats differ. capped counts results.
     off_lines and off_listed (usages only, else None) are the sums of `extra["off_contract"]` over the
-    results of the group: the off-contract lines, and those that the answer lists.
+    results of the group: the off-contract lines, and those that the answer lists. marked_fp (usages only,
+    else None) is the sum of the `extra["marked_fp"]` lines over the results of the group.
     """
     groups: dict[tuple[str, str], list[dict]] = {}
     for res in results:
@@ -399,32 +467,65 @@ def summary_rows(results: list[dict], hardness_by_id: dict[str, str]) -> list[di
                      "capped": sum(1 for res in group if res["extra"].get("capped")),
                      "off_lines": sum(c["lines"] for c in off) if tool == USAGES else None,
                      "off_listed": sum(c["listed"] for c in off) if tool == USAGES else None,
-                     "flakes": sum(1 for rs in by_id.values() if len({_outcome(r) for r in rs}) > 1)})
+                     "flakes": sum(1 for rs in by_id.values() if len({_outcome(r) for r in rs}) > 1),
+                     "marked_fp": sum(len(res["extra"].get("marked_fp", [])) for res in group)
+                     if tool == USAGES else None})
     return rows
+
+
+def marks_table(results: list[dict]) -> dict[str, dict[str, int]]:
+    """The sum of `extra["marks"]` over the usages results of repeat 1: `{mark or "none": {class: n}}`."""
+    out: dict[str, dict[str, int]] = {}
+    for res in results:
+        if res["tool"] != USAGES or res["repeat"] != 1:
+            continue
+        for mark, counts in res["extra"].get("marks", {}).items():
+            into = out.setdefault(mark, {})
+            for cls, n in counts.items():
+                into[cls] = into.get(cls, 0) + n
+    return out
 
 
 def _number(value: float | None) -> str:
     return "-" if value is None else f"{value:.3f}"
 
 
-def summary_text(rows: list[dict], header: list[str], warning: str | None = None) -> str:
-    """The text of summary.md. A warning is the first line."""
+def summary_text(rows: list[dict], header: list[str], warning: str | None = None,
+                 marks: dict[str, dict[str, int]] | None = None) -> str:
+    """The text of summary.md. A warning is the first line. With `marks` (see `marks_table`), the table
+    "Marks" comes below the main table."""
     lines = ([warning, ""] if warning else []) + [
         "# Audit", "", *header, "",
         "Precision, recall and exact are means over the results with no error. Errors, not_ready and flakes",
         "count symbols: not_ready is an index_not_ready error (dumb mode), not in errors; a flake is a symbol",
         f"whose repeats differ. Capped counts results with {CAP} rows or more. Off_lines counts the usage",
         "lines (sub, sibling and embedded uses) that the usages audit view leaves out, and off_listed those",
-        "of them that the answer lists (sums over the results).", "",
+        "of them that the answer lists (sums over the results). For usages, the precision counts only the",
+        "sure lines (a line with a row with no `match`), and the recall counts all lines. Marked_fp counts",
+        "the marked lines (each row has a `match`) that the view does not require and does not ignore. They",
+        "are no false answers (sums over the results).", "",
         "| tool | hardness | symbols | precision | recall | exact | errors | not_ready | capped "
-        "| off_lines | off_listed | flakes |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+        "| off_lines | off_listed | flakes | marked_fp |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for row in rows:
         off_lines = "-" if row["off_lines"] is None else row["off_lines"]
         off_listed = "-" if row["off_listed"] is None else row["off_listed"]
+        marked_fp = "-" if row["marked_fp"] is None else row["marked_fp"]
         lines.append(f"| {row['tool']} | {row['hardness']} | {row['symbols']} | {_number(row['precision'])} | "
                      f"{_number(row['recall'])} | {_number(row['exact'])} | {row['errors']} | "
-                     f"{row['not_ready']} | {row['capped']} | {off_lines} | {off_listed} | {row['flakes']} |")
+                     f"{row['not_ready']} | {row['capped']} | {off_lines} | {off_listed} | {row['flakes']} | "
+                     f"{marked_fp} |")
+    if marks is not None:
+        columns = sorted({cls for counts in marks.values() for cls in counts})
+        lines += ["", "## Marks", "",
+                  "The usages answer lines of repeat 1, by mark (rows) and by key class (columns). The mark",
+                  f"`{NO_MARK}` is a sure line: one of its rows has no `match`. Another mark is the sorted set of",
+                  "the `match` values of the rows of the line. The key class comes from the key record, not from",
+                  "the audit view: the `rel` values of the required sites of the line, else `forbidden`, else",
+                  "`dnc`, else `unknown` (no site).", "",
+                  "| " + " | ".join(["mark", *columns]) + " |", "|---|" + "---|" * len(columns)]
+        for mark in sorted(marks, key=lambda m: (m != NO_MARK, m)):
+            lines.append("| " + " | ".join([mark, *(str(marks[mark].get(c, 0)) for c in columns)]) + " |")
     return "\n".join(lines) + "\n"
 
 
@@ -458,9 +559,9 @@ def _fp_entries(fp, record: dict, group: list[dict]) -> list[dict]:
 
 
 def disagreements(results: list[dict], records_by_id: dict[str, dict], host_config: str = "linux") -> list[dict]:
-    """One record for each symbol and tool with a false answer, a miss or an error in a repeat:
-    `{"id", "tool", "repeats", "flake", "fp", "miss", "errors", "auto"}`. The lines are the union over the
-    repeats.
+    """One record for each symbol and tool with a false answer, a miss, an error or a `marked_fp` line in a
+    repeat: `{"id", "tool", "repeats", "flake", "fp", "miss", "errors", "auto"}`. The lines are the union over
+    the repeats.
 
     - usages and definition: a `miss` entry is `{"file", "line", "configs", "why"}` (see `_miss_entries`).
       A usages `miss` entry also has `rel`: the `rel` values of the required sites of the view at the line.
@@ -470,7 +571,8 @@ def disagreements(results: list[dict], records_by_id: dict[str, dict], host_conf
     - `auto`, the automatic classes: `config` (each miss has a non-empty `configs` list without the
       host config), `miss` (a miss that is not of the class `config`), `decoy` (an fp at a forbidden
       line), `absent` (an fp with no key site: an fp with `key_class` `absent`, and each plain fp),
-      `error`, `flake`.
+      `error`, `flake`, `marked` (a `marked_fp` line, and no fp, no miss and no error; the lines are in
+      `extra["marked_fp"]` of the results).
     """
     groups: dict[tuple[str, str], list[dict]] = {}
     for res in results:
@@ -482,7 +584,8 @@ def disagreements(results: list[dict], records_by_id: dict[str, dict], host_conf
         errors = {res["error"] for res in group if res["error"] is not None}
         errors.update(f"{file}:{line}: {text}" for res in group
                       for file, line, text in res["extra"].get("site_errors", []))
-        if not (fp or miss or errors):
+        marked = any(res["extra"].get("marked_fp") for res in group)
+        if not (fp or miss or errors or marked):
             continue
         flake = len({_outcome(res) for res in group}) > 1
         record = records_by_id[rid]
@@ -506,6 +609,8 @@ def disagreements(results: list[dict], records_by_id: dict[str, dict], host_conf
             auto.add("error")
         if flake:
             auto.add("flake")
+        if marked and not (fp or miss or errors):
+            auto.add("marked")
         out.append({"id": rid, "tool": tool, "repeats": len(group), "flake": flake, "fp": fp_out,
                     "miss": miss_out, "errors": sorted(errors), "auto": sorted(auto)})
     return out
@@ -516,7 +621,8 @@ def disagreements_text(found: list[dict], header: list[str]) -> str:
     lines = ["# Disagreements", "", *header, "",
              "A record with two classes is in both rows. Classes: `config` (each miss is only in other build",
              "configurations than the host), `miss`, `decoy` (an fp at a forbidden line), `absent` (an fp with",
-             "no key site), `error`, `flake`.", "",
+             "no key site), `error`, `flake`, `marked` (only marked false lines: no fp, no miss and no error;",
+             "the lines are in `extra.marked_fp` of results.jsonl).", "",
              "| tool | class | records | first ids |", "|---|---|---|---|"]
     for tool in TOOLS:
         for cls in AUTO_CLASSES:
@@ -568,7 +674,7 @@ def _run(args) -> int:
               f"- symbols: {len(chosen)} of {len(records)} (n {args.n}, seed {args.seed}), repeats {args.repeats}",
               f"- outside prefixes: {', '.join(outside) or '-'}"]
     with open(os.path.join(args.out, "summary.md"), "w", encoding="utf-8") as f:
-        f.write(summary_text(rows, header, warning))
+        f.write(summary_text(rows, header, warning, marks_table(results)))
     print(f"{len(results)} results in {args.out}", file=sys.stderr)
     if changed:
         print(warning.strip("*"), file=sys.stderr)

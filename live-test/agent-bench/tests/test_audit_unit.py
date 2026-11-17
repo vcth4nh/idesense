@@ -110,10 +110,12 @@ def record(sites, rid="go:m.App.Run", kind="method", implementers=(), family=Non
             "implementers": list(implementers), "source": source}
 
 
-def usage(file, line, col=1, usage_type="METHOD_CALL"):
+def usage(file, line, col=1, usage_type="METHOD_CALL", match=None):
     row = {"file": file, "line": line, "column": col, "preview": "", "enclosingScope": []}
     if usage_type is not None:
         row["usageType"] = usage_type
+    if match is not None:
+        row["match"] = match
     return row
 
 
@@ -174,9 +176,10 @@ class ProbeTest(unittest.TestCase):
         res = audit.probe_usages(client, rec, 2)
         self.assertEqual({"id": "go:m.App.Run", "tool": "ide_find_usages", "repeat": 2, "error": None,
                           "answer": [["a.go", 3], ["b.go", 7], ["c.go", 9]],
-                          "score": keys.score({("a.go", 3), ("b.go", 7), ("c.go", 9)}, rec),
+                          "score": {**keys.score({("a.go", 3), ("b.go", 7), ("c.go", 9)}, rec), "marked_fp": 0},
                           "extra": {"rows": 6, "outside": 2, "fp": [["c.go", 9]], "fp_rows": [["c.go", 9, "METHOD_CALL"]],
-                                    "miss": [["a.go", 4]], "off_contract": {}, "notes": ["iface"]}},
+                                    "miss": [["a.go", 4]], "off_contract": {}, "notes": ["iface"],
+                                    "marked_fp": [], "marks": {"none": {"self": 2, "forbidden": 1}}}},
                          res)
         self.assertEqual((2, 1, 1, 0), tuple(res["score"][k] for k in ("tp", "fp", "miss", "ignored")))
         self.assertEqual({"file": "a.go", "line": 1, "column": 15, "pageSize": 500,
@@ -394,7 +397,7 @@ class UsagesViewTest(unittest.TestCase):
         # The probe scores against the view: the sibling line is ignored, not a false answer.
         _, client = fake(self, lambda tool, args: page([usage("a.go", 3), usage("b.go", 5)]))
         res = audit.probe_usages(client, rec, 1)
-        self.assertEqual(keys.score({("a.go", 3), ("b.go", 5)}, view), res["score"])
+        self.assertEqual({**keys.score({("a.go", 3), ("b.go", 5)}, view), "marked_fp": 0}, res["score"])
         self.assertEqual((1, 0, 0, 1, True), tuple(res["score"][k] for k in ("tp", "fp", "miss", "ignored", "exact")))
         self.assertEqual(([], []), (res["extra"]["fp"], res["extra"]["miss"]))
 
@@ -490,6 +493,158 @@ class UsagesViewTest(unittest.TestCase):
         text = audit.summary_text(audit.summary_rows(results, {rec["id"]: "easy", plain["id"]: "easy"}), [])
         self.assertIn("| capped | off_lines | off_listed | flakes |", text)
         self.assertIn("| ide_find_definition | all | 2 | 1.000 | 1.000 | 1.000 | 0 | 0 | 0 | - | - | 0 |", text)
+
+
+# A usages result of the audit before the marks (caddy, build 2.1.1-bench.5beca97, run audit/5beca97/caddy-all),
+# and the sites of its key record. Identifiers, paths and lines only.
+OLD_ID = "go:github.com/caddyserver/caddy/v2/modules/caddypki.AuthorityConfig"
+OLD_DECL = {"file": "modules/caddypki/ca.go", "line": 459, "col": 6}
+OLD_SITES = [("modules/caddypki/acmeserver/acmeserver.go", 170, 30, "required", "use", "self"),
+             ("modules/caddypki/ca.go", 222, 44, "required", "use", "self"),
+             ("modules/caddypki/ca.go", 259, 4, "forbidden", "decoy", None),
+             ("modules/caddypki/ca.go", 457, 4, "dnc", "comment", None),
+             ("modules/caddypki/ca.go", 459, 6, "dnc", "decl", None),
+             ("modules/caddytls/internalissuer.go", 105, 22, "required", "use", "self")]
+OLD_RESULT = {
+    "id": OLD_ID, "tool": "ide_find_usages", "repeat": 1,
+    "answer": [["modules/caddypki/acmeserver/acmeserver.go", 170], ["modules/caddypki/ca.go", 222],
+               ["modules/caddypki/ca.go", 259], ["modules/caddypki/ca.go", 457],
+               ["modules/caddytls/internalissuer.go", 105]],
+    "score": {"tp": 3, "fp": 1, "miss": 0, "ignored": 1, "precision": 0.75, "recall": 1.0, "exact": False},
+    "extra": {"rows": 5, "outside": 0, "fp": [["modules/caddypki/ca.go", 259]], "miss": [],
+              "fp_rows": [["modules/caddypki/ca.go", 259, "REFERENCE"]], "off_contract": {}},
+    "error": None}
+OLD_DISAGREEMENT = {"id": OLD_ID, "tool": "ide_find_usages", "repeats": 1, "flake": False,
+                    "fp": [{"file": "modules/caddypki/ca.go", "line": 259, "key_class": "forbidden",
+                            "usageType": "REFERENCE"}], "miss": [], "errors": [], "auto": ["decoy"]}
+
+
+class MarksTest(unittest.TestCase):
+    def test_marked_line_at_forbidden_site_is_marked_fp_not_fp(self):
+        rec = record([site("a.go", 3), site("c.go", 9, "forbidden", "decoy")])
+        _, client = fake(self, lambda tool, args: page([usage("a.go", 3), usage("c.go", 9, match="DYNAMIC")]))
+        res = audit.probe_usages(client, rec, 1)
+        self.assertEqual([["a.go", 3], ["c.go", 9]], res["answer"])
+        self.assertEqual(([], []), (res["extra"]["fp"], res["extra"]["fp_rows"]))
+        self.assertEqual([["c.go", 9, "DYNAMIC"]], res["extra"]["marked_fp"])
+        s = res["score"]
+        self.assertIs(True, s["exact"])
+        self.assertEqual((1, 0, 0, 0, 1.0, 1.0, 1),
+                         tuple(s[k] for k in ("tp", "fp", "miss", "ignored", "precision", "recall", "marked_fp")))
+
+    def test_line_with_sure_and_marked_row_is_sure(self):
+        rec = record([site("a.go", 3), site("c.go", 9, "forbidden", "decoy")])
+        rows = [usage("a.go", 3, match="BASE"), usage("a.go", 3, 9),
+                usage("c.go", 9, 2, "REFERENCE", match="BASE"), usage("c.go", 9, 20),
+                usage("d.go", 2, match="DYNAMIC"), usage("d.go", 2, 7, match="BASE")]
+        _, client = fake(self, lambda tool, args: page(rows))
+        res = audit.probe_usages(client, rec, 1)
+        # c.go:9 has a row with no match: it is a sure line, so it is a false answer.
+        self.assertEqual([["c.go", 9]], res["extra"]["fp"])
+        self.assertEqual([["c.go", 9, "REFERENCE"]], res["extra"]["fp_rows"])
+        # d.go:2 has only marked rows: its mark is the sorted set of its match values.
+        self.assertEqual([["d.go", 2, "BASE+DYNAMIC"]], res["extra"]["marked_fp"])
+        self.assertEqual({"none": {"self": 1, "forbidden": 1}, "BASE+DYNAMIC": {"unknown": 1}},
+                         res["extra"]["marks"])
+        s = res["score"]
+        self.assertEqual((1, 1, 0, 0.5, False, 1),
+                         tuple(s[k] for k in ("tp", "fp", "miss", "precision", "exact", "marked_fp")))
+
+    def test_precision_counts_only_sure_lines(self):
+        rec = record([site("a.go", 3), site("a.go", 4), site("b.go", 5), site("b.go", 6), site("b.go", 7),
+                      site("d.go", 8), site("c.go", 9, "forbidden", "decoy")])
+        rows = [usage("a.go", 3), usage("a.go", 4), usage("c.go", 9),
+                usage("b.go", 5, match="BASE"), usage("b.go", 6, match="BASE"), usage("b.go", 7, match="DYNAMIC")]
+        _, client = fake(self, lambda tool, args: page(rows))
+        res = audit.probe_usages(client, rec, 1)
+        s = res["score"]
+        self.assertEqual((5, 1, 1, 0, False, 0),
+                         tuple(s[k] for k in ("tp", "fp", "miss", "ignored", "exact", "marked_fp")))
+        # 2 sure required lines and 1 sure false line.
+        self.assertAlmostEqual(2 / 3, s["precision"])
+        # The recall counts all 5 listed required lines, sure and marked: 5 of 6.
+        self.assertAlmostEqual(5 / 6, s["recall"])
+        self.assertEqual([["d.go", 8]], res["extra"]["miss"])
+        # With no sure line the precision is None. The recall counts the marked required line.
+        _, client = fake(self, lambda tool, args: page([usage("b.go", 5, match="BASE"),
+                                                        usage("c.go", 9, match="DYNAMIC")]))
+        s = audit.probe_usages(client, rec, 1)["score"]
+        self.assertIsNone(s["precision"])
+        self.assertAlmostEqual(1 / 6, s["recall"])
+        self.assertEqual((1, 0, 1), (s["tp"], s["fp"], s["marked_fp"]))
+
+    def test_marks_table_uses_record_rel(self):
+        rec = record([site("a.go", 3, rel="self"), site("i.go", 5, rel="super"), site("b.go", 7, rel="sibling"),
+                      site("e.go", 2, rel="self"), site("e.go", 2, col=9, rel="super"),
+                      site("c.go", 9, "forbidden", "decoy"), site("g.go", 4, "dnc", "comment")])
+        rows = [usage("a.go", 3), usage("i.go", 5, match="BASE"), usage("b.go", 7), usage("e.go", 2, match="BASE"),
+                usage("c.go", 9, match="DYNAMIC"), usage("g.go", 4, usage_type="COMMENT"),
+                usage("h.go", 1, match="DYNAMIC"), usage("/usr/lib/go/src/x.go", 1, match="BASE")]
+        _, client = fake(self, lambda tool, args: page(rows))
+        res = audit.probe_usages(client, rec, 1)
+        marks = res["extra"]["marks"]
+        self.assertEqual(1, marks["BASE"]["super"])
+        # The view makes the sibling line dnc; the marks table takes the class from the record.
+        self.assertEqual(1, marks["none"]["sibling"])
+        # A row outside the tree is no answer line.
+        self.assertEqual({"none": {"self": 1, "sibling": 1, "dnc": 1}, "BASE": {"super": 1, "self+super": 1},
+                          "DYNAMIC": {"forbidden": 1, "unknown": 1}}, marks)
+        self.assertEqual([["c.go", 9, "DYNAMIC"], ["h.go", 1, "DYNAMIC"]], res["extra"]["marked_fp"])
+        self.assertEqual((3, 0, 0, 2, 1.0, 2),
+                         tuple(res["score"][k] for k in ("tp", "fp", "miss", "ignored", "precision", "marked_fp")))
+        # The summary: a column marked_fp (the sum of the lines over the results), and a table Marks below the
+        # main table, from the usages results of repeat 1 only.
+        results = [res, audit.probe_usages(client, rec, 2)]
+        self.assertEqual(marks, audit.marks_table(results))
+        rows_by = {(r["tool"], r["hardness"]): r for r in audit.summary_rows(results, {rec["id"]: "decoys"})}
+        self.assertEqual(4, rows_by[("ide_find_usages", "all")]["marked_fp"])
+        text = audit.summary_text(list(rows_by.values()), [], marks=audit.marks_table(results))
+        self.assertIn("| capped | off_lines | off_listed | flakes | marked_fp |", text)
+        self.assertIn("| ide_find_usages | all | 1 | 1.000 | 1.000 | 1.000 | 0 | 0 | 0 | 2 | 2 | 0 | 4 |", text)
+        self.assertIn("| mark | dnc | forbidden | self | self+super | sibling | super | unknown |", text)
+        self.assertIn("| none | 1 | 0 | 1 | 0 | 1 | 0 | 0 |", text)
+        self.assertIn("| BASE | 0 | 0 | 0 | 1 | 0 | 1 | 0 |", text)
+        self.assertIn("| DYNAMIC | 0 | 1 | 0 | 0 | 0 | 0 | 1 |", text)
+        self.assertLess(text.index("| tool | hardness |"), text.index("## Marks"))
+        self.assertLess(text.index("| none |"), text.index("| BASE |"))
+
+    def test_no_match_field_gives_old_score(self):
+        rec = record([site(f, line, cls, why, col, rel) for f, line, col, cls, why, rel in OLD_SITES],
+                     rid=OLD_ID, kind="type")
+        rec["decl"] = dict(OLD_DECL)
+        rows = [usage(f, line, usage_type="REFERENCE") for f, line in OLD_RESULT["answer"]]
+        _, client = fake(self, lambda tool, args: page(rows))
+        new = audit.probe_usages(client, rec, 1)
+        # The new fields hold their zero values, and the rest equals the old result.
+        self.assertEqual((0, []), (new["score"].pop("marked_fp"), new["extra"].pop("marked_fp")))
+        self.assertEqual({"none": {"self": 3, "forbidden": 1, "dnc": 1}}, new["extra"].pop("marks"))
+        self.assertEqual(OLD_RESULT, new)
+        # The old result gives the old disagreement record.
+        self.assertEqual([OLD_DISAGREEMENT], audit.disagreements([OLD_RESULT], {OLD_ID: rec}))
+
+    def test_marked_only_record_has_class_marked(self):
+        self.assertIn("marked", audit.AUTO_CLASSES)
+        only = record([site("a.go", 3), site("c.go", 9, "forbidden", "decoy")], rid="go:m.Only")
+        both = record([site("b.go", 3), site("b.go", 9, "forbidden", "decoy")], rid="go:m.Both")
+        both["decl"] = {"file": "b.go", "line": 1, "col": 6}
+        clean = record([site("k.go", 3)], rid="go:m.Clean")
+        clean["decl"] = {"file": "k.go", "line": 1, "col": 6}
+        pages = {"a.go": page([usage("a.go", 3), usage("c.go", 9, match="DYNAMIC")]),
+                 "b.go": page([usage("b.go", 3), usage("b.go", 9), usage("d.go", 2, match="BASE")]),
+                 "k.go": page([usage("k.go", 3)])}
+        _, client = fake(self, lambda tool, args: pages[args["file"]])
+        results = [audit.probe_usages(client, rec, 1) for rec in (only, both, clean)]
+        found = audit.disagreements(results, {r["id"]: r for r in (only, both, clean)})
+        # Only marked false lines: the record is listed with the class marked. A record with a false
+        # answer has no class marked. A record with no disagreement is not listed.
+        self.assertEqual([{"id": "go:m.Both", "tool": "ide_find_usages", "repeats": 1, "flake": False,
+                           "fp": [{"file": "b.go", "line": 9, "key_class": "forbidden", "usageType": "METHOD_CALL"}],
+                           "miss": [], "errors": [], "auto": ["decoy"]},
+                          {"id": "go:m.Only", "tool": "ide_find_usages", "repeats": 1, "flake": False,
+                           "fp": [], "miss": [], "errors": [], "auto": ["marked"]}], found)
+        text = audit.disagreements_text(found, [])
+        self.assertIn("| ide_find_usages | marked | 1 | `go:m.Only` |", text)
+        self.assertIn("`marked`", text.split("| tool |")[0])
 
 
 class RunTest(unittest.TestCase):
