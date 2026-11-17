@@ -86,7 +86,7 @@ class FindUsagesTool : AbstractMcpTool() {
 
         Returns: file paths, 1-based positions, context snippets, and reference kinds
         (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE, COMMENT). Paginated (each cursor collects up to an internal cap; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
-        For a Go, JavaScript or TypeScript member that overrides or implements a base declaration, the result also holds the usages of that base declaration, and a notes list on the first page names it. A usage can have match: BASE (it refers to a base declaration; the call can run this symbol or another implementation) or match: DYNAMIC (only the name matches; the type of the receiver is not known). A usage with no match refers to the symbol itself.
+        For a Go, JavaScript, TypeScript, Python or Rust member that overrides or implements a base declaration, the result also holds the usages of that base declaration, and a notes list on the first page names it. A usage can have match: BASE (it refers to a base declaration; the call can run this symbol or another implementation) or match: DYNAMIC (only the name matches; the type of the receiver is not known). A usage with no match refers to the symbol itself.
 
         Gotchas: requires smart mode (not indexing). If the language's find-usages handler degrades
         mid-search, a warnings list on the first page flags the partial coverage. For a quick literal

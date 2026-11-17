@@ -1,4 +1,5 @@
 {"id":"usage-Channel.ALPHA-member","tool":"ide_find_usages","params":{"column":5,"file":"src/enums.py","line":8}}
+{"id":"usage-Circle.area-override","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.py","line":36}}
 {"id":"usage-Circle.radius","tool":"ide_find_usages","params":{"column":14,"file":"src/normal.py","line":34}}
 {"id":"usage-Coercer.coerce-nested","tool":"ide_find_usages","params":{"column":13,"file":"src/quirks.py","line":79}}
 {"id":"usage-Drawable-protocol","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.py","line":14}}
@@ -7,6 +8,7 @@
 {"id":"usage-Rectangle-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.py","line":43}}
 {"id":"usage-Shape-bysymbol","tool":"ide_find_usages","params":{"symbol":"Shape"}}
 {"id":"usage-Shape-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.py","line":23}}
+{"id":"usage-Square.__init__-override","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.py","line":59}}
 {"id":"usage-area-from-describe","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.py","line":25}}
 {"id":"usage-area-libraries-scope","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.py","line":25,"scope":"project_and_libraries"}}
 {"id":"usage-classify-Shape-kind","tool":"ide_find_usages","params":{"column":9,"file":"src/quirks.py","line":133}}
