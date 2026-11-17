@@ -78,7 +78,7 @@ Omit `paths` to sync the entire project.
 ## Tool Selection by Task
 
 ### "I need to understand how X is used"
-1. `ide_find_usages` - all call sites, field accesses, imports
+1. `ide_find_usages` - all call sites, field accesses, imports. A usage with `match` is not sure: `BASE` (it refers to a base declaration) or `DYNAMIC` (only the name matches)
 2. `ide_call_hierarchy` with `direction: "callers"` - full call chain upward
 
 ### "I need to understand what X is"

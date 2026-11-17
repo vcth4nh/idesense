@@ -205,16 +205,38 @@ of the IDE's Find Usages window. An example is `Shape` in the PHP doc comment
 `/** @var Shape[] */`. `line` and `column` point at the word in the comment, not at the start of
 the comment.
 
-**Notes:** `notes` lists what the IDE added to the search. It is on the first page of a fresh
-search. The key is absent when there is nothing to tell.
+**Base declarations:** a Go, JavaScript or TypeScript member can override or implement a base
+declaration. Then the result is the union of the usages of the member and the usages of each
+base declaration. An example is a Go method that implements an interface method. A call through
+an interface value refers to the interface method, but it can run the method. The search
+collects the usages of the member itself before the usages of the base declarations. Where the
+IDE asks its user whether to search the base member or hides dynamic usages by default, the tool
+includes and marks both. An absent call site costs an agent more than a marked extra row. For a
+Go method, GoLand also shows its notification "Looking for usages of the interface methods" in
+the IDE window, as it does for Find Usages. The notification stops when the user selects "Don't
+show again".
 
-**Go methods:** for a Go method that implements an interface method, the result also has the
-usages of the interface method, for example the calls through an interface value. Find Usages of
-GoLand does the same by default. The first page then has this `notes` entry: `Usages of the
-interface methods that this method implements are included (the default of Find Usages in
-GoLand).` A method that implements no interface method gets no `notes` key. GoLand also shows its
-notification "Looking for usages of the interface methods" in the IDE window, as it does for
-Find Usages. The notification stops when the user selects "Don't show again".
+**Match:** a usage that is not a sure usage of the symbol has the field `match`:
+- No `match` key - the usage refers to the symbol itself.
+- `BASE` - the usage refers to a base declaration. The call can run this symbol or another
+  implementation.
+- `DYNAMIC` - only the name matches, and the type of the receiver is not known. In all
+  languages, a reference that does not resolve to a declaration has this mark. In JavaScript and
+  TypeScript, a usage that WebStorm counts as a dynamic usage also has it. An example is a call
+  `x.send()` on a value with no known type.
+
+**Notes:** `notes` is on the first page of a fresh search when the symbol overrides or implements
+base declarations. The entry names the base declarations and gives the count of the collected
+usages that have `match: BASE`. An example for the JavaScript method `area` that overrides
+`Shape.area`:
+
+```json
+"notes": [
+  "'area' overrides or implements Shape.area (src/normal.js:16:5). The result also holds the usages of this base declaration, because a call through it can run 'area'. 1 of the 5 usages has match BASE."
+]
+```
+
+The key is absent when the symbol has no base declaration.
 
 **Degraded searches:** if the language's find-usages handler throws mid-expansion (e.g.
 broken library roots), the search continues on the remaining targets and `warnings` lists
@@ -223,9 +245,9 @@ each failed stage (`primaryElements` / `secondaryElements` / `findReferencesToHi
 result. If the handler factory of the language throws while it creates the handler, the tool
 searches only the references to the anchor element, and `warnings` has the entry `Find-usages
 handler factory <Name> threw while creating the handler; searched the references to the anchor
-element only — usages may be incomplete.` Examples are a JavaScript member with a base member in
-WebStorm and a trait method implementation in RustRover. `warnings` is `null` when the search ran
-complete; it is reported on the first page of a fresh search.
+element only — usages may be incomplete.` An example is a trait method implementation in
+RustRover. `warnings` is `null` when the search ran complete; it is reported on the first page of
+a fresh search.
 
 ---
 
@@ -617,7 +639,7 @@ ambiguous name returns a `candidates` list instead of guessing.
 - Facets are capped summaries: `implementations` up to 10 (`implementationsTruncated`), `usageCount` counted up to 200 (`usagesTruncated`), `topUsages` up to 5, `documentation` up to 4000 characters (`documentationTruncated`). Page through the dedicated tools for full sets.
 - A `null` facet means not applicable, not requested, or degraded (degradations are named in `warnings`); an empty list means searched-and-empty — the same convention as `ide_diagnostics`.
 - Usage counting and implementation search run over project files; library usages are not counted.
-- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go method, they include the usages of the interface methods that it implements. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages first, and a `COMMENT` usage takes only a slot that the code usages leave free.
+- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, JavaScript or TypeScript member with base declarations, `usageCount` counts the same union as `ide_find_usages`. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages with no `match` first, then the code usages with a `match`, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`), as in `ide_find_usages`.
 - On an ambiguous `symbol`, only `candidates` and `message` are populated — re-call with a qualified name or position from the list.
 - `problems` is only populated with `includeDiagnostics: true` and covers problems overlapping the declaration's line range.
 
