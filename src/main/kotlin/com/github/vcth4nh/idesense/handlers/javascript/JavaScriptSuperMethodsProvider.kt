@@ -96,32 +96,61 @@ class JavaScriptSuperMethodsProvider : SuperMethodsProvider {
         return SuperMethodsData(method = classData, hierarchy = buildClassHierarchy(project, jsClass))
     }
 
+    /**
+     * The members that [element] overrides or implements, when [element] itself is a JS function
+     * or a JS field: the members of [walkBaseMembers], in the same order as the hierarchy of
+     * [findSuperMethods] (#171, #196). Empty for any other element, also for an element inside a
+     * member.
+     */
+    override fun findBaseDeclarations(element: PsiElement): List<PsiElement> {
+        val isField = when {
+            jsFunctionClass?.isInstance(element) == true -> false
+            jsFieldClass?.isInstance(element) == true -> true
+            else -> return emptyList()
+        }
+        return walkBaseMembers(element, mutableSetOf(), isField)
+    }
+
     private fun buildHierarchy(
         project: Project,
         jsFunction: PsiElement,
-        visited: MutableSet<String> = mutableSetOf(),
         isField: Boolean = false,
-    ): List<SuperMethodData> {
-        val overridden = invokeFindNearestOverridden(jsFunction, onlyFunctions = !isField)
-        val results = if (overridden.isNotEmpty()) overridden else invokeFindImplemented(jsFunction)
-
-        val out = mutableListOf<SuperMethodData>()
-        for (superMember in results) {
-            val key = QualifiedNameUtil.getQualifiedName(superMember)
-                ?: "${superMember.javaClass.simpleName}@${System.identityHashCode(superMember)}"
-            if (!visited.add(key)) continue
+    ): List<SuperMethodData> =
+        walkBaseMembers(jsFunction, mutableSetOf(), isField).map { superMember ->
             val file = superMember.containingFile?.virtualFile
-            out.add(SuperMethodData(
+            SuperMethodData(
                 name = getName(superMember) ?: "unknown",
                 qualifiedName = QualifiedNameUtil.getQualifiedName(superMember),
                 kind = LanguageServices.getKind(superMember),
                 file = file?.let { getRelativePath(project, it) },
                 line = getLineNumber(project, superMember),
                 column = getColumnNumber(project, superMember),
-            ))
+            )
+        }
+
+    /**
+     * The walk of [buildHierarchy] and [findBaseDeclarations]: `findNearestOverriddenMembers` of
+     * [jsFunction], else `findImplementedMembers`, then the same walk on each result. Each member
+     * comes before its own base members. A member with a key in [visited] (its qualified name, else
+     * its class and identity) is skipped with its base members.
+     */
+    private fun walkBaseMembers(
+        jsFunction: PsiElement,
+        visited: MutableSet<String>,
+        isField: Boolean,
+    ): List<PsiElement> {
+        val overridden = invokeFindNearestOverridden(jsFunction, onlyFunctions = !isField)
+        val results = if (overridden.isNotEmpty()) overridden else invokeFindImplemented(jsFunction)
+
+        val out = mutableListOf<PsiElement>()
+        for (superMember in results) {
+            val key = QualifiedNameUtil.getQualifiedName(superMember)
+                ?: "${superMember.javaClass.simpleName}@${System.identityHashCode(superMember)}"
+            if (!visited.add(key)) continue
+            out.add(superMember)
             // Walk the full transitive chain — matches the Java/Kotlin providers and
             // WebStorm's gutter (JSInheritanceUtil.iterateOverriddenMembersUp recursive=true).
-            out.addAll(buildHierarchy(project, superMember, visited, isField = jsFieldClass?.isInstance(superMember) == true))
+            out.addAll(walkBaseMembers(superMember, visited, isField = jsFieldClass?.isInstance(superMember) == true))
         }
         return out
     }

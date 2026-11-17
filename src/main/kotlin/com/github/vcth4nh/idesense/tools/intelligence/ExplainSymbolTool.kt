@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.tools.intelligence
 import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.ToolNames
+import com.github.vcth4nh.idesense.constants.UsageMatch
 import com.github.vcth4nh.idesense.constants.UsageTypes
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
@@ -41,7 +42,6 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.search.searches.DefinitionsScopedSearch
-import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.util.Processor
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -63,14 +63,32 @@ class ExplainSymbolTool : AbstractMcpTool() {
         internal const val MAX_DOC_LENGTH = 4000
         private const val MAX_DECLARATION_PROBLEMS = 50
 
+        private const val SURE_CODE_USAGE = 0
+        private const val BASE_CODE_USAGE = 1
+        private const val OTHER_MARKED_CODE_USAGE = 2
+        private const val COMMENT_USAGE = 3
+
         /**
-         * The first [limit] of [usages], code usages first: a COMMENT usage takes only a slot that
-         * the code usages leave free (#132). Arrival order inside each group.
+         * The class of a usage for [preferSureUsages]: a sure code usage, a code usage with the match
+         * [UsageMatch.BASE], a code usage with another match (today only [UsageMatch.DYNAMIC]), or a
+         * COMMENT usage.
          */
-        internal fun preferCodeUsages(usages: List<UsageLocation>, limit: Int): List<UsageLocation> {
-            val (comments, code) = usages.partition { it.usageType == UsageTypes.COMMENT }
-            return (code + comments).take(limit)
+        private fun usageClass(usageType: String, match: String?): Int = when {
+            usageType == UsageTypes.COMMENT -> COMMENT_USAGE
+            match == null -> SURE_CODE_USAGE
+            match == UsageMatch.BASE -> BASE_CODE_USAGE
+            else -> OTHER_MARKED_CODE_USAGE
         }
+
+        /**
+         * The first [limit] of [usages], the less uncertain usages first: the code usages with no
+         * match, then the code usages with the match [UsageMatch.BASE], then the code usages with
+         * another match (#171, #196), then the COMMENT usages (#132). A BASE usage is a resolved
+         * usage of a base declaration. A DYNAMIC usage is a name match only. Arrival order inside
+         * each class.
+         */
+        internal fun preferSureUsages(usages: List<UsageLocation>, limit: Int): List<UsageLocation> =
+            usages.sortedBy { usageClass(it.usageType, it.match) }.take(limit)
     }
 
     override val name = ToolNames.EXPLAIN_SYMBOL
@@ -297,9 +315,10 @@ class ExplainSymbolTool : AbstractMcpTool() {
         var topUsages: List<UsageLocation>? = null
         try {
             val seen = HashSet<String>()
-            // In arrival order until it has MAX_TOP_USAGES code usages; preferCodeUsages selects.
+            // In arrival order until it has MAX_TOP_USAGES sure code usages, at most MAX_TOP_USAGES
+            // of each class; preferSureUsages selects.
             val top = mutableListOf<UsageLocation>()
-            var codeUsages = 0
+            val classCounts = IntArray(COMMENT_USAGE + 1)
             val collectRef: (UsageHit) -> Boolean = { hit ->
                 ProgressManager.checkCanceled()
                 val refElement = hit.element
@@ -312,37 +331,36 @@ class ExplainSymbolTool : AbstractMcpTool() {
                         val refLine = refDocument.getLineNumber(hit.offset) + 1
                         val refColumn = hit.offset - refDocument.getLineStartOffset(refLine - 1) + 1
                         val path = getRelativePath(project, refFile)
-                        if (seen.add("$path:$refLine:$refColumn") && codeUsages < MAX_TOP_USAGES) {
-                            val usage = UsageLocation(
-                                file = path,
-                                line = refLine,
-                                column = refColumn,
-                                preview = LinePreview.ofLine(refDocument, refLine - 1, refColumn - 1),
-                                usageType = FindUsagesTool.classifyUsage(refElement),
-                                enclosingScope = PsiUtils.getEnclosingScope(refElement),
-                            )
-                            if (usage.usageType != UsageTypes.COMMENT) codeUsages++
-                            top.add(usage)
+                        if (seen.add("$path:$refLine:$refColumn") && classCounts[SURE_CODE_USAGE] < MAX_TOP_USAGES) {
+                            val usageType = FindUsagesTool.classifyUsage(refElement)
+                            val usageClass = usageClass(usageType, hit.match)
+                            if (classCounts[usageClass] < MAX_TOP_USAGES) {
+                                classCounts[usageClass]++
+                                top.add(UsageLocation(
+                                    file = path,
+                                    line = refLine,
+                                    column = refColumn,
+                                    preview = LinePreview.ofLine(refDocument, refLine - 1, refColumn - 1),
+                                    usageType = usageType,
+                                    enclosingScope = PsiUtils.getEnclosingScope(refElement),
+                                    match = hit.match,
+                                ))
+                            }
                         }
                     }
                 }
                 seen.size < MAX_USAGE_COUNT
             }
-            val handlerProcessed = FindUsagesHandlerSearch.processReferences(
+            FindUsagesHandlerSearch.processReferences(
                 project = project,
                 element = target,
                 scope = searchScope,
                 processor = Processor { hit -> collectRef(hit) },
                 warnings = warnings
             )
-            if (!handlerProcessed) {
-                ReferencesSearch.search(target, searchScope).forEach(Processor { reference ->
-                    collectRef(UsageHit(reference.element, reference.element.textOffset))
-                })
-            }
             usageCount = seen.size
             usagesTruncated = seen.size >= MAX_USAGE_COUNT
-            topUsages = preferCodeUsages(top, MAX_TOP_USAGES)
+            topUsages = preferSureUsages(top, MAX_TOP_USAGES)
         } catch (e: ProcessCanceledException) {
             throw e
         } catch (e: LinkageError) {

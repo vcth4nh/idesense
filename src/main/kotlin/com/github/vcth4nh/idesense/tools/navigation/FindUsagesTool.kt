@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.tools.navigation
 import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.ToolNames
+import com.github.vcth4nh.idesense.constants.UsageMatch
 import com.github.vcth4nh.idesense.constants.UsageTypes
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
@@ -21,7 +22,9 @@ import com.github.vcth4nh.idesense.tools.models.SymbolCandidatesResult
 import com.github.vcth4nh.idesense.tools.models.UsageLocation
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
 import com.github.vcth4nh.idesense.util.LinePreview
+import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.PsiUtils
+import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.progress.ProgressManager
@@ -31,7 +34,6 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.SmartPointerManager
-import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.Processor
@@ -84,7 +86,7 @@ class FindUsagesTool : AbstractMcpTool() {
 
         Returns: file paths, 1-based positions, context snippets, and reference kinds
         (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE, COMMENT). Paginated (each cursor collects up to an internal cap; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
-        A notes list on the first page tells what the IDE added to the search (for a Go method: the usages of the interface methods it implements).
+        For a Go, JavaScript or TypeScript member that overrides or implements a base declaration, the result also holds the usages of that base declaration, and a notes list on the first page names it. A usage can have match: BASE (it refers to a base declaration; the call can run this symbol or another implementation) or match: DYNAMIC (only the name matches; the type of the receiver is not known). A usage with no match refers to the symbol itself.
 
         Gotchas: requires smart mode (not indexing). If the language's find-usages handler degrades
         mid-search, a warnings list on the first page flags the partial coverage. For a quick literal
@@ -144,7 +146,8 @@ class FindUsagesTool : AbstractMcpTool() {
         // FindUsagesHandler stage threw and the search degraded (#81) — surfaced on
         // the first page of a fresh search.
         val handlerWarnings = mutableListOf<String>()
-        // Filled the same way: what the IDE added to the search (#130), first page only.
+        // Filled the same way: the note about the base declarations that the search also
+        // covers (#171), first page only.
         val handlerNotes = mutableListOf<String>()
         val cursorToken = suspendingReadAction {
             val targetElement = when (anchor) {
@@ -213,7 +216,8 @@ class FindUsagesTool : AbstractMcpTool() {
                                     column = columnNumber,
                                     preview = LinePreview.ofLine(document, lineNumber - 1, columnNumber - 1),
                                     usageType = classifyUsage(refElement),
-                                    enclosingScope = PsiUtils.getEnclosingScope(refElement)
+                                    enclosingScope = PsiUtils.getEnclosingScope(refElement),
+                                    match = hit.match
                                 ))
                             }
                             total < totalCountLimit
@@ -226,21 +230,16 @@ class FindUsagesTool : AbstractMcpTool() {
                 }
             }
 
+            val baseDeclarations = mutableListOf<PsiElement>()
             try {
-                val handlerProcessed = FindUsagesHandlerSearch.processReferences(
+                FindUsagesHandlerSearch.processReferences(
                     project = project,
                     element = targetElement,
                     scope = searchScope,
                     processor = Processor { hit -> collectRef(hit) },
                     warnings = handlerWarnings,
-                    notes = handlerNotes
+                    baseDeclarations = baseDeclarations
                 )
-
-                if (!handlerProcessed) {
-                    ReferencesSearch.search(targetElement, searchScope).forEach(Processor { reference ->
-                        collectRef(UsageHit(reference.element, reference.element.textOffset))
-                    })
-                }
             } catch (e: LinkageError) {
                 LOG.warn("Reference search failed for ${targetElement.javaClass.name}", e)
                 return@suspendingReadAction null to createErrorResult(searchInfrastructureErrorMessage(e))
@@ -248,6 +247,16 @@ class FindUsagesTool : AbstractMcpTool() {
 
             val usagesList = usages.toList()
                 .distinctBy { "${it.file}:${it.line}:${it.column}" }
+
+            if (baseDeclarations.isNotEmpty()) {
+                handlerNotes.add(BaseDeclarationsNote.build(
+                    symbolName = (targetElement as? PsiNamedElement)?.name ?: "the symbol",
+                    bases = baseDeclarations.map { baseDeclarationRef(project, it) },
+                    baseUsages = usagesList.count { it.match == UsageMatch.BASE },
+                    collected = usagesList.size,
+                    cut = totalFound.get() > usagesList.size
+                ))
+            }
 
             val smartPointer = SmartPointerManager.getInstance(project).createSmartPsiElementPointer(targetElement)
 
@@ -299,6 +308,23 @@ class FindUsagesTool : AbstractMcpTool() {
     }
 
     /**
+     * The name and the place of [base] for [BaseDeclarationsNote]: `path:line:column` in a project
+     * file, `file name, library` in another file, no place when [base] has no file.
+     */
+    private fun baseDeclarationRef(project: Project, base: PsiElement): BaseDeclarationRef {
+        val name = QualifiedNameUtil.getQualifiedName(base) ?: (base as? PsiNamedElement)?.name ?: "unknown"
+        val psiFile = base.containingFile
+        val file = psiFile?.virtualFile ?: return BaseDeclarationRef(name, null)
+        if (!ProjectUtils.isProjectFile(project, file)) return BaseDeclarationRef(name, "${file.name}, library")
+        val path = getRelativePath(project, file)
+        val document = PsiDocumentManager.getInstance(project).getDocument(psiFile)
+            ?: return BaseDeclarationRef(name, path)
+        val line = document.getLineNumber(base.textOffset) + 1
+        val column = base.textOffset - document.getLineStartOffset(line - 1) + 1
+        return BaseDeclarationRef(name, "$path:$line:$column")
+    }
+
+    /**
      * Re-executes the search to collect more results beyond the initial cache.
      * This re-scans from the beginning, skipping already-seen keys — O(total_results) per extension.
      * This is unavoidable: IntelliJ's search APIs (ReferencesSearch, PsiSearchHelper, etc.)
@@ -342,7 +368,8 @@ class FindUsagesTool : AbstractMcpTool() {
                                 column = columnNumber,
                                 preview = LinePreview.ofLine(document, lineNumber - 1, columnNumber - 1),
                                 usageType = classifyUsage(refElement),
-                                enclosingScope = PsiUtils.getEnclosingScope(refElement)
+                                enclosingScope = PsiUtils.getEnclosingScope(refElement),
+                                match = hit.match
                             )
                             newResults.add(
                                 PaginationService.SerializedResult(key, json.encodeToJsonElement(usage))
@@ -359,18 +386,12 @@ class FindUsagesTool : AbstractMcpTool() {
         }
 
         try {
-            val handlerProcessed = FindUsagesHandlerSearch.processReferences(
+            FindUsagesHandlerSearch.processReferences(
                 project = project,
                 element = targetElement,
                 scope = searchScope,
                 processor = Processor { hit -> collectRef(hit) }
             )
-
-            if (!handlerProcessed) {
-                ReferencesSearch.search(targetElement, searchScope).forEach(Processor { reference ->
-                    collectRef(UsageHit(reference.element, reference.element.textOffset))
-                })
-            }
         } catch (e: LinkageError) {
             LOG.warn("Reference search pagination failed for ${targetElement.javaClass.name}", e)
             throw IllegalStateException(searchInfrastructureErrorMessage(e), e)

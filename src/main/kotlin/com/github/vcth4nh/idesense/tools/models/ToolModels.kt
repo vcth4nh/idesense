@@ -12,6 +12,7 @@ data class PositionInput(
 )
 
 // find_usages output
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class UsageLocation(
     val file: String,
@@ -20,6 +21,9 @@ data class UsageLocation(
     val preview: String,
     val usageType: String,
     val enclosingScope: List<String>,
+    // The mark of a usage that is not sure, a value of UsageMatch (#171). Omitted from the JSON when null.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val match: String? = null,
 )
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -35,7 +39,7 @@ data class FindUsagesResult(
     val stale: Boolean = false,
     // null = search ran complete; non-null names handler stages that degraded (#81).
     val warnings: List<String>? = null,
-    // What the IDE added to the search, e.g. the interface methods of a Go method (#130).
+    // The base declarations that the search also covers, with the count of the BASE usages (#171).
     // Omitted from the JSON when null.
     @EncodeDefault(EncodeDefault.Mode.NEVER)
     val notes: List<String>? = null

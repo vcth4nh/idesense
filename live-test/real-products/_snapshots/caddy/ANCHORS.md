@@ -5,6 +5,12 @@ Maps every probe input to the product position it anchors, with the identifier
 at that position and never the source line. `--check-fixtures` fails when this
 file is stale.
 
+## admin.go
+
+| line:col | probe id | tool | identifier |
+|---|---|---|---|
+| 1404:19 | usage-APIError.Error-library-base | find_usages | `Error` |
+
 ## caddy.go
 
 | line:col | probe id | tool | identifier |

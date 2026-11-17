@@ -61,6 +61,14 @@ choosing unilaterally:
    decide. "Mimic the IDE" is the default, not an absolute — usefulness can override
    it, but only with explicit sign-off.
 
+**Approved deviation: a marked false positive is better than a false negative.** Where
+the IDE asks its user a question before a search ("search the base method too?") or hides
+a class of results by default (dynamic usages), a tool has no user to ask. The owner's
+rule (2026-11-17): the tool takes the wider result and marks each row that is not a sure
+match (`match: BASE`, `match: DYNAMIC`), and the response names what was added, in terms
+of the code. A tool never drops such rows silently and never returns them without a mark.
+`ide_find_usages` is the first tool that applies this rule (#171, #196).
+
 ## Key Documentation
 
 ### IntelliJ Platform SDK

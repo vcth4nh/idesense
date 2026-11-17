@@ -471,22 +471,57 @@ will just snapshot a different empty/odd result.
   entry). Not a tool artifact.
 - **Go `find_usages` gives what the Find Usages action of GoLand lists (#130, #132).**
   For a method that implements an interface method, the result also has the
-  usages of the interface method, and the first page has a `notes` entry that
-  says so: `usage-area-libraries-scope` and `usage-Rectangle.Area-files-scope`
-  list the `s.Area()` calls through `Shape` in `TotalArea` and `Largest`. A
-  method with no super method gets no note (`usage-ShapeCollection.add`). A
+  usages of the interface method, and each of these usages has `match` `BASE`:
+  `usage-area-libraries-scope` and `usage-Rectangle.Area-files-scope` list the
+  `s.Area()` calls through `Shape` in `TotalArea` and `Largest` with `BASE`. The
+  `notes` entry of the first page names the interface method
+  (`main.Shape.Area (normal.go:21:2)`) and gives the count of the `BASE` usages.
+  Rule of the owner (2026-11-17): a marked false positive is better than a false
+  negative. A method with no super method gets no note (`usage-ShapeCollection.add`). A
   comment word that spells the name is a usage with `usageType` `COMMENT`, at the
   position of the word: the "Usage in comments" group of GoLand
   (`usage-Circle-struct`, `usage-Shape-iface`). `ide_explain_symbol` counts these
   usages in `usageCount`, and its `topUsages` lists the code usages first.
-- **JavaScript and Rust usage rows with a `warnings` entry.** JavaScript
-  `usage-Derived.value-write` and `usage-area-libraries-scope`, and Rust
-  `usage-area-libraries-scope`, carry a `warnings` entry. The find-usages handler
-  factory of the IDE opens a dialog off the EDT ("search the base member?") and
-  throws, so the tool falls back to the references of the anchor. This is the
-  same form as the Java and Kotlin warning rows. The usages did not change when
-  the warning came in. The result is that of the answer "No" to the IDE's
-  question; #171 (WebStorm) and #172 (RustRover) hold the analysis.
+- **Rust usage row with a `warnings` entry.** Rust `usage-area-libraries-scope`
+  carries a `warnings` entry. The find-usages handler factory of the IDE opens a
+  dialog off the EDT ("search the base member?") and throws, so the tool falls
+  back to the references of the anchor. This is the same form as the Java and
+  Kotlin warning rows. The result is that of the answer "No" to the IDE's
+  question; #172 holds the analysis. Rust gets the base search in a later change.
+  The JavaScript rows no longer have this warning (see the next entry).
+- **JavaScript and TypeScript `find_usages` search the base declaration too (#171, #196).**
+  For a member that overrides a base member, WebStorm asks whether to search the
+  base method. The result is the union of the answers Yes and No, with marks. The
+  `DYNAMIC` rule is the platform rule (`UsageInfo(PsiReference)`: the reference
+  resolves to nothing) and the rule of `JSUsageViewElementsListener`. The window
+  observations of WebStorm 2026.2.0.1 on 2026-11-17:
+  - TS `Circle.area` (`src/normal.ts:25:5`): Yes gives 4 usages of `Shape.area`
+    (`normal.ts:14` and the 3 calls in `ShapeCollection`). No gives "Nothing
+    found". Row `usage-Circle.area-override`: 4 usages, all `BASE`.
+  - JS setter `Derived.value` (`src/setter_super.js:12:9`): Yes gives 2 results
+    (the write at line 25, the read at line 26). No gives 1 result (line 25). Row
+    `usage-Derived.value-write`: line 25 with no `match`, line 26 with `BASE`.
+  - JS `Circle.area` (`src/normal.js:28:5`): Yes gives 2 results (`consumer.js:8`,
+    `normal.js:17`). No gives 1 result. With "Show Dynamic Usages" on, the group
+    "Dynamic usages in Project Files" also lists line 59 and line 65 (two calls).
+    Row `usage-area-libraries-scope`: `consumer.js:8` with no `match`,
+    `normal.js:17` with `BASE`, and the three `s.area()` / `best.area()` calls
+    with `DYNAMIC`.
+  - JS `Shape.area` (`src/normal.js:16:5`): 2 results and the same 3 dynamic
+    usages. Row `usage-area-from-totalArea`.
+  - The parameter `v` of the setter (`usage-Derived.value-param`): 1 usage, no
+    `match`, no `notes`. The search does not walk up from an element inside a
+    member to the member.
+- **Python usage rows with `match` `DYNAMIC`.** `usage-area-from-describe` and
+  `usage-area-libraries-scope` give `src/normal.py:79:47` (`key=lambda s: s.area()`:
+  the parameter `s` has no type) with `match` `DYNAMIC`. The platform rule gives
+  it: the PyCharm handlers do not override `processElementUsages`, so Find Usages
+  of PyCharm builds each usage with `new UsageInfo(reference)`
+  (`FindUsagesHandlerBase.processElementUsages`,
+  `lib/intellij.platform.analysis.impl.jar`, build 262.8665), and that constructor
+  sets the dynamic flag when the reference resolves to nothing. The window
+  observation of the same rule is the beets entry (group "Dynamic usages in Project
+  Files").
 - **A reference inside a doc comment is a `COMMENT` usage in every language.**
   PHP `usage-Shape-class` lists `Shape` in `/** @var Shape[] */`
   (src/Normal.php:53) with `usageType` `COMMENT`. The platform rule of the
@@ -668,6 +703,12 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   file.
 - **Go SDK methods.** `super-responseRecorder.Write` lists interface methods of the Go SDK.
   The row depends on the SDK version of the IDE host.
+- **caddy: the usages of `APIError.Error` are the calls of `error.Error`.**
+  `usage-APIError.Error-library-base` gives 89 usages, all with `match` `BASE`. The base
+  declaration is `builtin.error.Error` of the Go SDK (`builtin.go, library` in the note). Each
+  usage is a call of `Error()` on a value of the type `error`. The 3 text matches that are no
+  usage: `admin.go:1396` (a comment), `caddyconfig/configadapters.go:74` and
+  `modules/caddyhttp/vars_test.go:170` (calls on a type with its own `Error` method).
 - **openrefine: no link from JavaScript to Java through Rhino.** The `controller.js` files
   call Java through `Packages.com.google.refine...` of Rhino. IntelliJ does not resolve
   these names: `def-RefineServlet.registerCommand-from-js` gives the error "Could not resolve
@@ -691,8 +732,9 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   base is a local class of another method. Choose Implementation of PyCharm says "103 found".
 - **beets: 173 usages of `BeetsPlugin`.** Find Usages of PyCharm shows "Usages in Project
   Files (172 usages found)" and a separate group "Dynamic usages in Project Files" with one
-  "Untyped (probable) usage" (`playlist.py:75`). The tool gives the sum, 173, and the
-  `usageType` `REFERENCE` for the probable usage (#143).
+  "Untyped (probable) usage" (`playlist.py:75`). The tool gives the sum, 173. The probable
+  usage has the `usageType` `REFERENCE` and `match` `DYNAMIC`, and it is the only usage with a
+  `match` (#143).
 - **beets: no scope for Python subtypes.** `hier-sub-ImportHelper-production-scope` gives the
   same 92 subtypes as a call with no scope. `PySubTypesHierarchyTreeStructure.buildChildren`
   calls `PyClassInheritorsSearch.search(PyClass, boolean)`, which takes no scope (bytecode of
@@ -769,10 +811,13 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   usages: 5 calls in a test file and the code span at `CHANGELOG.md:1241`. Find Usages of
   RustRover shows "Usages in Project Files" (5 results) and a separate group "Dynamic usages in
   Project Files" with one "Unclassified" usage at that line. The tool gives the sum, 6, and the
-  `usageType` `REFERENCE` for the code span. The Markdown plugin makes this reference:
-  `BacktickReferenceSearcher` searches the name in Markdown files, and
+  code span usage has the `usageType` `REFERENCE` and `match` `DYNAMIC`. The Markdown plugin
+  makes this reference: `BacktickReferenceSearcher` searches the name in Markdown files, and
   `BacktickReference.isReferenceTo` accepts the same name when it has 10 or more characters or
-  more than one word (bytecode, build 262.8665).
+  more than one word (bytecode, build 262.8665). The source of the IDE rule:
+  `BacktickUsageViewElementsListener` (`plugins/markdown/lib/intellij.markdown.jar`, build
+  262.8665) calls `setDynamicUsage(true)` for a usage in a `MarkdownCodeSpan` that has a
+  `BacktickReference`.
 - **ripgrep: dependency rows.** `canary-def-ByteSlice-into-dependency` resolves into bstr, and
   `Cargo.lock` decides its version. `def-Vec-into-stdlib`, `hier-sub-Sink`,
   `hier-callee-add_parents-d1` and `hier-callee-search-d1` name files of the standard library of
@@ -823,10 +868,12 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   gives an error), `def-startDateTime-decl`, `explain-startDateTime-decl-pos` and
   `usage-startDateTime` with #193 (a computed property takes the key `computed`),
   `hier-caller-beat-d1` with #194 (a function in a constant gives the enclosing method),
-  `usage-NotificationProvider.send` and `usage-Discord.send` with #196 (dynamic usages that
-  WebStorm hides by default; `Discord.send` also has the #171 warning),
   `file-structure-discord.js` with #198 (an object literal in an array has no node; the row
   also shows #199), `search-text-startDateTime` and `search-text-startDateTime-code` with
   #184, and `def-startDateTime-from-template` and `explain-startDateTime-from-template-pos`
   with #189 (a position in a template interpolation). `file-structure-MaintenanceTime.vue` is
-  a `shape` row and does not pin #197.
+  a `shape` row and does not pin #197. `usage-NotificationProvider.send` and
+  `usage-Discord.send` are not parked: they give the 10 calls, all with `match` `DYNAMIC`.
+  WebStorm lists them only with "Show Dynamic Usages" on (#196). `usage-Discord.send` has a
+  `notes` entry that names `NotificationProvider.send`, with "0 of the 10 usages have match
+  BASE": the search of `Discord.send` itself found the 10 calls first.

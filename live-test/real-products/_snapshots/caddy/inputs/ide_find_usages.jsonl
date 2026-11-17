@@ -1,4 +1,5 @@
 {"id":"canary-usage-GetModule","tool":"ide_find_usages","params":{"column":6,"file":"modules.go","line":164,"pageSize":100}}
+{"id":"usage-APIError.Error-library-base","tool":"ide_find_usages","params":{"column":19,"file":"admin.go","line":1404,"pageSize":200}}
 {"id":"usage-FastAbs","tool":"ide_find_usages","params":{"column":6,"file":"filepath.go","line":29,"pageSize":100}}
 {"id":"usage-FastAbs-decl-windows","tool":"ide_find_usages","params":{"column":6,"file":"filepath_windows.go","line":25,"pageSize":100}}
 {"id":"usage-GetModule-production-scope","tool":"ide_find_usages","params":{"column":6,"file":"modules.go","line":164,"pageSize":100,"scope":"project_production_files"}}

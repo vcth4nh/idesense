@@ -1,6 +1,11 @@
 package com.github.vcth4nh.idesense.integration
 
 import com.github.vcth4nh.idesense.constants.ToolNames
+import com.github.vcth4nh.idesense.constants.UsageMatch
+import com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch
+import com.github.vcth4nh.idesense.handlers.SuperMethodsData
+import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
+import com.github.vcth4nh.idesense.handlers.UsageHit
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.github.vcth4nh.idesense.tools.ToolRegistry
 import com.github.vcth4nh.idesense.tools.intelligence.GetDiagnosticsTool
@@ -16,13 +21,25 @@ import com.github.vcth4nh.idesense.tools.models.FindFileResult
 import com.github.vcth4nh.idesense.tools.models.FindUsagesResult
 import com.github.vcth4nh.idesense.tools.models.ReadFileResult
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
+import com.intellij.find.findUsages.FindUsagesHandler
+import com.intellij.find.findUsages.FindUsagesHandlerFactory
+import com.intellij.find.findUsages.FindUsagesHandlerFactory.OperationMode
+import com.intellij.lang.java.JavaLanguage
+import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.extensions.LoadingOrder
 import com.intellij.openapi.project.DumbService
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
+import com.intellij.psi.PsiMethod
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.util.Processor
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -92,7 +109,7 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
 
         val warnings = mutableListOf<String>()
-        val processed = com.intellij.openapi.application.ReadAction.compute<Boolean, Throwable> {
+        com.intellij.openapi.application.ReadAction.run<Throwable> {
             val target = psiFile.classes[0].findMethodsByName("target", false)[0]
             com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch.processReferences(
                 project,
@@ -103,7 +120,6 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             )
         }
 
-        assertTrue("Throwing factory should have claimed the element", processed)
         assertTrue(
             "Warning should name the failed stage and consequence: $warnings",
             warnings.any { it.contains("primaryElements") && it.contains("usages may be incomplete") }
@@ -111,8 +127,8 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
     }
 
     fun testFindUsagesSurfacesFactoryFailureAsWarning() {
-        // #130: a factory that throws while it creates the handler sends the caller to the plain
-        // ReferencesSearch fallback (return false) and reports it in warnings, not silently.
+        // #130, #171: a factory that throws in each mode while it creates the handler gives the
+        // plain ReferencesSearch of the anchor, and the warnings report it, not silently.
         val psiFile = myFixture.addFileToProject("FactoryWarn.java", """
             public class FactoryWarn {
                 void target() {}
@@ -134,23 +150,182 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
 
         val warnings = mutableListOf<String>()
-        val processed = com.intellij.openapi.application.ReadAction.compute<Boolean, Throwable> {
+        val hits = mutableListOf<UsageHit>()
+        ReadAction.run<Throwable> {
             val target = psiFile.classes[0].findMethodsByName("target", false)[0]
-            com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch.processReferences(
+            FindUsagesHandlerSearch.processReferences(
                 project,
                 target,
-                com.intellij.psi.search.GlobalSearchScope.projectScope(project),
-                com.intellij.util.Processor<com.github.vcth4nh.idesense.handlers.UsageHit> { true },
+                GlobalSearchScope.projectScope(project),
+                Processor<UsageHit> { hit -> hits.add(hit) },
                 warnings
             )
         }
 
-        assertFalse("A factory failure should send the caller to the ReferencesSearch fallback", processed)
         assertEquals("Exactly one warning expected: $warnings", 1, warnings.size)
         assertTrue(
             "Warning should name the failure and its consequence: $warnings",
             warnings[0].contains("threw while creating the handler") && warnings[0].contains("usages may be incomplete")
         )
+        val callOffset = ReadAction.compute<Int, Throwable> { psiFile.text.indexOf("target();") }
+        assertEquals("The plain search should give the one usage of target(): ${hits.map { it.offset }}", 1, hits.size)
+        assertEquals(callOffset, hits[0].offset)
+        assertNull("A resolved reference has no mark", hits[0].match)
+    }
+
+    /** Base, Derived (overrides target) and a class that calls target() on a Derived value and on a Base variable. */
+    private fun addBaseUnionSource(prefix: String): PsiJavaFile = myFixture.addFileToProject("${prefix}Union.java", """
+        class ${prefix}Base { void target() {} }
+        class ${prefix}Derived extends ${prefix}Base { void target() {} }
+        class ${prefix}Use {
+            void run(${prefix}Base x) {
+                new ${prefix}Derived().target();
+                ((${prefix}Base) x).target();
+            }
+        }
+    """.trimIndent()) as PsiJavaFile
+
+    private fun targetOf(file: PsiJavaFile, className: String): PsiMethod =
+        ReadAction.compute<PsiMethod, Throwable> {
+            file.classes.single { it.name == className }.findMethodsByName("target", false)[0]
+        }
+
+    /** The offset in [file] just after the text [before]: the start of the method name of a call. */
+    private fun offsetAfter(file: PsiJavaFile, before: String): Int =
+        ReadAction.compute<Int, Throwable> { file.text.indexOf(before) + before.length }
+
+    /** A provider for Java that gives the base declarations of [baseDeclarationsOf]. */
+    private class FakeBaseProvider(var baseDeclarationsOf: (PsiElement) -> List<PsiElement>) : SuperMethodsProvider {
+        override fun findSuperMethods(element: PsiElement, project: Project): SuperMethodsData? = null
+        override fun findBaseDeclarations(element: PsiElement): List<PsiElement> = baseDeclarationsOf(element)
+    }
+
+    /**
+     * A factory for Java methods. It throws when [throwsFor] is the element in the mode
+     * USAGES_WITH_DEFAULT_OPTIONS; else it gives a handler that keeps the platform
+     * findReferencesToHighlight (a plain ReferencesSearch). [askedFor] counts the calls for each element.
+     */
+    private class FakeHandlerFactory(private val throwsFor: PsiElement? = null) : FindUsagesHandlerFactory() {
+        val askedFor = mutableMapOf<PsiElement, Int>()
+
+        override fun canFindUsages(element: PsiElement) = element is PsiMethod
+
+        override fun createFindUsagesHandler(element: PsiElement, operationMode: OperationMode): FindUsagesHandler? {
+            askedFor[element] = (askedFor[element] ?: 0) + 1
+            if (element == throwsFor && operationMode == OperationMode.USAGES_WITH_DEFAULT_OPTIONS) {
+                throw IllegalStateException("test-induced question about the base method")
+            }
+            return createFindUsagesHandler(element, operationMode == OperationMode.HIGHLIGHT_USAGES)
+        }
+
+        override fun createFindUsagesHandler(element: PsiElement, forHighlightUsages: Boolean): FindUsagesHandler =
+            object : FindUsagesHandler(element) {}
+    }
+
+    private fun registerFactory(factory: FindUsagesHandlerFactory) {
+        FindUsagesHandlerFactory.EP_NAME.getPoint(project)
+            .registerExtension(factory, LoadingOrder.FIRST, testRootDisposable)
+    }
+
+    private fun registerProvider(provider: SuperMethodsProvider) {
+        SuperMethodsProvider.EP.addExplicitExtension(JavaLanguage.INSTANCE, provider, testRootDisposable)
+    }
+
+    fun testFindUsagesSearchesBaseDeclarationsAndMarksThem() {
+        // #171: the direct pass searches Derived.target in the mode HIGHLIGHT_USAGES (the mode
+        // USAGES_WITH_DEFAULT_OPTIONS throws, as the question of WebStorm does off the EDT). The base pass
+        // searches Base.target. The union holds both calls; only the call through Base has match BASE.
+        val file = addBaseUnionSource("Marks")
+        val derivedTarget = targetOf(file, "MarksDerived")
+        val baseTarget = targetOf(file, "MarksBase")
+        registerFactory(FakeHandlerFactory(throwsFor = derivedTarget))
+        registerProvider(FakeBaseProvider { if (it == derivedTarget) listOf(baseTarget) else emptyList() })
+
+        val warnings = mutableListOf<String>()
+        val baseDeclarations = mutableListOf<PsiElement>()
+        // The first hit at an offset wins, as in the collectors of the tools.
+        val matchByOffset = LinkedHashMap<Int, String?>()
+        ReadAction.run<Throwable> {
+            FindUsagesHandlerSearch.processReferences(
+                project,
+                derivedTarget,
+                GlobalSearchScope.projectScope(project),
+                Processor<UsageHit> { hit ->
+                    if (hit.offset !in matchByOffset) matchByOffset[hit.offset] = hit.match
+                    true
+                },
+                warnings,
+                baseDeclarations
+            )
+        }
+
+        assertTrue("No warning expected: $warnings", warnings.isEmpty())
+        assertEquals(listOf<PsiElement>(baseTarget), baseDeclarations)
+        val derivedCall = offsetAfter(file, "new MarksDerived().")
+        val baseCall = offsetAfter(file, "((MarksBase) x).")
+        assertTrue("The call on the Derived value should arrive: $matchByOffset", derivedCall in matchByOffset)
+        assertNull("The call on the Derived value is a sure usage", matchByOffset[derivedCall])
+        assertTrue("The call on the Base variable should arrive: $matchByOffset", baseCall in matchByOffset)
+        assertEquals(UsageMatch.BASE, matchByOffset[baseCall])
+    }
+
+    fun testBasePassRunsOnlyAfterTheDirectPassCompletes() {
+        // #171: a processor that stops the direct pass stops the whole search; no base pass starts.
+        val file = addBaseUnionSource("Stop")
+        val derivedTarget = targetOf(file, "StopDerived")
+        val baseTarget = targetOf(file, "StopBase")
+        val factory = FakeHandlerFactory(throwsFor = derivedTarget)
+        registerFactory(factory)
+        registerProvider(FakeBaseProvider { if (it == derivedTarget) listOf(baseTarget) else emptyList() })
+
+        val hits = mutableListOf<UsageHit>()
+        ReadAction.run<Throwable> {
+            FindUsagesHandlerSearch.processReferences(
+                project,
+                derivedTarget,
+                GlobalSearchScope.projectScope(project),
+                Processor<UsageHit> { hit -> hits.add(hit); false }
+            )
+        }
+
+        assertEquals("The processor should get exactly one hit: ${hits.map { it.offset }}", 1, hits.size)
+        assertNull("The factory should never be asked for a handler of the base declaration", factory.askedFor[baseTarget])
+    }
+
+    fun testBadBaseDeclarationsAreIgnored() {
+        // #171: a provider that throws, that gives the anchor itself or that gives nothing leaves only
+        // the direct pass, with no mark and no base declaration.
+        val file = addBaseUnionSource("Bad")
+        val derivedTarget = targetOf(file, "BadDerived")
+        registerFactory(FakeHandlerFactory())
+        val provider = FakeBaseProvider { emptyList() }
+        registerProvider(provider)
+        val derivedCall = offsetAfter(file, "new BadDerived().")
+
+        val badProviders = listOf<Pair<String, (PsiElement) -> List<PsiElement>>>(
+            "throws" to { _: PsiElement -> throw IllegalStateException("test-induced provider failure") },
+            "gives the anchor" to { anchor: PsiElement -> listOf(anchor) },
+            "gives nothing" to { _: PsiElement -> emptyList<PsiElement>() },
+        )
+        for ((label, baseDeclarationsOf) in badProviders) {
+            provider.baseDeclarationsOf = baseDeclarationsOf
+            val hits = mutableListOf<UsageHit>()
+            val baseDeclarations = mutableListOf<PsiElement>()
+            ReadAction.run<Throwable> {
+                FindUsagesHandlerSearch.processReferences(
+                    project,
+                    derivedTarget,
+                    GlobalSearchScope.projectScope(project),
+                    Processor<UsageHit> { hit -> hits.add(hit) },
+                    null,
+                    baseDeclarations
+                )
+            }
+
+            assertTrue("$label: the direct usage should arrive: ${hits.map { it.offset }}", hits.any { it.offset == derivedCall })
+            assertTrue("$label: no hit should have a mark: ${hits.map { it.match }}", hits.all { it.match == null })
+            assertTrue("$label: no base declaration expected: $baseDeclarations", baseDeclarations.isEmpty())
+        }
     }
 
     fun testClassifyUsageMarksCommentReferences() {

@@ -1,4 +1,5 @@
 {"id":"usage-Circle-via-new-call-site","tool":"ide_find_usages","params":{"column":17,"file":"src/normal.ts","line":70}}
+{"id":"usage-Circle.area-override","tool":"ide_find_usages","params":{"column":5,"file":"src/normal.ts","line":25}}
 {"id":"usage-Circle.radius-paramprop","tool":"ide_find_usages","params":{"column":33,"file":"src/normal.ts","line":22}}
 {"id":"usage-Coercer-interface","tool":"ide_find_usages","params":{"column":18,"file":"src/quirks.ts","line":56}}
 {"id":"usage-Direction-enum","tool":"ide_find_usages","params":{"column":13,"file":"src/enums.ts","line":6}}
