@@ -2,6 +2,7 @@ package com.github.vcth4nh.idesense.handlers
 
 import com.github.vcth4nh.idesense.constants.UsageMatch
 import com.github.vcth4nh.idesense.handlers.go.GoFindUsages
+import com.github.vcth4nh.idesense.handlers.javascript.JavaScriptFindUsages
 import com.intellij.find.findUsages.FindUsagesHandler
 import com.intellij.find.findUsages.FindUsagesHandlerFactory
 import com.intellij.find.findUsages.FindUsagesHandlerFactory.OperationMode
@@ -141,13 +142,18 @@ internal object FindUsagesHandlerSearch {
      * `multiResolve(false).length == 0` for a [PsiPolyVariantReference], else to
      * `resolve() == null` (`com.intellij.usageView.UsageInfo`, `lib/intellij.platform.core.jar`,
      * build 262.8665). `NonCodeUsageGroupingRule` puts a usage with `isDynamicUsage()` into the
-     * group "Dynamic usages" (`lib/intellij.platform.usageView.impl.jar`). An exception of the
-     * resolve gives false.
+     * group "Dynamic usages" (`lib/intellij.platform.usageView.impl.jar`).
+     *
+     * The rule of WebStorm for a reference in a JavaScript dialect file
+     * ([JavaScriptFindUsages.isDynamicUsage]) also gives true. The search asks the JavaScript check
+     * first, because the check stops at once for a file that is not JavaScript, and the platform
+     * rule resolves the reference. An exception gives false.
      */
     internal fun isDynamicReference(reference: PsiReference, targets: Collection<PsiElement>): Boolean =
         try {
-            if (reference is PsiPolyVariantReference) reference.multiResolve(false).isEmpty()
-            else reference.resolve() == null
+            JavaScriptFindUsages.isDynamicUsage(reference, targets) == true ||
+                if (reference is PsiPolyVariantReference) reference.multiResolve(false).isEmpty()
+                else reference.resolve() == null
         } catch (e: ProcessCanceledException) {
             throw e
         } catch (e: LinkageError) {
