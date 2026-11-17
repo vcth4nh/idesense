@@ -170,13 +170,22 @@ def make(product: str, checkout: str, trees: str) -> str:
     files = tracked_files(checkout)
     copy_tree(checkout, tree, files)
     write_manifest(tree, files, tree + ".manifest")
+    commit_and_prepare(tree, files, product)
+    return tree
 
+
+def commit_and_prepare(tree: str, files: list[str], product: str | None) -> None:
+    """Make a new repository in tree with one commit of the files (author `bench <bench@localhost>`, message
+    `Initial commit`). With a product of PRODUCTS: then add its lines to `.git/info/exclude`, run its preparation,
+    and check that `git status` is clean."""
     _git(tree, "init", "-q")
     _git(tree, "add", "-A")
     _git(tree, *GIT_AUTHOR, "commit", "-q", "-m", "Initial commit")
     committed = [os.fsdecode(p) for p in _git(tree, "ls-files", "-z").split(b"\0") if p]
     if set(committed) != set(files):
         raise RuntimeError(f"the commit has {len(committed)} files, the checkout {len(files)}")
+    if product is None:
+        return
 
     prepare, exclude = PRODUCTS[product]
     with open(os.path.join(tree, ".git", "info", "exclude"), "a", encoding="utf-8") as f:
@@ -185,7 +194,6 @@ def make(product: str, checkout: str, trees: str) -> str:
     status = _git(tree, "status", "--porcelain").decode("utf-8", "replace")
     if status:
         raise RuntimeError(f"git status in {tree} is not clean after the preparation:\n{status}")
-    return tree
 
 
 def main(argv: list[str]) -> int:
