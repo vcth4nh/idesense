@@ -86,8 +86,9 @@ internal object FindUsagesHandlerSearch {
      *   interface methods first and the references to the method after them; the caller keeps
      *   the first hit at a location, so a usage of the direct pass keeps no mark.
      *   Else one pass runs with the options as they are. The mark of a hit is
-     *   [UsageMatch.DYNAMIC] when `UsageInfo.isDynamicUsage` is true. The offset of a hit is
-     *   `UsageInfo.navigationOffset`, so a usage in a comment points at the word.
+     *   [UsageMatch.DYNAMIC] when `UsageInfo.isDynamicUsage` is true, or when the hit is a symbol
+     *   name in a code span of a Markdown file ([MarkdownFindUsages.isDynamicUsage]). The offset
+     *   of a hit is `UsageInfo.navigationOffset`, so a usage in a comment points at the word.
      * - Any other handler: `findReferencesToHighlight` — it's the code path the IDE's
      *   Ctrl+click-on-declaration and highlight-usages actions use. It hands the expanded
      *   set to [ReferencesSearch] with language-appropriate `createSearchParameters`.
@@ -156,7 +157,7 @@ internal object FindUsagesHandlerSearch {
     internal fun isDynamicReference(reference: PsiReference, targets: Collection<PsiElement>): Boolean =
         try {
             JavaScriptFindUsages.isDynamicUsage(reference, targets) == true ||
-                MarkdownFindUsages.isDynamicUsage(reference) ||
+                MarkdownFindUsages.isDynamicUsage(reference.element) ||
                 if (reference is PsiPolyVariantReference) reference.multiResolve(false).isEmpty()
                 else reference.resolve() == null
         } catch (e: ProcessCanceledException) {
@@ -326,7 +327,8 @@ internal object FindUsagesHandlerSearch {
                         val offset = info.navigationOffset
                         if (usageElement == null || !usageElement.isValid || offset < 0) true
                         else try {
-                            val match = if (info.isDynamicUsage) UsageMatch.DYNAMIC else passMark
+                            val dynamic = info.isDynamicUsage || MarkdownFindUsages.isDynamicUsage(usageElement)
+                            val match = if (dynamic) UsageMatch.DYNAMIC else passMark
                             processor.process(UsageHit(usageElement, offset, match))
                         } catch (e: Throwable) {
                             callerFailure = e
