@@ -22,6 +22,7 @@ live-test/agent-bench/
   benchlib/challenges.py    challenge records, key views, prompts, answer score
   benchlib/image.py         product images: build context, build, gate
   benchlib/runner.py        one agent run in a container, batch of runs, connection check
+  benchlib/triage.py        report of a batch: measures, flags, paired differences, adoption table
   gokeys/                   Go module: key extractor from go/types, acceptance test
   ide/bench-ide.sh          start, stop, status of one benchmark IDE instance
   image/Dockerfile          product image: tool chain, Claude Code, the trees with warm caches
