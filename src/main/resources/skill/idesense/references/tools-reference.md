@@ -114,7 +114,7 @@ Fused symbol overview in one call: declaration + signature + quick documentation
 
 Facets are capped summaries — page through `ide_find_implementations` / `ide_find_usages` for full sets. Degraded facets are named in `warnings`; a `null` facet means not applicable or not requested, `[]` means searched-and-empty.
 
-`usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, JavaScript or TypeScript member with base declarations, `usageCount` counts the same union. `topUsages` lists the code usages with no `match` first, then the code usages with a `match`, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`).
+`usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, JavaScript or TypeScript member with base declarations, `usageCount` counts the same union. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`).
 
 ---
 
