@@ -68,7 +68,36 @@ class RustSuperMethodsProvider : SuperMethodsProvider {
         return PsiTreeUtil.getParentOfType(element, cls as Class<out PsiElement>)
     }
 
-    private fun buildHierarchy(project: Project, abstractable: PsiElement): List<SuperMethodData> {
+    /**
+     * The trait items that [element] implements, when [element] itself is an `RsAbstractable` (a
+     * function, a constant or a type alias): the items of [walkSuperItems], in the same order as
+     * the hierarchy of [findSuperMethods]. Empty for any other element, also for an element inside
+     * an item. An item of the trait itself has no base declaration (#172).
+     */
+    override fun findBaseDeclarations(element: PsiElement): List<PsiElement> {
+        if (rsAbstractableClass?.isInstance(element) != true) return emptyList()
+        return walkSuperItems(element)
+    }
+
+    private fun buildHierarchy(project: Project, abstractable: PsiElement): List<SuperMethodData> =
+        walkSuperItems(abstractable).map { target ->
+            val file = target.containingFile?.virtualFile
+            SuperMethodData(
+                name = getName(target) ?: "unknown",
+                qualifiedName = QualifiedNameUtil.getQualifiedName(target),
+                kind = LanguageServices.getKind(target),
+                file = file?.let { getRelativePath(project, it) },
+                line = getLineNumber(project, target),
+                column = getColumnNumber(project, target),
+            )
+        }
+
+    /**
+     * The walk of [buildHierarchy] and [findBaseDeclarations]: the targets of `gotoSuperTargets`
+     * of [abstractable] that are `RsAbstractable`, in the order of the call. A target with the key
+     * of an earlier target (its qualified name, else its class and identity) is skipped.
+     */
+    private fun walkSuperItems(abstractable: PsiElement): List<PsiElement> {
         val invoker = gotoSuperTargetsMethod ?: return emptyList()
         val abstractableClass = rsAbstractableClass ?: return emptyList()
 
@@ -81,22 +110,14 @@ class RustSuperMethodsProvider : SuperMethodsProvider {
         }
 
         val visited = mutableSetOf<String>()
-        val out = mutableListOf<SuperMethodData>()
+        val out = mutableListOf<PsiElement>()
         for (target in rawTargets) {
             // Filter to RsAbstractable (drops module-super results which gotoSuperTargets also returns for mod files)
             if (!abstractableClass.isInstance(target)) continue
             val key = QualifiedNameUtil.getQualifiedName(target)
                 ?: "${target.javaClass.simpleName}@${System.identityHashCode(target)}"
             if (!visited.add(key)) continue
-            val file = target.containingFile?.virtualFile
-            out.add(SuperMethodData(
-                name = getName(target) ?: "unknown",
-                qualifiedName = QualifiedNameUtil.getQualifiedName(target),
-                kind = LanguageServices.getKind(target),
-                file = file?.let { getRelativePath(project, it) },
-                line = getLineNumber(project, target),
-                column = getColumnNumber(project, target),
-            ))
+            out.add(target)
         }
         return out
     }
