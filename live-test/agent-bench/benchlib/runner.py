@@ -114,7 +114,7 @@ PROXY_LOG_DIR = os.path.join(BENCH, "proxy", "log")
 SLOTS_FILE = trees.SLOTS_FILE
 KEY_FILE = "/home/ubuntu/dev/idesense/.local/.api-key/vcth4nh"
 
-PLUGIN_VERSION = "2.1.1-bench.5beca97"
+PLUGIN_VERSION = "2.1.1-bench.f4ff0a2"
 IDE_URLS = {"caddy": "http://127.0.0.1:29374/mcp/streamable-http",
             "beets": "http://127.0.0.1:29372/mcp/streamable-http"}
 HEALTH_URL = "http://172.17.0.1:29380/health"

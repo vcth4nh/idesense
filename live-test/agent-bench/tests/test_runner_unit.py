@@ -61,7 +61,7 @@ if tokens:
     with open(log, "a") as f:
         f.write(json.dumps({"route": entry}) + "\n")
     if entry:
-        version = os.environ.get("FAKE_DOCKER_PROXY_VERSION", "2.1.1-bench.5beca97")
+        version = os.environ.get("FAKE_DOCKER_PROXY_VERSION", "{version}")
         status = int(os.environ.get("FAKE_DOCKER_PROXY_STATUS", "200"))
         with open(os.path.join(os.environ["FAKE_PROXY_LOG_DIR"], entry["run"] + ".jsonl"), "a") as f:
             f.write(json.dumps({"method": "initialize", "status": 200, "server_version": version}) + "\n")
@@ -108,7 +108,8 @@ class RunnerCase(unittest.TestCase):
         write(t("key"), FAKE_KEY + "\n")
         os.makedirs(t("proxy", "log"))
         self.routes, self.log_dir, self.docker_log = t("proxy", "routes.json"), t("proxy", "log"), t("docker.log")
-        write(t("bin", "docker"), FAKE_DOCKER.replace("{python}", sys.executable))
+        write(t("bin", "docker"), FAKE_DOCKER.replace("{python}", sys.executable)
+              .replace("{version}", runner.PLUGIN_VERSION))
         os.chmod(t("bin", "docker"), stat.S_IRWXU)
         self.runs = t("runs")
         self.ide = []
