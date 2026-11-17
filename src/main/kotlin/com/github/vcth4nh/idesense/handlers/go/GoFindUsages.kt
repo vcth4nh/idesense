@@ -15,12 +15,6 @@ internal object GoFindUsages {
     fun isGoHandler(handler: FindUsagesHandler): Boolean =
         generateSequence<Class<*>>(handler.javaClass) { it.superclass }.any { it.name == GO_FIND_USAGES_HANDLER }
 
-    /** Reads the public boolean field `findBaseMethods` of [options] by reflection (the declaring class is package-private: set `isAccessible`). False when the field is absent or not a boolean. */
-    fun searchesBaseMethods(options: Any): Boolean {
-        val field = findBaseMethodsField(options) ?: return false
-        return field.getBoolean(options)
-    }
-
     /** Sets the public field `findBaseMethods` of GoLand's method options. False when [options] has no such field. */
     fun setFindBaseMethods(options: Any, value: Boolean): Boolean {
         val field = findBaseMethodsField(options) ?: return false

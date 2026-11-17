@@ -78,11 +78,12 @@ internal object FindUsagesHandlerSearch {
      *   language is never asked for a member with a base declaration in the mode that can ask the
      *   question. `GoFindUsagesHandler` returns one options object per project, which its Find
      *   Usages dialog also reads, so only the clones get [scope] and no text occurrences. When
-     *   [element] has a base declaration and the options have `findBaseMethods`, the search has
-     *   two passes: the direct pass with `findBaseMethods` false, then the base pass with
-     *   `findBaseMethods` true. `GoMethodFindUsagesHandler.processElementUsages` then gives the
-     *   references to the interface methods first and the references to the method after them;
-     *   the caller keeps the first hit at a location, so a usage of the direct pass keeps no mark.
+     *   [element] has a base declaration and the options have the field `findBaseMethods`, the
+     *   search has two passes, whatever the value of the field is in the options of the handler:
+     *   the direct pass with `findBaseMethods` false, then the base pass with `findBaseMethods`
+     *   true. `GoMethodFindUsagesHandler.processElementUsages` then gives the references to the
+     *   interface methods first and the references to the method after them; the caller keeps
+     *   the first hit at a location, so a usage of the direct pass keeps no mark.
      *   Else one pass runs with the options as they are. The mark of a hit is
      *   [UsageMatch.DYNAMIC] when `UsageInfo.isDynamicUsage` is true. The offset of a hit is
      *   `UsageInfo.navigationOffset`, so a usage in a comment points at the word.
@@ -303,9 +304,10 @@ internal object FindUsagesHandlerSearch {
             if (findBaseMethods != null) GoFindUsages.setFindBaseMethods(it, findBaseMethods)
         }
         val options = passOptions(null)
+        // setFindBaseMethods is false when the options have no field findBaseMethods: the options stay as they are.
         val passes: List<Pair<FindUsagesOptions, String?>> =
-            if (!hasBases || !GoFindUsages.searchesBaseMethods(options)) listOf(options to null)
-            else listOf(passOptions(false) to null, passOptions(true) to UsageMatch.BASE)
+            if (hasBases && GoFindUsages.setFindBaseMethods(options, false)) listOf(options to null, passOptions(true) to UsageMatch.BASE)
+            else listOf(options to null)
 
         for ((passOptions, passMark) in passes) {
             for (target in targets) {
