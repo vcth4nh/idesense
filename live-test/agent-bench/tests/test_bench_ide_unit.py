@@ -224,6 +224,82 @@ class PrepareTest(BenchIdeTestCase):
         self.assertTrue(all(e.get("value") == "true" for e in entries))
 
 
+class SlotsRootTest(BenchIdeTestCase):
+    """A project dir below the slots root (BENCH_SLOTS) is accepted as one below BENCH_ROOT/trees/."""
+
+    def setUp(self):
+        super().setUp()
+        self.slots = os.path.join(self.tmp, "ws")
+        self.slot = os.path.join(self.slots, "3e9c", "caddy")
+        os.makedirs(self.slot)
+        self.zip_path = os.path.join(self.tmp, "plugin.zip")
+        with zipfile.ZipFile(self.zip_path, "w") as z:
+            z.writestr("idesense/lib/idesense.jar", "")
+
+    def key(self, path):
+        return "$USER_HOME$" + path[len(self.home):]
+
+    def trust(self):
+        root = ET.parse(os.path.join(self.ide_dir, "config", "options", "trusted-paths.xml")).getroot()
+        paths = [o.get("value") for o in root.findall(
+            "component[@name='Trusted.Paths.Settings']/option[@name='TRUSTED_PATHS']/list/option")]
+        entries = root.findall("component[@name='Trusted.Paths']/option[@name='TRUSTED_PROJECT_PATHS']/map/entry")
+        return paths, {e.get("key"): e.get("value") for e in entries}
+
+    def test_bench_ide_accepts_project_below_slots_root(self):
+        r = self.run_script("dry-run", "goland", self.project, self.slot, BENCH_SLOTS=self.slots)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("  %s\n  %s\n" % (self.project, self.slot), r.stdout)
+        self.assertFalse(os.path.exists(self.ide_dir))
+
+        r = self.run_script("prepare", "goland", self.slot, self.project, BENCH_SLOTS=self.slots,
+                            BENCH_PLUGIN_ZIP=self.zip_path)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assert_not_launched()
+        recent = ET.parse(os.path.join(self.ide_dir, "config", "options", "recentProjects.xml")).getroot()
+        keys = [e.get("key") for e in recent.findall(".//option[@name='additionalInfo']/map/entry")]
+        self.assertEqual([self.key(self.slot), self.key(self.project)], keys)
+        # The trust file covers the slots root, and has an entry for each project dir.
+        paths, entries = self.trust()
+        self.assertEqual([os.path.join(self.root, "trees"), self.slots], paths)
+        self.assertEqual({self.key(self.slot): "true", self.key(self.project): "true"}, entries)
+
+        # A second start keeps one entry for the slots root.
+        second = os.path.join(self.slots, "153a", "caddy")
+        os.makedirs(second)
+        r = self.run_script("prepare", "goland", second, BENCH_SLOTS=self.slots, BENCH_PLUGIN_ZIP=self.zip_path)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        paths, entries = self.trust()
+        self.assertEqual([os.path.join(self.root, "trees"), self.slots], paths)
+        self.assertEqual({self.key(d): "true" for d in (self.slot, self.project, second)}, entries)
+        self.assert_not_launched()
+
+    def test_bench_ide_refuses_project_outside_both_roots(self):
+        elsewhere = os.path.join(self.tmp, "elsewhere", "p")
+        os.makedirs(elsewhere)
+        link = os.path.join(self.slots, "link")
+        os.symlink(elsewhere, link)
+        cases = {
+            "outside both roots": ([elsewhere], self.slots),
+            "symlink out of the slots root": ([link], self.slots),
+            "slots root itself": ([self.slots], self.slots),
+            "absent below the slots root": ([os.path.join(self.slots, "absent")], self.slots),
+            "one bad of two": ([self.slot, elsewhere], self.slots),
+            # An empty BENCH_SLOTS gives the default /home/ubuntu/dev/ws, and the slot is not below it.
+            "below another slots root": ([self.slot], ""),
+        }
+        for name, (projects, slots) in cases.items():
+            for command in ("start", "prepare", "dry-run"):
+                with self.subTest(name, command=command):
+                    r = self.run_script(command, "goland", *projects, BENCH_SLOTS=slots,
+                                        BENCH_PLUGIN_ZIP=self.zip_path)
+                    self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                    self.assertIn("project dir", r.stderr)
+                    self.assertIn("refused", r.stderr)
+        self.assert_not_launched()
+        self.assertFalse(os.path.exists(self.ide_dir))
+
+
 class StopTest(BenchIdeTestCase):
     def sleeper(self, *extra):
         p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", *extra])

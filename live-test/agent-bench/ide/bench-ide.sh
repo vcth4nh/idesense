@@ -12,13 +12,17 @@
 #   start and prints what start would do. It makes no folder, copies nothing and starts nothing.
 # Environment:
 #   BENCH_ROOT        the data root (default /home/ubuntu/dev/idesense-bench). Each project dir must be
-#                     below BENCH_ROOT/trees/, each folder of the instance below BENCH_ROOT/ide/.
+#                     below BENCH_ROOT/trees/ or below BENCH_SLOTS/, each folder of the instance below
+#                     BENCH_ROOT/ide/.
+#   BENCH_SLOTS       the slots root (default /home/ubuntu/dev/ws; benchlib.trees slot makes the slots). When
+#                     a project dir is below it, start adds it to the trusted paths of trusted-paths.xml.
 #   BENCH_APPS        the Toolbox apps folder (default /home/ubuntu/.local/share/JetBrains/Toolbox/apps)
 #   BENCH_PLUGIN_ZIP  the IdeSense distribution zip that start unpacks into the plugins folder
 #   BENCH_PORT        for the tests only: each port other than the port of the IDE is refused
 set -euo pipefail
 
 BENCH_ROOT="${BENCH_ROOT:-/home/ubuntu/dev/idesense-bench}"
+BENCH_SLOTS="${BENCH_SLOTS:-/home/ubuntu/dev/ws}"
 BENCH_APPS="${BENCH_APPS:-/home/ubuntu/.local/share/JetBrains/Toolbox/apps}"
 KEYS=(config system plugins log)
 
@@ -170,12 +174,13 @@ if [ "$cmd" = status ]; then
 fi
 
 # --- start, prepare and dry-run: the checks before the launch
-[ "$#" -ge 1 ] || die "give one project dir or more, below $root/trees/"
+slots="$(realpath -m -- "$BENCH_SLOTS")"
+[ "$#" -ge 1 ] || die "give one project dir or more, below $root/trees/ or $slots/"
 PROJECTS=()
 for p in "$@"; do
   r="$(realpath -e -- "$p" 2>/dev/null)" || die "project dir $p does not exist: refused"
   [ -d "$r" ] || die "project dir $r is not a folder: refused"
-  case "$r" in "$root/trees/"?*) ;; *) die "project dir $r is not below $root/trees/: refused" ;; esac
+  case "$r" in "$root/trees/"?*|"$slots/"?*) ;; *) die "project dir $r is not below $root/trees/ or $slots/: refused" ;; esac
   PROJECTS+=("$r")
 done
 # rewrite_recent_projects and trust_project_paths of the fleet harness write the two project files.
@@ -246,7 +251,7 @@ if [ "$cmd" = dry-run ]; then
   for d in "${FLEET_PLUGINS[@]}"; do echo "  $d"; done
   echo "project dirs:   start writes ${P[config]}/options/recentProjects.xml new with these dirs"
   echo "                (each entry opened=\"true\" with a frame element) and adds a trust entry for each"
-  echo "                to options/trusted-paths.xml:"
+  echo "                to options/trusted-paths.xml (and the trusted path $slots when a dir is below it):"
   for d in "${PROJECTS[@]}"; do echo "  $d"; done
   printf 'command:        '; printf '%q ' "${LAUNCH[@]}"; printf '> %q 2>&1 < /dev/null &\n' "$LAUNCH_OUT"
   exit 0
@@ -275,10 +280,10 @@ fi
 grep -Eq "name=\"serverPort\" value=\"$port\"" "$MCP_XML" || die "$MCP_XML does not set serverPort $port: refused"
 # A bare serverMode start opens each project with opened="true" in recentProjects.xml (new at each start),
 # and a serverMode IDE checks the trust of each project.
-python3 -I -B - "$FLEET_PY" "$HOME" "${P[config]}/options" "${PROJECTS[@]}" <<'PY'
+python3 -I -B - "$FLEET_PY" "$HOME" "${P[config]}/options" "$slots" "${PROJECTS[@]}" <<'PY'
 import sys
 from pathlib import Path
-fleet_py, home, options, projects = sys.argv[1], sys.argv[2], Path(sys.argv[3]), sys.argv[4:]
+fleet_py, home, options, slots, projects = sys.argv[1], sys.argv[2], Path(sys.argv[3]), sys.argv[4], sys.argv[5:]
 sys.path.insert(0, str(Path(fleet_py).parent))
 import fleet
 import xml.etree.ElementTree as ET
@@ -294,7 +299,22 @@ ET.indent(root, space="  ")
 (options / "recentProjects.xml").write_text(ET.tostring(root, encoding="unicode") + "\n")
 trusted = options / "trusted-paths.xml"
 old = trusted.read_text() if trusted.exists() else None
-trusted.write_text(fleet.trust_project_paths(old, projects, home) + "\n")
+text = fleet.trust_project_paths(old, projects, home)
+# The trust file covers the slots root when a project dir is below it (the seed has only BENCH_ROOT/trees).
+if any(p.startswith(slots + "/") for p in projects):
+    t = ET.fromstring(text)
+    parent = t
+    for tag, name in (("component", "Trusted.Paths.Settings"), ("option", "TRUSTED_PATHS")):
+        node = parent.find("%s[@name='%s']" % (tag, name))
+        parent = ET.SubElement(parent, tag, {"name": name}) if node is None else node
+    paths = parent.find("list")
+    if paths is None:
+        paths = ET.SubElement(parent, "list")
+    if slots not in [o.get("value") for o in paths.findall("option")]:
+        ET.SubElement(paths, "option", {"value": slots})
+    ET.indent(t, space="  ")
+    text = ET.tostring(t, encoding="unicode")
+trusted.write_text(text + "\n")
 PY
 echo "recentProjects.xml and trusted-paths.xml: ${#PROJECTS[@]} project dir(s)"
 rm -rf -- "${P[plugins]}"

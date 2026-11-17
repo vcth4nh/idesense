@@ -14,9 +14,21 @@ the tree and its manifest before the next `make`.
 
 `verify` prints each path of BENCH/trees/<product>.manifest that is absent or has a different
 hash, and exits 0 when there is none.
+
+    python3 -m benchlib.trees slot <tree>         (a tree of BENCH/trees, for example caddy-plant-2)
+
+`slot` makes a copy of the master tree BENCH/trees/<tree> at a neutral path, the slot path
+SLOTS_ROOT/<slot id>/<product>: the path has no tree name. It copies only the files of the master
+manifest, makes a new repository with one commit (author `dev <dev@localhost>`), prepares the
+product as `make` does, checks the slot against the master manifest, and adds the entry of the
+tree to SLOTS_FILE. It exits 2 when the slot folder SLOTS_ROOT/<slot id> exists or another tree
+of SLOTS_FILE has the slot id. A failed `slot` leaves its slot folder: remove it before the next
+`slot`. The master tree and its manifest stay as they are.
 """
 import hashlib
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -26,6 +38,9 @@ REAL_PRODUCTS = os.path.join(WT, "live-test", "real-products")
 BENCH = "/home/ubuntu/dev/idesense-bench"
 TREES = os.path.join(BENCH, "trees")
 GIT_AUTHOR = ["-c", "user.name=bench", "-c", "user.email=bench@localhost"]
+SLOTS_ROOT = "/home/ubuntu/dev/ws"
+SLOTS_FILE = BENCH + "/trees/slots.json"
+SLOT_AUTHOR = ["-c", "user.name=dev", "-c", "user.email=dev@localhost"]
 
 # The .idea files of live-test/real-products/_setup/<product>/bootstrap.sh, with the same text.
 CADDY_WORKSPACE = """<?xml version="1.0" encoding="UTF-8"?>
@@ -174,13 +189,13 @@ def make(product: str, checkout: str, trees: str) -> str:
     return tree
 
 
-def commit_and_prepare(tree: str, files: list[str], product: str | None) -> None:
-    """Make a new repository in tree with one commit of the files (author `bench <bench@localhost>`, message
-    `Initial commit`). With a product of PRODUCTS: then add its lines to `.git/info/exclude`, run its preparation,
-    and check that `git status` is clean."""
+def commit_and_prepare(tree: str, files: list[str], product: str | None, author: list[str] = GIT_AUTHOR) -> None:
+    """Make a new repository in tree with one commit of the files (author and committer from the git options
+    `author`, by default `bench <bench@localhost>`; message `Initial commit`). With a product of PRODUCTS: then
+    add its lines to `.git/info/exclude`, run its preparation, and check that `git status` is clean."""
     _git(tree, "init", "-q")
     _git(tree, "add", "-A")
-    _git(tree, *GIT_AUTHOR, "commit", "-q", "-m", "Initial commit")
+    _git(tree, *author, "commit", "-q", "-m", "Initial commit")
     committed = [os.fsdecode(p) for p in _git(tree, "ls-files", "-z").split(b"\0") if p]
     if set(committed) != set(files):
         raise RuntimeError(f"the commit has {len(committed)} files, the checkout {len(files)}")
@@ -196,11 +211,86 @@ def commit_and_prepare(tree: str, files: list[str], product: str | None) -> None
         raise RuntimeError(f"git status in {tree} is not clean after the preparation:\n{status}")
 
 
+class SlotConflict(Exception):
+    """The slot folder exists, or another tree has the slot id."""
+
+
+def product_of(tree: str) -> str:
+    """The product of a tree: `caddy` for `caddy` and for `caddy-plant-2`."""
+    m = re.fullmatch(r"([a-z]+)(?:-plant-[0-9]+)?", tree)
+    if not m or m.group(1) not in PRODUCTS:
+        raise ValueError(f"tree {tree!r} is not <product> or <product>-plant-<n> of the products "
+                         f"{', '.join(sorted(PRODUCTS))}")
+    return m.group(1)
+
+
+def slot_id(tree: str) -> str:
+    return hashlib.sha256(("slot:" + tree).encode("utf-8")).hexdigest()[:4]
+
+
+def slot_path(tree: str, root: str = SLOTS_ROOT) -> str:
+    return os.path.join(root, slot_id(tree), product_of(tree))
+
+
+def load_slots(path: str = SLOTS_FILE) -> dict:
+    """{"<tree>": {"slot": "<id>", "path": "<slot path>", "product": "<product>"}}; {} when there is no file."""
+    if not os.path.exists(path):
+        return {}
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _manifest_files(manifest: str) -> list[str]:
+    with open(manifest, encoding="utf-8", errors="surrogateescape", newline="\n") as f:
+        return [line.rstrip("\n").split("  ", 1)[1] for line in f if line.strip()]
+
+
+def make_slot(tree: str, trees: str = TREES, root: str = SLOTS_ROOT, slots_file: str = SLOTS_FILE) -> dict:
+    """Make the slot of the master tree trees/<tree> (see the module text); return its entry of slots_file."""
+    product = product_of(tree)
+    master = os.path.join(trees, tree)
+    manifest = master + ".manifest"
+    if not os.path.isdir(master) or not os.path.isfile(manifest):
+        raise FileNotFoundError(f"no master tree {master} with its manifest")
+    sid, path = slot_id(tree), slot_path(tree, root)
+    slots = load_slots(slots_file)
+    others = sorted(t for t, e in slots.items() if t != tree and e.get("slot") == sid)
+    if others:
+        raise SlotConflict(f"the slot id {sid} of {tree} is the slot id of {', '.join(others)} in {slots_file}")
+    if os.path.lexists(os.path.dirname(path)):
+        raise SlotConflict(f"the slot folder {os.path.dirname(path)} exists")
+    files = _manifest_files(manifest)
+    copy_tree(master, path, files)
+    commit_and_prepare(path, files, product, SLOT_AUTHOR)
+    differ = verify_manifest(path, manifest)
+    if differ:
+        raise RuntimeError(f"{len(differ)} files of {path} differ from {manifest}, the first: {differ[0]}")
+    entry = {"slot": sid, "path": path, "product": product}
+    slots[tree] = entry
+    tmp = slots_file + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(slots, f, indent=2, sort_keys=True)
+        f.write("\n")
+    os.replace(tmp, slots_file)
+    return entry
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 2 or argv[0] not in ("make", "verify"):
-        print("usage: python3 -m benchlib.trees make <product> | verify <product>", file=sys.stderr)
+    if len(argv) != 2 or argv[0] not in ("make", "verify", "slot"):
+        print("usage: python3 -m benchlib.trees make <product> | verify <product> | slot <tree>", file=sys.stderr)
         return 2
     command, name = argv
+    if command == "slot":
+        try:
+            entry = make_slot(name, TREES, SLOTS_ROOT, SLOTS_FILE)
+        except SlotConflict as e:
+            print(f"trees: {e}", file=sys.stderr)
+            return 2
+        except (ValueError, FileNotFoundError, RuntimeError) as e:
+            print(f"trees: {e}", file=sys.stderr)
+            return 1
+        print(f"{name}: slot {entry['slot']} at {entry['path']}")
+        return 0
     if command == "make":
         try:
             tree = make(name, os.path.join(REAL_PRODUCTS, name), TREES)
