@@ -77,3 +77,48 @@ def make_local_leaf():
     class LocalTwig(LocalLeaf):
         pass
     return LocalTwig
+
+
+# At run time each TypedDict class has the bases (dict,); its declared bases are in __orig_bases__.
+from typing import Generic, NamedTuple, TypedDict, TypeVar
+
+
+class BaseRecord(TypedDict):
+    key: str
+
+
+class ChildRecord(BaseRecord):
+    size: int
+
+
+class GrandRecord(ChildRecord, total=False):
+    note: str
+
+
+class ExtraRecord(TypedDict):
+    flag: bool
+
+
+class MergedRecord(BaseRecord, ExtraRecord):
+    pass
+
+
+# A NamedTuple subclass and a Generic subclass are subclasses at run time too.
+class Pair(NamedTuple):
+    left: int
+    right: int
+
+
+class LabeledPair(Pair):
+    pass
+
+
+Slot = TypeVar("Slot")
+
+
+class Box(Generic[Slot]):
+    pass
+
+
+class IntBox(Box[int]):
+    pass

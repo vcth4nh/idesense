@@ -26,7 +26,9 @@ keeps only the records with n required lines or more.
 
 `hierarchy` makes one record of kind `class` (`source: reflection`, no sites) for each class of the tree that
 the import of the packages loads. Its `implementers` with `class: required` are all subclasses that the tree
-defines (transitive, from `__subclasses__()`). An `ast` scan of the tree files finds each `class` statement
+defines: the transitive closure of `__subclasses__()` and of the declared bases (the own `__orig_bases__` of a
+class of the tree, a generic alias taken as its origin class; the run-time bases of a TypedDict class are
+`(dict,)`). An `ast` scan of the tree files finds each `class` statement
 that reflection did not see (a class in a function, a class of a module that failed to import, a class of a
 file that no package holds). Such a statement is an implementer with `class: dnc` of each record with the
 name of one of its bases (the last identifier of the base expression), and of each record that has an
@@ -307,7 +309,7 @@ def unique_name_keys(root: str, library_attrs: set[str]) -> list[dict]:
 # and writes one JSON object to its first stdout (the imported code prints to stderr). argv[1] is a JSON
 # object: mode ("attrs" or "hierarchy"), packages, root (or null).
 _CHILD = r'''
-import importlib, inspect, json, os, sys
+import importlib, inspect, json, os, sys, typing
 out = os.fdopen(os.dup(1), "w", encoding="utf-8")
 os.dup2(2, 1)
 sys.stdout = sys.stderr
@@ -412,6 +414,22 @@ else:
         if isinstance(path, str) and in_tree(path):
             classes.append(cls)
     index = {id(cls): i for i, cls in enumerate(classes)}
+    # The declared bases too: the bases of a TypedDict class are (dict,), and its own __orig_bases__ (no
+    # inherited value) holds the declared classes. The origin of a generic alias is its class.
+    declared = {}
+    for cls in classes:
+        try:
+            orig = vars(cls).get("__orig_bases__")
+        except TypeError:
+            orig = None
+        for base in orig if isinstance(orig, tuple) else ():
+            base = typing.get_origin(base) or base
+            if id(base) in index and base is not cls:
+                declared.setdefault(id(base), []).append(cls)
+
+    def children(cls):
+        return subclasses(cls) + declared.get(id(cls), [])
+
     rows = []
     for cls in classes:
         row = {"module": cls.__module__, "qualname": cls.__qualname__, "name": cls.__name__}
@@ -424,12 +442,12 @@ else:
                 row["error"] = "SourceOutsideTree"
         except Exception as e:
             row["error"] = type(e).__name__
-        seen, stack = set(), list(subclasses(cls))
+        seen, stack = set(), children(cls)
         while stack:
             sub = stack.pop()
             if id(sub) not in seen:
                 seen.add(id(sub))
-                stack.extend(subclasses(sub))
+                stack.extend(children(sub))
         row["subs"] = sorted(index[i] for i in seen if i in index)
         rows.append(row)
     result = {"skipped": skipped, "classes": rows}

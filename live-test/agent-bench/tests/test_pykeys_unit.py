@@ -169,8 +169,10 @@ class HierarchyTest(unittest.TestCase):
         self.assertEqual([{"module": "shop.broken_extra", "error": "ModuleNotFoundError"},
                           {"module": "shop.stops_at_import", "error": "StopImport"}], meta["skipped"])
         self.assertEqual(["shop.models.Dynamic"], [d["name"] for d in meta["dynamic"]])
-        self.assertEqual({"py:shop.models.Base", "py:shop.models.Middle", "py:shop.models.Leaf",
-                          "py:shop.models.Other", "py:shop.models.Lazy", "py:shop.service.Cache"}, set(self.classes))
+        self.assertEqual({"py:shop.models." + name for name in (
+                              "Base", "Middle", "Leaf", "Other", "Lazy", "BaseRecord", "ChildRecord", "GrandRecord",
+                              "ExtraRecord", "MergedRecord", "Pair", "LabeledPair", "Box", "IntBox")}
+                         | {"py:shop.service.Cache"}, set(self.classes))
         base = dict(self.classes["py:shop.models.Base"])
         required = [i for i in base.pop("implementers") if i["class"] == "required"]
         self.assertEqual({
@@ -206,6 +208,23 @@ class HierarchyTest(unittest.TestCase):
                          self.classes["py:shop.models.Base"]["implementers"])
         # StopImport (its module stops at import), ExtraLeaf, LocalLeaf, LocalTwig.
         self.assertEqual(4, self.recs[0]["unseen"])
+
+    def test_hierarchy_lists_typeddict_subclasses(self):
+        def required(name):
+            return [i["id"].rsplit(".", 1)[-1] for i in self.classes["py:shop.models." + name]["implementers"]
+                    if i["class"] == "required"]
+
+        # The bases of a TypedDict class are (dict,): its declared bases (__orig_bases__) make the relation.
+        self.assertEqual(["ChildRecord", "GrandRecord", "MergedRecord"], required("BaseRecord"))
+        self.assertEqual(["GrandRecord"], required("ChildRecord"))
+        self.assertEqual(["MergedRecord"], required("ExtraRecord"))
+        self.assertEqual([impl("py:shop.models.MergedRecord", "shop/models.py", 102, 7, "required")],
+                         self.classes["py:shop.models.ExtraRecord"]["implementers"])
+        self.assertEqual([], required("GrandRecord"))
+        # NamedTuple and Generic: the same lists as __subclasses__() alone gives (this part passed before the change).
+        self.assertEqual(["LabeledPair"], required("Pair"))
+        self.assertEqual(["IntBox"], required("Box"))
+        self.assertEqual([], required("IntBox"))
 
 
 class TracePluginTest(unittest.TestCase):
