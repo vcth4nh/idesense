@@ -29,13 +29,13 @@
   `REFERENCE`: for example `Shape` in the PHP doc comment `/** @var Shape[] */`. A caller that
   filters on `REFERENCE` no longer gets these usages (#132).
 - `ide_find_usages` and `ide_explain_symbol` include the usages of the base declarations of a Go,
-  JavaScript or TypeScript member. The result is the union of the usages of the member and the
-  usages of each declaration that it overrides or implements. A usage of a base declaration has
-  `match: BASE`: the call can run this member or another implementation. A usage whose reference
+  JavaScript, TypeScript, Python or Rust member. The result is the union of the usages of the member
+  and the usages of each declaration that it overrides or implements. A usage of a base declaration
+  has `match: BASE`: the call can run this member or another implementation. A usage whose reference
   matches only by the name has `match: DYNAMIC`. A usage with no `match` refers to the member
-  itself. The `notes` entry of `ide_find_usages` names the base declarations and gives the count
-  of the `BASE` usages. The `topUsages` of `ide_explain_symbol` lists the code usages with no
-  `match` first (#171, #196).
+  itself. The `notes` entry of `ide_find_usages` names the base declarations and gives the count of
+  the `BASE` usages. The `topUsages` of `ide_explain_symbol` lists the code usages with no `match`
+  first (#171, #172, #196, #208).
 
 ### Fixed
 - `ide_type_hierarchy` and `ide_call_hierarchy` dispose the per-call hierarchy browser once the
@@ -89,7 +89,7 @@
   warning. The tool now asks for the handler in the mode of the Find Usages action without its
   dialog. GoLand then shows its notification "Looking for usages of the interface methods" until
   the user selects "Don't show again". A handler factory that throws now gives a `warnings` entry:
-  RustRover gives it for a trait method implementation. The `usageCount` and `topUsages` of
+  PhpStorm gives it for a method with a base method. The `usageCount` and `topUsages` of
   `ide_explain_symbol` include the same usages (#130).
 - `ide_find_usages` and `ide_explain_symbol` in GoLand return the usages in comments, the "Usage in
   comments" group of Find Usages. The tool searched on the path of highlight usages, where the Go
@@ -103,6 +103,17 @@
   method?". Off the EDT the question threw: the tool searched only the references to the member,
   and each call logged a stack trace. The tool now asks for the handler in the mode of highlight
   usages, which asks no question. It searches each base member in a second pass (#171).
+- `ide_find_usages` and `ide_explain_symbol` on an item of a Rust trait impl return the usages
+  through the trait item. RustRover's handler factory asked "Do you want to find usages of the base
+  declaration?". Off the EDT the question threw: the tool searched only the references to the impl
+  item, and each call logged a stack trace. The tool now asks for the handler in the mode of
+  highlight usages and searches the trait item in a second pass (#172).
+- `ide_find_usages` and `ide_explain_symbol` on a Python method that overrides a method of a base
+  class return the usages through the base method. PyCharm's handler factory asked "Do you want to
+  find usages of the base method?". Off the EDT the question threw: the tool searched only the
+  references to the method, and each call logged a stack trace. The tool now asks for the handler in
+  the mode of highlight usages and searches each base method in a second pass. The tool does not
+  search a method of the class `object` (#208).
 - `ide_find_usages` and `ide_explain_symbol` mark a dynamic usage with `match: DYNAMIC`. A dynamic
   usage came back with no mark, as a sure usage: for example a call `x.send()` on a value with no
   known type. The mark follows the rule of the "Dynamic usages" group of the IDE's Find Usages
