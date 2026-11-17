@@ -1,3 +1,4 @@
+{"id":"usage-Circle.area-impl","tool":"ide_find_usages","params":{"column":8,"file":"src/normal.rs","line":27}}
 {"id":"usage-Circle.radius","tool":"ide_find_usages","params":{"column":9,"file":"src/normal.rs","line":23}}
 {"id":"usage-CoerceMode.Int-variant","tool":"ide_find_usages","params":{"column":5,"file":"src/quirks.rs","line":88}}
 {"id":"usage-Coercer-trait","tool":"ide_find_usages","params":{"column":11,"file":"src/quirks.rs","line":41}}

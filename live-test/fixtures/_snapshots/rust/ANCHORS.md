@@ -75,6 +75,8 @@ fails when this file is stale.
 | 22:12 | explain-Circle-pos | explain_symbol | `pub struct Circle {` |
 | 22:12 | hier-type-Circle | type_hierarchy | `pub struct Circle {` |
 | 23:9 | usage-Circle.radius | find_usages | `pub radius: f64,` |
+| 27:8 | explain-Circle.area-impl-pos | explain_symbol | `fn area(&self) -> f64 {` |
+| 27:8 | usage-Circle.area-impl | find_usages | `fn area(&self) -> f64 {` |
 | 27:8 | usage-area-libraries-scope | find_usages | `fn area(&self) -> f64 {` |
 | 32:48 | def-Circle.area | find_definition | `format!("Circle with area {}", self.area())` |
 | 42:12 | hier-type-Rectangle | type_hierarchy | `pub struct Rectangle {` |
