@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.handlers
 import com.github.vcth4nh.idesense.constants.UsageMatch
 import com.github.vcth4nh.idesense.handlers.go.GoFindUsages
 import com.github.vcth4nh.idesense.handlers.javascript.JavaScriptFindUsages
+import com.github.vcth4nh.idesense.handlers.markdown.MarkdownFindUsages
 import com.intellij.find.findUsages.FindUsagesHandler
 import com.intellij.find.findUsages.FindUsagesHandlerFactory
 import com.intellij.find.findUsages.FindUsagesHandlerFactory.OperationMode
@@ -146,13 +147,16 @@ internal object FindUsagesHandlerSearch {
      * group "Dynamic usages" (`lib/intellij.platform.usageView.impl.jar`).
      *
      * The rule of WebStorm for a reference in a JavaScript dialect file
-     * ([JavaScriptFindUsages.isDynamicUsage]) also gives true. The search asks the JavaScript check
-     * first, because the check stops at once for a file that is not JavaScript, and the platform
-     * rule resolves the reference. An exception gives false.
+     * ([JavaScriptFindUsages.isDynamicUsage]) also gives true. The rule of the Markdown plugin for
+     * a symbol name in a code span of a Markdown file ([MarkdownFindUsages.isDynamicUsage]) also
+     * gives true. The search asks the JavaScript check first, then the Markdown check, then the
+     * platform rule. The two checks stop at once for other files, and the platform rule resolves
+     * the reference. An exception gives false.
      */
     internal fun isDynamicReference(reference: PsiReference, targets: Collection<PsiElement>): Boolean =
         try {
             JavaScriptFindUsages.isDynamicUsage(reference, targets) == true ||
+                MarkdownFindUsages.isDynamicUsage(reference) ||
                 if (reference is PsiPolyVariantReference) reference.multiResolve(false).isEmpty()
                 else reference.resolve() == null
         } catch (e: ProcessCanceledException) {
