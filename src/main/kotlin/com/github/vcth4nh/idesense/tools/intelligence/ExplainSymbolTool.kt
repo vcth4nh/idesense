@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.tools.intelligence
 import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.ToolNames
+import com.github.vcth4nh.idesense.constants.UsageMatch
 import com.github.vcth4nh.idesense.constants.UsageTypes
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
@@ -63,19 +64,28 @@ class ExplainSymbolTool : AbstractMcpTool() {
         private const val MAX_DECLARATION_PROBLEMS = 50
 
         private const val SURE_CODE_USAGE = 0
-        private const val MARKED_CODE_USAGE = 1
-        private const val COMMENT_USAGE = 2
+        private const val BASE_CODE_USAGE = 1
+        private const val OTHER_MARKED_CODE_USAGE = 2
+        private const val COMMENT_USAGE = 3
 
-        /** The class of a usage for [preferSureUsages]: a sure code usage, a code usage with a match, or a COMMENT usage. */
+        /**
+         * The class of a usage for [preferSureUsages]: a sure code usage, a code usage with the match
+         * [UsageMatch.BASE], a code usage with another match (today only [UsageMatch.DYNAMIC]), or a
+         * COMMENT usage.
+         */
         private fun usageClass(usageType: String, match: String?): Int = when {
             usageType == UsageTypes.COMMENT -> COMMENT_USAGE
             match == null -> SURE_CODE_USAGE
-            else -> MARKED_CODE_USAGE
+            match == UsageMatch.BASE -> BASE_CODE_USAGE
+            else -> OTHER_MARKED_CODE_USAGE
         }
 
         /**
-         * The first [limit] of [usages], sure usages first: the code usages with no match, then the
-         * code usages with a match (#171), then the COMMENT usages (#132). Arrival order inside each class.
+         * The first [limit] of [usages], the less uncertain usages first: the code usages with no
+         * match, then the code usages with the match [UsageMatch.BASE], then the code usages with
+         * another match (#171, #196), then the COMMENT usages (#132). A BASE usage is a resolved
+         * usage of a base declaration. A DYNAMIC usage is a name match only. Arrival order inside
+         * each class.
          */
         internal fun preferSureUsages(usages: List<UsageLocation>, limit: Int): List<UsageLocation> =
             usages.sortedBy { usageClass(it.usageType, it.match) }.take(limit)
@@ -308,7 +318,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
             // In arrival order until it has MAX_TOP_USAGES sure code usages, at most MAX_TOP_USAGES
             // of each class; preferSureUsages selects.
             val top = mutableListOf<UsageLocation>()
-            val classCounts = IntArray(3)
+            val classCounts = IntArray(COMMENT_USAGE + 1)
             val collectRef: (UsageHit) -> Boolean = { hit ->
                 ProgressManager.checkCanceled()
                 val refElement = hit.element
