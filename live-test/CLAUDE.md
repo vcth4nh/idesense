@@ -482,13 +482,18 @@ will just snapshot a different empty/odd result.
   position of the word: the "Usage in comments" group of GoLand
   (`usage-Circle-struct`, `usage-Shape-iface`). `ide_explain_symbol` counts these
   usages in `usageCount`, and its `topUsages` lists the code usages first.
-- **Rust usage row with a `warnings` entry.** Rust `usage-area-libraries-scope`
-  carries a `warnings` entry. The find-usages handler factory of the IDE opens a
-  dialog off the EDT ("search the base member?") and throws, so the tool falls
-  back to the references of the anchor. This is the same form as the Java and
-  Kotlin warning rows. The result is that of the answer "No" to the IDE's
-  question; #172 holds the analysis. Rust gets the base search in a later change.
-  The JavaScript rows no longer have this warning (see the next entry).
+- **Rust `find_usages` searches the base declaration too (#172).** The window
+  observations of RustRover 2026.2.0.1 on 2026-11-17, anchor `Circle::area`
+  (`src/normal.rs:27:8`): the IDE asks "Do you want to find usages of the base
+  declaration?". Yes searches 5 functions: the anchor, the `area` of the other impls
+  of `Shape` in `normal.rs` and in `tests/scope_probe.rs`, and the trait item. Yes
+  lists 8 usages: `normal.rs` lines 16, 32, 53, 77, 97 and 102 (two usages), and
+  `tests/scope_probe.rs:21`. No lists 1 usage (line 32). Rows `usage-Circle.area-impl`
+  and `usage-area-libraries-scope` give the same 8 usages: 32:45 has no `match`, and
+  the other 7 have `BASE`. The `notes` entry names `Shape::area`
+  (`src/normal.rs:13:8`). The tool searches the anchor and the trait item. The search
+  of the trait item also returns the calls on the other impls (53:48, 77:20,
+  `scope_probe.rs:21:26`), so these usages have `BASE` too.
 - **JavaScript and TypeScript `find_usages` search the base declaration too (#171, #196).**
   For a member that overrides a base member, WebStorm asks whether to search the
   base method. The result is the union of the answers Yes and No, with marks. The
@@ -522,6 +527,21 @@ will just snapshot a different empty/odd result.
   sets the dynamic flag when the reference resolves to nothing. The window
   observation of the same rule is the beets entry (group "Dynamic usages in Project
   Files").
+- **Python `find_usages` searches the base method too (#208).** The window
+  observations of PyCharm 2026.2.0.1 on 2026-11-17:
+  - `Circle.area` (`src/normal.py:36:9`): the IDE asks "Method area overrides method of
+    class Shape. Do you want to find usages of the base method?". Yes targets
+    `Circle.area` and `Shape.area`. Yes shows "Usages in Project Files 2 results"
+    (line 29, line 74) and "Dynamic usages in Project Files 1 result" (line 79). No
+    shows the dynamic usage only. Row `usage-Circle.area-override`: 29:51 `BASE`, 74:20
+    `BASE`, 79:47 `DYNAMIC`. The `notes` entry names `Shape.area`.
+  - `Square.__init__` (`src/normal.py:59:9`): Yes has 4 targets: `Square.__init__`,
+    `Rectangle.__init__`, and `object.__init__` two times (the builtins stub and
+    builtins). Yes shows 2 result rows: line 60 `super().__init__(side, side)` and line
+    85 (`Rectangle(` and `Square(` on one row). Row `usage-Square.__init__-override`:
+    85:47 with no `match`, 85:26 `BASE`, 60:9 `BASE`. The `notes` entry names
+    `Rectangle.__init__`. The tool does not search a method of the class `object`. The
+    fixture has no usage of `object.__init__`, so the result equals the Yes list.
 - **A reference inside a doc comment is a `COMMENT` usage in every language.**
   PHP `usage-Shape-class` lists `Shape` in `/** @var Shape[] */`
   (src/Normal.php:53) with `usageType` `COMMENT`. The platform rule of the
@@ -792,11 +812,11 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 - **ripgrep: `crates/core` is in no source folder.** It holds the targets of the root package.
   So `hier-sub-Flag-production-scope` gives 0 subtypes, and `find-file-mod.rs` gives 5 files and
   its production scope 2.
-- **ripgrep: a usage row with a `warnings` entry.** `usage-RegexMatcher.find_at-trait-impl` has
-  the entry "Find-usages handler factory RsFindUsagesHandlerFactory threw". The method
-  implements `Matcher::find_at`, and the factory asks "find usages of the base declaration?" off
-  the EDT. The 0 usages equal the answer No of RustRover ("Nothing found"). #172 tracks the
-  warning.
+- **ripgrep: a trait impl method gets the usages of the trait item (#172).**
+  `usage-RegexMatcher.find_at-trait-impl` gives 26 usages, all with `match` `BASE`, and the
+  `notes` entry names `grep_matcher::Matcher::find_at` (`crates/matcher/src/lib.rs:571:8`). The
+  row has no `warnings` entry. RustRover, answer Yes: "Usages in Project Files 26 results" (4 in
+  `crates/matcher/src`, 22 in `crates/searcher/src`). Answer No: "Nothing found".
 - **ripgrep: the Rust type hierarchy is code of the plugin.** RustRover has no Type Hierarchy
   for Rust, so no IDE action decides these rows. A blanket `impl` for a reference (`&'a mut S`)
   is no subtype node: `hier-sub-Sink` gives 8 types, and `impls-Sink-trait` gives 9 `impl`

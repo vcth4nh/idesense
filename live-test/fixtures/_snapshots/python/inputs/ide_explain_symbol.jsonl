@@ -1,2 +1,3 @@
 {"id":"explain-Circle-pos","tool":"ide_explain_symbol","params":{"column":7,"file":"src/normal.py","line":32}}
+{"id":"explain-Circle.area-override-pos","tool":"ide_explain_symbol","params":{"column":9,"file":"src/normal.py","line":36}}
 {"id":"explain-Shape-name","tool":"ide_explain_symbol","params":{"symbol":"Shape"}}

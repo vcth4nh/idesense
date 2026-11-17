@@ -80,8 +80,10 @@ fails when this file is stale.
 | 32:7 | hier-type-Circle | type_hierarchy | `class Circle(Shape):` |
 | 32:7 | impls-Circle-class | find_implementations | `class Circle(Shape):` |
 | 34:14 | usage-Circle.radius | find_usages | `self.radius = radius` |
+| 36:9 | explain-Circle.area-override-pos | explain_symbol | `def area(self) -> float:` |
 | 36:9 | hier-caller-Circle.area | call_hierarchy | `def area(self) -> float:` |
 | 36:9 | super-Circle.area | find_super_methods | `def area(self) -> float:` |
+| 36:9 | usage-Circle.area-override | find_usages | `def area(self) -> float:` |
 | 39:9 | super-Circle.draw | find_super_methods | `def draw(self) -> str:` |
 | 43:7 | hier-type-Rectangle | type_hierarchy | `class Rectangle(Shape):` |
 | 43:7 | impls-Rectangle-class | find_implementations | `class Rectangle(Shape):` |
@@ -92,6 +94,7 @@ fails when this file is stale.
 | 58:7 | hier-super-Square | type_hierarchy | `class Square(Rectangle):` |
 | 58:7 | hier-type-Square | type_hierarchy | `class Square(Rectangle):` |
 | 59:9 | super-Square.__init__ | find_super_methods | `def __init__(self, side: float) -> None:` |
+| 59:9 | usage-Square.__init__-override | find_usages | `def __init__(self, side: float) -> None:` |
 | 60:9 | def-super-init | find_definition | `super().__init__(side, side)` |
 | 66:7 | hier-type-ShapeCollection | type_hierarchy | `class ShapeCollection:` |
 | 68:14 | usage-shapes-field | find_usages | `self.shapes: list[Shape] = []` |

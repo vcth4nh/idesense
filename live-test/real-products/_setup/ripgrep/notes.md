@@ -162,8 +162,8 @@ These rows are parked. Each one changes with the fix of its issue only.
 #190 (the default Rust outline hides the items that macro calls make) has no row: a row would
 also show the line of #188. No structure row of this product has a macro-made item.
 
-`usage-RegexMatcher.find_at-trait-impl` is blessed with its `warnings` entry: its 0 usages equal
-the answer No to the question of RustRover ("Nothing found"). #172 tracks the warning.
+`usage-RegexMatcher.find_at-trait-impl` gives the 26 usages of the trait item `Matcher::find_at`,
+all with `match` `BASE` (#172). They equal the answer Yes to the question of RustRover.
 
 `hier-caller-search_slice-d2` and `usage-Match-page1` also hold elements of a doctest with the
 path of the fragment (#186). They are `shape` rows: their counts equal the counts of RustRover,
