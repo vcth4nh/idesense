@@ -112,7 +112,7 @@ IMAGES = os.path.join(BENCH, "images")
 ROUTES_FILE = os.path.join(BENCH, "proxy", "routes.json")
 PROXY_LOG_DIR = os.path.join(BENCH, "proxy", "log")
 SLOTS_FILE = trees.SLOTS_FILE
-KEY_FILE = "/home/ubuntu/dev/idesense/.local/.api-key/vcth4nh"
+KEY_FILE = "/home/ubuntu/dev/idesense/.local/.api-keys/vcth4nh"
 
 PLUGIN_VERSION = "2.1.1-bench.f4ff0a2"
 IDE_URLS = {"caddy": "http://127.0.0.1:29374/mcp/streamable-http",

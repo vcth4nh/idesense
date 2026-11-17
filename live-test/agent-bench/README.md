@@ -92,7 +92,7 @@ go test ./...
 - Run no product script, except the build and the test suite of caddy and beets.
 - Keep the source text of a product out of the tracked files. Keys, trees and audit results stay
   below `BENCH`.
-- The API key of the agent runs is in a file outside the repository. Do not print it and do not
+- The API key of the agent runs is in a file that git ignores (`runner.KEY_FILE`). Do not print it and do not
   write it into a file. The runner gives it only to the container environment and searches each
   output file of a run for it.
 - A run container has no mount, no host network mode and no Docker socket. Do not push an image:
