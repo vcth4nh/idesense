@@ -115,12 +115,13 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
     }
 
     /**
-     * The methods that [element] overrides, when [element] itself is a Python function: the
-     * methods of [walkSuperMethods], in the same order as the hierarchy of [findSuperMethods],
-     * without each method of the class `object` ([isInObject]). Empty for any other element, also
-     * for an element inside a function. A method of `object` is no base declaration: the PyCharm
-     * factory asks no question when the first super method of the query is in `object`, and a
-     * search of `object.__init__` adds calls that cannot run the symbol (#208).
+     * The methods that [element] overrides, when [element] itself is a Python function: the methods
+     * of [walkSuperMethods], in the same order as the hierarchy of [findSuperMethods], without each
+     * method of the class `object` ([isInObject]). Empty for any other element, also for an element
+     * inside a function. A method of `object` is no base declaration: the PyCharm factory asks no
+     * question when the first super method of the query is in `object`, and each class is a
+     * subclass of `object`, so a usage of `object.__init__` gives almost no information about the
+     * symbol (#208).
      */
     override fun findBaseDeclarations(element: PsiElement): List<PsiElement> {
         if (pyFunctionClass?.isInstance(element) != true) return emptyList()
