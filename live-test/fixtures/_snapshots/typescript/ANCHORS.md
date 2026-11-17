@@ -100,6 +100,7 @@ fails when this file is stale.
 | 22:33 | usage-Circle.radius-paramprop | find_usages | `constructor(public readonly radius: number) {` |
 | 25:5 | def-Circle.area | find_definition | `area(): number { return 3.14159 * this.radius * this.radius; }` |
 | 25:5 | super-Circle.area | find_super_methods | `area(): number { return 3.14159 * this.radius * this.radius; }` |
+| 25:5 | usage-Circle.area-override | find_usages | `area(): number { return 3.14159 * this.radius * this.radius; }` |
 | 25:44 | def-Circle.radius-paramprop | find_definition | `area(): number { return 3.14159 * this.radius * this.radius; }` |
 | 26:5 | super-Circle.draw | find_super_methods | draw(): string { return `circle r=${this.radius}`; } |
 | 29:14 | hier-type-Rectangle | type_hierarchy | `export class Rectangle extends Shape implements Drawable {` |

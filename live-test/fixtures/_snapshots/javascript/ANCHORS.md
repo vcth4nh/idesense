@@ -62,6 +62,7 @@ fails when this file is stale.
 | 23:7 | impls-Circle-class | find_implementations | `class Circle extends Shape {` |
 | 23:7 | usage-Circle-cross-file | find_usages | `class Circle extends Shape {` |
 | 28:5 | def-Circle.area | find_definition | `area() { return 3.14159 * this.radius * this.radius; }` |
+| 28:5 | explain-Circle.area-override-pos | explain_symbol | `area() { return 3.14159 * this.radius * this.radius; }` |
 | 28:5 | super-Circle.area | find_super_methods | `area() { return 3.14159 * this.radius * this.radius; }` |
 | 28:5 | usage-area-libraries-scope | find_usages | `area() { return 3.14159 * this.radius * this.radius; }` |
 | 29:5 | super-Circle.draw | find_super_methods | draw() { return `circle r=${this.radius}`; } |
@@ -127,6 +128,7 @@ fails when this file is stale.
 |---|---|---|---|
 | 12:9 | super-Derived.value-setter | find_super_methods | `set value(v) { this._v = v.toUpperCase(); }` |
 | 12:9 | usage-Derived.value-write | find_usages | `set value(v) { this._v = v.toUpperCase(); }` |
+| 12:15 | usage-Derived.value-param | find_usages | `set value(v) { this._v = v.toUpperCase(); }` |
 | 13:9 | super-Derived.value-getter | find_super_methods | `get value() { return this._v; }` |
 
 ## src/triple_super.js
