@@ -4,10 +4,12 @@
 # own MCP port, so that it never reaches an IDE of the fleet (ports 29170 to 29178).
 # The launch follows ~/.local/opt/x11-userland/bin/ide-gui-throwaway.
 #
-# Usage: bench-ide.sh start|dry-run <goland|pycharm> <project dir>...
+# Usage: bench-ide.sh start|prepare|dry-run <goland|pycharm> <project dir>...
 #        bench-ide.sh stop|status <goland|pycharm>
-#   dry-run does each check of start and prints what start would do. It makes no folder, copies
-#   nothing and starts nothing.
+#   start writes options/recentProjects.xml with the project dirs marked as open and launches a bare
+#   serverMode: that start opens each project of the file (live-test/fleet.py does the same).
+#   prepare does each step of start before the launch (for the tests). dry-run does each check of
+#   start and prints what start would do. It makes no folder, copies nothing and starts nothing.
 # Environment:
 #   BENCH_ROOT        the data root (default /home/ubuntu/dev/idesense-bench). Each project dir must be
 #                     below BENCH_ROOT/trees/, each folder of the instance below BENCH_ROOT/ide/.
@@ -21,11 +23,11 @@ BENCH_APPS="${BENCH_APPS:-/home/ubuntu/.local/share/JetBrains/Toolbox/apps}"
 KEYS=(config system plugins log)
 
 die() { echo "bench-ide: $*" >&2; exit 1; }
-usage() { die "usage: bench-ide.sh start|dry-run <goland|pycharm> <project dir>... | stop|status <goland|pycharm>"; }
+usage() { die "usage: bench-ide.sh start|prepare|dry-run <goland|pycharm> <project dir>... | stop|status <goland|pycharm>"; }
 
 [ "$#" -ge 2 ] || usage
 cmd="$1"; ide="$2"; shift 2
-case "$cmd" in start|dry-run|stop|status) ;; *) usage ;; esac
+case "$cmd" in start|prepare|dry-run|stop|status) ;; *) usage ;; esac
 case "$ide" in
   goland) ide_port=29374 ;;
   pycharm) ide_port=29372 ;;
@@ -71,14 +73,14 @@ ours_by_cmdline() {
   grep -Fq -- "$IDE_DIR/" <<<"$a"
 }
 ours_by_launch() {
-  # $1 = pid of the tree that this start launched; for the guard after the launch only. A java that
-  # ignored the path options has no folder of the instance in its command line. Then the marks are the
-  # end of the command line (serverMode and the project dirs) and the VM options variable of this
-  # launch in the environment, which exec keeps.
+  # $1 = pid of the tree that this start launched (the caller walks only that tree); for the guard after
+  # the launch only. A java that ignored the path options has no folder of the instance in its command
+  # line. Then the marks are the last argument (serverMode) and, the strong mark, the VM options variable
+  # of this launch in the environment, which exec keeps.
   local a e
   a="$(tr '\0' '\n' < "/proc/$1/cmdline" 2>/dev/null)" || return 1
   e="$(tr '\0' '\n' < "/proc/$1/environ" 2>/dev/null)" || return 1
-  [ "$(tail -n "$((${#PROJECTS[@]} + 1))" <<<"$a")" = "$LAUNCH_TAIL" ] && grep -Fxq -- "$envvar=$VMO" <<<"$e"
+  [ "$(tail -n 1 <<<"$a")" = serverMode ] && grep -Fxq -- "$envvar=$VMO" <<<"$e"
 }
 tree_pids() {  # $1 and its descendants, by the parent links of the process table (no search by name)
   local c
@@ -102,6 +104,22 @@ check_path_args() {
 INIT='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
 mcp_post() { curl -sS -m 10 -X POST -H 'Content-Type: application/json' --data "$1" "$URL"; }
 version_of() { python3 -I -c 'import json,sys; print(json.load(sys.stdin)["result"]["serverInfo"]["version"])'; }
+open_projects() {
+  # Prints "<path><TAB><name>" for each open project. The server lists them in the error of a call
+  # with an unknown project_path; an entry with "workspace" is a module folder, not a project
+  # (as open_projects of live-test/fleet.py). Fails when the answer has no list.
+  local call='{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ide_index_status","arguments":{"project_path":"/bench-ide-status/no-such-project"}}}'
+  mcp_post "$call" 2>/dev/null | python3 -I -c '
+import json, sys
+r = json.load(sys.stdin).get("result") or {}
+p = r.get("structuredContent")
+if not isinstance(p, dict):
+    p = json.loads((r.get("content") or [{}])[0].get("text", ""))
+for e in p["available_projects"]:
+    if "workspace" not in e:
+        print("%s\t%s" % (e["path"], e.get("name")))
+' 2>/dev/null
+}
 
 pid_file_pid() {  # prints the pid of the pid file, or nothing when there is no pid file
   [ -f "$PIDF" ] || return 0
@@ -142,26 +160,16 @@ if [ "$cmd" = status ]; then
   v="$(mcp_post "$INIT" 2>/dev/null | version_of 2>/dev/null)" || v=""
   if [ -z "$v" ]; then echo "serverInfo.version: no answer"; exit 1; fi
   echo "serverInfo.version: $v"
-  call='{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ide_index_status","arguments":{"project_path":"/bench-ide-status/no-such-project"}}}'
-  mcp_post "$call" 2>/dev/null | python3 -I -c '
-import json, sys
-try:
-    r = json.load(sys.stdin).get("result") or {}
-    p = r.get("structuredContent")
-    if not isinstance(p, dict):
-        p = json.loads((r.get("content") or [{}])[0].get("text", ""))
-    projects = p["available_projects"]
-except Exception as e:
-    print("open projects:      unknown (%s: %s)" % (type(e).__name__, e))
-    sys.exit(0)
-print("open projects:      %d" % len(projects))
-for e in projects:
-    print("  %s  %s" % (e.get("name"), e.get("path")))
-'
+  if open="$(open_projects)"; then
+    echo "open projects:      $(grep -c . <<<"$open" || true)"
+    [ -z "$open" ] || sed 's/^\([^\t]*\)\t\(.*\)$/  \2  \1/' <<<"$open"
+  else
+    echo "open projects:      unknown (the answer has no list)"
+  fi
   exit 0
 fi
 
-# --- start and dry-run: the checks before the launch
+# --- start, prepare and dry-run: the checks before the launch
 [ "$#" -ge 1 ] || die "give one project dir or more, below $root/trees/"
 PROJECTS=()
 for p in "$@"; do
@@ -170,7 +178,9 @@ for p in "$@"; do
   case "$r" in "$root/trees/"?*) ;; *) die "project dir $r is not below $root/trees/: refused" ;; esac
   PROJECTS+=("$r")
 done
-LAUNCH_TAIL="$(printf '%s\n' serverMode "${PROJECTS[@]}")"
+# rewrite_recent_projects and trust_project_paths of the fleet harness write the two project files.
+FLEET_PY="$(realpath -m -- "$(dirname -- "$(realpath -- "$0")")/../../fleet.py")"
+[ -f "$FLEET_PY" ] || die "no $FLEET_PY"
 
 APP="$BENCH_APPS/$ide"
 LAUNCHER="$APP/bin/$ide.sh"
@@ -209,7 +219,7 @@ vmo_text() { cat "$BASE_VMO"; [ -z "$(tail -c 1 "$BASE_VMO")" ] || echo; path_li
 vmo_text | check_path_args || die "the options text for $VMO does not have the four path options exactly one time: refused"
 
 zip="${BENCH_PLUGIN_ZIP:-}"
-LAUNCH=(env "$envvar=$VMO" nohup "$LAUNCHER" serverMode "${PROJECTS[@]}")
+LAUNCH=(env "$envvar=$VMO" nohup "$LAUNCHER" serverMode)
 
 if [ "$cmd" = dry-run ]; then
   echo "dry-run $ide: the checks passed. Nothing was made, copied or started."
@@ -234,13 +244,15 @@ if [ "$cmd" = dry-run ]; then
   fi
   echo "plugin copies:  ${#FLEET_PLUGINS[@]} folder(s) into ${P[plugins]}"
   for d in "${FLEET_PLUGINS[@]}"; do echo "  $d"; done
-  echo "project dirs:"
+  echo "project dirs:   start writes ${P[config]}/options/recentProjects.xml new with these dirs"
+  echo "                (each entry opened=\"true\" with a frame element) and adds a trust entry for each"
+  echo "                to options/trusted-paths.xml:"
   for d in "${PROJECTS[@]}"; do echo "  $d"; done
   printf 'command:        '; printf '%q ' "${LAUNCH[@]}"; printf '> %q 2>&1 < /dev/null &\n' "$LAUNCH_OUT"
   exit 0
 fi
 
-# --- start: prepare the folders
+# --- start and prepare: prepare the folders (the IDE is down: the checks above found no listener and no live pid)
 [ -n "$zip" ] && [ -f "$zip" ] || die "no plugin zip '${zip}': set BENCH_PLUGIN_ZIP to the IdeSense distribution zip"
 command -v curl >/dev/null || die "no curl"
 mkdir -p "${P[system]}" "${P[log]}"
@@ -261,6 +273,30 @@ if [ ! -d "${P[config]}" ]; then
   echo "config seeded from $CONFIG_SRC"
 fi
 grep -Eq "name=\"serverPort\" value=\"$port\"" "$MCP_XML" || die "$MCP_XML does not set serverPort $port: refused"
+# A bare serverMode start opens each project with opened="true" in recentProjects.xml (new at each start),
+# and a serverMode IDE checks the trust of each project.
+python3 -I -B - "$FLEET_PY" "$HOME" "${P[config]}/options" "${PROJECTS[@]}" <<'PY'
+import sys
+from pathlib import Path
+fleet_py, home, options, projects = sys.argv[1], sys.argv[2], Path(sys.argv[3]), sys.argv[4:]
+sys.path.insert(0, str(Path(fleet_py).parent))
+import fleet
+import xml.etree.ElementTree as ET
+empty = ('<application><component name="RecentProjectsManager"><option name="additionalInfo"><map />'
+         '</option></component></application>')
+root = ET.fromstring(fleet.rewrite_recent_projects(empty, projects, home))
+# Measured on GoLand 2026.2: when the entries have no frame element, a bare serverMode start opens only
+# one project (the last entry); with a frame element in each entry, it opens all of them.
+for i, meta in enumerate(root.iter("RecentProjectMetaInfo")):
+    xy = str(60 + 30 * i)
+    ET.SubElement(meta, "frame", {"x": xy, "y": xy, "width": "1400", "height": "1000"})
+ET.indent(root, space="  ")
+(options / "recentProjects.xml").write_text(ET.tostring(root, encoding="unicode") + "\n")
+trusted = options / "trusted-paths.xml"
+old = trusted.read_text() if trusted.exists() else None
+trusted.write_text(fleet.trust_project_paths(old, projects, home) + "\n")
+PY
+echo "recentProjects.xml and trusted-paths.xml: ${#PROJECTS[@]} project dir(s)"
 rm -rf -- "${P[plugins]}"
 mkdir -p "${P[plugins]}"
 for d in "${FLEET_PLUGINS[@]}"; do cp -a -- "$d" "${P[plugins]}/"; done
@@ -269,6 +305,10 @@ unzip -q "$zip" -d "${P[plugins]}"
 vmo_text > "$VMO"
 [ -r "$VMO" ] && check_path_args < "$VMO" || die "$VMO does not have the four path options exactly one time: refused"
 rm -f "$PIDF"
+if [ "$cmd" = prepare ]; then
+  echo "prepared $IDE_DIR; nothing was started"
+  exit 0
+fi
 
 # --- start: the launch and the guard after the launch
 "${LAUNCH[@]}" > "$LAUNCH_OUT" 2>&1 < /dev/null &
@@ -310,3 +350,20 @@ while :; do
   sleep 2
 done
 echo "ready: pid $jpid, port $port, serverInfo.version $v"
+
+# Wait until the server lists each project dir as open (300 s more). On a timeout the IDE continues to run.
+deadline=$((SECONDS + 300))
+while :; do
+  open="$(open_projects)" || open=""
+  missing=()
+  for d in "${PROJECTS[@]}"; do
+    cut -f1 <<<"$open" | grep -Fxq -- "$d" || missing+=("$d")
+  done
+  [ "${#missing[@]}" -eq 0 ] && break
+  alive "$jpid" || die "the IDE (pid $jpid) ended before it opened the projects; see ${P[log]}/idea.log"
+  [ "$SECONDS" -lt "$deadline" ] \
+    || die "after 300 s these project dirs are not open: ${missing[*]}; pid $jpid still runs (bench-ide.sh stop $ide)"
+  sleep 5
+done
+echo "open projects:"
+cut -f1 <<<"$open" | sed 's/^/  /'
