@@ -80,7 +80,9 @@ fails when this file is stale.
 | 19:7 | hier-type-Circle | type_hierarchy | `class Circle(val radius: Double) : Shape(), Drawable {` |
 | 19:18 | usage-Circle.radius | find_usages | `class Circle(val radius: Double) : Shape(), Drawable {` |
 | 20:18 | def-Circle.area | find_definition | `override fun area(): Double = 3.14159 * radius * radius` |
+| 20:18 | explain-Circle.area-override-pos | explain_symbol | `override fun area(): Double = 3.14159 * radius * radius` |
 | 20:18 | super-Circle.area | find_super_methods | `override fun area(): Double = 3.14159 * radius * radius` |
+| 20:18 | usage-Circle.area-override | find_usages | `override fun area(): Double = 3.14159 * radius * radius` |
 | 20:18 | usage-area-libraries-scope | find_usages | `override fun area(): Double = 3.14159 * radius * radius` |
 | 21:18 | super-Circle.draw-from-Drawable | find_super_methods | `override fun draw(): String = "circle r=$radius"` |
 | 24:12 | hier-type-Rectangle | type_hierarchy | `open class Rectangle(val width: Double, val height: Double) : Shape(), Drawable {` |

@@ -36,7 +36,9 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiReference
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.SearchScope
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.Processor
@@ -107,6 +109,9 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         }
         com.intellij.find.findUsages.FindUsagesHandlerFactory.EP_NAME.getPoint(project)
             .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
+        // The fake provider hides the real Java provider: its direct references of a method would
+        // skip the handler (#175).
+        registerProvider(FakeBaseProvider { emptyList() })
 
         val warnings = mutableListOf<String>()
         com.intellij.openapi.application.ReadAction.run<Throwable> {
@@ -148,6 +153,9 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         }
         com.intellij.find.findUsages.FindUsagesHandlerFactory.EP_NAME.getPoint(project)
             .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
+        // The fake provider hides the real Java provider: its direct references of a method would
+        // skip the factory (#175).
+        registerProvider(FakeBaseProvider { emptyList() })
 
         val warnings = mutableListOf<String>()
         val hits = mutableListOf<UsageHit>()
@@ -194,10 +202,18 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
     private fun offsetAfter(file: PsiJavaFile, before: String): Int =
         ReadAction.compute<Int, Throwable> { file.text.indexOf(before) + before.length }
 
-    /** A provider for Java that gives the base declarations of [baseDeclarationsOf]. */
+    /**
+     * A provider for Java that gives the base declarations of [baseDeclarationsOf] and the direct
+     * references of [directReferencesOf].
+     */
     private class FakeBaseProvider(var baseDeclarationsOf: (PsiElement) -> List<PsiElement>) : SuperMethodsProvider {
+        /** Null by default: the search takes the handler. */
+        var directReferencesOf: (PsiElement) -> Collection<PsiReference>? = { null }
+
         override fun findSuperMethods(element: PsiElement, project: Project): SuperMethodsData? = null
         override fun findBaseDeclarations(element: PsiElement): List<PsiElement> = baseDeclarationsOf(element)
+        override fun findDirectReferences(element: PsiElement, scope: SearchScope): Collection<PsiReference>? =
+            directReferencesOf(element)
     }
 
     /**
@@ -326,6 +342,138 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             assertTrue("$label: no hit should have a mark: ${hits.map { it.match }}", hits.all { it.match == null })
             assertTrue("$label: no base declaration expected: $baseDeclarations", baseDeclarations.isEmpty())
         }
+    }
+
+    fun testFindDirectReferencesOfTheProviderWin() {
+        // #175: when the provider gives the direct references of a target, the search takes them
+        // and asks no factory for a handler of that target. The factory below throws when the
+        // search reads primaryElements, so a search through the handler would give a warning. The
+        // fixed lists are not what a search would find: the anchor gets the call on the Base
+        // variable, and the base declaration gets the call on the Derived value.
+        val file = addBaseUnionSource("Direct")
+        val derivedTarget = targetOf(file, "DirectDerived")
+        val baseTarget = targetOf(file, "DirectBase")
+        val derivedCall = offsetAfter(file, "new DirectDerived().")
+        val baseCall = offsetAfter(file, "((DirectBase) x).")
+        val referenceAt = { offset: Int ->
+            ReadAction.compute<PsiReference, Throwable> {
+                requireNotNull(file.findReferenceAt(offset)) { "No reference at $offset" }
+            }
+        }
+        val anchorReferences = listOf(referenceAt(baseCall))
+        val baseReferences = listOf(referenceAt(derivedCall))
+
+        var handlersCreated = 0
+        registerFactory(object : FindUsagesHandlerFactory() {
+            override fun canFindUsages(element: PsiElement) = element is PsiMethod
+            override fun createFindUsagesHandler(element: PsiElement, forHighlightUsages: Boolean): FindUsagesHandler {
+                handlersCreated++
+                return object : FindUsagesHandler(element) {
+                    override fun getPrimaryElements(): Array<PsiElement> =
+                        throw IllegalStateException("test-induced primaryElements failure")
+                }
+            }
+        })
+        registerProvider(FakeBaseProvider { if (it == derivedTarget) listOf(baseTarget) else emptyList() }.apply {
+            directReferencesOf = {
+                when (it) {
+                    derivedTarget -> anchorReferences
+                    baseTarget -> baseReferences
+                    else -> null
+                }
+            }
+        })
+
+        val warnings = mutableListOf<String>()
+        val hits = mutableListOf<UsageHit>()
+        ReadAction.run<Throwable> {
+            FindUsagesHandlerSearch.processReferences(
+                project,
+                derivedTarget,
+                GlobalSearchScope.projectScope(project),
+                Processor<UsageHit> { hit -> hits.add(hit) },
+                warnings
+            )
+        }
+
+        assertTrue("No warning expected: $warnings", warnings.isEmpty())
+        assertEquals("No handler expected", 0, handlersCreated)
+        assertEquals(
+            "The hits should be the fixed references, the anchor first",
+            listOf(baseCall to null, derivedCall to UsageMatch.BASE),
+            hits.map { it.offset to it.match }
+        )
+    }
+
+    /** The first page of ide_find_usages for the name anchor [symbol]. */
+    private fun findUsagesOf(symbol: String): FindUsagesResult = runBlocking {
+        val result = FindUsagesTool().execute(project, buildJsonObject { put("symbol", symbol) })
+        val text = (result.content.first() as ContentBlock.Text).text
+        assertFalse("The call must succeed: $text", result.isError)
+        json.decodeFromString<FindUsagesResult>(text)
+    }
+
+    /** The 1-based line of the first [needle] in [file]. */
+    private fun lineOf(file: PsiJavaFile, needle: String): Int = ReadAction.compute<Int, Throwable> {
+        val offset = file.text.indexOf(needle)
+        assertTrue("Needle '$needle' should exist in the fixture text", offset >= 0)
+        file.text.substring(0, offset).count { it == '\n' } + 1
+    }
+
+    fun testJavaOverridingMethodGetsItsOwnUsagesAndTheBaseUsages() {
+        // #175: the real Java provider, with no fake provider. The direct pass searches Circle.area
+        // itself and finds the call on the Circle receiver. The base pass searches Shape.area and
+        // adds the call on the Shape receiver with match BASE. No handler stage runs, so no warning.
+        val file = myFixture.addFileToProject("javaunion/Shapes.java", """
+            package javaunion;
+            abstract class Shape { abstract double area(); }
+            class Circle extends Shape { double area() { return 3.0; } }
+            class ShapeUser {
+                double run(Shape shape) {
+                    double onCircle = new Circle().area();
+                    double onShape = shape.area();
+                    return onCircle + onShape;
+                }
+            }
+        """.trimIndent()) as PsiJavaFile
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        val result = findUsagesOf("javaunion.Circle#area")
+
+        assertNull("No warning expected: ${result.warnings}", result.warnings)
+        assertEquals("Exactly 2 usages expected: ${result.usages}", 2, result.usages.size)
+        assertEquals(
+            "The call on the Circle receiver has no match; the call on the Shape receiver has match BASE",
+            setOf(lineOf(file, "new Circle().area()") to null, lineOf(file, "shape.area()") to UsageMatch.BASE),
+            result.usages.map { it.line to it.match }.toSet()
+        )
+        val notes = result.notes.orEmpty()
+        assertEquals("Exactly one note expected: $notes", 1, notes.size)
+        assertTrue("The note should name Shape.area: $notes", notes[0].contains("javaunion.Shape#area"))
+    }
+
+    fun testJavaMethodWithNoSuperMethodHasNoNoteAndNoWarning() {
+        // #175: the real Java provider gives the references of a method with no super method, so no
+        // handler stage runs: no warning, no note and no mark.
+        val file = myFixture.addFileToProject("javasolo/Counter.java", """
+            package javasolo;
+            class Counter {
+                int next() { return 1; }
+            }
+            class CounterUser {
+                int run() { return new Counter().next(); }
+            }
+        """.trimIndent()) as PsiJavaFile
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        val result = findUsagesOf("javasolo.Counter#next")
+
+        assertNull("No warning expected: ${result.warnings}", result.warnings)
+        assertNull("No note expected: ${result.notes}", result.notes)
+        assertEquals(
+            listOf(lineOf(file, "new Counter().next()") to null),
+            result.usages.map { it.line to it.match }
+        )
     }
 
     fun testClassifyUsageMarksCommentReferences() {

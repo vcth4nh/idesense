@@ -18,7 +18,7 @@ Find semantic references to a symbol (not text search). Anchor by `symbol` (name
 
 **Returns**: `{ usages: [{ file, line, column, preview, usageType, enclosingScope, match? }], truncated, nextCursor?, hasMore, totalCollected, offset, pageSize, stale, warnings?, notes? }` — non-null `warnings` (first page) means a find-usages handler stage degraded and the list may be incomplete. `notes` (first page, absent when the symbol has no base declaration) names the base declarations and gives the count of the `BASE` usages. An example: `'area' overrides or implements Shape.area (src/normal.js:16:5). The result also holds the usages of this base declaration, because a call through it can run 'area'. 1 of the 5 usages has match BASE.`
 
-**Base declarations**: a Go, JavaScript, TypeScript, Python or Rust member can override or implement a base declaration. Then the result is the union of the usages of the member and the usages of each base declaration. The search collects the usages of the member itself before the usages of the base declarations. `match` marks a usage that is not sure:
+**Base declarations**: a Go, Java, JavaScript, Kotlin, Python, Rust or TypeScript member can override or implement a base declaration. Then the result is the union of the usages of the member and the usages of each base declaration. The search collects the usages of the member itself before the usages of the base declarations. `match` marks a usage that is not sure:
 - no `match`: the usage refers to the symbol itself.
 - `BASE`: the usage refers to a base declaration. The call can run this symbol or another implementation.
 - `DYNAMIC`: only the name matches, and the type of the receiver is not known. In all languages, a reference that does not resolve to a declaration has this mark. JavaScript and TypeScript also apply their own rule for a dynamic usage. A symbol name in a code span of a Markdown file also has this mark.
@@ -114,7 +114,7 @@ Fused symbol overview in one call: declaration + signature + quick documentation
 
 Facets are capped summaries — page through `ide_find_implementations` / `ide_find_usages` for full sets. Degraded facets are named in `warnings`; a `null` facet means not applicable or not requested, `[]` means searched-and-empty.
 
-`usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, JavaScript, TypeScript, Python or Rust member with base declarations, `usageCount` counts the same union. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`).
+`usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, Java, JavaScript, Kotlin, Python, Rust or TypeScript member with base declarations, `usageCount` counts the same union. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`).
 
 ---
 

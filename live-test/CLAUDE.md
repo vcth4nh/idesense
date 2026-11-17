@@ -542,6 +542,28 @@ will just snapshot a different empty/odd result.
     85:47 with no `match`, 85:26 `BASE`, 60:9 `BASE`. The `notes` entry names
     `Rectangle.__init__`. The tool does not search a method of the class `object`. The
     fixture has no usage of `object.__init__`, so the result equals the Yes list.
+- **Java and Kotlin `find_usages` search the method itself and its super declarations (#175).**
+  The window observations of IntelliJ IDEA 2026.2.0.1 on 2026-11-17. The IDE asks no
+  question in the two languages.
+  - Java `Circle.area` (`src/main/java/demo/Normal.java:33:12`): the IDE searches
+    `Shape.area` only. The group "Usages or usages of base method in Project Files" has 3
+    results: lines 21, 83 and 91 (line 91 holds two usages). Row `usage-Circle.area-override`
+    gives the same 4 usages (21:61, 83:22, 91:35, 91:49), each with `BASE`. The `notes` entry
+    names `demo.Shape#area` (`src/main/java/demo/Normal.java:18:21`).
+  - Kotlin `Circle.area` (`src/main/kotlin/demo/Normal.kt:20:18`): the IDE searches
+    `Shape.area` and `Circle.area`. The same group has 3 results: lines 16, 42 and 44. Rows
+    `usage-Circle.area-override` and `usage-area-libraries-scope` give 16:74, 42:49 and 44:53,
+    each with `BASE`. The `notes` entry names `demo.Shape#area`
+    (`src/main/kotlin/demo/Normal.kt:13:18`).
+  - No fixture call has a receiver of a subclass type, so each usage of these rows has
+    `BASE`. A probe on a copy of the Kotlin fixture (2026-11-17, not in the suites) added
+    `fun circleAreaProbe(c: Circle): Double = c.area()` and a Java class that extends
+    `Shape`. The tool gave the probe call with no `match` and the other 5 usages with `BASE`,
+    and the IDE listed the same 6 usages.
+  - The Java rows on a method or a constructor (`usage-Circle-ctor`,
+    `usage-Probe.target-files-scope`, the two `usage-Quirks.parse-*` rows,
+    `usage-area-from-totalArea`, `usage-area-libraries-scope`) lost their `warnings` entry.
+    Their usages did not change.
 - **A reference inside a doc comment is a `COMMENT` usage in every language.**
   PHP `usage-Shape-class` lists `Shape` in `/** @var Shape[] */`
   (src/Normal.php:53) with `usageType` `COMMENT`. The platform rule of the
@@ -735,12 +757,17 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   symbol definition", and `usage-RefineServlet.registerCommand-from-js` gives no usage. In
   IntelliJ, Go to Declaration does nothing at that position, and Find Usages says "Nothing
   found". The error row needs the two-step bless (see "Rows that pin an expected error").
-- **openrefine: Java usage rows with a `warnings` entry.** Each `ide_find_usages` row on a
-  Java method, and `explain-Row.getCell-pos`, has the entry "Find-usages handler
-  JavaFindUsagesHandler threw on primaryElements". The two compared usage lists equal the
-  IDE: Find Usages of `Row.getCellValue` shows 45 results, and the tool gives 20 production
-  and 25 test usages; `registerCommand` gives none (see above). So these rows are blessed
-  with the entry, as the Java fixture rows since #81. #175 tracks the warning.
+- **openrefine: Java usage rows with no `warnings` entry (#175).** The Java usage rows have
+  no `warnings` entry now: the tool searches the method itself and does not read
+  `primaryElements` of the handler. The usage lists did not change: Find Usages of
+  `Row.getCellValue` shows 45 results, and the tool gives 20 production and 25 test usages.
+  The row `usage-StandardReconConfig.batchRecon-override-mixed` (`StandardReconConfig.java:570:24`)
+  gives 10 usages. 9 usages have no `match`: they are calls on a `StandardReconConfig`
+  receiver. `ReconOperation.java:309:51` has `BASE`: the call `_reconConfig.batchRecon(...)`
+  is on a field of the base type `ReconConfig`. The `notes` entry names
+  `ReconConfig#batchRecon` (`ReconConfig.java:119:33`). That base declaration as an anchor
+  gives the same 10 usages. This row has no window observation of its own; IntelliJ IDEA
+  searches the deepest super methods of a Java method (see the fixture entry).
 - **beets: a base class through `import beets`.** `beetsplug/playlist.py` imports only
   `beets` and names the base class `beets.plugins.BeetsPlugin`. `beets/__init__.py` has a
   module `__getattr__`. `def-plugins-via-module-getattr` gives the error "Could not resolve

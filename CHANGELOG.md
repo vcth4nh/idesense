@@ -29,13 +29,13 @@
   `REFERENCE`: for example `Shape` in the PHP doc comment `/** @var Shape[] */`. A caller that
   filters on `REFERENCE` no longer gets these usages (#132).
 - `ide_find_usages` and `ide_explain_symbol` include the usages of the base declarations of a Go,
-  JavaScript, TypeScript, Python or Rust member. The result is the union of the usages of the member
-  and the usages of each declaration that it overrides or implements. A usage of a base declaration
-  has `match: BASE`: the call can run this member or another implementation. A usage whose reference
-  matches only by the name has `match: DYNAMIC`. A usage with no `match` refers to the member
-  itself. The `notes` entry of `ide_find_usages` names the base declarations and gives the count of
-  the `BASE` usages. The `topUsages` of `ide_explain_symbol` lists the code usages with no `match`
-  first (#171, #172, #196, #208).
+  Java, JavaScript, Kotlin, Python, Rust or TypeScript member. The result is the union of the usages
+  of the member and the usages of each declaration that it overrides or implements. A usage of a
+  base declaration has `match: BASE`: the call can run this member or another implementation. A
+  usage whose reference matches only by the name has `match: DYNAMIC`. A usage with no `match`
+  refers to the member itself. The `notes` entry of `ide_find_usages` names the base declarations
+  and gives the count of the `BASE` usages. The `topUsages` of `ide_explain_symbol` lists the code
+  usages with no `match` first (#171, #172, #175, #196, #208).
 
 ### Fixed
 - `ide_type_hierarchy` and `ide_call_hierarchy` dispose the per-call hierarchy browser once the
@@ -114,6 +114,14 @@
   references to the method, and each call logged a stack trace. The tool now asks for the handler in
   the mode of highlight usages and searches each base method in a second pass. The tool does not
   search a method of the class `object` (#208).
+- `ide_find_usages` and `ide_explain_symbol` on a Java method or constructor no longer give the
+  `warnings` entry "handler JavaFindUsagesHandler threw on primaryElements" and no longer write two
+  stack traces to the IDE log for each call. The handler asserted the EDT for each method and
+  constructor. For a method that overrides a super method, the tool returned the usages of the
+  deepest super methods with no mark. It now returns the usages of the method itself with no mark
+  and the usages of each super method with `match: BASE`. A Kotlin function or property that
+  overrides a declaration had the same defect (the `warnings` entry "handler Function threw on
+  primaryElements") and now gets the same result (#175).
 - `ide_find_usages` and `ide_explain_symbol` mark a dynamic usage with `match: DYNAMIC`. A dynamic
   usage came back with no mark, as a sure usage: for example a call `x.send()` on a value with no
   known type. The mark follows the rule of the "Dynamic usages" group of the IDE's Find Usages

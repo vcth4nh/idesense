@@ -112,6 +112,12 @@ file is stale.
 | 148:19 | usage-Row.getCellValue-production-scope | find_usages | `getCellValue` |
 | 148:19 | usage-Row.getCellValue-test-scope | find_usages | `getCellValue` |
 
+## modules/core/src/main/java/com/google/refine/model/recon/StandardReconConfig.java
+
+| line:col | probe id | tool | identifier |
+|---|---|---|---|
+| 570:24 | usage-StandardReconConfig.batchRecon-override-mixed | find_usages | `batchRecon` |
+
 ## modules/core/src/main/java/com/google/refine/util/ParsingUtilities.java
 
 | line:col | probe id | tool | identifier |
