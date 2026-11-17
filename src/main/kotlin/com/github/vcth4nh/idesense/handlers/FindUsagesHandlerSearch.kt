@@ -42,6 +42,12 @@ internal class UsageHit(val element: PsiElement, val offset: Int, val match: Str
  * [UsageMatch.BASE]. A usage of which the reference does not resolve has the mark
  * [UsageMatch.DYNAMIC] ([isDynamicReference]). A usage with no mark is a sure usage of the symbol.
  *
+ * Each target (the symbol and each base declaration) first goes to
+ * [SuperMethodsProvider.findDirectReferences] of the provider of its language. When the provider
+ * gives references, the search of that target takes them and uses no handler (#175): the Java and
+ * Kotlin handlers send the search of a member to its base declarations, so they cannot search the
+ * member itself.
+ *
  * The search of the handler takes one of two paths:
  * - Go: `processElementUsages`, the search of the IDE's Find Usages action. In GoLand only
  *   this path adds the usages of the interface methods that a method implements (#130) and
@@ -58,6 +64,13 @@ internal object FindUsagesHandlerSearch {
      * [processor] as a [UsageHit] with its mark. The base declarations go to [baseDeclarations]
      * before the search starts. When the processor returns false, the whole search stops: no
      * later target and no later pass runs.
+     *
+     * For [element] and for each base declaration, the search first asks the provider of the
+     * language of that target for [SuperMethodsProvider.findDirectReferences]. When the result is
+     * not null, the search gives these references to [processor] and asks no factory for a handler
+     * of that target: no `primaryElements`, no `secondaryElements`, no `findReferencesToHighlight`
+     * and no warning. When the result is null, the search of that target takes the handler, as
+     * below. A provider that throws gives null; a cancellation leaves the search.
      *
      * The handler of the direct pass comes in the mode of the IDE's Find Usages action without
      * its dialog ([OperationMode.USAGES_WITH_DEFAULT_OPTIONS], the mode of
@@ -114,26 +127,37 @@ internal object FindUsagesHandlerSearch {
         val bases = baseDeclarationsOf(element)
         baseDeclarations?.addAll(bases)
 
-        val directModes =
-            if (bases.isEmpty()) listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS) else listOf(OperationMode.HIGHLIGHT_USAGES)
-        val direct = createHandler(project, element, directModes)
-        val directHandler = direct.handler
-        if (directHandler != null && GoFindUsages.isGoHandler(directHandler)) {
-            val goHandler = if (bases.isEmpty()) directHandler
-            else createHandler(project, element, listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS)).handler
-            if (goHandler != null && GoFindUsages.isGoHandler(goHandler)) {
-                searchGo(goHandler, element, bases.isNotEmpty(), scope, processor, warnings)
-                return
+        val directReferences = directReferencesOf(element, scope)
+        if (directReferences != null) {
+            if (!processDirectReferences(element, directReferences, null, processor)) return
+        } else {
+            val directModes =
+                if (bases.isEmpty()) listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS) else listOf(OperationMode.HIGHLIGHT_USAGES)
+            val direct = createHandler(project, element, directModes)
+            val directHandler = direct.handler
+            if (directHandler != null && GoFindUsages.isGoHandler(directHandler)) {
+                val goHandler = if (bases.isEmpty()) directHandler
+                else createHandler(project, element, listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS)).handler
+                if (goHandler != null && GoFindUsages.isGoHandler(goHandler)) {
+                    searchGo(goHandler, element, bases.isNotEmpty(), scope, processor, warnings)
+                    return
+                }
             }
-        }
 
-        if (!searchTarget(element, direct, scope, null, processor, warnings)) return
+            if (!searchTarget(element, direct, scope, null, processor, warnings)) return
+        }
         for (base in bases) {
             ProgressManager.checkCanceled()
-            val choice = createHandler(
-                project, base, listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS, OperationMode.HIGHLIGHT_USAGES)
-            )
-            if (!searchTarget(base, choice, scope, UsageMatch.BASE, processor, warnings)) return
+            val baseReferences = directReferencesOf(base, scope)
+            val completed = if (baseReferences != null) {
+                processDirectReferences(base, baseReferences, UsageMatch.BASE, processor)
+            } else {
+                val choice = createHandler(
+                    project, base, listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS, OperationMode.HIGHLIGHT_USAGES)
+                )
+                searchTarget(base, choice, scope, UsageMatch.BASE, processor, warnings)
+            }
+            if (!completed) return
         }
     }
 
@@ -186,6 +210,42 @@ internal object FindUsagesHandlerSearch {
             return emptyList()
         }
         return found.filter { it != element && it.isValid }.distinct()
+    }
+
+    /**
+     * The references to [target] itself from [SuperMethodsProvider.findDirectReferences] of the
+     * provider of the language of [target]. Null when no provider is registered, when the provider
+     * gives null or when it throws: the search of [target] then takes the find-usages handler.
+     */
+    private fun directReferencesOf(target: PsiElement, scope: SearchScope): Collection<PsiReference>? {
+        val provider = SuperMethodsProvider.EP.forLanguage(target.language) ?: return null
+        return try {
+            provider.findDirectReferences(target, scope)
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: LinkageError) {
+            throw e
+        } catch (e: Throwable) {
+            LOG.debug("SuperMethodsProvider ${provider.javaClass.name} threw on findDirectReferences", e)
+            null
+        }
+    }
+
+    /**
+     * Gives each reference of [references], the direct references of [target], to [processor] with
+     * the mark [UsageMatch.DYNAMIC] or [passMark]. False when the processor stopped the search.
+     */
+    private fun processDirectReferences(
+        target: PsiElement,
+        references: Collection<PsiReference>,
+        passMark: String?,
+        processor: Processor<UsageHit>,
+    ): Boolean {
+        val targets = listOf(target)
+        for (ref in references) {
+            if (!processReference(ref, targets, passMark, processor)) return false
+        }
+        return true
     }
 
     /**

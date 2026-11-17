@@ -36,7 +36,9 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiJavaFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiReference
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.SearchScope
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.Processor
@@ -194,10 +196,18 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
     private fun offsetAfter(file: PsiJavaFile, before: String): Int =
         ReadAction.compute<Int, Throwable> { file.text.indexOf(before) + before.length }
 
-    /** A provider for Java that gives the base declarations of [baseDeclarationsOf]. */
+    /**
+     * A provider for Java that gives the base declarations of [baseDeclarationsOf] and the direct
+     * references of [directReferencesOf].
+     */
     private class FakeBaseProvider(var baseDeclarationsOf: (PsiElement) -> List<PsiElement>) : SuperMethodsProvider {
+        /** Null by default: the search takes the handler. */
+        var directReferencesOf: (PsiElement) -> Collection<PsiReference>? = { null }
+
         override fun findSuperMethods(element: PsiElement, project: Project): SuperMethodsData? = null
         override fun findBaseDeclarations(element: PsiElement): List<PsiElement> = baseDeclarationsOf(element)
+        override fun findDirectReferences(element: PsiElement, scope: SearchScope): Collection<PsiReference>? =
+            directReferencesOf(element)
     }
 
     /**
@@ -326,6 +336,67 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             assertTrue("$label: no hit should have a mark: ${hits.map { it.match }}", hits.all { it.match == null })
             assertTrue("$label: no base declaration expected: $baseDeclarations", baseDeclarations.isEmpty())
         }
+    }
+
+    fun testFindDirectReferencesOfTheProviderWin() {
+        // #175: when the provider gives the direct references of a target, the search takes them
+        // and asks no factory for a handler of that target. The factory below throws when the
+        // search reads primaryElements, so a search through the handler would give a warning. The
+        // fixed lists are not what a search would find: the anchor gets the call on the Base
+        // variable, and the base declaration gets the call on the Derived value.
+        val file = addBaseUnionSource("Direct")
+        val derivedTarget = targetOf(file, "DirectDerived")
+        val baseTarget = targetOf(file, "DirectBase")
+        val derivedCall = offsetAfter(file, "new DirectDerived().")
+        val baseCall = offsetAfter(file, "((DirectBase) x).")
+        val referenceAt = { offset: Int ->
+            ReadAction.compute<PsiReference, Throwable> {
+                requireNotNull(file.findReferenceAt(offset)) { "No reference at $offset" }
+            }
+        }
+        val anchorReferences = listOf(referenceAt(baseCall))
+        val baseReferences = listOf(referenceAt(derivedCall))
+
+        var handlersCreated = 0
+        registerFactory(object : FindUsagesHandlerFactory() {
+            override fun canFindUsages(element: PsiElement) = element is PsiMethod
+            override fun createFindUsagesHandler(element: PsiElement, forHighlightUsages: Boolean): FindUsagesHandler {
+                handlersCreated++
+                return object : FindUsagesHandler(element) {
+                    override fun getPrimaryElements(): Array<PsiElement> =
+                        throw IllegalStateException("test-induced primaryElements failure")
+                }
+            }
+        })
+        registerProvider(FakeBaseProvider { if (it == derivedTarget) listOf(baseTarget) else emptyList() }.apply {
+            directReferencesOf = {
+                when (it) {
+                    derivedTarget -> anchorReferences
+                    baseTarget -> baseReferences
+                    else -> null
+                }
+            }
+        })
+
+        val warnings = mutableListOf<String>()
+        val hits = mutableListOf<UsageHit>()
+        ReadAction.run<Throwable> {
+            FindUsagesHandlerSearch.processReferences(
+                project,
+                derivedTarget,
+                GlobalSearchScope.projectScope(project),
+                Processor<UsageHit> { hit -> hits.add(hit) },
+                warnings
+            )
+        }
+
+        assertTrue("No warning expected: $warnings", warnings.isEmpty())
+        assertEquals("No handler expected", 0, handlersCreated)
+        assertEquals(
+            "The hits should be the fixed references, the anchor first",
+            listOf(baseCall to null, derivedCall to UsageMatch.BASE),
+            hits.map { it.offset to it.match }
+        )
     }
 
     fun testClassifyUsageMarksCommentReferences() {
