@@ -7,6 +7,7 @@ import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
+import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.LambdaUtil
@@ -90,11 +91,23 @@ class JavaSuperMethodsProvider : SuperMethodsProvider {
      * the methods of [walkSuperMethods], in the same order as the hierarchy of [findSuperMethods].
      * A method of `java.lang.Object` stays in the list, because IntelliJ IDEA searches it too.
      * Empty for any other element, also for an element inside a method (#175).
+     *
+     * A super method of another language gives its real declaration ([baseDeclarationOf]), so the
+     * search of that declaration takes the provider and the handler of its own language. The Java
+     * handler of a light method reads `primaryElements`, which throws off the EDT (#175).
      */
     override fun findBaseDeclarations(element: PsiElement): List<PsiElement> {
         if (element !is PsiMethod) return emptyList()
-        return walkSuperMethods(element)
+        return walkSuperMethods(element).map(::baseDeclarationOf)
     }
+
+    /**
+     * The declaration that the base pass searches for [superMethod]: [superMethod] itself when its
+     * language is the Java language (also a method of a compiled class), else its navigation
+     * element. For a Kotlin light method, the navigation element is the Kotlin declaration.
+     */
+    internal fun baseDeclarationOf(superMethod: PsiMethod): PsiElement =
+        if (superMethod.language is JavaLanguage) superMethod else superMethod.navigationElement
 
     /**
      * The references to [element] itself, when [element] is a [PsiMethod] (a method or a
