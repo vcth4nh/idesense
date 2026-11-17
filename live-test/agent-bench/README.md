@@ -2,7 +2,8 @@
 
 This harness makes the answer keys for questions about the symbols of real products. It compares
 the answers of the IdeSense plugin with these keys (the audit). A key never comes from the plugin
-or from an IDE.
+or from an IDE. It also runs a coding agent on such questions, with and without the plugin, and
+scores the answers of the agent with the same keys (the agent runs).
 
 ## Layout
 
@@ -17,14 +18,52 @@ live-test/agent-bench/
   benchlib/plant.py         shared-name plant, key from the state before the change
   benchlib/mcp.py           JSON-RPC client for one MCP server, all pages of a result
   benchlib/audit.py         audit: tool calls, comparison, result records, summary
+  benchlib/proxy.py         filter proxy between a run container and a benchmark IDE
+  benchlib/challenges.py    challenge records, key views, prompts, answer score
+  benchlib/image.py         product images: build context, build, gate
+  benchlib/runner.py        one agent run in a container, batch of runs, connection check
   gokeys/                   Go module: key extractor from go/types, acceptance test
   ide/bench-ide.sh          start, stop, status of one benchmark IDE instance
+  image/Dockerfile          product image: tool chain, Claude Code, the trees with warm caches
+  image/entry.sh            entry point of a run container: aid, cleanup, start of the agent
   tests/test_*_unit.py      Python unit tests
+  tests/fixtures/           small package for the key tests, stream-json transcripts for the runner
 ```
 
 The data root `BENCH` is `/home/ubuntu/dev/idesense-bench/`. It is not a repository. It has the
-folders `trees/`, `ide/`, `keys/`, `audit/` and `scratch/`. A key file is
-`BENCH/keys/<product>/<set>.jsonl`, with one key record for each line (see `benchlib/keys.py`).
+folders `trees/`, `ide/`, `keys/`, `audit/`, `challenges/`, `images/`, `proxy/`, `runs/` and
+`scratch/`. A key file is `BENCH/keys/<product>/<set>.jsonl`, with one key record for each line
+(see `benchlib/keys.py`).
+
+## Agent runs
+
+A run is one container from a product image. The agent in it (Claude Code in print mode) answers
+one challenge about one tree with a JSON list of `path:line` sites. Each module text has its
+commands and its file formats.
+
+- **Trees and slots.** `BENCH/trees/<tree>` is the pinned master of a tree. The agent and the IDE
+  use a copy at a neutral path, the slot: `/home/ubuntu/dev/ws/<slot id>/<product>`
+  (`benchlib/trees.py`, `BENCH/trees/slots.json`). The path is the same on the host and in the
+  container, and it has no word that tells the agent of a benchmark.
+- **Arms.** `C` has no plugin. `P` has the plugin as an MCP server. `PS` has the plugin and an aid
+  (`skill` or `rule`). `PF` has the plugin and one sentence in the prompt that tells the agent to
+  use it.
+- **Proxy.** A container reaches a benchmark IDE only through `benchlib/proxy.py`. The proxy has
+  one route for each run, passes only a fixed list of 15 tools (no rename, no file move, no
+  plugin install, no restart), and sets the project of each call.
+- **Result.** `BENCH/runs/<batch>/<run id>/` holds `run.json` (outcome, cost, tools, answer,
+  score), the stream-json transcript, the error output and the proxy log of the run.
+
+```
+python3 -B -m benchlib.image build <caddy|beets>
+python3 -B -m benchlib.image gate <caddy|beets>
+python3 -B -m benchlib.proxy serve -routes BENCH/proxy/routes.json -log-dir BENCH/proxy/log
+python3 -B -m benchlib.runner handshake -product <caddy|beets>
+python3 -B -m benchlib.runner run -set <challenges.jsonl> -challenge <id> -arm <C|P|PS|PF> -model <model> -batch <name> [-dry-run]
+python3 -B -m benchlib.runner batch -plan <plan.jsonl> -batch <name> -jobs 2
+```
+
+Run these commands from `live-test/agent-bench`. `handshake` and `-dry-run` need no API key.
 
 ## Tests
 
@@ -53,3 +92,9 @@ go test ./...
 - Run no product script, except the build and the test suite of caddy and beets.
 - Keep the source text of a product out of the tracked files. Keys, trees and audit results stay
   below `BENCH`.
+- The API key of the agent runs is in a file outside the repository. Do not print it and do not
+  write it into a file. The runner gives it only to the container environment and searches each
+  output file of a run for it.
+- A run container has no mount, no host network mode and no Docker socket. Do not push an image:
+  an image holds product source.
+- `BENCH/keys` never goes into an image or a container.
