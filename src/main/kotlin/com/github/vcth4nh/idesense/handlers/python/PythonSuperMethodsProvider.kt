@@ -67,6 +67,23 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
         } catch (_: Throwable) { null }
     }
 
+    private val pyUtilClass: Class<*>? by lazy {
+        try { Class.forName("com.jetbrains.python.psi.PyUtil") } catch (_: ClassNotFoundException) { null }
+    }
+
+    private val getContainingClassMethod: java.lang.reflect.Method? by lazy {
+        try {
+            pyFunctionClass?.getMethod("getContainingClass")
+        } catch (_: Throwable) { null }
+    }
+
+    private val isObjectClassMethod: java.lang.reflect.Method? by lazy {
+        try {
+            val pyc = pyClassClass ?: return@lazy null
+            pyUtilClass?.getMethod("isObjectClass", pyc)
+        } catch (_: Throwable) { null }
+    }
+
     override fun findSuperMethods(element: PsiElement, project: Project): SuperMethodsData? {
         // Member path: try PyFunction first (unchanged).
         val pyFunction = findContainingPyFunction(element)
@@ -97,7 +114,39 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
         return SuperMethodsData(method = classData, hierarchy = buildClassHierarchy(project, pyClass))
     }
 
-    private fun buildHierarchy(project: Project, pyFunction: PsiElement): List<SuperMethodData> {
+    /**
+     * The methods that [element] overrides, when [element] itself is a Python function: the
+     * methods of [walkSuperMethods], in the same order as the hierarchy of [findSuperMethods],
+     * without each method of the class `object` ([isInObject]). Empty for any other element, also
+     * for an element inside a function. A method of `object` is no base declaration: the PyCharm
+     * factory asks no question when the first super method of the query is in `object`, and a
+     * search of `object.__init__` adds calls that cannot run the symbol (#208).
+     */
+    override fun findBaseDeclarations(element: PsiElement): List<PsiElement> {
+        if (pyFunctionClass?.isInstance(element) != true) return emptyList()
+        return walkSuperMethods(element.project, element).filterNot(::isInObject)
+    }
+
+    private fun buildHierarchy(project: Project, pyFunction: PsiElement): List<SuperMethodData> =
+        walkSuperMethods(project, pyFunction).map { superMethod ->
+            val file = superMethod.containingFile?.virtualFile
+            SuperMethodData(
+                name = getName(superMethod) ?: "unknown",
+                qualifiedName = QualifiedNameUtil.getQualifiedName(superMethod),
+                kind = LanguageServices.getKind(superMethod),
+                file = file?.let { getRelativePath(project, it) },
+                line = getLineNumber(project, superMethod),
+                column = getColumnNumber(project, superMethod),
+            )
+        }
+
+    /**
+     * The walk of [buildHierarchy] and [findBaseDeclarations]: the results of
+     * `PySuperMethodsSearch.search(pyFunction, true, context)`, in the order of the query. A method
+     * with the key of an earlier method (its qualified name, else its class and identity) is
+     * skipped.
+     */
+    private fun walkSuperMethods(project: Project, pyFunction: PsiElement): List<PsiElement> {
         val search = searchMethod ?: return emptyList()
         val ctx = createUserInitiatedContext(project, pyFunction.containingFile) ?: return emptyList()
 
@@ -120,22 +169,33 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
         }
 
         val visited = mutableSetOf<String>()
-        val out = mutableListOf<SuperMethodData>()
+        val out = mutableListOf<PsiElement>()
         for (superMethod in results) {
             val key = QualifiedNameUtil.getQualifiedName(superMethod)
                 ?: "${superMethod.javaClass.simpleName}@${System.identityHashCode(superMethod)}"
             if (!visited.add(key)) continue
-            val file = superMethod.containingFile?.virtualFile
-            out.add(SuperMethodData(
-                name = getName(superMethod) ?: "unknown",
-                qualifiedName = QualifiedNameUtil.getQualifiedName(superMethod),
-                kind = LanguageServices.getKind(superMethod),
-                file = file?.let { getRelativePath(project, it) },
-                line = getLineNumber(project, superMethod),
-                column = getColumnNumber(project, superMethod),
-            ))
+            out.add(superMethod)
         }
         return out
+    }
+
+    /**
+     * True when [superMethod] is a method of the class `object`, as
+     * `PyPsiFindUsagesHandlerFactory.isInObject` decides it: `PyFunction.getContainingClass()`,
+     * then `PyUtil.isObjectClass`. False for an element that is not a Python function, for a
+     * function with no class, and when a reflective call fails.
+     */
+    private fun isInObject(superMethod: PsiElement): Boolean {
+        if (pyFunctionClass?.isInstance(superMethod) != true) return false
+        val getContainingClass = getContainingClassMethod ?: return false
+        val isObjectClass = isObjectClassMethod ?: return false
+        return try {
+            val containingClass = getContainingClass.invoke(superMethod) ?: return false
+            isObjectClass.invoke(null, containingClass) == true
+        } catch (t: Throwable) {
+            LOG.debug("PyFunction.getContainingClass or PyUtil.isObjectClass invocation failed", t)
+            false
+        }
     }
 
     private fun findContainingPyFunction(element: PsiElement): PsiElement? {
