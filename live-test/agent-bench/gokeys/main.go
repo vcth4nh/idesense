@@ -15,7 +15,9 @@ import (
 
 const usage = `usage:
   gokeys extract -tree <dir> -configs linux,windows -out <file.jsonl>
-  gokeys idents -tree <dir> -name <identifier>`
+  gokeys idents -tree <dir> -name <identifier>
+  gokeys accept -tree <dir> -keys <file.jsonl> (-ids <id,...|@file> | -sample <n> [-seed <s>])
+                -configs linux,windows -scratch <dir> [-keep]`
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -32,6 +34,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdExtract(args[1:], stdout, stderr)
 	case "idents":
 		return cmdIdents(args[1:], stdout, stderr)
+	case "accept":
+		return cmdAccept(args[1:], stdout, stderr)
 	}
 	fmt.Fprintln(stderr, usage)
 	return 2
