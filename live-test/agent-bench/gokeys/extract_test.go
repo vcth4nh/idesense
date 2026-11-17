@@ -165,14 +165,17 @@ func TestRecordSetIsExact(t *testing.T) {
 		"Celsius", "Celsius.String", "Label", "Label.String", "show",
 		"ByAge", "ByAge.Len", "ByAge.Less", "ByAge.Swap", "Lener", "Lener.Len", "Queue", "Queue.Len", "sizes",
 		"BufSink", "ByteSink", "ByteSink.Write", "fill",
+		// embed.go, twin.go
+		"newCircle", "lenBox", "boxLen",
+		"Anything", "Host", "Host.Ping", "Pinger", "Pinger.Ping", "Prober", "Prober.Ping",
 	), "go:example.com/mod_test.TestExternal")
 	sort.Strings(want)
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ids:\n got  %v\n want %v", got, want)
 	}
 	// rel is on each use of a family member and on no other site; each use of a function or
-	// a type is "self"; external is empty for a function or a type.
-	rels := map[string]bool{"self": true, "super": true, "sub": true, "sibling": true}
+	// a type is "self" (or "embedded" for a type); external is empty for a function or a type.
+	rels := map[string]bool{"self": true, "embedded": true, "super": true, "sub": true, "sibling": true}
 	for _, r := range keys {
 		if r.External == nil || (len(r.External) != 0 && r.Kind != "method" && r.Kind != "iface_method") {
 			t.Errorf("%s (%s): external %v", r.ID, r.Kind, r.External)
@@ -183,7 +186,9 @@ func TestRecordSetIsExact(t *testing.T) {
 				t.Errorf("%s: required site %s:%d:%d with rel %q", r.ID, s.File, s.Line, s.Col, s.Rel)
 			case s.Class != "required" && s.Why != "generated" && s.Rel != "":
 				t.Errorf("%s: %s/%s site %s:%d:%d with rel %q", r.ID, s.Class, s.Why, s.File, s.Line, s.Col, s.Rel)
-			case s.Rel != "" && s.Rel != "self" && r.Kind != "method" && r.Kind != "iface_method":
+			case s.Rel == "embedded" && r.Kind != "type" && r.Kind != "interface":
+				t.Errorf("%s (%s): site %s:%d:%d with rel embedded", r.ID, r.Kind, s.File, s.Line, s.Col)
+			case s.Rel != "" && s.Rel != "self" && s.Rel != "embedded" && r.Kind != "method" && r.Kind != "iface_method":
 				t.Errorf("%s (%s): site %s:%d:%d with rel %q", r.ID, r.Kind, s.File, s.Line, s.Col, s.Rel)
 			}
 		}
@@ -286,9 +291,11 @@ func TestEmbeddedPromotionSite(t *testing.T) {
 		site("shapes.go", 30, 12, "required", "use", both),
 		site("shapes.go", 36, 11, "required", "use", both), // c.Area() on Circle
 	})
-	// The type Base: the receiver, the embedded field and the selector of the embedded
-	// field name the type.
+	// The type Base: the receiver, the embedded field, the selector and the literal key of
+	// the embedded field name the type.
 	checkSites(t, key(t, "Base"), "", []Site{
+		site("embed.go", 4, 16, "required", "use", both), // the key Base: of Circle{...}
+		site("embed.go", 4, 22, "required", "use", both),
 		site("shapes.go", 15, 4, "dnc", "comment", both),
 		site("shapes.go", 16, 6, "dnc", "decl", both),
 		site("shapes.go", 18, 9, "required", "use", both),
@@ -366,8 +373,8 @@ func TestImplementersOfInterface(t *testing.T) {
 		t.Errorf("Shape: kind %q family %v", s.Kind, s.Family)
 	}
 	want := []Implementer{
-		{ID: pkg + "Circle", File: "shapes.go", Line: 21, Col: 6}, // through the embedded Base, *Circle
-		{ID: pkg + "Square", File: "shapes.go", Line: 9, Col: 6},
+		{ID: pkg + "Circle", File: "shapes.go", Line: 21, Col: 6, Class: "required"}, // through the embedded Base, *Circle
+		{ID: pkg + "Square", File: "shapes.go", Line: 9, Col: 6, Class: "required"},
 	}
 	if !reflect.DeepEqual(s.Implementers, want) {
 		t.Errorf("Shape implementers %+v, want %+v", s.Implementers, want)
@@ -465,8 +472,8 @@ func TestRelSelfSuperSubSibling(t *testing.T) {
 	checkRels(t, key(t, "Base.Area"), "shapes.go", map[string]string{"30:12": "sibling", "36:11": "self"})
 	checkRels(t, key(t, "Square.Area"), "shapes.go", map[string]string{"30:12": "super", "36:11": "sibling"})
 	checkRels(t, key(t, "Shape.Area"), "shapes.go", map[string]string{"30:12": "self", "36:11": "sub"})
-	// The selector of the embedded field names the type: self.
-	checkRels(t, key(t, "Base"), "shapes.go", map[string]string{"18:9": "self", "22:2": "self", "39:23": "self", "40:11": "self"})
+	// The selector c.Base of the embedded field: "embedded" (TestRelEmbeddedForSelectorAndLiteralKey).
+	checkRels(t, key(t, "Base"), "shapes.go", map[string]string{"18:9": "self", "22:2": "self", "39:23": "self", "40:11": "embedded"})
 }
 
 // Celsius.String implements fmt.Stringer; Label.String(prefix string) implements nothing.
@@ -542,6 +549,63 @@ func TestExternalImplFromLibraryType(t *testing.T) {
 		site("sink.go", 7, 2, "dnc", "decl", both),
 		site("sink.go", 16, 4, "required", "use", both),
 	})
+}
+
+// A selector or a literal key that names an embedded field of the record's type is
+// "embedded"; the type name on the embedding line stays "self". Also for an embedded
+// interface (lenBox embeds Lener).
+func TestRelEmbeddedForSelectorAndLiteralKey(t *testing.T) {
+	base := key(t, "Base")
+	checkRels(t, base, "shapes.go", map[string]string{
+		"18:9":  "self",     // func (b Base) Area()
+		"22:2":  "self",     // the embedding line in Circle
+		"39:23": "self",     // the result type of baseOf
+		"40:11": "embedded", // return c.Base
+	})
+	checkRels(t, base, "embed.go", map[string]string{
+		"4:16": "embedded", // the key Base: of Circle{Base: Base{r: 1}}
+		"4:22": "self",     // the type Base{r: 1}
+	})
+	lener := key(t, "Lener")
+	checkRels(t, lener, "embed.go", map[string]string{
+		"9:2":   "self",     // the embedding line in lenBox
+		"12:23": "self",     // the result type of boxLen
+		"13:11": "embedded", // return b.Lener
+	})
+	for _, s := range sitesIn(base, "embed.go") {
+		if s.Class != "required" || s.Why != "use" {
+			t.Errorf("Base site %s:%d:%d is %s/%s, want required/use", s.File, s.Line, s.Col, s.Class, s.Why)
+		}
+	}
+}
+
+// Pinger and Prober have the same method set; Host implements both. Anything has an empty
+// method set: each interface satisfies it, so it gets no dnc entry.
+func TestInterfaceImplementersHaveDncClass(t *testing.T) {
+	cases := map[string][]Implementer{
+		"Pinger": {
+			{ID: pkg + "Host", File: "twin.go", Line: 12, Col: 6, Class: "required"},
+			{ID: pkg + "Prober", File: "twin.go", Line: 8, Col: 6, Class: "dnc"},
+		},
+		"Prober": {
+			{ID: pkg + "Host", File: "twin.go", Line: 12, Col: 6, Class: "required"},
+			{ID: pkg + "Pinger", File: "twin.go", Line: 4, Col: 6, Class: "dnc"},
+		},
+	}
+	for id, want := range cases {
+		if got := key(t, id).Implementers; !reflect.DeepEqual(got, want) {
+			t.Errorf("%s implementers:\n got  %+v\n want %+v", id, got, want)
+		}
+	}
+	anything := key(t, "Anything")
+	if len(anything.Implementers) == 0 {
+		t.Errorf("Anything has no implementers")
+	}
+	for _, im := range anything.Implementers {
+		if im.Class != "required" || keys[im.ID].Kind != "type" {
+			t.Errorf("Anything implementer %+v (kind %s), want only types with class required", im, keys[im.ID].Kind)
+		}
+	}
 }
 
 func TestTypeErrorExitsWithOne(t *testing.T) {

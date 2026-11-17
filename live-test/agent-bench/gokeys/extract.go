@@ -38,7 +38,8 @@ type Pos struct {
 }
 
 // Site is one occurrence of the name of a record. Rel is set on a use that resolves to a
-// family member: "self", "super", "sub" or "sibling".
+// family member: "self", "embedded" (a selector or a literal key that names an embedded
+// field of the record's type), "super", "sub" or "sibling".
 type Site struct {
 	File    string   `json:"file"`
 	Line    int      `json:"line"`
@@ -49,11 +50,15 @@ type Site struct {
 	Rel     string   `json:"rel,omitempty"`
 }
 
+// Implementer is one module type that implements an interface record: Class "required" for
+// a type that is no interface, "dnc" for another module interface whose method set
+// satisfies the record's interface.
 type Implementer struct {
-	ID   string `json:"id"`
-	File string `json:"file"`
-	Line int    `json:"line"`
-	Col  int    `json:"col"`
+	ID    string `json:"id"`
+	File  string `json:"file"`
+	Line  int    `json:"line"`
+	Col   int    `json:"col"`
+	Class string `json:"class"`
 }
 
 // The mode of the brief, plus NeedName for the package paths.
@@ -79,11 +84,13 @@ type posKey struct {
 
 // A role is one resolution of an identifier: a use (Info.Uses) or a definition
 // (Info.Defs). id is the id of a module declaration, or "" for any other object. ext is
-// true for a use of an object that is declared outside the module.
+// true for a use of an object that is declared outside the module. embed is true for the
+// use of a type through an embedded field that the type names (a selector or a key).
 type role struct {
-	def bool
-	ext bool
-	id  string
+	def   bool
+	ext   bool
+	embed bool
+	id    string
 }
 
 type codeSite struct {
@@ -144,6 +151,8 @@ type stats struct {
 	classes  map[string]int
 	rels     map[string]int // required sites by rel
 	external map[string]int // records with a non-empty external list, by kind
+	dncImpls int            // implementers entries with the class dnc
+	dncIface int            // interface records with such an entry
 }
 
 func (s *stats) print(w io.Writer, total time.Duration) {
@@ -154,6 +163,7 @@ func (s *stats) print(w io.Writer, total time.Duration) {
 	fmt.Fprintf(w, "sites: %s\n", countLine(s.classes))
 	fmt.Fprintf(w, "required sites by rel: %s\n", countLine(s.rels))
 	fmt.Fprintf(w, "records with external entries: %s\n", countLine(s.external))
+	fmt.Fprintf(w, "implementers with the class dnc: %d, in %d interface records\n", s.dncImpls, s.dncIface)
 	fmt.Fprintf(w, "type aliases (no record): %d\n", len(s.aliases))
 	fmt.Fprintf(w, "generic types (no implements check): %d\n", len(s.generic))
 	fmt.Fprintf(w, "time: %.1fs\n", total.Seconds())
@@ -765,7 +775,7 @@ func (x *extractor) sites(p *packages.Package, fset *token.FileSet, ci int, objI
 				// A selector or a key that names an embedded field names its type.
 				if v, ok := obj.(*types.Var); ok && v.Embedded() {
 					if tid := embeddedTypeID(objID, v); tid != "" {
-						cs.add(ci, role{id: tid})
+						cs.add(ci, role{id: tid, embed: true})
 					}
 				}
 			}
@@ -785,15 +795,15 @@ const (
 )
 
 // classify gives the class of a site in one configuration and, for a use of the family,
-// the family members that it resolves to. coupled: the external list of the record is not
-// empty.
-func classify(roles []role, fam map[string]bool, coupled bool) (int, []string) {
+// the use roles that resolve to family members. coupled: the external list of the record
+// is not empty.
+func classify(roles []role, fam map[string]bool, coupled bool) (int, []role) {
 	cl := clForbidden
-	var uses []string
+	var uses []role
 	for _, r := range roles {
 		switch {
 		case r.id != "" && fam[r.id] && !r.def:
-			uses = append(uses, r.id)
+			uses = append(uses, r)
 		case r.id != "" && fam[r.id]:
 			cl = max(cl, clDecl)
 		case !r.def && r.ext && coupled:
@@ -904,7 +914,7 @@ func (x *extractor) relOf(r string, d *decl, m string) string {
 	return "sibling"
 }
 
-var relRank = map[string]int{"self": 4, "super": 3, "sub": 2, "sibling": 1}
+var relRank = map[string]int{"self": 5, "embedded": 4, "super": 3, "sub": 2, "sibling": 1}
 
 // coupling gives the entries of the external list of one family member.
 func (x *extractor) coupling(id string) []string {
@@ -1011,7 +1021,7 @@ func (x *extractor) records() []Record {
 			cs := x.code[k]
 			best := 0
 			var cfgs []string
-			var members []string
+			var members []role
 			for ci, c := range x.configs {
 				if cs.present&(1<<ci) == 0 {
 					continue
@@ -1030,8 +1040,12 @@ func (x *extractor) records() []Record {
 			case clRequired:
 				s.Class, s.Why = "required", "use"
 				for _, m := range members {
-					if relRank[relFor[m]] > relRank[s.Rel] {
-						s.Rel = relFor[m]
+					r := relFor[m.id]
+					if m.embed {
+						r = "embedded"
+					}
+					if relRank[r] > relRank[s.Rel] {
+						s.Rel = r
 					}
 				}
 			case clDecl:
@@ -1067,12 +1081,26 @@ func (x *extractor) records() []Record {
 				x.st.rels[s.Rel]++
 			}
 		}
+		// The types that implement an interface record; and, as dnc, the other module
+		// interfaces whose method set satisfies it (not for an empty method set, which each
+		// interface satisfies).
 		impls := []Implementer{}
 		if d.kind == "interface" {
+			dnc := 0
 			for _, u := range x.implementersOf[id] {
-				if ud := x.decls[u]; ud != nil && ud.kind == "type" {
-					impls = append(impls, Implementer{u, ud.pos.File, ud.pos.Line, ud.pos.Col})
+				ud := x.decls[u]
+				switch {
+				case ud == nil:
+				case ud.kind == "type":
+					impls = append(impls, Implementer{u, ud.pos.File, ud.pos.Line, ud.pos.Col, "required"})
+				case ud.kind == "interface" && u != id && len(x.ifaceNames[id]) > 0:
+					impls = append(impls, Implementer{u, ud.pos.File, ud.pos.Line, ud.pos.Col, "dnc"})
+					dnc++
 				}
+			}
+			x.st.dncImpls += dnc
+			if dnc > 0 {
+				x.st.dncIface++
 			}
 		}
 		x.st.kinds[d.kind]++
