@@ -226,6 +226,42 @@ class ProbeTest(unittest.TestCase):
         self.assertEqual(500, server.calls[0]["args"]["pageSize"])
         self.assertIsNone(audit.probe_implementers(client, record([site("a.go", 3)]), 1))
 
+    def test_definition_probe_skips_embedded_sites(self):
+        rec = record([site("a.go", 1, "dnc", "decl", 15), site("a.go", 3), site("b.go", 5, rel="embedded"),
+                      site("b.go", 6, rel="embedded"), site("c.go", 7, rel="sibling")], kind="type")
+        server, client = fake(self, lambda tool, args: definition("a.go", 1, 15) if tool == "ide_find_definition"
+                              else page([]))
+        res = audit.probe_definition(client, rec, 1)
+        # A site with no rel (self) and a sibling site are probe sites; the embedded sites are not.
+        self.assertEqual([("a.go", 3), ("c.go", 7)], [(c["args"]["file"], c["args"]["line"]) for c in server.calls])
+        self.assertEqual((2, 0, 0, True), tuple(res["score"][k] for k in ("tp", "fp", "miss", "exact")))
+        self.assertEqual(2, res["extra"]["sites"])
+        only = record([site("a.go", 1, "dnc", "decl", 15), site("b.go", 5, rel="embedded")], rid="go:m.T",
+                      kind="type")
+        self.assertIsNone(audit.probe_definition(client, only, 1))
+        # probes_for does not change; the run leaves out the probe that gives no result.
+        self.assertEqual(["ide_find_usages", "ide_find_definition"], audit.probes_for(only))
+        self.assertEqual(["ide_find_usages"], [r["tool"] for r in audit.run_audit([only], client, 1)])
+
+    def test_implementers_probe_ignores_dnc_entries(self):
+        rec = record([], rid="go:m.Shape", kind="interface",
+                     implementers=[{"id": "go:m.Circle", "file": "b.go", "line": 9, "col": 6, "class": "required"},
+                                   {"id": "go:m.Square", "file": "c.go", "line": 4, "col": 6},
+                                   {"id": "go:m.Solid", "file": "i.go", "line": 2, "col": 6, "class": "dnc"},
+                                   {"id": "go:m.Flat", "file": "j.go", "line": 7, "col": 6, "class": "dnc"}])
+        _, client = fake(self, lambda tool, args: page(
+            [usage("b.go", 9, 6), usage("i.go", 2, 6), usage("e.go", 2, 6)], field="implementations"))
+        res = audit.probe_implementers(client, rec, 1)
+        self.assertEqual([["b.go", 9], ["e.go", 2], ["i.go", 2]], res["answer"])
+        # i.go:2 is listed and ignored; j.go:7 is absent and is no miss; c.go:4 (no class) is required.
+        self.assertEqual({"tp": 1, "fp": 1, "miss": 1, "ignored": 1, "precision": 0.5, "recall": 0.5,
+                          "exact": False}, res["score"])
+        self.assertEqual({"rows": 3, "outside": 0, "fp": [["e.go", 2]], "miss": [["c.go", 4]]}, res["extra"])
+        bad = record([], rid="go:m.Bad", kind="interface",
+                     implementers=[{"id": "go:m.X", "file": "x.go", "line": 1, "col": 6, "class": "forbidden"}])
+        with self.assertRaisesRegex(ValueError, "unknown implementer class 'forbidden'"):
+            audit.probe_implementers(client, bad, 1)
+
     def test_probes_for_a_record(self):
         self.assertEqual(["ide_find_usages", "ide_find_definition"], audit.probes_for(record([site("a.go", 3)])))
         self.assertEqual(["ide_find_usages"], audit.probes_for(record([])))
@@ -369,6 +405,24 @@ class UsagesViewTest(unittest.TestCase):
         self.assertEqual({("a.go", 3): "required", ("i.go", 5): "required", ("b.go", 7): "dnc"}, classes["method"])
         for kind in ("iface_method", "func", "type", "interface"):
             self.assertEqual({("a.go", 3): "required", ("i.go", 5): "dnc", ("b.go", 7): "dnc"}, classes[kind], kind)
+
+    def test_embedded_rel_is_off_contract_for_every_kind(self):
+        sites = [site("a.go", 3, rel="self"), site("b.go", 5, rel="embedded"),
+                 site("b.go", 5, "forbidden", "decoy", col=20), site("c.go", 7, rel="embedded"),
+                 site("a.go", 3, col=9, rel="embedded")]
+        _, client = fake(self, lambda tool, args: page([usage("a.go", 3), usage("b.go", 5)]))
+        for kind in ("method", "iface_method", "func", "type", "interface", "class", "function"):
+            rec = record(sites, kind=kind)
+            view = audit.usages_view(rec)
+            self.assertEqual({("a.go", 3): "required", ("b.go", 5): "dnc", ("c.go", 7): "dnc"},
+                             keys.line_classes(view), kind)
+            res = audit.probe_usages(client, rec, 1)
+            self.assertEqual((1, 0, 0, 1, True),
+                             tuple(res["score"][k] for k in ("tp", "fp", "miss", "ignored", "exact")), kind)
+            # a.go:3 has a contract site, so it is no off-contract line.
+            self.assertEqual({"embedded": {"lines": 2, "listed": 1}}, res["extra"]["off_contract"], kind)
+        rows = audit.summary_rows([res], {rec["id"]: "easy"})
+        self.assertEqual((2, 1), (rows[-1]["off_lines"], rows[-1]["off_listed"]))
 
     def test_usages_view_decoy_on_an_off_contract_line_is_dnc(self):
         decoy = lambda file, line: site(file, line, "forbidden", "decoy", col=20)

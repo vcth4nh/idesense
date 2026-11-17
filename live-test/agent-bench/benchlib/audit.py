@@ -33,11 +33,13 @@ and `col` counts UTF-16 code units, the unit of the plugin. The key producers (t
 Python keys) write this unit, so the probes pass `col` as `column` with no conversion.
 
 Audit view of `ide_find_usages` (see `usages_view`): the class of a site has the rename meaning, so
-each use of each family member is `required`, with `rel` = `self`, `super`, `sub` or `sibling` (no
-`rel` counts as `self`). Find Usages lists the `self` uses and, for a method, the uses of the interface
-methods that it implements (`super`). So the usages probe scores against a view in which a required
-site with another `rel` is `dnc`, and counts those lines apart in `extra["off_contract"]`. A decoy on
-such a line with no contract site is `dnc` too: the IDE can list the line for the off-contract use.
+each use of each family member is `required`, with `rel` = `self`, `super`, `sub`, `sibling` or
+`embedded` (no `rel` counts as `self`). An `embedded` site is a selector or a composite literal key that
+names an embedded field of the type of the record; the IDE resolves it to the field, not to the type.
+Find Usages lists the `self` uses and, for a method, the uses of the interface methods that it
+implements (`super`). So the usages probe scores against a view in which a required site with another
+`rel` is `dnc`, and counts those lines apart in `extra["off_contract"]`. A decoy on such a line with no
+contract site is `dnc` too: the IDE can list the line for the off-contract use.
 """
 import argparse
 import json
@@ -65,8 +67,9 @@ EXIT_OLD_RESULTS = 2
 EXIT_VERSION_CHANGED = 3
 EXIT_NOT_READY = 4
 AUTO_CLASSES = ("absent", "config", "decoy", "error", "flake", "miss")
-RELS = ("self", "super", "sub", "sibling")
-OFF_CONTRACT = ("sub", "sibling")
+RELS = ("self", "super", "sub", "sibling", "embedded")
+OFF_CONTRACT = ("sub", "sibling", "embedded")
+IMPLEMENTER_CLASSES = ("required", "dnc")
 
 
 def hardness(record: dict) -> str:
@@ -168,8 +171,8 @@ def usages_view(record: dict) -> dict:
 
 
 def _off_contract(record: dict, answer: set[tuple[str, int]]) -> dict:
-    """For `sub` and `sibling`: the lines with such a required site and no contract site, and the count of
-    these lines in the answer. A relation with no line is left out."""
+    """For `sub`, `sibling` and `embedded`: the lines with such a required site and no contract site, and
+    the count of these lines in the answer. A relation with no line is left out."""
     contract = _contract(record)
     contract_lines = {(s["file"], s["line"]) for s in record["sites"]
                       if s["class"] == "required" and _rel(s) in contract}
@@ -216,21 +219,32 @@ def probe_usages(client: McpClient, record: dict, repeat: int, outside: tuple[st
 def probe_implementers(client: McpClient, record: dict, repeat: int,
                        outside: tuple[str, ...] = OUTSIDE) -> dict | None:
     """`ide_find_implementations` at the declaration of an interface or a class, all pages. The answer
-    lines are scored against the lines of the `implementers` positions."""
+    lines are scored against the lines of the `implementers` positions.
+
+    An entry has a `class`: `required` (also when the field is absent) or `dnc` (another interface that
+    satisfies the interface of the record). An answer line at a `dnc` entry counts in `ignored`: it is
+    no `tp` and no `fp`, and it is no `miss` when it is absent. A line with both classes is `required`.
+    """
     if record["kind"] not in ("interface", "class"):
         return None
+    for imp in record["implementers"]:
+        if imp.get("class", "required") not in IMPLEMENTER_CLASSES:
+            raise ValueError(f"{record['id']}: unknown implementer class {imp['class']!r} "
+                             f"at {imp['file']}:{imp['line']}")
     try:
         rows, _ = client.call_all_pages(IMPLEMENTATIONS, {**_anchor(record["decl"]), "pageSize": PAGE_SIZE},
                                         "implementations")
         answer, out = _tree_lines(rows, outside)
     except McpError as e:
         return _result(record, IMPLEMENTATIONS, repeat, error=str(e))
-    expected = {(imp["file"], imp["line"]) for imp in record["implementers"]}
-    tp, fp, miss = len(answer & expected), len(answer - expected), len(expected - answer)
-    score = {"tp": tp, "fp": fp, "miss": miss, "ignored": 0, "precision": _ratio(tp, tp + fp),
+    expected = {(imp["file"], imp["line"]) for imp in record["implementers"]
+                if imp.get("class", "required") == "required"}
+    ignored = {(imp["file"], imp["line"]) for imp in record["implementers"] if imp.get("class") == "dnc"} - expected
+    fp_lines, miss_lines = answer - expected - ignored, expected - answer
+    tp, fp, miss = len(answer & expected), len(fp_lines), len(miss_lines)
+    score = {"tp": tp, "fp": fp, "miss": miss, "ignored": len(answer & ignored), "precision": _ratio(tp, tp + fp),
              "recall": _ratio(tp, tp + miss), "exact": fp == 0 and miss == 0}
-    return _result(record, IMPLEMENTATIONS, repeat, answer, score,
-                   _paged_extra(rows, out, answer - expected, expected - answer))
+    return _result(record, IMPLEMENTATIONS, repeat, answer, score, _paged_extra(rows, out, fp_lines, miss_lines))
 
 
 def _family_decls(record: dict) -> set[tuple[str, int]]:
@@ -244,12 +258,14 @@ def probe_definition(client: McpClient, record: dict, repeat: int,
                      outside: tuple[str, ...] = OUTSIDE) -> dict | None:
     """`ide_find_definition` at up to 5 required sites, spread over the sorted sites. A site is correct
     when the result line is a declaration line of the family. This probe uses the record, not the
-    usages view: a site of any `rel` must resolve to a declaration line of the family.
+    usages view: a site of any `rel` except `embedded` must resolve to a declaration line of the family.
+    An `embedded` site names an embedded field, and the IDE resolves it to the field, so it is no probe
+    site. With no probe site the probe gives no result (None).
 
     A tool error at a site is the answer of the IDE for that site: a miss, listed in `extra["site_errors"]`.
     A transport or JSON-RPC error, or an `index_not_ready` error, stops the probe.
     """
-    sites = sorted((s for s in record["sites"] if s["class"] == "required"),
+    sites = sorted((s for s in record["sites"] if s["class"] == "required" and _rel(s) != "embedded"),
                    key=lambda s: (s["file"], s["line"], s["col"]))
     if not sites:
         return None
@@ -321,12 +337,15 @@ def wait_ready(client: McpClient, timeout: float, poll: float, sleep=time.sleep,
 def run_audit(records: list[dict], client: McpClient, repeats: int, out=None, progress=None,
               outside: tuple[str, ...] = OUTSIDE) -> list[dict]:
     """Each probe of each record, `repeats` times; one repeat of all records before the next one.
-    Each result goes to the open file `out` as soon as it is known."""
+    Each result goes to the open file `out` as soon as it is known. A probe that gives no result (None)
+    is left out: the definition probe of a record whose only required sites are `embedded`."""
     results = []
     for repeat in range(1, repeats + 1):
         for i, rec in enumerate(records, 1):
             for tool in probes_for(rec):
                 res = PROBES[tool](client, rec, repeat, outside)
+                if res is None:
+                    continue
                 results.append(res)
                 if out is not None:
                     out.write(json.dumps(res, ensure_ascii=False) + "\n")
@@ -395,8 +414,8 @@ def summary_text(rows: list[dict], header: list[str], warning: str | None = None
         "Precision, recall and exact are means over the results with no error. Errors, not_ready and flakes",
         "count symbols: not_ready is an index_not_ready error (dumb mode), not in errors; a flake is a symbol",
         f"whose repeats differ. Capped counts results with {CAP} rows or more. Off_lines counts the usage",
-        "lines (sub and sibling uses) that the usages audit view leaves out, and off_listed those of them",
-        "that the answer lists (sums over the results).", "",
+        "lines (sub, sibling and embedded uses) that the usages audit view leaves out, and off_listed those",
+        "of them that the answer lists (sums over the results).", "",
         "| tool | hardness | symbols | precision | recall | exact | errors | not_ready | capped "
         "| off_lines | off_listed | flakes |",
         "|---|---|---|---|---|---|---|---|---|---|---|---|"]
