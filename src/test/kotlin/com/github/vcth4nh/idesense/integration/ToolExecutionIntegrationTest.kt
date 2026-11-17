@@ -109,6 +109,9 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         }
         com.intellij.find.findUsages.FindUsagesHandlerFactory.EP_NAME.getPoint(project)
             .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
+        // The fake provider hides the real Java provider: its direct references of a method would
+        // skip the handler (#175).
+        registerProvider(FakeBaseProvider { emptyList() })
 
         val warnings = mutableListOf<String>()
         com.intellij.openapi.application.ReadAction.run<Throwable> {
@@ -150,6 +153,9 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         }
         com.intellij.find.findUsages.FindUsagesHandlerFactory.EP_NAME.getPoint(project)
             .registerExtension(throwingFactory, com.intellij.openapi.extensions.LoadingOrder.FIRST, testRootDisposable)
+        // The fake provider hides the real Java provider: its direct references of a method would
+        // skip the factory (#175).
+        registerProvider(FakeBaseProvider { emptyList() })
 
         val warnings = mutableListOf<String>()
         val hits = mutableListOf<UsageHit>()
@@ -396,6 +402,77 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             "The hits should be the fixed references, the anchor first",
             listOf(baseCall to null, derivedCall to UsageMatch.BASE),
             hits.map { it.offset to it.match }
+        )
+    }
+
+    /** The first page of ide_find_usages for the name anchor [symbol]. */
+    private fun findUsagesOf(symbol: String): FindUsagesResult = runBlocking {
+        val result = FindUsagesTool().execute(project, buildJsonObject { put("symbol", symbol) })
+        val text = (result.content.first() as ContentBlock.Text).text
+        assertFalse("The call must succeed: $text", result.isError)
+        json.decodeFromString<FindUsagesResult>(text)
+    }
+
+    /** The 1-based line of the first [needle] in [file]. */
+    private fun lineOf(file: PsiJavaFile, needle: String): Int = ReadAction.compute<Int, Throwable> {
+        val offset = file.text.indexOf(needle)
+        assertTrue("Needle '$needle' should exist in the fixture text", offset >= 0)
+        file.text.substring(0, offset).count { it == '\n' } + 1
+    }
+
+    fun testJavaOverridingMethodGetsItsOwnUsagesAndTheBaseUsages() {
+        // #175: the real Java provider, with no fake provider. The direct pass searches Circle.area
+        // itself and finds the call on the Circle receiver. The base pass searches Shape.area and
+        // adds the call on the Shape receiver with match BASE. No handler stage runs, so no warning.
+        val file = myFixture.addFileToProject("javaunion/Shapes.java", """
+            package javaunion;
+            abstract class Shape { abstract double area(); }
+            class Circle extends Shape { double area() { return 3.0; } }
+            class ShapeUser {
+                double run(Shape shape) {
+                    double onCircle = new Circle().area();
+                    double onShape = shape.area();
+                    return onCircle + onShape;
+                }
+            }
+        """.trimIndent()) as PsiJavaFile
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        val result = findUsagesOf("javaunion.Circle#area")
+
+        assertNull("No warning expected: ${result.warnings}", result.warnings)
+        assertEquals("Exactly 2 usages expected: ${result.usages}", 2, result.usages.size)
+        assertEquals(
+            "The call on the Circle receiver has no match; the call on the Shape receiver has match BASE",
+            setOf(lineOf(file, "new Circle().area()") to null, lineOf(file, "shape.area()") to UsageMatch.BASE),
+            result.usages.map { it.line to it.match }.toSet()
+        )
+        val notes = result.notes.orEmpty()
+        assertEquals("Exactly one note expected: $notes", 1, notes.size)
+        assertTrue("The note should name Shape.area: $notes", notes[0].contains("javaunion.Shape#area"))
+    }
+
+    fun testJavaMethodWithNoSuperMethodHasNoNoteAndNoWarning() {
+        // #175: the real Java provider gives the references of a method with no super method, so no
+        // handler stage runs: no warning, no note and no mark.
+        val file = myFixture.addFileToProject("javasolo/Counter.java", """
+            package javasolo;
+            class Counter {
+                int next() { return 1; }
+            }
+            class CounterUser {
+                int run() { return new Counter().next(); }
+            }
+        """.trimIndent()) as PsiJavaFile
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        val result = findUsagesOf("javasolo.Counter#next")
+
+        assertNull("No warning expected: ${result.warnings}", result.warnings)
+        assertNull("No note expected: ${result.notes}", result.notes)
+        assertEquals(
+            listOf(lineOf(file, "new Counter().next()") to null),
+            result.usages.map { it.line to it.match }
         )
     }
 
