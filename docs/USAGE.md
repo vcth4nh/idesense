@@ -205,16 +205,16 @@ of the IDE's Find Usages window. An example is `Shape` in the PHP doc comment
 `/** @var Shape[] */`. `line` and `column` point at the word in the comment, not at the start of
 the comment.
 
-**Base declarations:** a Go, JavaScript, TypeScript, Python or Rust member can override or
-implement a base declaration. Then the result is the union of the usages of the member and the
-usages of each base declaration. An example is a Go method that implements an interface method.
-A call through an interface value refers to the interface method, but it can run the method. The
-search collects the usages of the member itself before the usages of the base declarations.
-Where the IDE asks its user whether to search the base member or hides dynamic usages by
-default, the tool includes and marks both. An absent call site costs an agent more than a marked
-extra row. For a Go method, GoLand also shows its notification "Looking for usages of the
-interface methods" in the IDE window, as it does for Find Usages. The notification stops when
-the user selects "Don't show again".
+**Base declarations:** a Go, Java, JavaScript, Kotlin, Python, Rust or TypeScript member can
+override or implement a base declaration. Then the result is the union of the usages of the
+member and the usages of each base declaration. An example is a Go method that implements an
+interface method. A call through an interface value refers to the interface method, but it can
+run the method. The search collects the usages of the member itself before the usages of the
+base declarations. Where the IDE asks its user whether to search the base member or hides
+dynamic usages by default, the tool includes and marks both. An absent call site costs an agent
+more than a marked extra row. For a Go method, GoLand also shows its notification "Looking for
+usages of the interface methods" in the IDE window, as it does for Find Usages. The notification
+stops when the user selects "Don't show again".
 
 **Match:** a usage that is not a sure usage of the symbol has the field `match`:
 - No `match` key - the usage refers to the symbol itself.
@@ -640,7 +640,7 @@ ambiguous name returns a `candidates` list instead of guessing.
 - Facets are capped summaries: `implementations` up to 10 (`implementationsTruncated`), `usageCount` counted up to 200 (`usagesTruncated`), `topUsages` up to 5, `documentation` up to 4000 characters (`documentationTruncated`). Page through the dedicated tools for full sets.
 - A `null` facet means not applicable, not requested, or degraded (degradations are named in `warnings`); an empty list means searched-and-empty — the same convention as `ide_diagnostics`.
 - Usage counting and implementation search run over project files; library usages are not counted.
-- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, JavaScript, TypeScript, Python or Rust member with base declarations, `usageCount` counts the same union as `ide_find_usages`. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`), as in `ide_find_usages`.
+- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, Java, JavaScript, Kotlin, Python, Rust or TypeScript member with base declarations, `usageCount` counts the same union as `ide_find_usages`. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`), as in `ide_find_usages`.
 - On an ambiguous `symbol`, only `candidates` and `message` are populated — re-call with a qualified name or position from the list.
 - `problems` is only populated with `includeDiagnostics: true` and covers problems overlapping the declaration's line range.
 
