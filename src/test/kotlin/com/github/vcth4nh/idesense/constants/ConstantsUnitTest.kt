@@ -128,6 +128,13 @@ class ConstantsUnitTest : TestCase() {
         assertEquals("COMMENT", UsageTypes.COMMENT)
     }
 
+    // UsageMatch tests
+
+    fun testUsageMatchValues() {
+        assertEquals("BASE", UsageMatch.BASE)
+        assertEquals("DYNAMIC", UsageMatch.DYNAMIC)
+    }
+
     // ErrorMessages tests
 
     fun testErrorMessagesFileErrors() {

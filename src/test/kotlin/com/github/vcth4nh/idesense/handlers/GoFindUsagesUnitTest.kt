@@ -29,10 +29,22 @@ class GoFindUsagesUnitTest : TestCase() {
         assertFalse(GoFindUsages.searchesBaseMethods(PrivateWithFlag().apply { findBaseMethods = false }))
     }
 
-    fun testNoteDoesNotClaimThatInterfaceUsagesExist() {
-        assertEquals(
-            "Usages of the interface methods that this method implements are included (the default of Find Usages in GoLand).",
-            GoFindUsages.BASE_METHODS_NOTE
-        )
+    fun testSetFindBaseMethodsSetsThePublicField() {
+        val options = WithFlag()
+
+        assertTrue(GoFindUsages.setFindBaseMethods(options, false))
+        assertFalse(options.findBaseMethods)
+    }
+
+    fun testSetFindBaseMethodsIsFalseWithoutTheField() {
+        assertFalse(GoFindUsages.setFindBaseMethods(WithoutFlag(), false))
+        assertFalse(GoFindUsages.setFindBaseMethods(WrongType(), false))
+    }
+
+    fun testSetFindBaseMethodsSetsTheFieldOfANonPublicClass() {
+        val options = PrivateWithFlag()
+
+        assertTrue(GoFindUsages.setFindBaseMethods(options, false))
+        assertFalse(options.findBaseMethods)
     }
 }

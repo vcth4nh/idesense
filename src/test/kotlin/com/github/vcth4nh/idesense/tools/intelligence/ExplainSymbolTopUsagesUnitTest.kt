@@ -1,16 +1,18 @@
 package com.github.vcth4nh.idesense.tools.intelligence
 
+import com.github.vcth4nh.idesense.constants.UsageMatch
 import com.github.vcth4nh.idesense.tools.models.UsageLocation
 import junit.framework.TestCase
 
-// #132: topUsages of ide_explain_symbol prefers code usages; a comment usage fills only a free slot.
+// #132, #171: topUsages of ide_explain_symbol prefers sure code usages, then code usages with a
+// match, then comment usages.
 class ExplainSymbolTopUsagesUnitTest : TestCase() {
 
-    private fun usage(line: Int, usageType: String) =
-        UsageLocation("a.go", line, 1, "preview", usageType, emptyList())
+    private fun usage(line: Int, usageType: String, match: String? = null) =
+        UsageLocation("a.go", line, 1, "preview", usageType, emptyList(), match)
 
-    private fun select(vararg usages: UsageLocation) =
-        ExplainSymbolTool.preferCodeUsages(usages.toList(), 5).map { "${it.line}:${it.usageType}" }
+    private fun select(vararg usages: UsageLocation, limit: Int = 5) =
+        ExplainSymbolTool.preferSureUsages(usages.toList(), limit).map { "${it.line}:${it.usageType}" }
 
     fun testCommentsFillTheSlotsThatFewCodeUsagesLeaveFree() {
         val selected = select(
@@ -37,5 +39,18 @@ class ExplainSymbolTopUsagesUnitTest : TestCase() {
         )
 
         assertEquals(listOf("1:COMMENT", "2:COMMENT", "3:COMMENT", "4:COMMENT", "5:COMMENT"), selected)
+    }
+
+    fun testSureUsagesComeBeforeTheUsagesWithAMatch() {
+        val selected = select(
+            usage(1, "COMMENT"),
+            usage(2, "METHOD_CALL", UsageMatch.DYNAMIC),
+            usage(3, "METHOD_CALL", UsageMatch.BASE),
+            usage(4, "METHOD_CALL"),
+            usage(5, "REFERENCE"),
+            limit = 3,
+        )
+
+        assertEquals(listOf("4:METHOD_CALL", "5:REFERENCE", "2:METHOD_CALL"), selected)
     }
 }
