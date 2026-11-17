@@ -1,5 +1,6 @@
 {"id":"usage-Circle-cross-file","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.js","line":23}}
 {"id":"usage-Circle-via-new-call-site","tool":"ide_find_usages","params":{"column":17,"file":"src/normal.js","line":75}}
+{"id":"usage-Derived.value-param","tool":"ide_find_usages","params":{"column":15,"file":"src/setter_super.js","line":12}}
 {"id":"usage-Derived.value-write","tool":"ide_find_usages","params":{"column":9,"file":"src/setter_super.js","line":12}}
 {"id":"usage-Drawable-class","tool":"ide_find_usages","params":{"column":7,"file":"src/normal.js","line":9}}
 {"id":"usage-Probe.target-production-scope","tool":"ide_find_usages","params":{"column":5,"file":"src/probes.js","line":10,"scope":"project_production_files"}}

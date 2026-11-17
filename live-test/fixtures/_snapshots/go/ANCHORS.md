@@ -71,6 +71,7 @@ fails when this file is stale.
 | 44:18 | usage-area-libraries-scope | find_usages | `func (c Circle) Area() float64 { return 3.14159 * c.Radius * c.Radius }` |
 | 50:6 | hier-type-Rectangle | type_hierarchy | `type Rectangle struct {` |
 | 55:20 | def-Rectangle.area | find_definition | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
+| 55:20 | explain-Rectangle.Area-implements-pos | explain_symbol | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
 | 55:20 | hier-caller-Rectangle.Area-all | call_hierarchy | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
 | 55:20 | hier-caller-Rectangle.Area-class-scope | call_hierarchy | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
 | 55:20 | hier-caller-Rectangle.Area-test | call_hierarchy | `func (r Rectangle) Area() float64 { return r.Width * r.Height }` |
