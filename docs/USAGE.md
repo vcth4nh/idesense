@@ -223,7 +223,8 @@ show again".
 - `DYNAMIC` - only the name matches, and the type of the receiver is not known. In all
   languages, a reference that does not resolve to a declaration has this mark. In JavaScript and
   TypeScript, a usage that WebStorm counts as a dynamic usage also has it. An example is a call
-  `x.send()` on a value with no known type.
+  `x.send()` on a value with no known type. A symbol name in a code span of a Markdown file also
+  has it: only the name matches there.
 
 **Notes:** `notes` is on the first page of a fresh search when the symbol overrides or implements
 base declarations. The entry names the base declarations and gives the count of the collected

@@ -106,8 +106,8 @@
 - `ide_find_usages` and `ide_explain_symbol` mark a dynamic usage with `match: DYNAMIC`. A dynamic
   usage came back with no mark, as a sure usage: for example a call `x.send()` on a value with no
   known type. The mark follows the rule of the "Dynamic usages" group of the IDE's Find Usages
-  window, and in JavaScript and TypeScript also the rule of WebStorm. WebStorm hides these usages
-  by default (#196).
+  window, and in JavaScript and TypeScript also the rule of WebStorm. A symbol name in a code span
+  of a Markdown file has the mark too, as in the IDE. WebStorm hides these usages by default (#196).
 
 ## [2.1.0] - 2026-11-09
 

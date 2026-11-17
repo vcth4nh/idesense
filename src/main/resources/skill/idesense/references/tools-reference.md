@@ -21,7 +21,7 @@ Find semantic references to a symbol (not text search). Anchor by `symbol` (name
 **Base declarations**: a Go, JavaScript or TypeScript member can override or implement a base declaration. Then the result is the union of the usages of the member and the usages of each base declaration. The search collects the usages of the member itself before the usages of the base declarations. `match` marks a usage that is not sure:
 - no `match`: the usage refers to the symbol itself.
 - `BASE`: the usage refers to a base declaration. The call can run this symbol or another implementation.
-- `DYNAMIC`: only the name matches, and the type of the receiver is not known. In all languages, a reference that does not resolve to a declaration has this mark. JavaScript and TypeScript also apply their own rule for a dynamic usage.
+- `DYNAMIC`: only the name matches, and the type of the receiver is not known. In all languages, a reference that does not resolve to a declaration has this mark. JavaScript and TypeScript also apply their own rule for a dynamic usage. A symbol name in a code span of a Markdown file also has this mark.
 
 `usageType` values: `METHOD_CALL`, `FIELD_ACCESS`, `IMPORT`, `PARAMETER`, `VARIABLE`, `REFERENCE`, `COMMENT` (a usage inside a comment or a doc comment, in every language). Paginated (see Pagination in SKILL.md).
 
