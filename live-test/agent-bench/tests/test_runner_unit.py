@@ -17,6 +17,7 @@ import json
 import shutil
 import stat
 import tempfile
+import threading
 import time
 import unittest
 from unittest import mock
@@ -578,6 +579,80 @@ class EnvScrubTest(RunnerCase):
         self.assertFalse(runner.plan_args({"set": "s", "challenge": "c", "model": "m", "arm": "C"}, "b1").env_scrub)
 
 
+class ApiErrorTest(RunnerCase):
+    """auth_error.jsonl has the events of Claude Code 2.1.326 with no key (init, the synthetic message, the result)."""
+    REASON = "success / api_error / -: Not logged in · Please run /login"
+
+    def test_api_error_result_gives_the_outcome_api_error(self):
+        with open(os.path.join(FIXTURES, "auth_error.jsonl"), "rb") as f:
+            parsed = runner.parse_transcript(f)
+        result = parsed["result"]
+        self.assertEqual(("api_error", True), (result["terminal_reason"], result["is_error"]))
+        self.assertEqual(({SERVER: "connected"}, {}), (parsed["mcp_status"], parsed["tools"]))
+        self.assertEqual("api_error", runner.outcome_of("exit", 1, result, False))
+        self.assertEqual("api_error", runner.outcome_of(
+            "exit", 1, {"subtype": "error_during_execution", "is_error": True, "terminal_reason": "api_error"}, False))
+        self.assertEqual("timeout", runner.outcome_of("timeout", 137, result, False))
+        self.assertEqual("stopped", runner.outcome_of("stopped", 137, result, False))
+        self.assertEqual("error", runner.outcome_of("exit", 1, {**result, "terminal_reason": "completed"}, False))
+
+    def test_api_error_wins_over_a_failed_mcp_status(self):
+        failed = self.fixture_with("auth_error.jsonl", '"status":"connected"', '"status":"failed"')
+        code, rec, _, _ = self.start("P", fixture=failed, exit=1)
+        self.assertEqual((3, "api_error", {SERVER: "failed"}), (code, rec["outcome"], rec["mcp_status"]))
+        self.assertEqual(self.REASON, rec["reason"])
+        # Arm C with a server in the init event.
+        code, rec, _, _ = self.start("C", fixture="auth_error.jsonl", exit=1)
+        self.assertEqual((3, "api_error"), (code, rec["outcome"]))
+        # The IDE check at the end and the proxy log do not replace it either.
+        self.ide = [(runner.PLUGIN_VERSION, None), ("2.1.0", "isDumbMode is True")]
+        code, rec, _, _ = self.start("PF", fixture="auth_error.jsonl", exit=1, proxy_status=502)
+        self.assertEqual((3, "api_error", "2.1.0"), (code, rec["outcome"], rec["plugin_version_end"]))
+        self.assertEqual(self.REASON, rec["reason"])
+
+    def test_run_with_api_error_returns_3_and_names_the_reason(self):
+        code, rec, out, err = self.start("P", fixture="auth_error.jsonl", exit=1)
+        self.assertEqual((3, "api_error", 1), (code, rec["outcome"], rec["exit_code"]), err)
+        self.assertEqual(self.REASON, rec["reason"])
+        self.assertEqual((0, 1, None, None), (rec["cost_usd"], rec["turns"], rec["answer"], rec["score"]))
+        self.assertIn(f"{rec['id']}: api_error ({self.REASON})", out)
+        self.assertTrue(os.path.exists(os.path.join(self.folder("P"), "run.json")), "only the batch sets it aside")
+        sentence = "3: the API refused or failed; the run is no measurement"
+        self.assertIn(sentence, runner.__doc__)
+        self.assertIn(sentence, self.help("run"))
+        self.assertIn("3: ", self.help("batch"))
+
+    def help(self, command):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            runner.main([command, "-h"])
+        return out.getvalue()
+
+    def test_error_outcome_has_a_reason_from_the_result(self):
+        text = "a" * 150 + "b" * 150
+        init = json.dumps({"type": "system", "subtype": "init", "mcp_servers": []})
+        cases = (({"subtype": "error_during_execution", "is_error": True, "api_error_status": 529, "result": text},
+                  "error", "error_during_execution / - / 529: " + text[:200]),
+                 ({"subtype": "success", "is_error": True}, "error", "success / - / -: -"),
+                 ({"subtype": "success", "is_error": True, "terminal_reason": "api_error", "api_error_status": 401,
+                   "result": text}, "api_error", "success / api_error / 401: " + text[:200]))
+        for result, outcome, reason in cases:
+            path = os.path.join(self.tmp, "error.jsonl")
+            write(path, init + "\n" + json.dumps({"type": "result", **result}) + "\n")
+            code, rec, _, _ = self.start("C", fixture=path, exit=1)
+            self.assertEqual((outcome, reason), (rec["outcome"], rec["reason"]))
+            shutil.rmtree(self.folder("C"))
+        code, rec, _, _ = self.start("C", fixture=None, exit=125)
+        self.assertEqual(("error", "no result event; docker exit code 125"), (rec["outcome"], rec["reason"]))
+        shutil.rmtree(self.folder("C"))
+        code, rec, _, _ = self.start("C", fixture=self.c_ok())
+        self.assertEqual(("ok", None), (rec["outcome"], rec["reason"]))
+        os.environ["PATH"] = os.path.join(self.tmp, "no-bin")
+        code, rec, _, _ = self.start("C", "-n", "2")
+        self.assertEqual("error", rec["outcome"])
+        self.assertTrue(rec["reason"].startswith("FileNotFoundError"), "the own reason of the runner stays")
+
+
 class ParserTest(unittest.TestCase):
     def test_parse_transcript_skips_unknown_events(self):
         tool = lambda i, name, parent=None: json.dumps({"type": "assistant", "parent_tool_use_id": parent, "message": {
@@ -626,11 +701,77 @@ class BatchTest(RunnerCase):
         def run_one(args):
             calls.append(runner.run_id_of(args))
             code, outcome = codes.pop(0) if codes else (0, "ok")
-            folder = os.path.join(self.runs, args.batch, runner.run_id_of(args))
-            os.makedirs(folder, exist_ok=True)
-            write(os.path.join(folder, "run.json"), json.dumps({"outcome": outcome}))
-            return code, {"outcome": outcome}
+            return self.fake_record(args, code, outcome, f"reason {len(calls)}")
         return calls, run_one
+
+    def fake_record(self, args, code, outcome, reason):
+        """What run_one does for a run that writes run.json."""
+        folder = os.path.join(self.runs, args.batch, runner.run_id_of(args))
+        os.makedirs(folder, exist_ok=True)
+        write(os.path.join(folder, "run.json"), json.dumps({"outcome": outcome, "reason": reason}))
+        return code, {"outcome": outcome, "reason": reason}
+
+    def listing(self, batch="b1"):
+        return sorted(os.listdir(os.path.join(self.runs, batch)))
+
+    def test_batch_tries_an_api_error_run_one_more_time(self):
+        plan = self.plan({"arm": "C"}, {"arm": "PF"})
+        calls, fake = self.fake_run([(3, "api_error"), (0, "ok")])
+        with mock.patch.object(runner, "run_one", fake):
+            code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
+        self.assertEqual(0, code, err)
+        self.assertEqual(3, len(calls))
+        self.assertEqual(calls[0], calls[1], "the same run again")
+        self.assertEqual(sorted([calls[0], calls[0] + ".api-error-1", calls[2]]), self.listing())
+        with open(os.path.join(self.runs, "b1", calls[0], "run.json"), encoding="utf-8") as f:
+            self.assertEqual("ok", json.load(f)["outcome"])
+        self.assertIn(f"{calls[0]}: api_error, moved to {calls[0]}.api-error-1; one more run", out)
+        # Each kind has its own second try: an API error, then an invalid run, then the run.
+        shutil.rmtree(os.path.join(self.runs, "b1"))
+        plan = self.plan({"arm": "C"})
+        calls, fake = self.fake_run([(3, "api_error"), (0, "invalid"), (0, "ok")])
+        with mock.patch.object(runner, "run_one", fake):
+            code, _, _ = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
+        self.assertEqual((0, 3), (code, len(calls)))
+        self.assertEqual(sorted([calls[0], calls[0] + ".api-error-1", calls[0] + ".invalid-1"]), self.listing())
+
+    def test_batch_stops_after_two_api_errors_and_leaves_no_run_json(self):
+        plan = self.plan({"arm": "C"}, {"arm": "P"}, {"arm": "PF"})
+        calls, fake = self.fake_run([(3, "api_error"), (3, "api_error")])
+        with mock.patch.object(runner, "run_one", fake):
+            code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
+        self.assertEqual(3, code)
+        self.assertEqual(2, len(calls), "no new run starts")
+        self.assertEqual(calls[0], calls[1])
+        self.assertEqual([calls[0] + ".api-error-1", calls[0] + ".api-error-2"], self.listing())
+        self.assertIn("batch b1: STOPPED after an API error (reason 2)", err)
+        # The next start of the batch does the run again.
+        calls2, fake = self.fake_run([])
+        with mock.patch.object(runner, "run_one", fake):
+            code, out, _ = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
+        self.assertEqual(0, code)
+        self.assertIn(calls[0], calls2)
+        self.assertIn("0 finished before, 3 to run", out)
+        # Two workers: 3 wins over 2 (the other run could not start).
+        b_started, a_done, a_calls = threading.Event(), threading.Event(), []
+
+        def two(args):
+            if args.arm == "C":
+                b_started.wait(10)
+                a_calls.append(1)
+                if len(a_calls) == 2:
+                    a_done.set()
+                return self.fake_record(args, 3, "api_error", f"reason {len(a_calls)}")
+            b_started.set()
+            a_done.wait(10)
+            return 2, None
+        plan = self.plan({"arm": "C"}, {"arm": "PF"})
+        with mock.patch.object(runner, "run_one", two):
+            code, _, err = self.main("batch", "-plan", plan, "-batch", "b2", "-jobs", "2")
+        self.assertEqual(3, code, err)
+        self.assertEqual(2, len(a_calls))
+        self.assertIn("batch b2: STOPPED after an API error (reason 2)", err)
+        self.assertEqual([f"{CHALLENGE['id']}__C__{MODEL}__1.api-error-{k}" for k in (1, 2)], self.listing("b2"))
 
     def test_batch_skips_a_finished_run(self):
         plan = self.plan({"arm": "C"}, {"arm": "PF"}, {"arm": "PS", "aid": "skill", "n": 2})
@@ -644,6 +785,22 @@ class BatchTest(RunnerCase):
                          sorted(calls))
         self.assertIn("1 finished before", out)
 
+    def test_batch_runs_again_a_single_run_that_left_an_api_error(self):
+        # A single `run` with the outcome api_error writes run.json (exit 3). For a batch it is no finished run.
+        plan = self.plan({"arm": "C"}, {"arm": "PF"})
+        for arm, outcome in (("C", "api_error"), ("PF", "ok")):
+            os.makedirs(self.folder(arm))
+            write(os.path.join(self.folder(arm), "run.json"), json.dumps({"outcome": outcome, "reason": "r"}))
+        calls, fake = self.fake_run([])
+        with mock.patch.object(runner, "run_one", fake):
+            code, out, _ = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
+        self.assertEqual(0, code)
+        run_c = f"{CHALLENGE['id']}__C__{MODEL}__1"
+        self.assertEqual([run_c], calls)
+        self.assertIn("1 finished before, 1 to run", out)
+        self.assertEqual(sorted([run_c, run_c + ".api-error-1", f"{CHALLENGE['id']}__PF__{MODEL}__1"]),
+                         self.listing())
+
     def test_batch_stops_on_exit_9(self):
         plan = self.plan({"arm": "C"}, {"arm": "P"}, {"arm": "PF"})
         calls, fake = self.fake_run([(9, "key_leak")])
@@ -652,6 +809,34 @@ class BatchTest(RunnerCase):
         self.assertEqual(9, code)
         self.assertEqual(1, len(calls))
         self.assertIn("key leak", err)
+
+    def test_key_leak_wins_over_api_error(self):
+        code, rec, out, err = self.start("P", fixture="auth_error.jsonl", exit=1, print_key=1)
+        self.assertEqual((9, "key_leak"), (code, rec["outcome"]))
+        self.assertEqual(["run.json"], os.listdir(self.folder("P")))
+        self.assertIn("transcript.jsonl", rec["reason"])
+        self.assertNotIn(FAKE_KEY, out + err)
+        # In a batch: the other worker has a key leak, so the API error run does not start again.
+        a_started, b_returned, a_calls = threading.Event(), threading.Event(), []
+
+        def two(args):
+            if args.arm == "C":
+                a_calls.append(1)
+                a_started.set()
+                b_returned.wait(10)
+                time.sleep(0.5)  # the worker of the other run sets the stop after its run_one returns
+                return self.fake_record(args, 3, "api_error", "reason")
+            a_started.wait(10)
+            b_returned.set()
+            return 9, {"outcome": "key_leak", "reason": "leak"}
+        plan = self.plan({"arm": "C"}, {"arm": "PF"})
+        with mock.patch.object(runner, "run_one", two):
+            code, out, err = self.main("batch", "-plan", plan, "-batch", "b3", "-jobs", "2")
+        self.assertEqual(9, code)
+        self.assertEqual(1, len(a_calls), "no second try after the stop")
+        self.assertIn("STOPPED after a key leak", err)
+        self.assertNotIn("API error", err)
+        self.assertEqual([f"{CHALLENGE['id']}__C__{MODEL}__1.api-error-1"], self.listing("b3"))
 
     def test_batch_repeats_an_invalid_run_one_time(self):
         plan = self.plan({"arm": "C"})

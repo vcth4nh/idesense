@@ -37,21 +37,26 @@ Guards of each run, in this order:
   `invalid` and no container starts;
 - the wall-clock limit WALL_LIMIT: the runner kills the container (`docker kill`), the outcome is `timeout`;
 - the MCP servers of the init event (`mcp_status`): a plugin arm needs its server with the status CONNECTED, and
-  arm C needs an empty list; else the outcome is `invalid` (not for `stopped` and `timeout`). With no init event or
-  no `mcp_servers` list, `mcp_status` is null and the outcome does not change;
+  arm C needs an empty list; else the outcome is `invalid` (not for `stopped`, `timeout` and `api_error`). With no
+  init event or no `mcp_servers` list, `mcp_status` is null and the outcome does not change;
 - after the run: the IDE version and the smart mode again, a proxy log line with status 502 (upstream failure,
-  for example an IDE restart) or another `server_version`; each one makes the outcome `invalid`;
+  for example an IDE restart) or another `server_version`; each one makes the outcome `invalid` (not for
+  `api_error`);
 - the key search (`search_key`) in `transcript.jsonl`, `stderr.txt`, `proxy.jsonl` and the text of `run.json`.
   A hit deletes the three files, sets the outcome `key_leak`, keeps only metadata, cost and turns in `run.json`,
   and exits 9. No message names the key;
 - the leak words LEAK_WORDS in `transcript.jsonl` (amendment A4): `leak_words` holds the count of each one. A hit
   is no failure.
 
-Outcome: `key_leak`; `invalid` (see above); `timeout`; `stopped` (`-stop-after-tools`); `budget` (the result
-event has the subtype `error_max_budget_usd` or the terminal reason `budget_exhausted`); `no_answer` (no result
-event, the subtype `error_max_structured_output_retries`, or no readable `structured_output`); `error` (a result
-event with `is_error` true or another error subtype, a docker exit code of DOCKER_ERRORS with no result event, or an
-exception of the runner); else `ok`. The answer is read only from a result event with the subtype `success` and
+Outcome: `key_leak`; `invalid` (see above); `timeout`; `stopped` (`-stop-after-tools`); `api_error` (the result
+event has the terminal reason `api_error`: the API refused or failed, for example with no key or a revoked key; the
+run is no measurement); `budget` (the result event has the subtype `error_max_budget_usd` or the terminal reason
+`budget_exhausted`); `no_answer` (no result event, the subtype `error_max_structured_output_retries`, or no readable
+`structured_output`); `error` (a result event with `is_error` true or another error subtype, a docker exit code of
+DOCKER_ERRORS with no result event, or an exception of the runner); else `ok`. The reason of `error` and
+`api_error`: the exception of the runner, else `<subtype> / <terminal_reason> / <api_error_status>: <the first
+RESULT_TEXT characters of the result text>` (`-` for a missing part), else (no result event) the docker exit code.
+The answer is read only from a result event with the subtype `success` and
 `is_error` false: `challenges.parse_sites(structured_output, root)`; `answer` is the sorted site list, `invalid` the
 entries that cannot be read, and `score` is `challenges.score_answer`.
 
@@ -64,14 +69,20 @@ their `id` and `name`, one time for each block id; of the first `system` event w
 an event of another type are skipped.
 
 Exit codes of `run`: 0 when `run.json` is written (also with the outcome `invalid`), 1 for the outcome `error`, 2
-when no run starts, 9 for a key leak.
+when no run starts, 9 for a key leak, and
+3: the API refused or failed; the run is no measurement (the outcome `api_error`; `run.json` is written).
 
 `batch`: each plan line is a JSON object with the options of `run` without the dash, for example
 `{"set": "<file>", "challenge": "caddy-refs-CA", "arm": "PS", "aid": "skill", "model": "claude-opus-5-5", "n": 1}`
 (a flag option has the value true). The runs of one challenge and one model are neighbours, in a random order
-(`-seed`); the groups keep the order of their first plan line. A run whose folder has `run.json` is skipped. A run
-with the outcome `invalid` moves to `<run id>.invalid-<k>/` and runs again one time. A run with the exit code 9 (key
-leak) or 2 (no run starts, for example the proxy is down) stops the batch: no new run starts. `-jobs` runs go at the
+(`-seed`); the groups keep the order of their first plan line. A run whose folder has `run.json` is skipped, except
+a record with the outcome `api_error` that a single `run` left: that folder moves to `<run id>.api-error-<k>/`. A run
+with the outcome `invalid` moves to `<run id>.invalid-<k>/` and runs again one time (a second `invalid` run stays). A
+run with the exit code 3 (`api_error`) moves to `<run id>.api-error-<k>/` and runs again one time; when the second
+try also gives 3, its folder moves too and the batch stops with 3. So an `api_error` run never leaves `run.json` in
+its run folder, and the next start of the batch does it again. A run with the exit code 9 (key leak) or 2 (no run
+starts, for example the proxy is down) stops the batch too. A stop means: no new run starts, also no second try; a
+run of another worker ends normally. The exit code of the batch: 9 before 3, 3 before 2. `-jobs` runs go at the
 same time.
 
 `handshake`: with no key, a container of the product image runs `claude mcp add --transport http <server name>
@@ -134,8 +145,20 @@ KEPT_AFTER_LEAK = ("id", "challenge", "arm", "aid", "variant", "no_tools", "stop
                    "cost_usd", "turns", "leak_words")
 # The status of a connected MCP server in `mcp_servers` of the init event (agent-sdk/mcp.md, "Error handling").
 CONNECTED = "connected"
-# Outcomes that the MCP server check does not change.
-KEEP_OUTCOME = ("stopped", "timeout")
+# Outcomes that the MCP server check does not change (the IDE check at the end does not change `api_error`).
+KEEP_OUTCOME = ("stopped", "timeout", "api_error")
+RESULT_TEXT = 200  # the characters of the result text in the reason of `error` and `api_error`
+EXIT_CODES_RUN = """exit codes:
+  0: run.json is written (also for the outcome invalid)
+  1: the outcome error
+  2: no run starts
+  3: the API refused or failed; the run is no measurement
+  9: a key leak; the files of the run are deleted"""
+EXIT_CODES_BATCH = """exit codes:
+  0: the runs are done
+  2: a run could not start; no new run starts
+  3: two API errors in one run; no new run starts
+  9: a key leak; no new run starts"""
 RUN_FILES = ("transcript.jsonl", "stderr.txt", "proxy.jsonl")
 
 
@@ -258,6 +281,8 @@ def outcome_of(ended: str, exit_code: int | None, result: dict | None, readable:
         return ended
     if result is None:
         return "error" if exit_code in DOCKER_ERRORS else "no_answer"
+    if result.get("terminal_reason") == "api_error":
+        return "api_error"
     if result.get("subtype") == "error_max_budget_usd" or result.get("terminal_reason") == "budget_exhausted":
         return "budget"
     if result.get("subtype") == "error_max_structured_output_retries":
@@ -265,6 +290,17 @@ def outcome_of(ended: str, exit_code: int | None, result: dict | None, readable:
     if result.get("is_error") is True or result.get("subtype") != "success":
         return "error"
     return "ok" if readable else "no_answer"
+
+
+def result_reason(result: dict | None, exit_code: int | None) -> str:
+    """The reason of the outcomes `error` and `api_error`: `<subtype> / <terminal_reason> / <api_error_status>: <the
+    first RESULT_TEXT characters of the result text>`, with `-` for a missing part."""
+    if result is None:
+        return f"no result event; docker exit code {exit_code}"
+    part = lambda value: "-" if value is None or value == "" else str(value)
+    text = result.get("result")
+    return (f"{part(result.get('subtype'))} / {part(result.get('terminal_reason'))} / "
+            f"{part(result.get('api_error_status'))}: {text[:RESULT_TEXT] if isinstance(text, str) and text else '-'}")
 
 
 # ---------------------------------------------------------------- run setup
@@ -592,7 +628,8 @@ def run_one(args) -> tuple[int, dict | None]:
         rec.update(answer=[f"{p}:{n}" for p, n in sorted(sites)], invalid=invalid,
                    score=challenges.score_answer(run["ch"], run["record"], sites, invalid))
     rec["outcome"] = "error" if error else outcome_of(ended, exit_code, parsed["result"], answer is not None)
-    rec["reason"] = error
+    rec["reason"] = error or (result_reason(parsed["result"], exit_code)
+                              if rec["outcome"] in ("error", "api_error") else None)
     rec["mcp_status"] = parsed["mcp_status"]
     problem = None if rec["outcome"] in KEEP_OUTCOME else mcp_problem(args.arm, run["server"], parsed["mcp_status"])
     if problem:
@@ -601,7 +638,7 @@ def run_one(args) -> tuple[int, dict | None]:
     version, reason = check_ide(ide_url, root, 0)
     rec["plugin_version_end"] = version
     problem = _ide_problem(version, reason, "end") or _proxy_log_problem(proxy_lines)
-    if problem:
+    if problem and rec["outcome"] != "api_error":
         rec.update(outcome="invalid", reason=problem)
     rec["leak_words"] = _leak_words(files["transcript.jsonl"])
 
@@ -619,6 +656,8 @@ def run_one(args) -> tuple[int, dict | None]:
     if rec["outcome"] == "key_leak":
         print(f"runner: {run_id}: KEY LEAK; the files {', '.join(RUN_FILES)} of the run are deleted", file=sys.stderr)
         return 9, rec
+    if rec["outcome"] == "api_error":
+        return 3, rec
     return (1 if rec["outcome"] == "error" else 0), rec
 
 
@@ -655,12 +694,36 @@ def batch_order(runs: list, seed: int) -> list:
     return out
 
 
-def _set_aside(folder: str) -> str:
+def _set_aside(folder: str, part: str) -> str:
+    """Move the run folder to `<folder>.<part>-<k>` (`part`: `invalid` or `api-error`)."""
     k = 1
-    while os.path.exists(f"{folder}.invalid-{k}"):
+    while os.path.exists(f"{folder}.{part}-{k}"):
         k += 1
-    os.rename(folder, f"{folder}.invalid-{k}")
-    return f"{folder}.invalid-{k}"
+    os.rename(folder, f"{folder}.{part}-{k}")
+    return f"{folder}.{part}-{k}"
+
+
+def _retry_part(code: int, rec: dict | None) -> str | None:
+    """The set-aside name part of a run that the batch tries one more time, or None."""
+    if code == 3:
+        return "api-error"
+    return "invalid" if code == 0 and rec and rec["outcome"] == "invalid" else None
+
+
+def _finished(folder: str) -> bool:
+    """True when the run folder has a `run.json`. A record with the outcome `api_error` (a single `run` leaves it)
+    is no finished run: its folder is set aside, and the batch does the run again."""
+    try:
+        with open(os.path.join(folder, "run.json"), encoding="utf-8") as f:
+            rec = json.load(f)
+    except FileNotFoundError:
+        return False
+    except (OSError, ValueError):
+        return True
+    if isinstance(rec, dict) and rec.get("outcome") == "api_error":
+        _set_aside(folder, "api-error")
+        return False
+    return True
 
 
 def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1) -> int:
@@ -674,10 +737,9 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1) -> int:
     if len(set(ids)) != len(ids):
         print(f"runner: {plan}: two plan lines have the same run id", file=sys.stderr)
         return 2
-    todo = [a for a in batch_order(runs, seed)
-            if not os.path.exists(os.path.join(RUNS, batch, run_id_of(a), "run.json"))]
+    todo = [a for a in batch_order(runs, seed) if not _finished(os.path.join(RUNS, batch, run_id_of(a)))]
     print(f"batch {batch}: {len(runs)} runs, {len(runs) - len(todo)} finished before, {len(todo)} to run", flush=True)
-    queue, lock, stop, codes = iter(todo), threading.Lock(), threading.Event(), []
+    queue, lock, stop, codes, api_reasons = iter(todo), threading.Lock(), threading.Event(), [], []
 
     def worker():
         while not stop.is_set():
@@ -685,14 +747,28 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1) -> int:
                 a = next(queue, None)
             if a is None:
                 return
+            run_id = run_id_of(a)
             code, rec = run_one(a)
-            if code == 0 and rec and rec["outcome"] == "invalid":
-                moved = _set_aside(os.path.join(RUNS, batch, run_id_of(a)))
-                print(f"{run_id_of(a)}: invalid, moved to {os.path.basename(moved)}; one more run", flush=True)
-                code, rec = run_one(a)
+            tries = {"invalid": 1, "api-error": 1}  # one more try for each kind
+            part = _retry_part(code, rec)
+            while part:
+                if part == "invalid" and not tries[part]:
+                    break  # the second invalid run stays as the record of the run
+                moved = os.path.basename(_set_aside(os.path.join(RUNS, batch, run_id), part))
+                if tries[part] and not stop.is_set():
+                    tries[part] -= 1
+                    print(f"{run_id}: {rec['outcome']}, moved to {moved}; one more run", flush=True)
+                    code, rec = run_one(a)
+                    part = _retry_part(code, rec)
+                    continue
+                print(f"{run_id}: {rec['outcome']}, moved to {moved}", flush=True)
+                if part == "api-error":
+                    with lock:
+                        api_reasons.append(rec["reason"])
+                break
             with lock:
                 codes.append(code)
-            if code in (2, 9):
+            if code in (2, 3, 9):
                 stop.set()
 
     threads = [threading.Thread(target=worker) for _ in range(max(1, jobs))]
@@ -703,6 +779,9 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1) -> int:
     if 9 in codes:
         print(f"batch {batch}: STOPPED after a key leak", file=sys.stderr)
         return 9
+    if 3 in codes:
+        print(f"batch {batch}: STOPPED after an API error ({api_reasons[0]})", file=sys.stderr)
+        return 3
     if 2 in codes:
         print(f"batch {batch}: stopped, a run could not start", file=sys.stderr)
         return 2
@@ -762,7 +841,8 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python3 -m benchlib.runner", description=__doc__.splitlines()[0],
                                      allow_abbrev=False)
     sub = parser.add_subparsers(dest="command", required=True)
-    run = sub.add_parser("run", help="one run", allow_abbrev=False)
+    run = sub.add_parser("run", help="one run", allow_abbrev=False, epilog=EXIT_CODES_RUN,
+                         formatter_class=argparse.RawDescriptionHelpFormatter)
     run.add_argument("-set", required=True, help="challenge set (JSONL)")
     run.add_argument("-challenge", required=True)
     run.add_argument("-arm", required=True, choices=ARMS)
@@ -776,7 +856,8 @@ def _parser() -> argparse.ArgumentParser:
                      help="-e CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 (no credential in the environment of Bash)")
     run.add_argument("-n", type=int, default=1, help="run number (default 1)")
     run.add_argument("-dry-run", action="store_true", dest="dry_run")
-    batch = sub.add_parser("batch", help="the runs of a plan file", allow_abbrev=False)
+    batch = sub.add_parser("batch", help="the runs of a plan file", allow_abbrev=False, epilog=EXIT_CODES_BATCH,
+                           formatter_class=argparse.RawDescriptionHelpFormatter)
     batch.add_argument("-plan", required=True, help="one JSON object with the options of run for each line")
     batch.add_argument("-batch", required=True)
     batch.add_argument("-jobs", type=int, default=2)
