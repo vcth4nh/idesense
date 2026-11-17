@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"go/ast"
+	"go/parser"
 	"go/token"
 	"go/types"
 	"io"
@@ -52,7 +53,8 @@ type Site struct {
 
 // Implementer is one module type that implements an interface record: Class "required" for
 // a type that is no interface, "dnc" for another module interface whose method set
-// satisfies the record's interface.
+// satisfies the record's interface, and "dnc" for a type or interface that satisfies it only
+// across package variants (no build holds both, see crossVariant).
 type Implementer struct {
 	ID    string `json:"id"`
 	File  string `json:"file"`
@@ -128,7 +130,9 @@ type extractor struct {
 	libSuper      map[string]map[string]bool            // module type id → library interfaces (and "error") that the type or its pointer implements
 	libIfaceNames map[string]map[string]bool            // library interface id → names of its method set
 	libImpl       map[string]map[string]bool            // module interface id → library types that implement it
+	cross         map[string]map[string]bool            // type id → module interfaces that it satisfies by method names and signature strings (crossVariant)
 	code          map[posKey]*codeSite
+	unbuiltCode   map[posKey]string // the code words of the files that no configuration builds
 	text          map[posKey]*textSite
 	fileCfg       map[string]uint32 // file → configurations whose build has it
 	generated     map[string]bool   // file → it has a "Code generated" header
@@ -152,7 +156,10 @@ type stats struct {
 	rels     map[string]int // required sites by rel
 	external map[string]int // records with a non-empty external list, by kind
 	dncImpls int            // implementers entries with the class dnc
+	crossImp int            // of these, the entries across package variants
 	dncIface int            // interface records with such an entry
+	noConfig int            // sites with no configuration (in a file that no configuration builds)
+	unbuilt  []string       // the files that no configuration builds
 }
 
 func (s *stats) print(w io.Writer, total time.Duration) {
@@ -163,7 +170,9 @@ func (s *stats) print(w io.Writer, total time.Duration) {
 	fmt.Fprintf(w, "sites: %s\n", countLine(s.classes))
 	fmt.Fprintf(w, "required sites by rel: %s\n", countLine(s.rels))
 	fmt.Fprintf(w, "records with external entries: %s\n", countLine(s.external))
-	fmt.Fprintf(w, "implementers with the class dnc: %d, in %d interface records\n", s.dncImpls, s.dncIface)
+	fmt.Fprintf(w, "implementers with the class dnc: %d (%d across package variants), in %d interface records\n", s.dncImpls, s.crossImp, s.dncIface)
+	fmt.Fprintf(w, "files that no configuration builds: %d %v\n", len(s.unbuilt), s.unbuilt)
+	fmt.Fprintf(w, "sites with no configuration: %d\n", s.noConfig)
 	fmt.Fprintf(w, "type aliases (no record): %d\n", len(s.aliases))
 	fmt.Fprintf(w, "generic types (no implements check): %d\n", len(s.generic))
 	fmt.Fprintf(w, "time: %.1fs\n", total.Seconds())
@@ -215,7 +224,9 @@ func extract(tree string, configs []string) ([]Record, *stats, error) {
 		libSuper:      map[string]map[string]bool{},
 		libIfaceNames: map[string]map[string]bool{},
 		libImpl:       map[string]map[string]bool{},
+		cross:         map[string]map[string]bool{},
 		code:          map[posKey]*codeSite{},
+		unbuiltCode:   map[posKey]string{},
 		text:          map[posKey]*textSite{},
 		fileCfg:       map[string]uint32{},
 		generated:     map[string]bool{},
@@ -235,6 +246,9 @@ func extract(tree string, configs []string) ([]Record, *stats, error) {
 		if err := x.load(ci); err != nil {
 			return nil, nil, err
 		}
+	}
+	if err := x.readUnbuilt(); err != nil {
+		return nil, nil, err
 	}
 	return x.records(), &x.st, nil
 }
@@ -316,6 +330,7 @@ func (x *extractor) load(ci int) error {
 		x.methods(te, objID, modPaths)
 	}
 	x.implements(entries, variantPkgs)
+	x.crossVariant(entries)
 	x.library(all, modPaths, entries)
 	for _, p := range initial {
 		x.sites(p, fset, ci, objID, modPaths)
@@ -538,21 +553,9 @@ func implementsCheck(u, i *typeEntry) bool {
 // pair comes from one universe: the plain packages, or one test build (its variant packages
 // and the plain packages that they import).
 func (x *extractor) implements(entries []*typeEntry, variantPkgs map[string][]*packages.Package) {
-	byName := map[string][]*typeEntry{}
-	for _, te := range entries {
-		for n := range te.names {
-			byName[n] = append(byName[n], te)
-		}
-	}
+	byName := nameIndex(entries)
 	pairs := func(i *typeEntry, pool func(*typeEntry) bool) {
-		list := entries
-		first := true
-		for n := range i.names {
-			if l := byName[n]; first || len(l) < len(list) {
-				list, first = l, false
-			}
-		}
-		for _, u := range list {
+		for _, u := range rarest(byName, entries, i.names) {
 			if pool(u) && hasAll(u.names, i.names) && !x.rel[u.id][i.id] && implementsCheck(u, i) {
 				addTo(x.rel, u.id, i.id)
 			}
@@ -597,6 +600,105 @@ func (x *extractor) implements(entries []*typeEntry, variantPkgs map[string][]*p
 			}
 		}
 	}
+}
+
+// nameIndex maps each method name to the entries whose method set has it.
+func nameIndex(entries []*typeEntry) map[string][]*typeEntry {
+	byName := map[string][]*typeEntry{}
+	for _, te := range entries {
+		for n := range te.names {
+			byName[n] = append(byName[n], te)
+		}
+	}
+	return byName
+}
+
+// rarest gives the candidates for an interface with the method names names: the entries
+// with its rarest name (all entries for an empty method set).
+func rarest(byName map[string][]*typeEntry, all []*typeEntry, names map[string]bool) []*typeEntry {
+	list := all
+	first := true
+	for n := range names {
+		if l := byName[n]; first || len(l) < len(list) {
+			list, first = l, false
+		}
+	}
+	return list
+}
+
+// crossVariant fills x.cross: the pairs of a module type or interface u and a module
+// interface i with a non-empty method set, where the method set of u (of *u for a type that
+// is no interface) has each method of i with the same signature string. It compares the
+// entries of any two package variants, also the pairs that no universe of implements holds
+// (types.Implements finds two variants of one package type different). records() keeps the
+// pairs that x.rel does not have.
+func (x *extractor) crossVariant(entries []*typeEntry) {
+	byName := nameIndex(entries)
+	memo := map[*typeEntry]map[string]string{}
+	sigs := func(te *typeEntry) map[string]string {
+		s, ok := memo[te]
+		if !ok {
+			s = methodSigs(te)
+			memo[te] = s
+		}
+		return s
+	}
+	for _, i := range entries {
+		if i.iface == nil || i.generic || len(i.names) == 0 {
+			continue
+		}
+		for _, u := range rarest(byName, entries, i.names) {
+			if u.generic || u.id == i.id || x.rel[u.id][i.id] || x.cross[u.id][i.id] || !hasAll(u.names, i.names) {
+				continue
+			}
+			us, ok := sigs(u), true
+			for k, s := range sigs(i) {
+				if us[k] != s {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				addTo(x.cross, u.id, i.id)
+			}
+		}
+	}
+}
+
+// methodSigs gives the method set of te (of *te for a type that is no interface): the key of
+// each method (its name; the package path and the name for an unexported name) → the
+// signature string of the method.
+func methodSigs(te *typeEntry) map[string]string {
+	var t types.Type = te.named
+	if te.iface == nil {
+		t = types.NewPointer(te.named)
+	}
+	ms := types.NewMethodSet(t)
+	out := make(map[string]string, ms.Len())
+	for k := 0; k < ms.Len(); k++ {
+		sel := ms.At(k)
+		key := sel.Obj().Name()
+		if !token.IsExported(key) && sel.Obj().Pkg() != nil {
+			key = sel.Obj().Pkg().Path() + "." + key
+		}
+		out[key] = sigString(sel.Type().(*types.Signature))
+	}
+	return out
+}
+
+// sigString writes a method signature with no receiver, no parameter names and the full
+// package path of each named type, so that the two variants of one package type give the
+// same string. Parameter names inside a parameter type (a func or interface type) stay.
+func sigString(sig *types.Signature) string {
+	unnamed := func(t *types.Tuple) *types.Tuple {
+		vars := make([]*types.Var, t.Len())
+		for k := range vars {
+			vars[k] = types.NewParam(token.NoPos, nil, "", t.At(k).Type())
+		}
+		return types.NewTuple(vars...)
+	}
+	s := types.NewSignatureType(nil, nil, nil, unnamed(sig.Params()), unnamed(sig.Results()), sig.Variadic())
+	return types.TypeString(s, (*types.Package).Path)
 }
 
 type libIface struct {
@@ -787,6 +889,37 @@ func (x *extractor) sites(p *packages.Package, fset *token.FileSet, ci int, objI
 	}
 }
 
+// readUnbuilt reads each .go file of the tree (the files of gokeys idents) that no load holds,
+// for example a file whose build constraints no configuration meets. Its code words go to
+// x.unbuiltCode, its comment and string words to x.text.
+func (x *extractor) readUnbuilt() error {
+	files, err := goFiles(x.roots[0])
+	if err != nil {
+		return err
+	}
+	for _, rel := range files {
+		if x.fileCfg[rel] != 0 {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Join(x.roots[0], filepath.FromSlash(rel)))
+		if err != nil {
+			return err
+		}
+		f, _ := parser.ParseFile(token.NewFileSet(), rel, src, parser.PackageClauseOnly|parser.ParseComments)
+		x.generated[rel] = f != nil && ast.IsGenerated(f)
+		x.st.unbuilt = append(x.st.unbuilt, rel)
+		for _, w := range scanWords(src) {
+			k := posKey{rel, w.Line, w.Col}
+			if w.In == "code" {
+				x.unbuiltCode[k] = w.Text
+			} else {
+				x.text[k] = &textSite{w.Text, w.In}
+			}
+		}
+	}
+	return nil
+}
+
 const (
 	clForbidden = 1
 	clUnproven  = 2
@@ -796,8 +929,8 @@ const (
 
 // classify gives the class of a site in one configuration and, for a use of the family,
 // the use roles that resolve to family members. coupled: the external list of the record
-// is not empty.
-func classify(roles []role, fam map[string]bool, coupled bool) (int, []role) {
+// is not empty. weak: the module methods whose use is unproven (crossVariant).
+func classify(roles []role, fam map[string]bool, coupled bool, weak map[string]bool) (int, []role) {
 	cl := clForbidden
 	var uses []role
 	for _, r := range roles {
@@ -806,7 +939,7 @@ func classify(roles []role, fam map[string]bool, coupled bool) (int, []role) {
 			uses = append(uses, r)
 		case r.id != "" && fam[r.id]:
 			cl = max(cl, clDecl)
-		case !r.def && r.ext && coupled:
+		case !r.def && (r.ext && coupled || r.id != "" && weak[r.id]):
 			cl = max(cl, clUnproven)
 		}
 	}
@@ -817,7 +950,7 @@ func classify(roles []role, fam map[string]bool, coupled bool) (int, []role) {
 }
 
 func (x *extractor) configList(mask uint32) []string {
-	var out []string
+	out := []string{} // [] in the JSON for a file that no configuration builds
 	for ci, c := range x.configs {
 		if mask&(1<<ci) != 0 {
 			out = append(out, c)
@@ -959,6 +1092,10 @@ func (x *extractor) records() []Record {
 	for k, ts := range x.text {
 		textByName[ts.name] = append(textByName[ts.name], k)
 	}
+	unbuiltByName := map[string][]posKey{}
+	for k, name := range x.unbuiltCode {
+		unbuiltByName[name] = append(unbuiltByName[name], k)
+	}
 	x.selectedBy = map[string]map[string][]string{}
 	for u, byName := range x.methodOf {
 		for m, ids := range byName {
@@ -981,6 +1118,16 @@ func (x *extractor) records() []Record {
 	}
 	for _, us := range x.implementersOf {
 		sort.Strings(us)
+	}
+	// The pairs of crossVariant that the normal rule does not give; they do not change the
+	// families.
+	crossOf := map[string][]string{} // interface id → type ids
+	for u, is := range x.cross {
+		for i := range is {
+			if !x.rel[u][i] {
+				crossOf[i] = append(crossOf[i], u)
+			}
+		}
 	}
 	couplingMemo := map[string][]string{}
 
@@ -1015,6 +1162,23 @@ func (x *extractor) records() []Record {
 			external = sortedKeys(ext)
 		}
 		coupled := len(external) > 0
+		// weak: the methods with this name of the interfaces that a type which selects this
+		// method satisfies only across package variants. A use of one is unproven.
+		weak := map[string]bool{}
+		if d.kind == "method" || d.kind == "iface_method" {
+			for _, w := range x.selectedBy[d.name][id] {
+				for i := range x.cross[w] {
+					if x.rel[w][i] {
+						continue
+					}
+					for g := range x.methodOf[i][d.name] {
+						if !strings.HasPrefix(g, extPrefix) {
+							weak[g] = true
+						}
+					}
+				}
+			}
+		}
 
 		sites := []Site{}
 		for _, k := range codeByName[d.name] {
@@ -1026,7 +1190,7 @@ func (x *extractor) records() []Record {
 				if cs.present&(1<<ci) == 0 {
 					continue
 				}
-				cl, uses := classify(cs.roles[ci], famSet, coupled)
+				cl, uses := classify(cs.roles[ci], famSet, coupled, weak)
 				if cl > best {
 					best, cfgs, members = cl, nil, nil
 				}
@@ -1065,6 +1229,9 @@ func (x *extractor) records() []Record {
 			}
 			sites = append(sites, Site{File: k.file, Line: k.line, Col: k.col, Class: "dnc", Why: why, Configs: x.configList(x.fileCfg[k.file])})
 		}
+		for _, k := range unbuiltByName[d.name] {
+			sites = append(sites, Site{File: k.file, Line: k.line, Col: k.col, Class: "dnc", Why: "unproven", Configs: []string{}})
+		}
 		sort.Slice(sites, func(a, b int) bool {
 			sa, sb := sites[a], sites[b]
 			if sa.File != sb.File {
@@ -1080,10 +1247,14 @@ func (x *extractor) records() []Record {
 			if s.Class == "required" {
 				x.st.rels[s.Rel]++
 			}
+			if len(s.Configs) == 0 {
+				x.st.noConfig++
+			}
 		}
 		// The types that implement an interface record; and, as dnc, the other module
 		// interfaces whose method set satisfies it (not for an empty method set, which each
-		// interface satisfies).
+		// interface satisfies) and the types and interfaces that satisfy it only across
+		// package variants.
 		impls := []Implementer{}
 		if d.kind == "interface" {
 			dnc := 0
@@ -1098,6 +1269,13 @@ func (x *extractor) records() []Record {
 					dnc++
 				}
 			}
+			for _, u := range crossOf[id] {
+				ud := x.decls[u]
+				impls = append(impls, Implementer{u, ud.pos.File, ud.pos.Line, ud.pos.Col, "dnc"})
+				dnc++
+				x.st.crossImp++
+			}
+			sort.Slice(impls, func(a, b int) bool { return impls[a].ID < impls[b].ID })
 			x.st.dncImpls += dnc
 			if dnc > 0 {
 				x.st.dncIface++

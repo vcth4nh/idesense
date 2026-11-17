@@ -25,47 +25,51 @@ var (
 
 // TestMain extracts the keys of testdata/mod one time, through the command line entry.
 func TestMain(m *testing.M) {
-	dir, err := os.MkdirTemp("", "gokeys-test-")
-	if err != nil {
+	var err error
+	if keys, rawKeys, err = extractTree(testTree); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	os.Exit(m.Run())
+}
+
+// extractTree extracts the keys of tree for linux and windows through the command line
+// entry. It gives the records by id, and the same lines decoded with no struct.
+func extractTree(tree string) (map[string]Record, []map[string]any, error) {
+	dir, err := os.MkdirTemp("", "gokeys-test-")
+	if err != nil {
+		return nil, nil, err
+	}
+	defer os.RemoveAll(dir)
 	out := filepath.Join(dir, "keys.jsonl")
 	var stderr bytes.Buffer
-	code := run([]string{"extract", "-tree", testTree, "-configs", "linux,windows", "-out", out}, os.Stdout, &stderr)
-	if code != 0 {
-		fmt.Fprintf(os.Stderr, "extract exit %d: %s\n", code, stderr.String())
-		os.Exit(1)
+	if code := run([]string{"extract", "-tree", tree, "-configs", "linux,windows", "-out", out}, os.Stdout, &stderr); code != 0 {
+		return nil, nil, fmt.Errorf("extract %s: exit %d: %s", tree, code, stderr.String())
 	}
 	data, err := os.ReadFile(out)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return nil, nil, err
 	}
-	keys = map[string]Record{}
+	recs := map[string]Record{}
+	var raws []map[string]any
 	sc := bufio.NewScanner(bytes.NewReader(data))
 	sc.Buffer(make([]byte, 1<<20), 1<<26)
 	for sc.Scan() {
 		var r Record
 		if err := json.Unmarshal(sc.Bytes(), &r); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return nil, nil, err
 		}
 		var raw map[string]any
 		if err := json.Unmarshal(sc.Bytes(), &raw); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			os.Exit(1)
+			return nil, nil, err
 		}
-		if _, dup := keys[r.ID]; dup {
-			fmt.Fprintln(os.Stderr, "duplicate id", r.ID)
-			os.Exit(1)
+		if _, dup := recs[r.ID]; dup {
+			return nil, nil, fmt.Errorf("duplicate id %s", r.ID)
 		}
-		keys[r.ID] = r
-		rawKeys = append(rawKeys, raw)
+		recs[r.ID] = r
+		raws = append(raws, raw)
 	}
-	code = m.Run()
-	os.RemoveAll(dir)
-	os.Exit(code)
+	return recs, raws, sc.Err()
 }
 
 const pkg = "go:example.com/mod."
@@ -168,6 +172,7 @@ func TestRecordSetIsExact(t *testing.T) {
 		// embed.go, twin.go
 		"newCircle", "lenBox", "boxLen",
 		"Anything", "Host", "Host.Ping", "Pinger", "Pinger.Ping", "Prober", "Prober.Ping",
+		// compute_fuzz.go declares no record: no configuration builds it
 	), "go:example.com/mod_test.TestExternal")
 	sort.Strings(want)
 	if !reflect.DeepEqual(got, want) {
@@ -396,6 +401,9 @@ func TestIdentsSubcommand(t *testing.T) {
 		`{"file":"accent.go","line":3,"col":14,"in":"comment"}`,
 		`{"file":"accent.go","line":4,"col":43,"in":"code"}`,
 		`{"file":"accent.go","line":6,"col":25,"in":"code"}`,
+		`{"file":"compute_fuzz.go","line":3,"col":18,"in":"comment"}`,
+		`{"file":"compute_fuzz.go","line":7,"col":9,"in":"code"}`,
+		`{"file":"compute_fuzz.go","line":7,"col":35,"in":"string"}`,
 		`{"file":"ext_test.go","line":10,"col":9,"in":"code"}`,
 		`{"file":"funcs.go","line":3,"col":4,"in":"comment"}`,
 		`{"file":"funcs.go","line":4,"col":6,"in":"code"}`,
@@ -606,6 +614,59 @@ func TestInterfaceImplementersHaveDncClass(t *testing.T) {
 			t.Errorf("Anything implementer %+v (kind %s), want only types with class required", im, keys[im.ID].Kind)
 		}
 	}
+}
+
+// compute_fuzz.go has the build tag gofuzz, which no configuration sets. No load holds the
+// file, so it declares no record, and each word of a record name in it is a dnc site with
+// no configuration: a code word is "unproven", a comment or string word as in other files.
+func TestUnbuiltFileSitesAreDnc(t *testing.T) {
+	none := []string{} // JSON null decodes to nil and fails the compare
+	c := key(t, "Compute")
+	checkSites(t, c, "compute_fuzz.go", []Site{
+		site("compute_fuzz.go", 3, 18, "dnc", "comment", none),
+		site("compute_fuzz.go", 7, 9, "dnc", "unproven", none),
+		site("compute_fuzz.go", 7, 35, "dnc", "string", none),
+	})
+	checkRels(t, c, "compute_fuzz.go", map[string]string{})
+	if _, ok := keys[pkg+"fuzzCompute"]; ok {
+		t.Errorf("a record for fuzzCompute, which no configuration builds")
+	}
+}
+
+// testdata/cross: fakeConfigurer (configure_test.go, package cross) satisfies
+// setter.Configurer, and fakeModule satisfies it through an embedded *fakeConfigurer. setter
+// imports cross, so no test build of cross holds setter, and no universe of types.Implements
+// has both. The method takes (n Counter), the interface method (c cross.Counter) of the plain
+// package. The tree is not in testdata/mod: a folder there breaks a test of accept.
+func TestCrossVariantImplementerIsDnc(t *testing.T) {
+	ck, _, err := extractTree("testdata/cross")
+	if err != nil {
+		t.Fatal(err)
+	}
+	const cp, sp = "go:example.com/cross.", "go:example.com/cross/setter."
+	want := []Implementer{
+		{ID: cp + "fakeConfigurer", File: "configure_test.go", Line: 5, Col: 6, Class: "dnc"},
+		{ID: cp + "fakeModule", File: "configure_test.go", Line: 10, Col: 6, Class: "dnc"},
+	}
+	if got := ck[sp+"Configurer"].Implementers; !reflect.DeepEqual(got, want) {
+		t.Errorf("Configurer implementers:\n got  %+v\n want %+v", got, want)
+	}
+	// The families do not change.
+	fc, cm := ck[cp+"fakeConfigurer.Configure"], ck[sp+"Configurer.Configure"]
+	if !reflect.DeepEqual(fc.Family, []string{cp + "fakeConfigurer.Configure"}) {
+		t.Errorf("fakeConfigurer.Configure family %v", fc.Family)
+	}
+	if !reflect.DeepEqual(cm.Family, []string{sp + "Configurer.Configure"}) {
+		t.Errorf("Configurer.Configure family %v", cm.Family)
+	}
+	// The call through the interface is unproven for the method of the test type, with no rel.
+	checkSites(t, fc, "", []Site{
+		site("configure_test.go", 7, 23, "dnc", "decl", both),
+		site("setter/setter.go", 7, 2, "forbidden", "decoy", both),
+		site("setter/setter.go", 11, 11, "dnc", "unproven", both),
+	})
+	checkRels(t, fc, "", map[string]string{})
+	checkRels(t, cm, "setter/setter.go", map[string]string{"11:11": "self"})
 }
 
 func TestTypeErrorExitsWithOne(t *testing.T) {
