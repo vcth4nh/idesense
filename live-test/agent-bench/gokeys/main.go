@@ -17,7 +17,7 @@ const usage = `usage:
   gokeys extract -tree <dir> -configs linux,windows -out <file.jsonl>
   gokeys idents -tree <dir> -name <identifier>
   gokeys accept -tree <dir> -keys <file.jsonl> (-ids <id,...|@file> | -sample <n> [-seed <s>])
-                -configs linux,windows -scratch <dir> [-keep]`
+                -configs linux,windows -scratch <dir> [-minimal] [-keep]`
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))

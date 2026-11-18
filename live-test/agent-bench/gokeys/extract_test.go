@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -178,10 +179,29 @@ func TestRecordSetIsExact(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("ids:\n got  %v\n want %v", got, want)
 	}
+	checkRules(t, keys, rawKeys)
+	// guards.go converts each type to each module interface that it implements, so each
+	// coupled family is the whole family, and no site is optional.
+	for _, r := range keys {
+		if (r.Kind == "method" || r.Kind == "iface_method") && !reflect.DeepEqual(r.Coupled, r.Family) {
+			t.Errorf("%s: coupled %v, family %v", r.ID, r.Coupled, r.Family)
+		}
+		for _, s := range r.Sites {
+			if s.Optional {
+				t.Errorf("%s: optional site %s:%d:%d", r.ID, s.File, s.Line, s.Col)
+			}
+		}
+	}
+}
+
+// checkRules checks the rules that each key record follows.
+func checkRules(t *testing.T, recs map[string]Record, raws []map[string]any) {
+	t.Helper()
 	// rel is on each use of a family member and on no other site; each use of a function or
 	// a type is "self" (or "embedded" for a type); external is empty for a function or a type.
+	// An optional site is a dnc use (or a use in a generated file) with a rel.
 	rels := map[string]bool{"self": true, "embedded": true, "super": true, "sub": true, "sibling": true}
-	for _, r := range keys {
+	for _, r := range recs {
 		if r.External == nil || (len(r.External) != 0 && r.Kind != "method" && r.Kind != "iface_method") {
 			t.Errorf("%s (%s): external %v", r.ID, r.Kind, r.External)
 		}
@@ -189,31 +209,60 @@ func TestRecordSetIsExact(t *testing.T) {
 			switch {
 			case s.Class == "required" && !rels[s.Rel]:
 				t.Errorf("%s: required site %s:%d:%d with rel %q", r.ID, s.File, s.Line, s.Col, s.Rel)
-			case s.Class != "required" && s.Why != "generated" && s.Rel != "":
+			case s.Class != "required" && s.Why != "generated" && !s.Optional && s.Rel != "":
 				t.Errorf("%s: %s/%s site %s:%d:%d with rel %q", r.ID, s.Class, s.Why, s.File, s.Line, s.Col, s.Rel)
+			case s.Optional && (s.Class != "dnc" || (s.Why != "use" && s.Why != "generated") || !rels[s.Rel]):
+				t.Errorf("%s: optional site %s:%d:%d is %s/%s with rel %q", r.ID, s.File, s.Line, s.Col, s.Class, s.Why, s.Rel)
+			case s.Optional && s.Rel == "self":
+				t.Errorf("%s: optional site %s:%d:%d with rel self", r.ID, s.File, s.Line, s.Col)
 			case s.Rel == "embedded" && r.Kind != "type" && r.Kind != "interface":
 				t.Errorf("%s (%s): site %s:%d:%d with rel embedded", r.ID, r.Kind, s.File, s.Line, s.Col)
 			case s.Rel != "" && s.Rel != "self" && s.Rel != "embedded" && r.Kind != "method" && r.Kind != "iface_method":
 				t.Errorf("%s (%s): site %s:%d:%d with rel %q", r.ID, r.Kind, s.File, s.Line, s.Col, s.Rel)
 			}
 		}
+		// coupled: sorted, a subset of family, with the record; only for a method and an
+		// interface method.
+		if r.Kind != "method" && r.Kind != "iface_method" {
+			if r.Coupled != nil {
+				t.Errorf("%s (%s): coupled %v", r.ID, r.Kind, r.Coupled)
+			}
+			continue
+		}
+		fam := map[string]bool{}
+		for _, f := range r.Family {
+			fam[f] = true
+		}
+		if !sort.StringsAreSorted(r.Coupled) || !hasEntry(r.Coupled, r.ID) {
+			t.Errorf("%s: coupled %v is not sorted or has not the record", r.ID, r.Coupled)
+		}
+		for _, c := range r.Coupled {
+			if !fam[c] {
+				t.Errorf("%s: coupled member %s is not in the family %v", r.ID, c, r.Family)
+			}
+		}
 	}
 	fields := []string{"container", "decl", "external", "family", "id", "implementers", "kind", "lang", "name", "sites", "source"}
-	for _, raw := range rawKeys {
+	methodFields := []string{"container", "coupled", "decl", "external", "family", "id", "implementers", "kind", "lang", "name", "sites", "source"}
+	for _, raw := range raws {
 		var names []string
 		for k := range raw {
 			names = append(names, k)
 		}
 		sort.Strings(names)
-		if !reflect.DeepEqual(names, fields) {
-			t.Fatalf("%v: fields %v, want %v", raw["id"], names, fields)
+		want := fields
+		if raw["kind"] == "method" || raw["kind"] == "iface_method" {
+			want = methodFields
+		}
+		if !reflect.DeepEqual(names, want) {
+			t.Fatalf("%v: fields %v, want %v", raw["id"], names, want)
 		}
 		if raw["lang"] != "go" || raw["source"] != "go/types" {
 			t.Errorf("%v: lang %v source %v", raw["id"], raw["lang"], raw["source"])
 		}
 	}
 	// One site for each position in each record.
-	for _, r := range keys {
+	for _, r := range recs {
 		seen := map[[3]any]bool{}
 		for _, s := range r.Sites {
 			k := [3]any{s.File, s.Line, s.Col}
@@ -688,5 +737,177 @@ func TestTypeErrorExitsWithOne(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "k.jsonl")); !os.IsNotExist(err) {
 		t.Errorf("output file written despite the error")
+	}
+}
+
+const coupledTree = "testdata/coupled"
+
+const cpkg = "go:example.com/coupled."
+
+var (
+	coupledOnce sync.Once
+	coupledKeys map[string]Record
+	coupledRaw  []map[string]any
+	coupledErr  error
+)
+
+// ckey gives a record of testdata/coupled; the first call extracts the keys of the tree.
+func ckey(t *testing.T, id string) Record {
+	t.Helper()
+	coupledOnce.Do(func() { coupledKeys, coupledRaw, coupledErr = extractTree(coupledTree) })
+	if coupledErr != nil {
+		t.Fatal(coupledErr)
+	}
+	r, ok := coupledKeys[cpkg+id]
+	if !ok {
+		t.Fatalf("no record %s%s", cpkg, id)
+	}
+	return r
+}
+
+func cids(names ...string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = cpkg + n
+	}
+	return out
+}
+
+func TestCoupledKeysFollowTheRules(t *testing.T) {
+	ckey(t, "P")
+	checkRules(t, coupledKeys, coupledRaw)
+}
+
+// coupled.go and registry.go: P and Q have one method, and A, B, D, E, G, H and K implement
+// both, so the nine methods are one family. The guard of A, the argument of B, the
+// assignment of E to Q and the assignment of a P value to Q link five of them. G goes only to
+// M, and m.(P) asserts a value of M to P (case 4). D reaches P only through an assertion from
+// any, and H and K go to no interface.
+func TestCoupledFamilyFollowsTheConversions(t *testing.T) {
+	all := cids("A.Provision", "B.Provision", "D.Provision", "E.Provision", "G.Provision", "H.Provision",
+		"K.Provision", "P.Provision", "Q.Provision")
+	linked := cids("A.Provision", "B.Provision", "E.Provision", "G.Provision", "P.Provision", "Q.Provision")
+	for _, n := range []string{"A.Provision", "B.Provision", "E.Provision", "G.Provision", "P.Provision", "Q.Provision",
+		"D.Provision", "H.Provision", "K.Provision"} {
+		r := ckey(t, n)
+		if !reflect.DeepEqual(r.Family, all) {
+			t.Errorf("%s family %v, want %v", n, r.Family, all)
+		}
+		want := linked
+		if n == "D.Provision" || n == "H.Provision" || n == "K.Provision" {
+			want = cids(n)
+		}
+		if !reflect.DeepEqual(r.Coupled, want) {
+			t.Errorf("%s coupled %v, want %v", n, r.Coupled, want)
+		}
+	}
+}
+
+type useClass struct {
+	class, rel string
+	optional   bool
+}
+
+// useClasses gives the class of each use site of r in file ("line:col" → class, rel and
+// optional), and checks that each use site has the why "use" and both configurations.
+func useClasses(t *testing.T, r Record, file string) map[string]useClass {
+	t.Helper()
+	out := map[string]useClass{}
+	for _, s := range sitesIn(r, file) {
+		if s.Rel == "" {
+			continue
+		}
+		if s.Why != "use" || !reflect.DeepEqual(s.Configs, both) {
+			t.Errorf("%s: use site %s:%d:%d has why %q and configs %v", r.ID, s.File, s.Line, s.Col, s.Why, s.Configs)
+		}
+		out[fmt.Sprintf("%d:%d", s.Line, s.Col)] = useClass{s.Class, s.Rel, s.Optional}
+	}
+	return out
+}
+
+// coupled.go line 26 calls through P; lines 65 to 69 call the method of A, B, H, D and E.
+func TestOptionalUseIsDncWithItsRel(t *testing.T) {
+	req := func(rel string) useClass { return useClass{"required", rel, false} }
+	opt := func(rel string) useClass { return useClass{"dnc", rel, true} }
+	cases := map[string]map[string]useClass{
+		"A.Provision": {"26:11": req("super"), "65:13": req("self"), "66:13": req("sibling"),
+			"67:13": opt("sibling"), "68:13": opt("sibling"), "69:13": req("sibling")},
+		"H.Provision": {"26:11": opt("super"), "65:13": opt("sibling"), "66:13": opt("sibling"),
+			"67:13": req("self"), "68:13": opt("sibling"), "69:13": opt("sibling")},
+		"P.Provision": {"26:11": req("self"), "65:13": req("sub"), "66:13": req("sub"),
+			"67:13": opt("sub"), "68:13": opt("sub"), "69:13": req("sub")},
+	}
+	for n, want := range cases {
+		if got := useClasses(t, ckey(t, n), "coupled.go"); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s uses:\n got  %v\n want %v", n, got, want)
+		}
+	}
+	// registry.go line 23 calls through P; line 36 calls the method of G (case 4) and line
+	// 37 the method of K.
+	regCases := map[string]map[string]useClass{
+		"A.Provision": {"23:12": req("super"), "36:13": req("sibling"), "37:13": opt("sibling")},
+		"G.Provision": {"23:12": req("super"), "36:13": req("self"), "37:13": opt("sibling")},
+		"K.Provision": {"23:12": opt("super"), "36:13": opt("sibling"), "37:13": req("self")},
+	}
+	for n, want := range regCases {
+		if got := useClasses(t, ckey(t, n), "registry.go"); !reflect.DeepEqual(got, want) {
+			t.Errorf("%s uses in registry.go:\n got  %v\n want %v", n, got, want)
+		}
+	}
+	// The declarations of the family stay dnc declarations, also of a member outside the
+	// coupled family.
+	for _, s := range sitesIn(ckey(t, "A.Provision"), "coupled.go") {
+		if s.Why == "decl" && (s.Class != "dnc" || s.Optional || s.Rel != "") {
+			t.Errorf("A.Provision: declaration site %s:%d:%d is %+v", s.File, s.Line, s.Col, s)
+		}
+	}
+}
+
+// assert.go: s.(Halter) links Stop of Stopper and Halter, and the case Waiter of a type
+// switch on a Stopper links Pause of Stopper and Waiter. Neither interface has the method set
+// of the other one. Both implements the three interfaces, and its value goes to no interface.
+func TestAssertionLinksTheCommonMethod(t *testing.T) {
+	stop := cids("Both.Stop", "Halter.Stop", "Stopper.Stop")
+	pause := cids("Both.Pause", "Stopper.Pause", "Waiter.Pause")
+	cases := map[string][2][]string{ // id → family, coupled
+		"Stopper.Stop":  {stop, cids("Halter.Stop", "Stopper.Stop")},
+		"Halter.Stop":   {stop, cids("Halter.Stop", "Stopper.Stop")},
+		"Both.Stop":     {stop, cids("Both.Stop")},
+		"Stopper.Pause": {pause, cids("Stopper.Pause", "Waiter.Pause")},
+		"Waiter.Pause":  {pause, cids("Stopper.Pause", "Waiter.Pause")},
+		"Halter.Resume": {cids("Both.Resume", "Halter.Resume"), cids("Halter.Resume")},
+	}
+	for n, want := range cases {
+		r := ckey(t, n)
+		if !reflect.DeepEqual(r.Family, want[0]) || !reflect.DeepEqual(r.Coupled, want[1]) {
+			t.Errorf("%s: family %v coupled %v, want %v and %v", n, r.Family, r.Coupled, want[0], want[1])
+		}
+	}
+}
+
+// viaParam returns a value of its type parameter as a P: no link, and the statistics count
+// the conversion one time (the two configurations give the same pair).
+func TestTypeParamConversionIsCountedWithNoLink(t *testing.T) {
+	_, st, err := extract(coupledTree, both)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(st.paramConv) != 1 {
+		t.Errorf("conversions with a type parameter: %v, want one", st.paramConv)
+	}
+	if st.narrow == 0 || st.optional["sibling"] == 0 {
+		t.Errorf("narrow %d, optional %v: want both above zero", st.narrow, st.optional)
+	}
+}
+
+// Case 4 adds one link (G.Provision and P.Provision, registry.go), and a return statement
+// gives its conversion edge, not an assertion.
+func TestCase4LinksAreCounted(t *testing.T) {
+	_, st, err := extract(coupledTree, both)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.case4 != 1 || st.case4Edge != 0 {
+		t.Errorf("case 4 links %d, with an assertion edge %d: want 1 and 0", st.case4, st.case4Edge)
 	}
 }

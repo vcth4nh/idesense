@@ -453,3 +453,118 @@ func TestAcceptIdsFileAndFlagRules(t *testing.T) {
 		t.Errorf("unknown id: exit %d, %d lines, stderr: %s", res.code, len(res.lines), res.stderr)
 	}
 }
+
+// coupledKeysFile writes each record of testdata/coupled to a key file; a record of repl
+// takes the place of the record with its id.
+func coupledKeysFile(t *testing.T, repl ...Record) string {
+	t.Helper()
+	ckey(t, "P")
+	by := map[string]Record{}
+	for id, r := range coupledKeys {
+		by[id] = r
+	}
+	for _, r := range repl {
+		by[r.ID] = r
+	}
+	recs := make([]Record, 0, len(by))
+	for _, r := range by {
+		recs = append(recs, r)
+	}
+	sort.Slice(recs, func(a, b int) bool { return recs[a].ID < recs[b].ID })
+	return writeKeys(t, recs...)
+}
+
+// The minimal rename of A.Provision renames the declarations of A, B, E, G, P and Q and the
+// six required uses (coupled.go lines 26, 65, 66 and 69, registry.go lines 23 and 36). The
+// calls on D, H and K and their declarations keep the name, and the tree builds in each
+// configuration. The full rename renames the nine declarations and the nine uses.
+func TestAcceptMinimalRenamePasses(t *testing.T) {
+	r := ckey(t, "A.Provision")
+	keysFile := coupledKeysFile(t)
+	res := runAccept(t, coupledTree, keysFile, "-ids", r.ID, "-configs", "linux,windows", "-minimal", "-keep")
+	l := res.one(t)
+	if res.code != 0 || l.OK == nil || !*l.OK || l.Renamed != 12 || len(l.Errors) != 0 {
+		t.Fatalf("minimal: exit %d, line %+v; stderr: %s", res.code, l, res.stderr)
+	}
+	if got, want := fieldNames(res.raw[0]), []string{"errors", "id", "kind", "ok", "renamed"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("fields %v, want %v", got, want)
+	}
+	dirs := scratchDirs(t, res.scratch)
+	if len(dirs) != 1 {
+		t.Fatalf("kept scratch folders %v, want 1", dirs)
+	}
+	for file, want := range map[string]map[int]bool{
+		"coupled.go": {6: true, 10: true, 16: true, 23: true, 26: true, 36: false, 41: false,
+			52: true, 65: true, 66: true, 67: false, 68: false, 69: true},
+		"registry.go": {13: true, 23: true, 33: false, 36: true, 37: false},
+	} {
+		b, err := os.ReadFile(filepath.Join(dirs[0], file))
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines := strings.Split(string(b), "\n")
+		for n, renamed := range want {
+			if got := strings.Contains(lines[n-1], "Provision"+renameSuffix); got != renamed {
+				t.Errorf("%s:%d renamed %v, want %v: %q", file, n, got, renamed, lines[n-1])
+			}
+		}
+	}
+	res = runAccept(t, coupledTree, keysFile, "-ids", r.ID, "-configs", "linux,windows")
+	if l := res.one(t); res.code != 0 || l.OK == nil || !*l.OK || l.Renamed != 18 {
+		t.Fatalf("full: exit %d, line %+v; stderr: %s", res.code, l, res.stderr)
+	}
+}
+
+// A rename of only A.Provision and its call (no other declaration of the coupled family)
+// does not build: the guard of A (coupled.go line 18) fails.
+func TestAcceptMinimalFailsWithNoCoupledDeclaration(t *testing.T) {
+	r := ckey(t, "A.Provision")
+	r.Coupled = []string{r.ID}
+	var sites []Site
+	for _, s := range r.Sites {
+		if s.Why == "decl" || s.Rel == "self" {
+			sites = append(sites, s)
+		}
+	}
+	r.Sites = sites
+	res := runAccept(t, coupledTree, coupledKeysFile(t, r), "-ids", r.ID, "-configs", "linux", "-minimal")
+	l := res.one(t)
+	if res.code != 1 || l.OK == nil || *l.OK || l.Renamed != 2 {
+		t.Fatalf("exit %d, line %+v; stderr: %s", res.code, l, res.stderr)
+	}
+	if !anyContains(l.Errors, "linux: coupled.go:18:") {
+		t.Errorf("errors %q: want one at coupled.go:18", l.Errors)
+	}
+}
+
+// With a coupled family smaller than the family, the minimal mode finds a declaration of the
+// family through the decl of its record: with no record of a member, or with no coupled
+// list, the id fails before a load and the error says why.
+func TestAcceptMinimalNeedsTheFamilyRecordsAndCoupled(t *testing.T) {
+	r := ckey(t, "A.Provision")
+	res := runAccept(t, coupledTree, writeKeys(t, r), "-ids", r.ID, "-configs", "linux", "-minimal")
+	l := res.one(t)
+	if res.code != 1 || l.OK == nil || *l.OK || l.Renamed != 0 || len(l.Errors) != 1 ||
+		!strings.Contains(l.Errors[0], cpkg+"B.Provision") {
+		t.Fatalf("no family records: exit %d, line %+v; stderr: %s", res.code, l, res.stderr)
+	}
+	if d := scratchDirs(t, res.scratch); len(d) != 0 {
+		t.Errorf("scratch folders left: %v", d)
+	}
+	old := r
+	old.Coupled = nil
+	res = runAccept(t, coupledTree, coupledKeysFile(t, old), "-ids", r.ID, "-configs", "linux", "-minimal")
+	if l := res.one(t); res.code != 1 || l.OK == nil || *l.OK || len(l.Errors) != 1 || !strings.Contains(l.Errors[0], "coupled") {
+		t.Fatalf("no coupled list: exit %d, line %+v; stderr: %s", res.code, l, res.stderr)
+	}
+}
+
+// A coupled family that is the whole family (Shape.Area of testdata/mod) and a function
+// (Compute, no coupled list) give the sites of the full rename.
+func TestAcceptMinimalEqualsFullForWholeFamily(t *testing.T) {
+	area, compute := key(t, "Shape.Area"), key(t, "Compute")
+	res := runAccept(t, testTree, writeKeys(t, compute, area), "-ids", area.ID+","+compute.ID, "-configs", "linux,windows", "-minimal")
+	if res.code != 0 || len(res.lines) != 2 || res.lines[0].Renamed != 5 || res.lines[1].Renamed != 9 {
+		t.Fatalf("exit %d, lines %+v; stderr: %s", res.code, res.lines, res.stderr)
+	}
+}

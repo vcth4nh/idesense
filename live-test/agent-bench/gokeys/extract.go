@@ -14,10 +14,13 @@ import (
 	"time"
 
 	"golang.org/x/tools/go/packages"
+	"golang.org/x/tools/go/types/typeutil"
+	"golang.org/x/tools/refactor/satisfy"
 )
 
-// Record is one key record (the key model of Task 1, plus `external`). Each position is
-// 1-based; the column counts UTF-16 code units.
+// Record is one key record (the key model of Task 1, plus `external` and `coupled`). Each
+// position is 1-based; the column counts UTF-16 code units. Coupled is set only for a method
+// and an interface method (see coupledFamily).
 type Record struct {
 	ID           string        `json:"id"`
 	Lang         string        `json:"lang"`
@@ -26,6 +29,7 @@ type Record struct {
 	Container    string        `json:"container"`
 	Decl         Pos           `json:"decl"`
 	Family       []string      `json:"family"`
+	Coupled      []string      `json:"coupled,omitempty"`
 	Sites        []Site        `json:"sites"`
 	Implementers []Implementer `json:"implementers"`
 	External     []string      `json:"external"`
@@ -40,15 +44,17 @@ type Pos struct {
 
 // Site is one occurrence of the name of a record. Rel is set on a use that resolves to a
 // family member: "self", "embedded" (a selector or a literal key that names an embedded
-// field of the record's type), "super", "sub" or "sibling".
+// field of the record's type), "super", "sub" or "sibling". Optional is set on a use whose
+// family members are all outside the coupled family: its class is "dnc".
 type Site struct {
-	File    string   `json:"file"`
-	Line    int      `json:"line"`
-	Col     int      `json:"col"`
-	Class   string   `json:"class"`
-	Why     string   `json:"why"`
-	Configs []string `json:"configs"`
-	Rel     string   `json:"rel,omitempty"`
+	File     string   `json:"file"`
+	Line     int      `json:"line"`
+	Col      int      `json:"col"`
+	Class    string   `json:"class"`
+	Why      string   `json:"why"`
+	Configs  []string `json:"configs"`
+	Rel      string   `json:"rel,omitempty"`
+	Optional bool     `json:"optional,omitempty"`
 }
 
 // Implementer is one module type that implements an interface record: Class "required" for
@@ -131,6 +137,7 @@ type extractor struct {
 	libIfaceNames map[string]map[string]bool            // library interface id → names of its method set
 	libImpl       map[string]map[string]bool            // module interface id → library types that implement it
 	cross         map[string]map[string]bool            // type id → module interfaces that it satisfies by method names and signature strings (crossVariant)
+	links         map[string]map[string]bool            // method id → the methods that a conversion or an assertion links to it (linker.pair, x.viaAssertions)
 	code          map[posKey]*codeSite
 	unbuiltCode   map[posKey]string // the code words of the files that no configuration builds
 	text          map[posKey]*textSite
@@ -138,6 +145,14 @@ type extractor struct {
 	generated     map[string]bool   // file → it has a "Code generated" header
 	src           map[string][]byte // file → content
 	relCache      map[string]relResult
+
+	// The facts of case 4 (x.viaAssertions), with the type keys of linker.typeKey, so that a
+	// fact of one load meets the facts of each other load.
+	toIface     map[string]map[string]bool   // interface → the non-interface types that a conversion gives to it
+	fromIface   map[string]map[string]bool   // interface → the interfaces whose values a conversion gives to it
+	asserted    map[string]map[string]bool   // interface with a method → the interfaces that an assertion on its value asks for
+	assertGives map[string]map[string]bool   // interface → the types that an assertion on its value asks for and that it can hold
+	msets       map[string][]map[string]msel // type → its method set in each load and package variant: method key → method
 
 	// Indexes for the families, made by records().
 	selectedBy     map[string]map[string][]string // method name → method id → type ids whose method set selects it
@@ -160,6 +175,14 @@ type stats struct {
 	dncIface int            // interface records with such an entry
 	noConfig int            // sites with no configuration (in a file that no configuration builds)
 	unbuilt  []string       // the files that no configuration builds
+
+	links     int             // pairs of linked method declarations
+	paramConv map[string]bool // the type pairs of the conversions with a type parameter on one side (no link)
+	narrow    int             // method records whose coupled family is smaller than the family
+	optional  map[string]int  // optional sites by rel
+	mixed     int             // uses that resolve to a coupled member and to another member (in two configurations)
+	case4     int             // links that only case 4 gives (x.viaAssertions)
+	case4Edge int             // of these, the links with a conversion edge that an assertion also gives
 }
 
 func (s *stats) print(w io.Writer, total time.Duration) {
@@ -171,6 +194,12 @@ func (s *stats) print(w io.Writer, total time.Duration) {
 	fmt.Fprintf(w, "required sites by rel: %s\n", countLine(s.rels))
 	fmt.Fprintf(w, "records with external entries: %s\n", countLine(s.external))
 	fmt.Fprintf(w, "implementers with the class dnc: %d (%d across package variants), in %d interface records\n", s.dncImpls, s.crossImp, s.dncIface)
+	fmt.Fprintf(w, "links between method declarations: %d\n", s.links)
+	fmt.Fprintf(w, "links that only case 4 gives (an assertion on a value of an interface with a method): %d, %d with a conversion edge that an assertion also gives\n", s.case4, s.case4Edge)
+	fmt.Fprintf(w, "conversions with a type parameter on one side (no link): %d type pairs\n", len(s.paramConv))
+	fmt.Fprintf(w, "method records with a coupled family smaller than the family: %d\n", s.narrow)
+	fmt.Fprintf(w, "optional sites by rel: %s\n", countLine(s.optional))
+	fmt.Fprintf(w, "required uses with a member outside the coupled family in another configuration: %d\n", s.mixed)
 	fmt.Fprintf(w, "files that no configuration builds: %d %v\n", len(s.unbuilt), s.unbuilt)
 	fmt.Fprintf(w, "sites with no configuration: %d\n", s.noConfig)
 	fmt.Fprintf(w, "type aliases (no record): %d\n", len(s.aliases))
@@ -225,6 +254,7 @@ func extract(tree string, configs []string) ([]Record, *stats, error) {
 		libIfaceNames: map[string]map[string]bool{},
 		libImpl:       map[string]map[string]bool{},
 		cross:         map[string]map[string]bool{},
+		links:         map[string]map[string]bool{},
 		code:          map[posKey]*codeSite{},
 		unbuiltCode:   map[posKey]string{},
 		text:          map[posKey]*textSite{},
@@ -232,14 +262,21 @@ func extract(tree string, configs []string) ([]Record, *stats, error) {
 		generated:     map[string]bool{},
 		src:           map[string][]byte{},
 		relCache:      map[string]relResult{},
+		toIface:       map[string]map[string]bool{},
+		fromIface:     map[string]map[string]bool{},
+		asserted:      map[string]map[string]bool{},
+		assertGives:   map[string]map[string]bool{},
+		msets:         map[string][]map[string]msel{},
 		oneStepMemo:   map[string][]string{},
 		st: stats{
-			aliases:  map[string]bool{},
-			generic:  map[string]bool{},
-			kinds:    map[string]int{},
-			classes:  map[string]int{},
-			rels:     map[string]int{},
-			external: map[string]int{},
+			aliases:   map[string]bool{},
+			generic:   map[string]bool{},
+			kinds:     map[string]int{},
+			classes:   map[string]int{},
+			rels:      map[string]int{},
+			external:  map[string]int{},
+			paramConv: map[string]bool{},
+			optional:  map[string]int{},
 		},
 	}
 	for ci := range configs {
@@ -247,6 +284,7 @@ func extract(tree string, configs []string) ([]Record, *stats, error) {
 			return nil, nil, err
 		}
 	}
+	x.viaAssertions()
 	if err := x.readUnbuilt(); err != nil {
 		return nil, nil, err
 	}
@@ -334,6 +372,9 @@ func (x *extractor) load(ci int) error {
 	x.library(all, modPaths, entries)
 	for _, p := range initial {
 		x.sites(p, fset, ci, objID, modPaths)
+	}
+	if err := x.findLinks(initial, fset, objID); err != nil {
+		return fmt.Errorf("%s: %w", goos, err)
 	}
 	x.st.loads = append(x.st.loads, fmt.Sprintf("config %s: %d packages of the patterns, %d in the graph, %.1fs",
 		goos, len(initial), len(all), time.Since(start).Seconds()))
@@ -889,6 +930,351 @@ func (x *extractor) sites(p *packages.Package, fset *token.FileSet, ci int, objI
 	}
 }
 
+// findLinks adds the links of one load (see linker.pair) and records the facts of case 4 (see
+// x.viaAssertions). satisfy.Finder gives the conversions of a value to an interface type in
+// the module files of each package (and each type assertion whose type is assignable to the
+// interface); linker.asserts gives each type assertion and each case of a type switch. An id
+// does not depend on the configuration, so a link of one load counts in each configuration.
+// A panic of satisfy is an error.
+func (x *extractor) findLinks(initial []*packages.Package, fset *token.FileSet, objID map[types.Object]string) (err error) {
+	lk := &linker{x: x, fset: fset, objID: objID, seen: map[msetKey]bool{}}
+	cur := ""
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("links of %s: %v", cur, r)
+		}
+	}()
+	for _, p := range initial {
+		if p.TypesInfo == nil {
+			continue
+		}
+		var files []*ast.File
+		for _, f := range p.Syntax {
+			if _, ok := x.relFile(fset.File(f.Pos()).Name()); ok {
+				files = append(files, f)
+			}
+		}
+		if len(files) == 0 {
+			continue
+		}
+		cur = p.ID
+		var fd satisfy.Finder
+		fd.Find(p.TypesInfo, files)
+		for c := range fd.Result {
+			lk.pair(c.LHS, c.RHS)
+			lk.convert(c.LHS, c.RHS)
+		}
+		lk.asserts(p.TypesInfo, files)
+	}
+	return nil
+}
+
+// linker adds the links of one load to x.links, and the facts of case 4 of the load to x.
+type linker struct {
+	x     *extractor
+	fset  *token.FileSet
+	objID map[types.Object]string
+	ms    typeutil.MethodSetCache
+	seen  map[msetKey]bool // the method sets of the load in x.msets
+}
+
+// msel is one method of a method set for case 4: its id ("" for a method with no record) and
+// its signature string (sigString).
+type msel struct{ id, sig string }
+
+// msetKey names a method set of one load: the type key, and the type name of the package
+// variant (nil for a type with no name). A type of a package and of its test variant can have
+// different method sets.
+type msetKey struct {
+	key string
+	obj types.Object
+}
+
+// pair adds the links of a value of type v that goes to the interface type j: for each method
+// of the method set of j, the method that the method set of v selects with its name (for a
+// promoted method, the method of the embedded type), and the method of j. A link joins two
+// different module declarations that have a record; a library method and a method of an
+// unnamed interface have none. A pair with a type parameter on one side gives no link, and
+// the statistics count it.
+func (lk *linker) pair(j, v types.Type) {
+	if isTypeParam(j) || isTypeParam(v) {
+		lk.x.st.paramConv[lk.typeKey(j)+" = "+lk.typeKey(v)] = true
+		return
+	}
+	jm := lk.ms.MethodSet(j)
+	if jm.Len() == 0 {
+		return
+	}
+	vm := lk.ms.MethodSet(v)
+	for i := 0; i < jm.Len(); i++ {
+		m := jm.At(i).Obj()
+		sel := vm.Lookup(m.Pkg(), m.Name())
+		if sel == nil {
+			continue
+		}
+		a, b := idOf(lk.objID, sel.Obj()), idOf(lk.objID, m)
+		if a == "" || b == "" || a == b {
+			continue
+		}
+		if !lk.x.links[a][b] {
+			lk.x.st.links++
+		}
+		addTo(lk.x.links, a, b)
+		addTo(lk.x.links, b, a)
+	}
+}
+
+// asserts adds the links of each type assertion x.(U) and of each case U of a type switch on
+// x, where x has an interface type: for a concrete U the links of pair(the type of x, U), for
+// an interface U the links of pair(U, the type of x), that is of each name that both have. A
+// type of x with an empty method set (any) gives no link. For an interface U it also records
+// the assertion for case 4 (linker.assert), and for a U that the type of x can hold the pair
+// that satisfy also records as a conversion.
+func (lk *linker) asserts(info *types.Info, files []*ast.File) {
+	one := func(xt, u types.Type) {
+		if xt == nil || u == nil || isTypeParam(xt) || !types.IsInterface(xt) {
+			return
+		}
+		if types.IsInterface(u) && !isTypeParam(u) {
+			lk.pair(u, xt)
+			lk.assert(xt, u)
+		} else {
+			lk.pair(xt, u)
+		}
+		if !isTypeParam(u) && types.AssignableTo(u, xt) {
+			addTo(lk.x.assertGives, lk.typeKey(xt), lk.typeKey(u))
+		}
+	}
+	for _, f := range files {
+		ast.Inspect(f, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.TypeAssertExpr:
+				if n.Type != nil { // x.(type) of a type switch has no type
+					one(info.TypeOf(n.X), info.TypeOf(n.Type))
+				}
+			case *ast.TypeSwitchStmt:
+				var a *ast.TypeAssertExpr
+				switch s := n.Assign.(type) {
+				case *ast.ExprStmt:
+					a, _ = ast.Unparen(s.X).(*ast.TypeAssertExpr)
+				case *ast.AssignStmt:
+					if len(s.Rhs) == 1 {
+						a, _ = ast.Unparen(s.Rhs[0]).(*ast.TypeAssertExpr)
+					}
+				}
+				if a == nil {
+					return true
+				}
+				xt := info.TypeOf(a.X)
+				for _, cc := range n.Body.List {
+					for _, e := range cc.(*ast.CaseClause).List {
+						if tv, ok := info.Types[e]; ok && tv.IsType() { // not the case nil
+							one(xt, tv.Type)
+						}
+					}
+				}
+			}
+			return true
+		})
+	}
+}
+
+// convert records a conversion of a value of type v to the interface type j (a constraint of
+// satisfy) for case 4: an edge of x.toIface with the method set of v, or of x.fromIface.
+func (lk *linker) convert(j, v types.Type) {
+	if isTypeParam(j) || isTypeParam(v) {
+		return
+	}
+	jk, vk := lk.typeKey(j), lk.typeKey(v)
+	if types.IsInterface(v) {
+		addTo(lk.x.fromIface, jk, vk)
+		return
+	}
+	addTo(lk.x.toIface, jk, vk)
+	lk.methodSet(v, vk)
+}
+
+// assert records an assertion x.(u) or a type switch case u for case 4, where x has the
+// interface type xt and u is an interface type. An xt with an empty method set (any) gives
+// no fact: the limit of case 4.
+func (lk *linker) assert(xt, u types.Type) {
+	if lk.ms.MethodSet(xt).Len() == 0 {
+		return
+	}
+	uk := lk.typeKey(u)
+	addTo(lk.x.asserted, lk.typeKey(xt), uk)
+	lk.methodSet(u, uk)
+}
+
+// methodSet adds the method set of t (with the type key k) to x.msets, one time for each load
+// and package variant.
+func (lk *linker) methodSet(t types.Type, k string) {
+	u := types.Unalias(t)
+	if p, ok := u.(*types.Pointer); ok {
+		u = types.Unalias(p.Elem())
+	}
+	sk := msetKey{key: k}
+	if n, ok := u.(*types.Named); ok {
+		sk.obj = n.Obj()
+	}
+	if lk.seen[sk] {
+		return
+	}
+	lk.seen[sk] = true
+	ms := lk.ms.MethodSet(t)
+	out := make(map[string]msel, ms.Len())
+	for i := 0; i < ms.Len(); i++ {
+		sel := ms.At(i)
+		key := sel.Obj().Name()
+		if !token.IsExported(key) && sel.Obj().Pkg() != nil {
+			key = sel.Obj().Pkg().Path() + "." + key
+		}
+		out[key] = msel{idOf(lk.objID, sel.Obj()), sigString(sel.Type().(*types.Signature))}
+	}
+	lk.x.msets[k] = append(lk.x.msets[k], out)
+}
+
+// viaAssertions adds the links of case 4, after the last load: for each assertion x.(U) (or
+// type switch case U) where x has an interface type J1 with a method, and each non-interface
+// type V that a conversion gives to J1, or to an interface J0 whose values one or more
+// conversions give to J1, and that implements U, the links of pair(U, V). The facts can come
+// from different loads. V implements U when a method set of V has each method of a method set
+// of U with the same signature string. satisfy also records an assertion x.(T) as a
+// conversion of T to the type of x when the type can hold T, so the statistics count the new
+// links that need such an edge (an upper bound: a conversion can give the same edge).
+func (x *extractor) viaAssertions() {
+	all := x.case4Pairs(nil)
+	strict := x.case4Pairs(x.assertGives)
+	for p := range all {
+		if x.links[p[0]][p[1]] {
+			continue // case 1, 2 or 3 gives this link
+		}
+		x.st.case4++
+		x.st.links++
+		if !strict[p] {
+			x.st.case4Edge++
+		}
+	}
+	for p := range all {
+		addTo(x.links, p[0], p[1])
+		addTo(x.links, p[1], p[0])
+	}
+}
+
+// case4Pairs gives the links of case 4 as ordered id pairs, with no conversion edge in skip.
+func (x *extractor) case4Pairs(skip map[string]map[string]bool) map[[2]string]bool {
+	out := map[[2]string]bool{}
+	for j1, us := range x.asserted {
+		vs := map[string]bool{}
+		seen := map[string]bool{j1: true}
+		todo := []string{j1}
+		for len(todo) > 0 {
+			j := todo[len(todo)-1]
+			todo = todo[:len(todo)-1]
+			for v := range x.toIface[j] {
+				if !skip[j][v] {
+					vs[v] = true
+				}
+			}
+			for j0 := range x.fromIface[j] {
+				if !seen[j0] && !skip[j][j0] {
+					seen[j0] = true
+					todo = append(todo, j0)
+				}
+			}
+		}
+		for v := range vs {
+			for u := range us {
+				for _, vm := range x.msets[v] {
+					for _, um := range x.msets[u] {
+						if !hasMethods(vm, um) {
+							continue
+						}
+						for k, m := range um {
+							a, b := vm[k].id, m.id
+							if a == "" || b == "" || a == b {
+								continue
+							}
+							if a > b {
+								a, b = b, a
+							}
+							out[[2]string{a, b}] = true
+						}
+					}
+				}
+			}
+		}
+	}
+	return out
+}
+
+// hasMethods reports whether the method set v has each method of u with the same signature.
+func hasMethods(v, u map[string]msel) bool {
+	for k, m := range u {
+		if vm, ok := v[k]; !ok || vm.sig != m.sig {
+			return false
+		}
+	}
+	return true
+}
+
+func isTypeParam(t types.Type) bool {
+	_, ok := types.Unalias(t).(*types.TypeParam)
+	return ok
+}
+
+// typeKey names a type in the statistics: a type parameter with the position of its
+// declaration, another type with the full package paths.
+func (lk *linker) typeKey(t types.Type) string {
+	if tp, ok := types.Unalias(t).(*types.TypeParam); ok {
+		if pos, ok := lk.x.position(lk.fset, tp.Obj().Pos()); ok {
+			return fmt.Sprintf("%s@%s:%d:%d", tp.Obj().Name(), pos.File, pos.Line, pos.Col)
+		}
+		return tp.Obj().Name()
+	}
+	return types.TypeString(t, (*types.Package).Path)
+}
+
+// linkComponents numbers the components of the graph of the links: two methods get the same
+// number when a chain of links joins them. A method with no link gets no number.
+func (x *extractor) linkComponents() map[string]int {
+	comp := map[string]int{}
+	n := 0
+	for id := range x.links {
+		if _, done := comp[id]; done {
+			continue
+		}
+		n++
+		comp[id] = n
+		todo := []string{id}
+		for len(todo) > 0 {
+			g := todo[len(todo)-1]
+			todo = todo[:len(todo)-1]
+			for h := range x.links[g] {
+				if _, done := comp[h]; !done {
+					comp[h] = n
+					todo = append(todo, h)
+				}
+			}
+		}
+	}
+	return comp
+}
+
+// coupledFamily gives the coupled family of a method or an interface method id with the
+// family fam (sorted): its closure over the links (its component), cut to fam. The result
+// always holds id, and it is sorted.
+func coupledFamily(id string, fam []string, comp map[string]int) []string {
+	c, linked := comp[id]
+	out := []string{}
+	for _, f := range fam {
+		if cf, ok := comp[f]; f == id || linked && ok && cf == c {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
 // readUnbuilt reads each .go file of the tree (the files of gokeys idents) that no load holds,
 // for example a file whose build constraints no configuration meets. Its code words go to
 // x.unbuiltCode, its comment and string words to x.text.
@@ -928,9 +1314,9 @@ const (
 )
 
 // classify gives the class of a site in one configuration and, for a use of the family,
-// the use roles that resolve to family members. coupled: the external list of the record
-// is not empty. weak: the module methods whose use is unproven (crossVariant).
-func classify(roles []role, fam map[string]bool, coupled bool, weak map[string]bool) (int, []role) {
+// the use roles that resolve to family members. ext: the external list of the record is not
+// empty. weak: the module methods whose use is unproven (crossVariant).
+func classify(roles []role, fam map[string]bool, ext bool, weak map[string]bool) (int, []role) {
 	cl := clForbidden
 	var uses []role
 	for _, r := range roles {
@@ -939,7 +1325,7 @@ func classify(roles []role, fam map[string]bool, coupled bool, weak map[string]b
 			uses = append(uses, r)
 		case r.id != "" && fam[r.id]:
 			cl = max(cl, clDecl)
-		case !r.def && (r.ext && coupled || r.id != "" && weak[r.id]):
+		case !r.def && (r.ext && ext || r.id != "" && weak[r.id]):
 			cl = max(cl, clUnproven)
 		}
 	}
@@ -1130,6 +1516,7 @@ func (x *extractor) records() []Record {
 		}
 	}
 	couplingMemo := map[string][]string{}
+	comp := x.linkComponents()
 
 	ids := make([]string, 0, len(x.decls))
 	for id := range x.decls {
@@ -1161,7 +1548,21 @@ func (x *extractor) records() []Record {
 			}
 			external = sortedKeys(ext)
 		}
-		coupled := len(external) > 0
+		hasExt := len(external) > 0
+		// The coupled family of a method or an interface method. A use whose family members
+		// are all outside it is optional. For a function or a type it is the family.
+		var coupled []string
+		inCoupled := famSet
+		if d.kind == "method" || d.kind == "iface_method" {
+			coupled = coupledFamily(id, fam, comp)
+			inCoupled = map[string]bool{}
+			for _, c := range coupled {
+				inCoupled[c] = true
+			}
+			if len(coupled) < len(fam) {
+				x.st.narrow++
+			}
+		}
 		// weak: the methods with this name of the interfaces that a type which selects this
 		// method satisfies only across package variants. A use of one is unproven.
 		weak := map[string]bool{}
@@ -1190,7 +1591,7 @@ func (x *extractor) records() []Record {
 				if cs.present&(1<<ci) == 0 {
 					continue
 				}
-				cl, uses := classify(cs.roles[ci], famSet, coupled, weak)
+				cl, uses := classify(cs.roles[ci], famSet, hasExt, weak)
 				if cl > best {
 					best, cfgs, members = cl, nil, nil
 				}
@@ -1203,6 +1604,7 @@ func (x *extractor) records() []Record {
 			switch best {
 			case clRequired:
 				s.Class, s.Why = "required", "use"
+				some, all := false, true
 				for _, m := range members {
 					r := relFor[m.id]
 					if m.embed {
@@ -1211,6 +1613,16 @@ func (x *extractor) records() []Record {
 					if relRank[r] > relRank[s.Rel] {
 						s.Rel = r
 					}
+					if inCoupled[m.id] {
+						some = true
+					} else {
+						all = false
+					}
+				}
+				if !some {
+					s.Class, s.Optional = "dnc", true // the why stays "use", the rel stays
+				} else if !all {
+					x.st.mixed++
 				}
 			case clDecl:
 				s.Class, s.Why = "dnc", "decl"
@@ -1247,6 +1659,9 @@ func (x *extractor) records() []Record {
 			if s.Class == "required" {
 				x.st.rels[s.Rel]++
 			}
+			if s.Optional {
+				x.st.optional[s.Rel]++
+			}
 			if len(s.Configs) == 0 {
 				x.st.noConfig++
 			}
@@ -1282,12 +1697,12 @@ func (x *extractor) records() []Record {
 			}
 		}
 		x.st.kinds[d.kind]++
-		if coupled {
+		if hasExt {
 			x.st.external[d.kind]++
 		}
 		recs = append(recs, Record{
 			ID: id, Lang: "go", Kind: d.kind, Name: d.name, Container: d.container, Decl: d.pos,
-			Family: fam, Sites: sites, Implementers: impls, External: external, Source: "go/types",
+			Family: fam, Coupled: coupled, Sites: sites, Implementers: impls, External: external, Source: "go/types",
 		})
 	}
 	return recs

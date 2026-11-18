@@ -41,10 +41,10 @@ type skipLine struct {
 	Skipped string `json:"skipped"`
 }
 
-// cmdAccept: gokeys accept. For each id it renames the identifier of the record at each
-// site with why "decl" and at each site with a rel, in a copy of the tree, and loads all
-// packages of the copy (with tests) in each configuration. The id is ok when no
-// configuration has a load error or a type error.
+// cmdAccept: gokeys accept. For each id it renames the identifier of the record at the sites
+// of renameSet, in a copy of the tree, and loads all packages of the copy (with tests) in each
+// configuration. The id is ok when no configuration has a load error or a type error. The
+// default renames the whole family; -minimal renames only the coupled family.
 func cmdAccept(args []string, stdout, stderr io.Writer) int {
 	fl := flag.NewFlagSet("accept", flag.ContinueOnError)
 	fl.SetOutput(stderr)
@@ -56,6 +56,7 @@ func cmdAccept(args []string, stdout, stderr io.Writer) int {
 	configs := fl.String("configs", "", "comma-separated GOOS values; GOARCH is amd64")
 	scratch := fl.String("scratch", "", "folder for the copies, one folder for each id")
 	keep := fl.Bool("keep", false, "keep the copy of each id")
+	minimal := fl.Bool("minimal", false, "rename only the declarations of the coupled family and the uses of its members")
 	if err := fl.Parse(args); err != nil {
 		return 2
 	}
@@ -111,7 +112,11 @@ func cmdAccept(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(err)
 	}
-	fmt.Fprintf(stderr, "accept: %d ids, %d files of the tree (%s), configurations %s\n", len(ids), len(files), from, strings.Join(goos, ","))
+	mode := "full"
+	if *minimal {
+		mode = "minimal"
+	}
+	fmt.Fprintf(stderr, "accept: %d ids, %d files of the tree (%s), configurations %s, %s rename\n", len(ids), len(files), from, strings.Join(goos, ","), mode)
 
 	enc := json.NewEncoder(stdout)
 	enc.SetEscapeHTML(false)
@@ -125,11 +130,16 @@ func cmdAccept(args []string, stdout, stderr io.Writer) int {
 			}
 			continue
 		}
-		dir := filepath.Join(scratchAbs, scratchName(id))
-		line := acceptOne(r, treeAbs, files, dir, goos)
-		if !*keep {
-			if err := os.RemoveAll(dir); err != nil {
-				return fail(err)
+		var line acceptLine
+		if sites, err := renameSet(r, byID, *minimal); err != nil {
+			line = acceptLine{ID: id, Kind: r.Kind, Errors: []string{err.Error()}}
+		} else {
+			dir := filepath.Join(scratchAbs, scratchName(id))
+			line = acceptOne(r, sites, treeAbs, files, dir, goos)
+			if !*keep {
+				if err := os.RemoveAll(dir); err != nil {
+					return fail(err)
+				}
 			}
 		}
 		if line.OK {
@@ -430,8 +440,74 @@ func scratchName(id string) string {
 	return string(b) + "-" + hex.EncodeToString(sum[:4])
 }
 
+// renameSet gives the sites to rename for r. The full rename: each site with why "decl" and
+// each site with a rel. The minimal rename (-minimal): the declarations of the members of
+// coupled, and each site with a rel and no optional flag (the required uses, and the uses in
+// a generated file of a coupled member). A function or a type has no coupled list: its
+// family is itself. A method or an interface method with no coupled list (a key of an older
+// extractor) is an error. When coupled is the whole family, the minimal rename is the full
+// rename. Else each declaration site must be the decl of a family record of byID, and the
+// record tells the member.
+func renameSet(r *Record, byID map[string]*Record, minimal bool) ([]Site, error) {
+	var out []Site
+	if !minimal {
+		for _, s := range r.Sites {
+			if s.Why == "decl" || s.Rel != "" {
+				out = append(out, s)
+			}
+		}
+		return out, nil
+	}
+	coupled := r.Coupled
+	if coupled == nil {
+		if r.Kind == "method" || r.Kind == "iface_method" {
+			return nil, fmt.Errorf("the record has no coupled list")
+		}
+		coupled = r.Family
+	}
+	fam := map[string]bool{}
+	for _, id := range r.Family {
+		fam[id] = true
+	}
+	in := map[string]bool{}
+	for _, id := range coupled {
+		if !fam[id] {
+			return nil, fmt.Errorf("the coupled member %s is not in the family", id)
+		}
+		in[id] = true
+	}
+	whole := len(in) == len(fam)
+	owner := map[Pos]string{}
+	if !whole {
+		for _, id := range r.Family {
+			m := byID[id]
+			if m == nil {
+				return nil, fmt.Errorf("the key file has no record of the family member %s", id)
+			}
+			owner[m.Decl] = id
+		}
+	}
+	for _, s := range r.Sites {
+		switch {
+		case s.Why == "decl" && whole:
+			out = append(out, s)
+		case s.Why == "decl":
+			id, ok := owner[Pos{s.File, s.Line, s.Col}]
+			if !ok {
+				return nil, fmt.Errorf("site %s:%d:%d: the declaration is the decl of no family record", s.File, s.Line, s.Col)
+			}
+			if in[id] {
+				out = append(out, s)
+			}
+		case s.Rel != "" && !s.Optional:
+			out = append(out, s)
+		}
+	}
+	return out, nil
+}
+
 // acceptOne copies the tree to dir, renames the sites of r and loads each configuration.
-func acceptOne(r *Record, tree string, files []string, dir string, configs []string) acceptLine {
+func acceptOne(r *Record, sites []Site, tree string, files []string, dir string, configs []string) acceptLine {
 	line := acceptLine{ID: r.ID, Kind: r.Kind, Errors: []string{}}
 	if err := os.RemoveAll(dir); err != nil {
 		line.Errors = []string{"scratch: " + err.Error()}
@@ -441,7 +517,7 @@ func acceptOne(r *Record, tree string, files []string, dir string, configs []str
 		line.Errors = []string{"copy: " + err.Error()}
 		return line
 	}
-	n, errs := renameSites(dir, r)
+	n, errs := renameSites(dir, r.Name, sites)
 	if len(errs) == 0 {
 		for _, c := range configs {
 			for _, e := range loadErrors(dir, c) {
@@ -470,18 +546,15 @@ type renameSite struct {
 
 func (s renameSite) String() string { return fmt.Sprintf("%s:%d:%d", s.file, s.line, s.col) }
 
-// renameSites renames the name of r to <name>Zq9 at each site with why "decl" and at each
-// site with a rel; two sites at one position count one time. Before it writes a file, it
-// checks each site: the text at the site must be the name, as a whole identifier. With an
-// error at any site it writes no file and returns the errors.
-func renameSites(root string, r *Record) (int, []string) {
+// renameSites renames the identifier ident to <ident>Zq9 at each site of list (see
+// renameSet); two sites at one position count one time. Before it writes a file, it checks
+// each site: the text at the site must be ident, as a whole identifier. With an error at any
+// site it writes no file and returns the errors.
+func renameSites(root, ident string, list []Site) (int, []string) {
 	byFile := map[string][]renameSite{}
 	seen := map[renameSite]bool{}
 	decls := 0
-	for _, s := range r.Sites {
-		if s.Why != "decl" && s.Rel == "" {
-			continue
-		}
+	for _, s := range list {
 		if s.Why == "decl" {
 			decls++
 		}
@@ -500,7 +573,7 @@ func renameSites(root string, r *Record) (int, []string) {
 	}
 	sort.Strings(fileNames)
 
-	name := []byte(r.Name)
+	name := []byte(ident)
 	var errs []string
 	type edit struct {
 		path  string
