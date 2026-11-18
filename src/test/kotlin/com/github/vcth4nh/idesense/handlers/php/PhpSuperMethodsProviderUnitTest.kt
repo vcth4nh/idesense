@@ -49,6 +49,13 @@ class PhpSuperMethodsProviderUnitTest : TestCase() {
         assertEquals(UsageMatch.OVERRIDE, mark(listOf(other), UsageMatch.OVERRIDE))
     }
 
+    // DeferringDispatcher::dispatch: the base pass also searches DirectDispatcher::dispatch, another
+    // implementation of Dispatcher::dispatch. A call on a DirectDispatcher value resolves to it.
+    fun testAUsageOfAnotherImplementationOfTheBaseHasBase() {
+        val sibling = mockk<PsiElement>()
+        assertEquals(UsageMatch.BASE, mark(listOf(sibling), UsageMatch.BASE))
+    }
+
     // Circle::area of the PHP fixture: the references of the method hold the calls on a value of
     // the type Shape, which resolve to Shape::area.
     fun testAnotherTargetInTheDirectPassIsBaseWhenTheAnchorHasABaseMethod() {

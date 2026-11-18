@@ -28,7 +28,10 @@ interface SuperMethodsProvider {
     /**
      * The declarations that override or implement [element]: all levels. The find usages search
      * also searches each one, with the mark [com.github.vcth4nh.idesense.constants.UsageMatch.OVERRIDE].
-     * Empty (the default): the search has no override pass.
+     * For a base declaration of the symbol, the base pass also searches the overriding declarations
+     * of the base declaration, with the mark [com.github.vcth4nh.idesense.constants.UsageMatch.BASE].
+     * Empty (the default): the search has no override pass and the base pass searches the base
+     * declarations only.
      */
     fun findOverridingDeclarations(element: PsiElement): List<PsiElement> = emptyList()
 

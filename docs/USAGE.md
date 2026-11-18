@@ -214,7 +214,10 @@ base declarations. Where the IDE asks its user whether to search the base member
 dynamic usages by default, the tool includes and marks both. An absent call site costs an agent
 more than a marked extra row. For a Go method, GoLand also shows its notification "Looking for
 usages of the interface methods" in the IDE window, as it does for Find Usages. The notification
-stops when the user selects "Don't show again".
+stops when the user selects "Don't show again". For a PHP method, the search of each base method
+also covers the other methods that override or implement that base method, as the answer "Base
+Method" of PhpStorm does. An example is a method of a class that implements an interface method:
+the result also holds the calls on a value of another class that implements the interface method.
 
 **Overriding declarations:** for a PHP method, the result also holds the usages of each method
 that overrides or implements it, as Find Usages of PhpStorm lists them. An example is an interface
@@ -224,8 +227,10 @@ the overriding methods are not in the result; `ide_find_implementations` lists t
 
 **Match:** a usage that is not a sure usage of the symbol has the field `match`:
 - No `match` key - the usage refers to the symbol itself.
-- `BASE` - the usage refers to a base declaration. The call can run this symbol or another
-  implementation.
+- `BASE` - the usage refers to a base declaration, or to another declaration that overrides or
+  implements a base declaration. It is a call on a value of the base type, which can run this
+  symbol or another implementation, or a call on a value of another type that implements the
+  base declaration.
 - `OVERRIDE` - the usage refers to a PHP method that overrides or implements the symbol. It is a
   call on a value whose type has that overriding method.
 - `DYNAMIC` - only the name matches, and the type of the receiver is not known. In all

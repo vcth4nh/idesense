@@ -140,8 +140,9 @@
   `warnings` entry "Find-usages handler factory PhpFindUsagesHandlerFactory threw while creating
   the handler" and no longer write a stack trace to the IDE log for each call. PhpStorm's handler
   factory asked "Do you want to find usages of base method?", and off the EDT the question threw.
-  The tool now asks the factory for no PHP method: it searches the references to the method itself
-  and the usages of each base method with `match: BASE` (#182).
+  The tool now asks the factory for no PHP method: it searches the references to the method itself,
+  and the usages of each base method and of the other methods that override that base method with
+  `match: BASE`. The result holds each usage of the answer "Base Method" (#182).
 - `ide_find_usages` and `ide_explain_symbol` on a PHP method also return the usages of each method
   that overrides or implements it, as Find Usages of PhpStorm does. Such a usage has the new mark
   `match: OVERRIDE`: it is a call on a value whose type has the overriding method. At an interface

@@ -71,12 +71,13 @@ import java.lang.reflect.Proxy
  * - `PhpClassHierarchyUtils` and its processor interfaces are in php-openapi.jar.
  *   `PhpLangUtil` is in php.jar.
  *
- * The tool searches a PHP method in up to three passes: the method itself, each base method
- * ([findBaseDeclarations], mark `BASE`) and each overriding method ([findOverridingDeclarations],
- * mark `OVERRIDE`). For a method with a base method, this is the approved deviation of a marked
- * false positive: PhpStorm searches either the base methods and their overriding methods (the
- * answer Base Method) or the method and its overriding methods (the answer Current Method), with
- * no mark. The tool does not search the other overriding methods of a base method.
+ * The tool searches a PHP method in up to three passes: the method itself; each base method
+ * ([findBaseDeclarations]) and the other overriding methods of each base method (mark `BASE`);
+ * each overriding method of the method ([findOverridingDeclarations], mark `OVERRIDE`). For a
+ * method with a base method, this is the approved deviation of a marked false positive: PhpStorm
+ * searches either the base methods and their overriding methods (the answer Base Method) or the
+ * method and its overriding methods (the answer Current Method), with no mark. The result of the
+ * tool holds each usage of both answers.
  * [usageMark] decides the mark of each usage from the declarations that its reference resolves
  * to, not from its pass: in PhpStorm 2026.2, both answers at `Circle::area` of the PHP fixture
  * list the same 4 calls on a value of the type `Shape`, so the references of an overriding method

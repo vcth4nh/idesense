@@ -91,7 +91,9 @@ internal class UsageRules(
  * The search has up to three passes (#171). The direct pass searches the symbol. The base pass
  * searches each base declaration that the symbol overrides or implements
  * ([SuperMethodsProvider.findBaseDeclarations]), because a call through a base declaration can
- * run the symbol. The override pass searches each declaration that overrides or implements the
+ * run the symbol. After each base declaration, the base pass also searches the other declarations
+ * that override or implement that base declaration ([basePassTargets]), as the answer "Yes" of
+ * PhpStorm does. The override pass searches each declaration that overrides or implements the
  * symbol ([SuperMethodsProvider.findOverridingDeclarations]); the Go path has no override pass.
  * The result is the union of the passes. A usage of the base pass has the mark [UsageMatch.BASE],
  * a usage of the override pass the mark [UsageMatch.OVERRIDE]. A usage of which the reference does
@@ -123,7 +125,10 @@ internal object FindUsagesHandlerSearch {
 
     /**
      * Finds the usages of [element], of its base declarations and of its overriding declarations,
-     * and gives each one to [processor] as a [UsageHit] with its mark. The base declarations go to
+     * and gives each one to [processor] as a [UsageHit] with its mark. The base pass also searches
+     * the other overriding declarations of each base declaration, with the mark [UsageMatch.BASE]
+     * ([basePassTargets]); they go to neither [baseDeclarations] nor [overridingDeclarations], and
+     * a provider that throws on them gives no extra target. The base declarations go to
      * [baseDeclarations] and the base declarations that the provider leaves out on purpose
      * ([SuperMethodsProvider.skippedBaseDeclarations]) go to [skippedBases] before the search
      * starts. The overriding declarations go to [overridingDeclarations] before the direct pass,
@@ -230,11 +235,47 @@ internal object FindUsagesHandlerSearch {
         overridingDeclarations?.addAll(overrides)
 
         if (!directPass()) return
-        for (base in bases) {
-            if (!searchDeclaration(project, base, scope, UsageMatch.BASE, rules, processor, warnings)) return
+        val baseTargets = basePassTargets(element, bases, overrides) { base ->
+            declarationsOf(SuperMethodsProvider.EP.forLanguage(base.language), base, "findOverridingDeclarations") {
+                it.findOverridingDeclarations(base)
+            }
+        }
+        for (target in baseTargets) {
+            if (!searchDeclaration(project, target, scope, UsageMatch.BASE, rules, processor, warnings)) return
         }
         for (override in overrides) {
             if (!searchDeclaration(project, override, scope, UsageMatch.OVERRIDE, rules, processor, warnings)) return
+        }
+    }
+
+    /**
+     * The targets of the base pass of the search of [element], in the order of the search: each
+     * base declaration of [bases], then each declaration of [overridesOf] for that base declaration
+     * (its overriding declarations, from the provider of its language). A declaration that is
+     * [element], a base declaration, a declaration of [overrides] (the override pass searches it) or
+     * a target of an earlier step is no new target. The sequence asks [overridesOf] for a base
+     * declaration only after the search of that base declaration.
+     *
+     * This is the search of the answer "Yes" for PHP: `PhpFindUsagesHandler.processElementUsages`
+     * searches each base method and each method of `checkImplementedMethods`, the methods that
+     * override it (`plugins/php-impl/lib/php.jar`, build 262.8665). A provider with no overriding
+     * declarations gives the base declarations only.
+     */
+    internal fun basePassTargets(
+        element: PsiElement,
+        bases: List<PsiElement>,
+        overrides: List<PsiElement>,
+        overridesOf: (PsiElement) -> List<PsiElement>,
+    ): Sequence<PsiElement> = sequence {
+        val searched = HashSet<PsiElement>()
+        searched.add(element)
+        searched.addAll(bases)
+        searched.addAll(overrides)
+        for (base in bases) {
+            yield(base)
+            for (other in overridesOf(base)) {
+                if (searched.add(other)) yield(other)
+            }
         }
     }
 
