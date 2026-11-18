@@ -110,6 +110,12 @@ file is stale.
 |---|---|---|---|
 | 174:22 | def-certmagic.Config-into-dependency | find_definition | `Config` |
 
+## modules/caddytls/capools.go
+
+| line:col | probe id | tool | identifier |
+|---|---|---|---|
+| 37:6 | usage-caddytls.CA-field-keys | find_usages | `CA` |
+
 ## replacer.go
 
 | line:col | probe id | tool | identifier |

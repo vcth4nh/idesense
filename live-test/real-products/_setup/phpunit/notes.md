@@ -121,12 +121,18 @@ These rows are parked. Each one changes with the fix of its issue only.
 
 | Row | Issue |
 |---|---|
-| `usage-DeferringDispatcher` | #179: the `$this`, `self` and `static` references in the class, which Find Usages hides |
 | `find-symbol-SHORT_OPTIONS`, `def-SHORT_OPTIONS-const` | #180: a class constant gets the kind `CLASS` (sub-issue of #27) |
 | `search-text-unordered-code` | #181: `context: "code"` returns comment lines and string lines |
-| `usage-Dispatcher.dispatch` | #183: the usages of the overriding methods are absent (104 of 115) |
 | `search-text-wget` | #184: a match in an injected fragment (a Markdown code block) comes two times |
 | `search-text-updateTimestamps-build` | #146: the files under `build/` are absent |
 
-`explain-DeferringDispatcher.dispatch-pos` is blessed with its `warnings` entry: its count
-equals Current Method of Find Usages (103). #182 tracks the warning.
+Three issues of this product are closed, and their rows are blessed with the corrected result:
+
+- #179: `usage-DeferringDispatcher` gives 13 usages and a `notes` entry with the count of the
+  18 references through `$this`, `self` or `static` inside the class. Find Usages of PhpStorm
+  shows 13 results.
+- #183: `usage-Dispatcher.dispatch` gives 115 usages, 11 of them with `match` `OVERRIDE`. Find
+  Usages of PhpStorm shows 115 results.
+- #182: `usage-DeferringDispatcher.dispatch-override` gives the same 115 usages, 109 of them
+  with `match` `BASE`. `explain-DeferringDispatcher.dispatch-pos` has `usageCount` 115 and no
+  `warnings` entry.
