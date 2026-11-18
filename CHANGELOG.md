@@ -153,6 +153,8 @@
   references through `$this`, `self` or `static` inside the class, as Find Usages of PhpStorm does by
   default. The tool listed them as plain usages. The first page has a `notes` entry with their
   count (#179).
+- `ide_find_usages` no longer shows a `warnings` or a `notes` entry two times when the IDE started
+  the search again after a write action.
 
 ## [2.1.0] - 2026-11-09
 

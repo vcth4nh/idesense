@@ -155,6 +155,10 @@ class FindUsagesTool : AbstractMcpTool() {
         // that it leaves out, first page only.
         val handlerNotes = mutableListOf<String>()
         val cursorToken = suspendingReadAction {
+            // The platform runs this block again after it cancels an attempt for a write action,
+            // so each attempt starts with empty lists.
+            handlerWarnings.clear()
+            handlerNotes.clear()
             val targetElement = when (anchor) {
                 is SymbolAnchor.BySymbol -> when (val resolution = SymbolAnchorResolver.resolve(project, anchor.symbol)) {
                     is SymbolResolution.Resolved -> resolution.element
