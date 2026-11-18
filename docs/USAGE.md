@@ -205,7 +205,7 @@ of the IDE's Find Usages window. An example is `Shape` in the PHP doc comment
 `/** @var Shape[] */`. `line` and `column` point at the word in the comment, not at the start of
 the comment.
 
-**Base declarations:** a Go, Java, JavaScript, Kotlin, Python, Rust or TypeScript member can
+**Base declarations:** a Go, Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member can
 override or implement a base declaration. Then the result is the union of the usages of the
 member and the usages of each base declaration. An example is a Go method that implements an
 interface method. A call through an interface value refers to the interface method, but it can
@@ -214,22 +214,51 @@ base declarations. Where the IDE asks its user whether to search the base member
 dynamic usages by default, the tool includes and marks both. An absent call site costs an agent
 more than a marked extra row. For a Go method, GoLand also shows its notification "Looking for
 usages of the interface methods" in the IDE window, as it does for Find Usages. The notification
-stops when the user selects "Don't show again".
+stops when the user selects "Don't show again". For a PHP method, the search of each base method
+also covers the other methods that override or implement that base method, as the answer "Base
+Method" of PhpStorm does. An example is a method of a class that implements an interface method:
+the result also holds the calls on a value of another class that implements the interface method.
+
+**Overriding declarations:** for a PHP method, the result also holds the usages of each method
+that overrides or implements it, as Find Usages of PhpStorm lists them. An example is an interface
+method: a call on a value whose type is an implementing class refers to the method of that class.
+The search collects these usages after the usages of the base declarations. The declarations of
+the overriding methods are not in the result; `ide_find_implementations` lists them.
 
 **Match:** a usage that is not a sure usage of the symbol has the field `match`:
 - No `match` key - the usage refers to the symbol itself.
-- `BASE` - the usage refers to a base declaration. The call can run this symbol or another
-  implementation.
+- `BASE` - the usage refers to a base declaration, or to another declaration that overrides or
+  implements a base declaration. It is a call on a value of the base type, which can run this
+  symbol or another implementation, or a call on a value of another type that implements the
+  base declaration.
+- `OVERRIDE` - the usage refers to a PHP method that overrides or implements the symbol. It is a
+  call on a value whose type has that overriding method.
 - `DYNAMIC` - only the name matches, and the type of the receiver is not known. In all
   languages, a reference that does not resolve to a declaration has this mark. In JavaScript and
   TypeScript, a usage that WebStorm counts as a dynamic usage also has it. An example is a call
   `x.send()` on a value with no known type. A symbol name in a code span of a Markdown file also
   has it: only the name matches there.
 
-**Notes:** `notes` is on the first page of a fresh search when the symbol overrides or implements
-base declarations. The entry names the base declarations and gives the count of the collected
-usages that have `match: BASE`. An example for the JavaScript method `area` that overrides
-`Shape.area`:
+**Notes:** `notes` is on the first page of a fresh search. It has these entries, in this order:
+
+1. When the symbol overrides or implements base declarations: the entry names the base
+   declarations and gives the count of the collected usages that have `match: BASE`.
+2. When the search also covers the declarations that override or implement the symbol (a PHP
+   method): the entry names them and gives the count of the collected usages that have
+   `match: OVERRIDE`.
+3. When the search does not search a base method on purpose (a method of the Python class
+   `object`): `The base method <qualified name> is not searched: each class is a subclass of
+   object.`, one sentence for each base method.
+4. One entry for each kind of usage that the result leaves out, with the count. When the search
+   stopped at its limit, the count is `<n> or more`.
+   - Go, for a type: `<n> composite literal keys that name a struct field with the same name as
+     this type are not in the list.` Such a key refers to the field, not to the type. A key of an
+     embedded field stays in the list.
+   - PHP, for a class: `<n> references to this class through $this, self or static inside the
+     class are not in the list.` The Find Usages window of PhpStorm also hides these references
+     by default.
+
+An example for the JavaScript method `area` that overrides `Shape.area`:
 
 ```json
 "notes": [
@@ -237,7 +266,7 @@ usages that have `match: BASE`. An example for the JavaScript method `area` that
 ]
 ```
 
-The key is absent when the symbol has no base declaration.
+The key is absent when it has no entry.
 
 **Degraded searches:** if the language's find-usages handler throws mid-expansion (e.g.
 broken library roots), the search continues on the remaining targets and `warnings` lists
@@ -246,9 +275,8 @@ each failed stage (`primaryElements` / `secondaryElements` / `findReferencesToHi
 result. If the handler factory of the language throws while it creates the handler, the tool
 searches only the references to the anchor element, and `warnings` has the entry `Find-usages
 handler factory <Name> threw while creating the handler; searched the references to the anchor
-element only — usages may be incomplete.` An example is a PHP method with a base method in
-PhpStorm. `warnings` is `null` when the search ran complete; it is reported on the first page of
-a fresh search.
+element only — usages may be incomplete.` `warnings` is `null` when the search ran complete; it
+is reported on the first page of a fresh search.
 
 ---
 
@@ -640,7 +668,8 @@ ambiguous name returns a `candidates` list instead of guessing.
 - Facets are capped summaries: `implementations` up to 10 (`implementationsTruncated`), `usageCount` counted up to 200 (`usagesTruncated`), `topUsages` up to 5, `documentation` up to 4000 characters (`documentationTruncated`). Page through the dedicated tools for full sets.
 - A `null` facet means not applicable, not requested, or degraded (degradations are named in `warnings`); an empty list means searched-and-empty — the same convention as `ide_diagnostics`.
 - Usage counting and implementation search run over project files; library usages are not counted.
-- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, Java, JavaScript, Kotlin, Python, Rust or TypeScript member with base declarations, `usageCount` counts the same union as `ide_find_usages`. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`), as in `ide_find_usages`.
+- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member with base declarations, `usageCount` counts the same union as `ide_find_usages`. For a PHP method, `usageCount` also counts the usages of the methods that override or implement it. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `OVERRIDE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE`, `OVERRIDE` or `DYNAMIC`), as in `ide_find_usages`.
+- `usageCount` and `topUsages` do not hold a usage that `ide_find_usages` leaves out. `notes` (absent when it has no entry) has the same entries as the notes of `ide_find_usages` for the base methods that the search does not search and for each kind of usage that it leaves out.
 - On an ambiguous `symbol`, only `candidates` and `message` are populated — re-call with a qualified name or position from the list.
 - `problems` is only populated with `includeDiagnostics: true` and covers problems overlapping the declaration's line range.
 

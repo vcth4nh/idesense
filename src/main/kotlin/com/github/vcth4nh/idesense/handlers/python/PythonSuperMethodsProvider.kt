@@ -128,6 +128,16 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
         return walkSuperMethods(element.project, element).filterNot(::isInObject)
     }
 
+    /**
+     * The methods of the class `object` that [findBaseDeclarations] leaves out ([isInObject]), each
+     * one time by qualified name ([walkSuperMethods]). The tools name them in a note, so the agent
+     * knows that the search does not cover the calls through `object` (#208).
+     */
+    override fun skippedBaseDeclarations(element: PsiElement): List<PsiElement> {
+        if (pyFunctionClass?.isInstance(element) != true) return emptyList()
+        return walkSuperMethods(element.project, element).filter(::isInObject)
+    }
+
     private fun buildHierarchy(project: Project, pyFunction: PsiElement): List<SuperMethodData> =
         walkSuperMethods(project, pyFunction).map { superMethod ->
             val file = superMethod.containingFile?.virtualFile

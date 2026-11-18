@@ -19,12 +19,65 @@ import com.intellij.psi.search.SearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.usageView.UsageInfo
 import com.intellij.util.Processor
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * One usage: the PSI element that holds it, the file offset where the usage text starts, and its
- * mark ([UsageMatch.BASE] or [UsageMatch.DYNAMIC]). A sure usage has no mark (null).
+ * mark ([UsageMatch.BASE], [UsageMatch.OVERRIDE] or [UsageMatch.DYNAMIC]). A sure usage has no mark (null).
  */
 internal class UsageHit(val element: PsiElement, val offset: Int, val match: String? = null)
+
+/**
+ * The rules of [provider], the provider of the language of [anchor], for each usage: the drop
+ * ([SuperMethodsProvider.droppedUsageKind]) and the mark ([SuperMethodsProvider.usageMark]).
+ * Each dropped position (file and offset) adds 1 to [dropped] one time. The search can call the
+ * processor from more than one thread, thus the set of positions is concurrent and each change
+ * of [dropped] holds its lock.
+ */
+internal class UsageRules(
+    private val provider: SuperMethodsProvider?,
+    private val anchor: PsiElement,
+    private val dropped: MutableMap<String, Int>?,
+) {
+    private val droppedPositions = ConcurrentHashMap.newKeySet<Pair<Any, Int>>()
+
+    private companion object {
+        val LOG = logger<UsageRules>()
+    }
+
+    /** True when the search leaves out the usage at [usageElement] and [offset]. A provider that throws gives false. */
+    fun drops(usageElement: PsiElement, offset: Int): Boolean {
+        val provider = provider ?: return false
+        val kind = try {
+            provider.droppedUsageKind(usageElement, anchor)
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: LinkageError) {
+            throw e
+        } catch (e: Throwable) {
+            LOG.debug("SuperMethodsProvider ${provider.javaClass.name} threw on droppedUsageKind", e)
+            null
+        } ?: return false
+        val file: Any = usageElement.containingFile?.virtualFile ?: usageElement.containingFile ?: usageElement
+        if (dropped != null && droppedPositions.add(file to offset)) synchronized(dropped) { dropped.merge(kind, 1, Int::plus) }
+        return true
+    }
+
+    /** The mark of [reference], a usage that is no dynamic usage, in a pass with [passMark]. A provider that throws gives [passMark]. */
+    fun mark(reference: PsiReference, passMark: String?): String? {
+        val provider = provider ?: return passMark
+        return try {
+            provider.usageMark(reference, anchor, passMark)
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: LinkageError) {
+            throw e
+        } catch (e: Throwable) {
+            LOG.debug("SuperMethodsProvider ${provider.javaClass.name} threw on usageMark", e)
+            passMark
+        }
+    }
+}
 
 /**
  * Routes find-usages through IntelliJ's [FindUsagesHandlerFactory] extension, which gives
@@ -35,18 +88,29 @@ internal class UsageHit(val element: PsiElement, val offset: Int, val match: Str
  * equivalent declarations. The per-language handler's `primaryElements` / `secondaryElements`
  * expands to the full equivalence class before searching.
  *
- * The search has two passes (#171). The direct pass searches the symbol. The base pass searches
- * each base declaration that the symbol overrides or implements
+ * The search has up to three passes (#171). The direct pass searches the symbol. The base pass
+ * searches each base declaration that the symbol overrides or implements
  * ([SuperMethodsProvider.findBaseDeclarations]), because a call through a base declaration can
- * run the symbol. The result is the union of the two passes. A usage of the base pass has the mark
- * [UsageMatch.BASE]. A usage of which the reference does not resolve has the mark
- * [UsageMatch.DYNAMIC] ([isDynamicReference]). A usage with no mark is a sure usage of the symbol.
+ * run the symbol. After each base declaration, the base pass also searches the other declarations
+ * that override or implement that base declaration ([basePassTargets]), as the answer "Yes" of
+ * PhpStorm does. The override pass searches each declaration that overrides or implements the
+ * symbol ([SuperMethodsProvider.findOverridingDeclarations]); the Go path has no override pass.
+ * The result is the union of the passes. A usage of the base pass has the mark [UsageMatch.BASE],
+ * a usage of the override pass the mark [UsageMatch.OVERRIDE]. A usage of which the reference does
+ * not resolve has the mark [UsageMatch.DYNAMIC] ([isDynamicReference]). A usage with no mark is a
+ * sure usage of the symbol.
  *
- * Each target (the symbol and each base declaration) first goes to
+ * The provider of the language of the symbol can change the mark of a usage that is no dynamic
+ * usage ([SuperMethodsProvider.usageMark]) and can leave out a usage
+ * ([SuperMethodsProvider.droppedUsageKind]). A usage that is left out never goes to the caller;
+ * the search counts it one time for each position (file and offset), and the tools give the count
+ * in a note: no silent drop.
+ *
+ * Each target (the symbol and each base and overriding declaration) first goes to
  * [SuperMethodsProvider.findDirectReferences] of the provider of its language. When the provider
  * gives references, the search of that target takes them and uses no handler (#175): the Java and
  * Kotlin handlers send the search of a member to its base declarations, so they cannot search the
- * member itself.
+ * member itself. The PHP factory asks a question for a method with a base method (#182).
  *
  * The search of the handler takes one of two paths:
  * - Go: `processElementUsages`, the search of the IDE's Find Usages action. In GoLand only
@@ -60,12 +124,27 @@ internal object FindUsagesHandlerSearch {
     private val LOG = logger<FindUsagesHandlerSearch>()
 
     /**
-     * Finds the usages of [element] and of its base declarations, and gives each one to
-     * [processor] as a [UsageHit] with its mark. The base declarations go to [baseDeclarations]
-     * before the search starts. When the processor returns false, the whole search stops: no
-     * later target and no later pass runs.
+     * Finds the usages of [element], of its base declarations and of its overriding declarations,
+     * and gives each one to [processor] as a [UsageHit] with its mark. The base pass also searches
+     * the other overriding declarations of each base declaration, with the mark [UsageMatch.BASE]
+     * ([basePassTargets]); they go to neither [baseDeclarations] nor [overridingDeclarations], and
+     * a provider that throws on them gives no extra target. The base declarations go to
+     * [baseDeclarations] and the base declarations that the provider leaves out on purpose
+     * ([SuperMethodsProvider.skippedBaseDeclarations]) go to [skippedBases] before the search
+     * starts. The overriding declarations go to [overridingDeclarations] before the direct pass,
+     * only when the override pass runs (not on the Go path). When the processor returns false, the
+     * whole search stops: no later target and no later pass runs.
      *
-     * For [element] and for each base declaration, the search first asks the provider of the
+     * Before the processor, each usage goes to [SuperMethodsProvider.droppedUsageKind] of the
+     * provider of the language of [element]. When it gives a kind, the processor does not get the
+     * usage, and [dropped] gets 1 more for that kind when the position (file and offset) is new.
+     * [dropped] gets the kinds in the order in which they first occur when it keeps the insertion
+     * order. The drop does not depend on [dropped]: with null, the search also leaves the usage out.
+     * A reference that is no dynamic usage gets the mark of [SuperMethodsProvider.usageMark].
+     * A hook that throws changes nothing: no drop, the mark of the pass, no overriding
+     * declaration, no skipped base. A cancellation leaves the search.
+     *
+     * For [element] and for each base and overriding declaration, the search first asks the provider of the
      * language of that target for [SuperMethodsProvider.findDirectReferences]. When the result is
      * not null, the search gives these references to [processor] and asks no factory for a handler
      * of that target: no `primaryElements`, no `secondaryElements`, no `findReferencesToHighlight`
@@ -78,9 +157,9 @@ internal object FindUsagesHandlerSearch {
      * declaration. For a member with a base declaration, that mode asks the question "find the
      * usages of the base member?" in some languages: a dialog, which asserts EDT (#130, #171).
      * Thus the direct pass then uses [OperationMode.HIGHLIGHT_USAGES], which asks no question, and
-     * the base pass gives the usages of the answer "Yes". The base pass asks for the handler of
-     * each base declaration in [OperationMode.USAGES_WITH_DEFAULT_OPTIONS] first, then in
-     * [OperationMode.HIGHLIGHT_USAGES]. Each handler does per-language expansion via
+     * the base pass gives the usages of the answer "Yes". The base pass and the override pass ask
+     * for the handler of each declaration in [OperationMode.USAGES_WITH_DEFAULT_OPTIONS] first,
+     * then in [OperationMode.HIGHLIGHT_USAGES]. Each handler does per-language expansion via
      * `getPrimaryElements`/`getSecondaryElements` first.
      *
      * - Go handler (`com.goide.usages.GoFindUsagesHandler`, see [GoFindUsages.isGoHandler]):
@@ -123,13 +202,19 @@ internal object FindUsagesHandlerSearch {
         processor: Processor<UsageHit>,
         warnings: MutableCollection<String>? = null,
         baseDeclarations: MutableCollection<PsiElement>? = null,
+        overridingDeclarations: MutableCollection<PsiElement>? = null,
+        skippedBases: MutableCollection<PsiElement>? = null,
+        dropped: MutableMap<String, Int>? = null,
     ) {
-        val bases = baseDeclarationsOf(element)
+        val provider = SuperMethodsProvider.EP.forLanguage(element.language)
+        val bases = declarationsOf(provider, element, "findBaseDeclarations") { it.findBaseDeclarations(element) }
         baseDeclarations?.addAll(bases)
+        skippedBases?.addAll(declarationsOf(provider, element, "skippedBaseDeclarations") { it.skippedBaseDeclarations(element) })
+        val rules = UsageRules(provider, element, dropped)
 
         val directReferences = directReferencesOf(element, scope)
-        if (directReferences != null) {
-            if (!processDirectReferences(element, directReferences, null, processor)) return
+        val directPass: () -> Boolean = if (directReferences != null) {
+            { processDirectReferences(element, directReferences, null, rules, processor) }
         } else {
             val directModes =
                 if (bases.isEmpty()) listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS) else listOf(OperationMode.HIGHLIGHT_USAGES)
@@ -139,26 +224,82 @@ internal object FindUsagesHandlerSearch {
                 val goHandler = if (bases.isEmpty()) directHandler
                 else createHandler(project, element, listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS)).handler
                 if (goHandler != null && GoFindUsages.isGoHandler(goHandler)) {
-                    searchGo(goHandler, element, bases.isNotEmpty(), scope, processor, warnings)
+                    searchGo(goHandler, element, bases.isNotEmpty(), scope, rules, processor, warnings)
                     return
                 }
             }
+            { searchTarget(element, direct, scope, null, rules, processor, warnings) }
+        }
 
-            if (!searchTarget(element, direct, scope, null, processor, warnings)) return
-        }
-        for (base in bases) {
-            ProgressManager.checkCanceled()
-            val baseReferences = directReferencesOf(base, scope)
-            val completed = if (baseReferences != null) {
-                processDirectReferences(base, baseReferences, UsageMatch.BASE, processor)
-            } else {
-                val choice = createHandler(
-                    project, base, listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS, OperationMode.HIGHLIGHT_USAGES)
-                )
-                searchTarget(base, choice, scope, UsageMatch.BASE, processor, warnings)
+        val overrides = declarationsOf(provider, element, "findOverridingDeclarations") { it.findOverridingDeclarations(element) }
+        overridingDeclarations?.addAll(overrides)
+
+        if (!directPass()) return
+        val baseTargets = basePassTargets(element, bases, overrides) { base ->
+            declarationsOf(SuperMethodsProvider.EP.forLanguage(base.language), base, "findOverridingDeclarations") {
+                it.findOverridingDeclarations(base)
             }
-            if (!completed) return
         }
+        for (target in baseTargets) {
+            if (!searchDeclaration(project, target, scope, UsageMatch.BASE, rules, processor, warnings)) return
+        }
+        for (override in overrides) {
+            if (!searchDeclaration(project, override, scope, UsageMatch.OVERRIDE, rules, processor, warnings)) return
+        }
+    }
+
+    /**
+     * The targets of the base pass of the search of [element], in the order of the search: each
+     * base declaration of [bases], then each declaration of [overridesOf] for that base declaration
+     * (its overriding declarations, from the provider of its language). A declaration that is
+     * [element], a base declaration, a declaration of [overrides] (the override pass searches it) or
+     * a target of an earlier step is no new target. The sequence asks [overridesOf] for a base
+     * declaration only after the search of that base declaration.
+     *
+     * This is the search of the answer "Yes" for PHP: `PhpFindUsagesHandler.processElementUsages`
+     * searches each base method and each method of `checkImplementedMethods`, the methods that
+     * override it (`plugins/php-impl/lib/php.jar`, build 262.8665). A provider with no overriding
+     * declarations gives the base declarations only.
+     */
+    internal fun basePassTargets(
+        element: PsiElement,
+        bases: List<PsiElement>,
+        overrides: List<PsiElement>,
+        overridesOf: (PsiElement) -> List<PsiElement>,
+    ): Sequence<PsiElement> = sequence {
+        val searched = HashSet<PsiElement>()
+        searched.add(element)
+        searched.addAll(bases)
+        searched.addAll(overrides)
+        for (base in bases) {
+            yield(base)
+            for (other in overridesOf(base)) {
+                if (searched.add(other)) yield(other)
+            }
+        }
+    }
+
+    /**
+     * Searches [target], a base declaration or an overriding declaration of the symbol, with the
+     * mark [passMark]: the direct references of the provider of its language first, else its
+     * handler. False when the processor stopped the search.
+     */
+    private fun searchDeclaration(
+        project: Project,
+        target: PsiElement,
+        scope: SearchScope,
+        passMark: String,
+        rules: UsageRules,
+        processor: Processor<UsageHit>,
+        warnings: MutableCollection<String>?,
+    ): Boolean {
+        ProgressManager.checkCanceled()
+        val references = directReferencesOf(target, scope)
+        if (references != null) return processDirectReferences(target, references, passMark, rules, processor)
+        val choice = createHandler(
+            project, target, listOf(OperationMode.USAGES_WITH_DEFAULT_OPTIONS, OperationMode.HIGHLIGHT_USAGES)
+        )
+        return searchTarget(target, choice, scope, passMark, rules, processor, warnings)
     }
 
     /**
@@ -193,20 +334,26 @@ internal object FindUsagesHandlerSearch {
         }
 
     /**
-     * The base declarations of [element] from the provider of its language: not [element] itself,
-     * only valid elements, each one time, in the order of the provider. Empty when the provider
-     * throws.
+     * The declarations that [find] gives for [element] from [provider], the provider of its
+     * language (the base, skipped base or overriding declarations, named by [hook]): not [element]
+     * itself, only valid elements, each one time, in the order of the provider. Empty when no
+     * provider is registered or when the provider throws.
      */
-    private fun baseDeclarationsOf(element: PsiElement): List<PsiElement> {
-        val provider = SuperMethodsProvider.EP.forLanguage(element.language) ?: return emptyList()
+    private fun declarationsOf(
+        provider: SuperMethodsProvider?,
+        element: PsiElement,
+        hook: String,
+        find: (SuperMethodsProvider) -> List<PsiElement>,
+    ): List<PsiElement> {
+        if (provider == null) return emptyList()
         val found = try {
-            provider.findBaseDeclarations(element)
+            find(provider)
         } catch (e: ProcessCanceledException) {
             throw e
         } catch (e: LinkageError) {
             throw e
         } catch (e: Throwable) {
-            LOG.debug("SuperMethodsProvider ${provider.javaClass.name} threw on findBaseDeclarations", e)
+            LOG.debug("SuperMethodsProvider ${provider.javaClass.name} threw on $hook", e)
             return emptyList()
         }
         return found.filter { it != element && it.isValid }.distinct()
@@ -233,17 +380,19 @@ internal object FindUsagesHandlerSearch {
 
     /**
      * Gives each reference of [references], the direct references of [target], to [processor] with
-     * the mark [UsageMatch.DYNAMIC] or [passMark]. False when the processor stopped the search.
+     * the mark [UsageMatch.DYNAMIC] or the mark of [rules] for [passMark]. False when the processor
+     * stopped the search.
      */
     private fun processDirectReferences(
         target: PsiElement,
         references: Collection<PsiReference>,
         passMark: String?,
+        rules: UsageRules,
         processor: Processor<UsageHit>,
     ): Boolean {
         val targets = listOf(target)
         for (ref in references) {
-            if (!processReference(ref, targets, passMark, processor)) return false
+            if (!processReference(ref, targets, passMark, rules, processor)) return false
         }
         return true
     }
@@ -286,14 +435,15 @@ internal object FindUsagesHandlerSearch {
 
     /**
      * Searches [target] with the handler of [choice] (the path of the languages other than Go)
-     * and gives each hit the mark [UsageMatch.DYNAMIC] or [passMark]. False when the processor
-     * stopped the search.
+     * and gives each hit the mark [UsageMatch.DYNAMIC] or the mark of [rules] for [passMark].
+     * False when the processor stopped the search.
      */
     private fun searchTarget(
         target: PsiElement,
         choice: HandlerChoice,
         scope: SearchScope,
         passMark: String?,
+        rules: UsageRules,
         processor: Processor<UsageHit>,
         warnings: MutableCollection<String>?,
     ): Boolean {
@@ -310,7 +460,7 @@ internal object FindUsagesHandlerSearch {
             }
             val targets = listOf(target)
             return ReferencesSearch.search(target, scope).forEach(Processor { ref ->
-                processReference(ref, targets, passMark, processor)
+                processReference(ref, targets, passMark, rules, processor)
             })
         }
 
@@ -330,7 +480,7 @@ internal object FindUsagesHandlerSearch {
                 continue
             }
             for (ref in refs) {
-                if (!processReference(ref, targets, passMark, processor)) return false
+                if (!processReference(ref, targets, passMark, rules, processor)) return false
             }
         }
         return true
@@ -340,23 +490,27 @@ internal object FindUsagesHandlerSearch {
         ref: PsiReference,
         targets: Collection<PsiElement>,
         passMark: String?,
+        rules: UsageRules,
         processor: Processor<UsageHit>,
     ): Boolean {
         val refElement = ref.element
         if (!refElement.isValid) return true
-        val match = if (isDynamicReference(ref, targets)) UsageMatch.DYNAMIC else passMark
-        return processor.process(UsageHit(refElement, refElement.textOffset, match))
+        val offset = refElement.textOffset
+        if (rules.drops(refElement, offset)) return true
+        val match = if (isDynamicReference(ref, targets)) UsageMatch.DYNAMIC else rules.mark(ref, passMark)
+        return processor.process(UsageHit(refElement, offset, match))
     }
 
     /**
      * The Go path: `processElementUsages` of [handler] on each expanded target, in one pass or in
-     * two passes (see [processReferences]).
+     * two passes (see [processReferences]). The drop of [rules] applies to `UsageInfo.element`.
      */
     private fun searchGo(
         handler: FindUsagesHandler,
         element: PsiElement,
         hasBases: Boolean,
         scope: SearchScope,
+        rules: UsageRules,
         processor: Processor<UsageHit>,
         warnings: MutableCollection<String>?,
     ) {
@@ -387,9 +541,12 @@ internal object FindUsagesHandlerSearch {
                         val offset = info.navigationOffset
                         if (usageElement == null || !usageElement.isValid || offset < 0) true
                         else try {
-                            val dynamic = info.isDynamicUsage || MarkdownFindUsages.isDynamicUsage(usageElement)
-                            val match = if (dynamic) UsageMatch.DYNAMIC else passMark
-                            processor.process(UsageHit(usageElement, offset, match))
+                            if (rules.drops(usageElement, offset)) true
+                            else {
+                                val dynamic = info.isDynamicUsage || MarkdownFindUsages.isDynamicUsage(usageElement)
+                                val match = if (dynamic) UsageMatch.DYNAMIC else passMark
+                                processor.process(UsageHit(usageElement, offset, match))
+                            }
                         } catch (e: Throwable) {
                             callerFailure = e
                             throw e

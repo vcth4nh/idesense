@@ -469,6 +469,20 @@ will just snapshot a different empty/odd result.
   them (11 usages), 2026.2 does. The other 3 are the word `baseShape` in the
   fixture comments at normal.go:25, 28 and 29 (`usageType` `COMMENT`, see the next
   entry). Not a tool artifact.
+- **Go `find_usages` on a type leaves out the literal keys of a same-named field (#213).**
+  When a struct has a named field with the name of a type (`CA *CA`), Find Usages of
+  GoLand on the type also lists each composite literal key that names that field
+  (`Issuer{CA: ca}`). The reference of a key is a `PsiMultiReference` with a field
+  part and an identifier part, and `isReferenceTo` is true when one part matches
+  (bytecode of `intellij.go.impl.jar`, build 262.8665; the facts are in the KDoc of
+  `GoFindUsages.isFieldKeyOfType`). Such a key names the field, not the type. The
+  tool leaves the key out when it resolves to a named field declaration
+  (`GoFieldDefinition`), and the first page gets a `notes` entry with the count of the
+  left-out rows. This is a deviation from the list of GoLand, a decision of the owner
+  (2026-11-17). A key of an embedded field stays (it names the type: the 6 keys of
+  `usage-baseShape-embed`), and a key that does not resolve stays. The fixture has no
+  key of a named field with the name of a type, so no fixture row has the note. The
+  caddy row `usage-caddytls.CA-field-keys` pins the rule.
 - **Go `find_usages` gives what the Find Usages action of GoLand lists (#130, #132).**
   For a method that implements an interface method, the result also has the
   usages of the interface method, and each of these usages has `match` `BASE`:
@@ -539,9 +553,12 @@ will just snapshot a different empty/odd result.
     `Rectangle.__init__`, and `object.__init__` two times (the builtins stub and
     builtins). Yes shows 2 result rows: line 60 `super().__init__(side, side)` and line
     85 (`Rectangle(` and `Square(` on one row). Row `usage-Square.__init__-override`:
-    85:47 with no `match`, 85:26 `BASE`, 60:9 `BASE`. The `notes` entry names
-    `Rectangle.__init__`. The tool does not search a method of the class `object`. The
-    fixture has no usage of `object.__init__`, so the result equals the Yes list.
+    85:47 with no `match`, 85:26 `BASE`, 60:9 `BASE`. The first `notes` entry names
+    `Rectangle.__init__`. The tool does not search a method of the class `object`: each
+    class is a subclass of `object`, so that search gives the calls of each class of the
+    project (decision of the owner, 2026-11-17). A second `notes` entry says so: "The base
+    method builtins.object.__init__ is not searched: each class is a subclass of object."
+    The fixture has no usage of `object.__init__`, so the result equals the Yes list.
 - **Java and Kotlin `find_usages` search the method itself and its super declarations (#175).**
   The window observations of IntelliJ IDEA 2026.2.0.1 on 2026-11-17. The IDE asks no
   question in the two languages.
@@ -564,6 +581,35 @@ will just snapshot a different empty/odd result.
     `usage-Probe.target-files-scope`, the two `usage-Quirks.parse-*` rows,
     `usage-area-from-totalArea`, `usage-area-libraries-scope`) lost their `warnings` entry.
     Their usages did not change.
+- **PHP `find_usages` takes the search of Find Usages of PhpStorm (#179, #182, #183).** The
+  search facts come from the bytecode of `php.jar` (build 262.8665). The window observations
+  are the one of #182 below and the phpunit entries.
+  - A method. The tool asks the handler factory for no PHP method, so the question "Do you
+    want to find usages of base method?" (a dialog that throws off the EDT) cannot occur, and
+    no row has a `warnings` entry. The tool searches the method, each base method, the other
+    methods that override a base method, and the methods that override the method
+    (`PhpFindUsagesHandler.processElementUsages` with `checkImplementedMethods`). The
+    declaration of an overriding method is no usage.
+  - `Circle::area` (`src/Normal.php:22:21`), row `usage-Circle.area-override`: 4 usages
+    (15:51, 63:21, 71:35, 71:48), each with `BASE`. Each call is on a value of the type
+    `Shape`. The `notes` entry names `\Demo\Shape::area` (`src/Normal.php:12:30`). PhpStorm
+    2026.2.0.1 (2026-11-17) lists the same 4 usages for the answer Base Method and for the
+    answer Current Method. The reference of a call on a value of an abstract type resolves to
+    the base method and to each implementation (`resolveInSubclasses`), so the mark rule looks
+    for a base method among the targets first.
+  - `Shape::area` (`src/Normal.php:12:30`), rows `usage-area-from-totalArea` and
+    `usage-area-libraries-scope`: the same 4 usages with no `match`. The `notes` entry names
+    the 2 overriding declarations and ends with "0 of the 4 usages have match OVERRIDE": the
+    fixture has no call on a value of the type `Circle` or `Rectangle`. The phpunit row
+    `usage-Dispatcher.dispatch` has `OVERRIDE` usages.
+  - A class, interface, trait or enum. The `$this` references and the `self` / `static` class
+    references inside the class are not in the list. This is the default of the Usage View of
+    PhpStorm (`PhpThisOrSelfFilteringRule`, toggle "Show $this/self references"). The first
+    page has a `notes` entry with their count. `usage-Rectangle-class`: 3 usages, 4 left out.
+    `usage-Shape-class` and `usage-Shape-bysymbol`: 5 and 2. `usage-Quirks-class`: 0 and 2.
+    `usage-Status-enum`: 4 and 1. `ide_explain_symbol` has the same count and the same entry
+    (`explain-Circle-pos`: `usageCount` 2, 3 left out; `explain-Shape-name`: 5 and 2). A usage
+    of a method or of a field keeps its `$this` rows (15:51 above is `$this->area()`).
 - **A reference inside a doc comment is a `COMMENT` usage in every language.**
   PHP `usage-Shape-class` lists `Shape` in `/** @var Shape[] */`
   (src/Normal.php:53) with `usageType` `COMMENT`. The platform rule of the
@@ -751,6 +797,15 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   usage is a call of `Error()` on a value of the type `error`. The 3 text matches that are no
   usage: `admin.go:1396` (a comment), `caddyconfig/configadapters.go:74` and
   `modules/caddyhttp/vars_test.go:170` (calls on a type with its own `Error` method).
+- **caddy: 3 literal keys are no usages of the interface `CA` (#213).**
+  `usage-caddytls.CA-field-keys` (`modules/caddytls/capools.go:37:6`) gives 36 usages: 18
+  code usages and 18 `COMMENT` usages. The search of GoLand also returns 3 composite literal
+  keys `CA:`, at `modules/caddytls/acmeissuer.go:256:3`, `acmeissuer_test.go:19:3` and
+  `automation.go:484:4`. Each key names a struct field `CA`: `ide_find_definition` at the
+  first position gives the field `CA` of `certmagic.ACMEIssuer`, not the interface. The tool
+  leaves the 3 keys out, and the `notes` entry gives the count 3 (see the Go fixture note).
+  The interface `caddyhttp.Handler` (`modules/caddyhttp/caddyhttp.go:65:6`, no row) has 2
+  such keys: `Handler:` in an `http.Server` literal and in an `http3.Server` literal.
 - **openrefine: no link from JavaScript to Java through Rhino.** The `controller.js` files
   call Java through `Packages.com.google.refine...` of Rhino. IntelliJ does not resolve
   these names: `def-RefineServlet.registerCommand-from-js` gives the error "Could not resolve
@@ -820,17 +875,27 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 - **phpunit: the callees of a method include the method.**
   `hier-callee-DeferringDispatcher.dispatch-d1` lists `DeferringDispatcher.dispatch` itself.
   The Hierarchy window of PhpStorm shows the same.
-- **phpunit: a usage row with a `warnings` entry.** `explain-DeferringDispatcher.dispatch-pos`
-  has the entry "Find-usages handler factory PhpFindUsagesHandlerFactory threw". The method
-  implements `Dispatcher::dispatch`, and the factory asks "find usages of base method?" off
-  the EDT. The `usageCount` 103 equals the answer Current Method of PhpStorm. So the row is
-  blessed with the entry. #182 tracks the warning.
-- **phpunit: parked rows.** `usage-DeferringDispatcher` is parked with #179 (`$this`, `self`
-  and `static` in the class), `find-symbol-SHORT_OPTIONS` and `def-SHORT_OPTIONS-const` with
-  #180 (a class constant gets the kind `CLASS`), `search-text-unordered-code` with #181
-  (comment and string lines in `context: "code"`), `usage-Dispatcher.dispatch` with #183 (the
-  usages of the overriding methods are absent), `search-text-wget` with #184 (a match in an
-  injected fragment comes two times) and `search-text-updateTimestamps-build` with #146.
+- **phpunit: the usages of `Dispatcher::dispatch` and of its implementations (#182, #183).**
+  `Dispatcher::dispatch` (`src/Event/Dispatcher/Dispatcher.php:22:21`) is an interface method
+  with 3 implementations. Find Usages of PhpStorm with this target shows 115 results.
+  `usage-Dispatcher.dispatch` gives 115 usages: 104 with no `match`, and 11 with `OVERRIDE`
+  (calls on a value whose type is an implementing class). The `notes` entry names the 3
+  overriding declarations. `usage-DeferringDispatcher.dispatch-override`
+  (`DeferringDispatcher.php:40:21`) gives the same 115 usages from the side of one
+  implementation: 6 with no `match` (calls on a `DeferringDispatcher` value) and 109 with
+  `BASE`. Its `notes` entry names `Dispatcher::dispatch`. No row has a `warnings` entry:
+  `explain-DeferringDispatcher.dispatch-pos` has `usageCount` 115 (before the change: 103 and
+  the entry "Find-usages handler factory PhpFindUsagesHandlerFactory threw").
+- **phpunit: a class row has no `$this`, `self` or `static` reference (#179).**
+  `usage-DeferringDispatcher` (`DeferringDispatcher.php:17:13`) gives 13 usages, and the
+  `notes` entry says that 18 references through `$this`, `self` or `static` inside the class
+  are not in the list. Find Usages of PhpStorm shows "Usages in Project Files 13 results".
+  The class `ShellExitCodeCalculator` (no row) gives 4 usages and the count 16; PhpStorm shows
+  4 results.
+- **phpunit: parked rows.** `find-symbol-SHORT_OPTIONS` and `def-SHORT_OPTIONS-const` are
+  parked with #180 (a class constant gets the kind `CLASS`), `search-text-unordered-code` with
+  #181 (comment and string lines in `context: "code"`), `search-text-wget` with #184 (a match
+  in an injected fragment comes two times) and `search-text-updateTimestamps-build` with #146.
 - **ripgrep: the module file.** The bootstrap writes `.idea/ripgrep.iml` with the 16 source and
   test folders that RustRover itself writes at a first open, and `target` excluded. At a later
   open RustRover loads the project model from its cache, the Cargo sync sets the roots, and then

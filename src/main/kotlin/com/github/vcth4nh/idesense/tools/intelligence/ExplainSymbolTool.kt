@@ -22,9 +22,11 @@ import com.github.vcth4nh.idesense.tools.models.ImplementationLocation
 import com.github.vcth4nh.idesense.tools.models.ProblemInfo
 import com.github.vcth4nh.idesense.tools.models.SuperMethodInfo
 import com.github.vcth4nh.idesense.tools.models.UsageLocation
+import com.github.vcth4nh.idesense.tools.navigation.DroppedUsagesNote
 import com.github.vcth4nh.idesense.tools.navigation.FindDefinitionTool
 import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.ImplementationLocations
+import com.github.vcth4nh.idesense.tools.navigation.SkippedBasesNote
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
 import com.github.vcth4nh.idesense.util.HtmlToText
 import com.github.vcth4nh.idesense.util.LinePreview
@@ -65,27 +67,30 @@ class ExplainSymbolTool : AbstractMcpTool() {
 
         private const val SURE_CODE_USAGE = 0
         private const val BASE_CODE_USAGE = 1
-        private const val OTHER_MARKED_CODE_USAGE = 2
-        private const val COMMENT_USAGE = 3
+        private const val OVERRIDE_CODE_USAGE = 2
+        private const val OTHER_MARKED_CODE_USAGE = 3
+        private const val COMMENT_USAGE = 4
 
         /**
          * The class of a usage for [preferSureUsages]: a sure code usage, a code usage with the match
-         * [UsageMatch.BASE], a code usage with another match (today only [UsageMatch.DYNAMIC]), or a
-         * COMMENT usage.
+         * [UsageMatch.BASE], a code usage with the match [UsageMatch.OVERRIDE], a code usage with
+         * another match (today only [UsageMatch.DYNAMIC]), or a COMMENT usage.
          */
         private fun usageClass(usageType: String, match: String?): Int = when {
             usageType == UsageTypes.COMMENT -> COMMENT_USAGE
             match == null -> SURE_CODE_USAGE
             match == UsageMatch.BASE -> BASE_CODE_USAGE
+            match == UsageMatch.OVERRIDE -> OVERRIDE_CODE_USAGE
             else -> OTHER_MARKED_CODE_USAGE
         }
 
         /**
          * The first [limit] of [usages], the less uncertain usages first: the code usages with no
          * match, then the code usages with the match [UsageMatch.BASE], then the code usages with
-         * another match (#171, #196), then the COMMENT usages (#132). A BASE usage is a resolved
-         * usage of a base declaration. A DYNAMIC usage is a name match only. Arrival order inside
-         * each class.
+         * the match [UsageMatch.OVERRIDE], then the code usages with another match (#171, #196),
+         * then the COMMENT usages (#132). A BASE usage is a resolved usage of a base declaration.
+         * An OVERRIDE usage is a resolved usage of an overriding declaration. A DYNAMIC usage is a
+         * name match only. Arrival order inside each class.
          */
         internal fun preferSureUsages(usages: List<UsageLocation>, limit: Int): List<UsageLocation> =
             usages.sortedBy { usageClass(it.usageType, it.match) }.take(limit)
@@ -108,7 +113,8 @@ class ExplainSymbolTool : AbstractMcpTool() {
         Returns: symbol (declaration location, kind, preview), signature, documentation (plain
         text), supers, implementations (capped at $MAX_IMPLEMENTATIONS), usageCount (project files,
         counted up to $MAX_USAGE_COUNT) with topUsages ($MAX_TOP_USAGES), problems (only with
-        includeDiagnostics), and warnings naming any degraded facet.
+        includeDiagnostics), warnings naming any degraded facet, and notes naming the usages that
+        usageCount leaves out and the base methods that the usage search does not search.
 
         Gotchas: requires smart mode. Facets are capped summaries — page through the dedicated
         tools for full result sets.
@@ -313,6 +319,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
         var usageCount: Int? = null
         var usagesTruncated: Boolean? = null
         var topUsages: List<UsageLocation>? = null
+        var notes: List<String>? = null
         try {
             val seen = HashSet<String>()
             // In arrival order until it has MAX_TOP_USAGES sure code usages, at most MAX_TOP_USAGES
@@ -351,16 +358,23 @@ class ExplainSymbolTool : AbstractMcpTool() {
                 }
                 seen.size < MAX_USAGE_COUNT
             }
+            val skippedBases = mutableListOf<PsiElement>()
+            val dropped = LinkedHashMap<String, Int>()
             FindUsagesHandlerSearch.processReferences(
                 project = project,
                 element = target,
                 scope = searchScope,
                 processor = Processor { hit -> collectRef(hit) },
-                warnings = warnings
+                warnings = warnings,
+                skippedBases = skippedBases,
+                dropped = dropped
             )
             usageCount = seen.size
             usagesTruncated = seen.size >= MAX_USAGE_COUNT
             topUsages = preferSureUsages(top, MAX_TOP_USAGES)
+            // The same entries as the notes of ide_find_usages; the search stops at MAX_USAGE_COUNT usages.
+            notes = (listOfNotNull(SkippedBasesNote.build(skippedBases.map(FindUsagesTool::declarationName))) +
+                DroppedUsagesNote.build(dropped, cut = usagesTruncated)).ifEmpty { null }
         } catch (e: ProcessCanceledException) {
             throw e
         } catch (e: LinkageError) {
@@ -384,6 +398,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
                 usageCount = usageCount,
                 usagesTruncated = usagesTruncated,
                 topUsages = topUsages,
+                notes = notes,
             ),
             warnings = warnings,
             declarationFile = targetFile,

@@ -132,7 +132,13 @@ class ConstantsUnitTest : TestCase() {
 
     fun testUsageMatchValues() {
         assertEquals("BASE", UsageMatch.BASE)
+        assertEquals("OVERRIDE", UsageMatch.OVERRIDE)
         assertEquals("DYNAMIC", UsageMatch.DYNAMIC)
+    }
+
+    fun testUsageDropValues() {
+        assertEquals("GO_FIELD_KEY", UsageDrop.GO_FIELD_KEY)
+        assertEquals("PHP_SELF_REFERENCE", UsageDrop.PHP_SELF_REFERENCE)
     }
 
     // ErrorMessages tests

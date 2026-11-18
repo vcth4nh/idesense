@@ -65,9 +65,35 @@ choosing unilaterally:
 the IDE asks its user a question before a search ("search the base method too?") or hides
 a class of results by default (dynamic usages), a tool has no user to ask. The owner's
 rule (2026-11-17): the tool takes the wider result and marks each row that is not a sure
-match (`match: BASE`, `match: DYNAMIC`), and the response names what was added, in terms
-of the code. A tool never drops such rows silently and never returns them without a mark.
-`ide_find_usages` is the first tool that applies this rule (#171, #196).
+match (`match: BASE`, `match: OVERRIDE`, `match: DYNAMIC`), and the response names what was
+added, in terms of the code. A tool never drops such rows silently and never returns them
+without a mark. `ide_find_usages` is the first tool that applies this rule (#171, #196). For a
+PHP method, PhpStorm asks "find usages of base method?" and then searches the selected methods
+and the methods that override them, with no mark. The tool asks no question
+(`PhpSuperMethodsProvider.findDirectReferences`, #182): it searches the method, its base methods
+with the other methods that override them (`FindUsagesHandlerSearch.basePassTargets`), and its
+overriding methods (#183). So the result holds each usage of both answers. The tool decides the
+mark of each usage from the declarations that its reference resolves to
+(`PhpSuperMethodsProvider.usageMark`).
+
+**No silent drop.** The owner's rule (2026-11-17): when a tool leaves out rows that the IDE's
+search returned, the first page has a `notes` entry with the kind of the rows, their count and
+the reason, in terms of the code. `ide_explain_symbol` counts in the same way and has the same
+entry. The language provider gives the kind of a row to leave out
+(`SuperMethodsProvider.droppedUsageKind`, a `UsageDrop` value); `FindUsagesHandlerSearch` keeps
+the row from the caller and counts each position one time. Two kinds exist:
+
+- `GO_FIELD_KEY`: a key of a Go composite literal that names a struct field with the same name
+  as the type of the query (`certmagic.ACMEIssuer{CA: iss.CA}` for the type `CA`). Find Usages
+  of GoLand lists the key as a usage of the type, but the key refers to the field. This is an
+  approved deviation from GoLand. A key of an embedded field names the type and stays.
+- `PHP_SELF_REFERENCE`: a reference to a PHP class through `$this`, `self` or `static` inside
+  that class (#179). Find Usages of PhpStorm hides these rows by default
+  (`PhpThisOrSelfFilteringRule`, `plugins/php-impl/lib/php.jar`), so the drop mirrors the IDE.
+
+A base declaration that the search does not search on purpose
+(`SuperMethodsProvider.skippedBaseDeclarations`, today a method of the Python class `object`)
+also has a `notes` entry.
 
 ## Key Documentation
 
