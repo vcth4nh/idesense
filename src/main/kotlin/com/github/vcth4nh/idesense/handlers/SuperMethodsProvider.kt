@@ -25,6 +25,33 @@ interface SuperMethodsProvider {
      */
     fun findDirectReferences(element: PsiElement, scope: SearchScope): Collection<PsiReference>? = null
 
+    /**
+     * The declarations that override or implement [element]: all levels. The find usages search
+     * also searches each one, with the mark [com.github.vcth4nh.idesense.constants.UsageMatch.OVERRIDE].
+     * Empty (the default): the search has no override pass.
+     */
+    fun findOverridingDeclarations(element: PsiElement): List<PsiElement> = emptyList()
+
+    /**
+     * The base declarations of [element] that [findBaseDeclarations] leaves out on purpose. The
+     * find usages search does not search them, and the tools name them in a note. Empty (the default).
+     */
+    fun skippedBaseDeclarations(element: PsiElement): List<PsiElement> = emptyList()
+
+    /**
+     * The mark of the usage of [reference], a usage that is no dynamic usage. [anchor] is the symbol
+     * of the query, not the target of the pass. [passMark] is the mark of the pass (null for the
+     * direct pass). The default gives [passMark].
+     */
+    fun usageMark(reference: PsiReference, anchor: PsiElement, passMark: String?): String? = passMark
+
+    /**
+     * A [com.github.vcth4nh.idesense.constants.UsageDrop] value when the find usages search leaves
+     * out the usage at [usageElement] for the query [anchor], else null (the default). The tools
+     * give the count of each kind in a note.
+     */
+    fun droppedUsageKind(usageElement: PsiElement, anchor: PsiElement): String? = null
+
     companion object {
         const val EP_NAME_STRING = "com.github.vcth4nh.idesense.superMethodsProvider"
         val EP_NAME = ExtensionPointName.create<KeyedLazyInstance<SuperMethodsProvider>>(EP_NAME_STRING)

@@ -1,5 +1,6 @@
 package com.github.vcth4nh.idesense.handlers.go
 
+import com.github.vcth4nh.idesense.constants.UsageDrop
 import com.github.vcth4nh.idesense.handlers.LanguageServices
 import com.github.vcth4nh.idesense.handlers.MethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodData
@@ -92,6 +93,13 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
         if (!goMethodClass.isInstance(element)) return emptyList()
         return runSuperSearch(search, method, element, element.project)
     }
+
+    /**
+     * [UsageDrop.GO_FIELD_KEY] for a key of a composite literal that names a struct field, when
+     * [anchor] is a type ([GoFindUsages.isFieldKeyOfType]); else null.
+     */
+    override fun droppedUsageKind(usageElement: PsiElement, anchor: PsiElement): String? =
+        if (GoFindUsages.isFieldKeyOfType(usageElement, anchor)) UsageDrop.GO_FIELD_KEY else null
 
     /**
      * Method anchor: caret on a Go method declaration -> the interface method spec(s) it satisfies.

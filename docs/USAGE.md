@@ -220,16 +220,33 @@ stops when the user selects "Don't show again".
 - No `match` key - the usage refers to the symbol itself.
 - `BASE` - the usage refers to a base declaration. The call can run this symbol or another
   implementation.
+- `OVERRIDE` - the usage refers to a declaration that overrides or implements the symbol. It is
+  a call on a value whose type has that overriding declaration.
 - `DYNAMIC` - only the name matches, and the type of the receiver is not known. In all
   languages, a reference that does not resolve to a declaration has this mark. In JavaScript and
   TypeScript, a usage that WebStorm counts as a dynamic usage also has it. An example is a call
   `x.send()` on a value with no known type. A symbol name in a code span of a Markdown file also
   has it: only the name matches there.
 
-**Notes:** `notes` is on the first page of a fresh search when the symbol overrides or implements
-base declarations. The entry names the base declarations and gives the count of the collected
-usages that have `match: BASE`. An example for the JavaScript method `area` that overrides
-`Shape.area`:
+**Notes:** `notes` is on the first page of a fresh search. It has these entries, in this order:
+
+1. When the symbol overrides or implements base declarations: the entry names the base
+   declarations and gives the count of the collected usages that have `match: BASE`.
+2. When the search also covers the declarations that override or implement the symbol: the
+   entry names them and gives the count of the collected usages that have `match: OVERRIDE`.
+3. When the search does not search a base method on purpose (a method of the Python class
+   `object`): `The base method <qualified name> is not searched: each class is a subclass of
+   object.`, one sentence for each base method.
+4. One entry for each kind of usage that the result leaves out, with the count. When the search
+   stopped at its limit, the count is `<n> or more`.
+   - Go, for a type: `<n> composite literal keys that name a struct field with the same name as
+     this type are not in the list.` Such a key refers to the field, not to the type. A key of an
+     embedded field stays in the list.
+   - PHP, for a class: `<n> references to this class through $this, self or static inside the
+     class are not in the list.` The Find Usages window of PhpStorm also hides these references
+     by default.
+
+An example for the JavaScript method `area` that overrides `Shape.area`:
 
 ```json
 "notes": [
@@ -237,7 +254,7 @@ usages that have `match: BASE`. An example for the JavaScript method `area` that
 ]
 ```
 
-The key is absent when the symbol has no base declaration.
+The key is absent when it has no entry.
 
 **Degraded searches:** if the language's find-usages handler throws mid-expansion (e.g.
 broken library roots), the search continues on the remaining targets and `warnings` lists
@@ -640,7 +657,8 @@ ambiguous name returns a `candidates` list instead of guessing.
 - Facets are capped summaries: `implementations` up to 10 (`implementationsTruncated`), `usageCount` counted up to 200 (`usagesTruncated`), `topUsages` up to 5, `documentation` up to 4000 characters (`documentationTruncated`). Page through the dedicated tools for full sets.
 - A `null` facet means not applicable, not requested, or degraded (degradations are named in `warnings`); an empty list means searched-and-empty — the same convention as `ide_diagnostics`.
 - Usage counting and implementation search run over project files; library usages are not counted.
-- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, Java, JavaScript, Kotlin, Python, Rust or TypeScript member with base declarations, `usageCount` counts the same union as `ide_find_usages`. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`), as in `ide_find_usages`.
+- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, Java, JavaScript, Kotlin, Python, Rust or TypeScript member with base declarations, `usageCount` counts the same union as `ide_find_usages`. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `OVERRIDE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE`, `OVERRIDE` or `DYNAMIC`), as in `ide_find_usages`.
+- `usageCount` and `topUsages` do not hold a usage that `ide_find_usages` leaves out. `notes` (absent when it has no entry) has the same entries as the notes of `ide_find_usages` for the base methods that the search does not search and for each kind of usage that it leaves out.
 - On an ambiguous `symbol`, only `candidates` and `message` are populated — re-call with a qualified name or position from the list.
 - `problems` is only populated with `includeDiagnostics: true` and covers problems overlapping the declaration's line range.
 

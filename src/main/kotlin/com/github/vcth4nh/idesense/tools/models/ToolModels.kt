@@ -175,6 +175,7 @@ data class IntentionInfo(
 // ide_explain_symbol output. Facet fields are null when the facet was not applicable,
 // not requested, or degraded (degradations are named in warnings); requested-and-empty
 // facets are empty lists — same null-vs-empty convention as DiagnosticsResult.
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 data class ExplainSymbolResult(
     val symbol: DefinitionResult? = null,
@@ -191,6 +192,10 @@ data class ExplainSymbolResult(
     val topUsages: List<UsageLocation>? = null,
     val problems: List<ProblemInfo>? = null,
     val warnings: List<String>? = null,
+    // The notes about the usages that usageCount leaves out and the base methods that the usage search
+    // does not search: the same entries as the notes of ide_find_usages. Omitted from the JSON when null.
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    val notes: List<String>? = null,
 )
 
 // ide_diagnostics test results output

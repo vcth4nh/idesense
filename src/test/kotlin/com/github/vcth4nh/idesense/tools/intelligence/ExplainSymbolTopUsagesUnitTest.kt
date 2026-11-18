@@ -5,7 +5,8 @@ import com.github.vcth4nh.idesense.tools.models.UsageLocation
 import junit.framework.TestCase
 
 // #132, #171: topUsages of ide_explain_symbol prefers sure code usages, then code usages with the
-// match BASE, then code usages with another match (DYNAMIC), then comment usages.
+// match BASE, then code usages with the match OVERRIDE, then code usages with another match
+// (DYNAMIC), then comment usages.
 class ExplainSymbolTopUsagesUnitTest : TestCase() {
 
     private fun usage(line: Int, usageType: String, match: String? = null) =
@@ -64,6 +65,18 @@ class ExplainSymbolTopUsagesUnitTest : TestCase() {
         )
 
         assertEquals(listOf("4:METHOD_CALL", "3:METHOD_CALL", "1:METHOD_CALL", "2:METHOD_CALL", "5:COMMENT"), selected)
+    }
+
+    fun testOverrideUsagesComeAfterBaseUsagesAndBeforeDynamicUsages() {
+        val selected = select(
+            usage(1, "METHOD_CALL", UsageMatch.DYNAMIC),
+            usage(2, "METHOD_CALL", UsageMatch.OVERRIDE),
+            usage(3, "METHOD_CALL", UsageMatch.BASE),
+            usage(4, "COMMENT"),
+            usage(5, "METHOD_CALL"),
+        )
+
+        assertEquals(listOf("5:METHOD_CALL", "3:METHOD_CALL", "2:METHOD_CALL", "1:METHOD_CALL", "4:COMMENT"), selected)
     }
 
     fun testBaseUsagesKeepTheirSlotsWhenDynamicUsagesArriveFirst() {
