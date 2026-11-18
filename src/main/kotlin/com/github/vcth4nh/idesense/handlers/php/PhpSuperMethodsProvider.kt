@@ -79,44 +79,49 @@ import java.lang.reflect.Proxy
  * method and its overriding methods (the answer Current Method), with no mark. The result of the
  * tool holds each usage of both answers.
  * [usageMark] decides the mark of each usage from the declarations that its reference resolves
- * to, not from its pass: in PhpStorm 2026.2, both answers at `Circle::area` of the PHP fixture
- * list the same 4 calls on a value of the type `Shape`, so the references of an overriding method
- * also hold the calls through its base method.
+ * to, not from its pass. For a call on a value of an abstract class or an interface,
+ * `multiResolve` gives the base method and each implementation, and `isReferenceTo` is true for
+ * each of them, so the search of an overriding method also finds the calls through its base
+ * method (see [usageMark] for the bytecode). In PhpStorm 2026.2, both answers at `Circle::area`
+ * of the PHP fixture list the same 4 calls on a value of the type `Shape`.
  */
 class PhpSuperMethodsProvider : SuperMethodsProvider {
 
     companion object {
         private val LOG = logger<PhpSuperMethodsProvider>()
 
-        /** The overriding methods of a PHP method and whether it has a base method, kept until the next PSI change. */
+        /** The base methods and the overriding methods of a PHP method, kept until the next PSI change. */
         private val MARK_CONTEXT = Key.create<CachedValue<MarkContext>>("idesense.php.usageMarkContext")
 
         /**
          * The mark of a usage of the method [anchor] (the rule of [usageMark]). [targets] are the
-         * declarations that the reference of the usage resolves to, [overrides] the overriding methods of
-         * [anchor], [hasBase] true when [anchor] has a base method, [passMark] the mark of the pass, and
-         * [same] the PSI equivalence. No mark when a target is [anchor]; `OVERRIDE` when a target is an
-         * overriding method; [passMark] when there is no target or when [passMark] is not null; else
-         * `BASE` when [anchor] has a base method, else `DYNAMIC`.
+         * declarations that the reference of the usage resolves to, [bases] the base methods of
+         * [anchor] (all levels), [overrides] its overriding methods, [passMark] the mark of the pass,
+         * and [same] the PSI equivalence. In this order: `BASE` when a target is a base method (a call
+         * through a base type: its targets can also hold [anchor]); no mark when a target is
+         * [anchor]; `OVERRIDE` when a target is an overriding method; [passMark] when there is no
+         * target or when [passMark] is not null; else `BASE` when [anchor] has a base method, else
+         * `DYNAMIC`.
          */
         internal fun usageMarkOf(
             targets: List<PsiElement>,
             anchor: PsiElement,
+            bases: List<PsiElement>,
             overrides: List<PsiElement>,
-            hasBase: Boolean,
             passMark: String?,
             same: (PsiElement, PsiElement) -> Boolean,
         ): String? = when {
+            targets.any { target -> bases.any { same(it, target) } } -> UsageMatch.BASE
             targets.any { same(it, anchor) } -> null
             targets.any { target -> overrides.any { same(it, target) } } -> UsageMatch.OVERRIDE
             targets.isEmpty() || passMark != null -> passMark
-            hasBase -> UsageMatch.BASE
+            bases.isNotEmpty() -> UsageMatch.BASE
             else -> UsageMatch.DYNAMIC
         }
     }
 
     /** See [MARK_CONTEXT]. */
-    private class MarkContext(val overrides: List<PsiElement>, val hasBase: Boolean)
+    private class MarkContext(val bases: List<PsiElement>, val overrides: List<PsiElement>)
 
     private val phpClassMemberClass: Class<*>? by lazy {
         try { Class.forName("com.jetbrains.php.lang.psi.elements.PhpClassMember") } catch (_: ClassNotFoundException) { null }
@@ -283,9 +288,31 @@ class PhpSuperMethodsProvider : SuperMethodsProvider {
     /**
      * The mark of a usage of a PHP method [anchor] ([usageMarkOf]): the targets are the
      * declarations that [reference] resolves to (each result of `multiResolve(false)` for a
-     * [PsiPolyVariantReference], else `resolve()`). The overriding methods and the base check come
-     * one time for each anchor ([MARK_CONTEXT]). [passMark] for another anchor, and when the resolve
-     * throws.
+     * [PsiPolyVariantReference], else `resolve()`). The base methods and the overriding methods
+     * come one time for each anchor ([MARK_CONTEXT]). [passMark] for another anchor, and when the
+     * resolve throws.
+     *
+     * Why the targets and not the pass decide (bytecode of php.jar, build 262.8665):
+     * - `PhpBaseMemberReference.isReferenceTo(PsiElement)`: for a `PhpClassMember`, true when an
+     *   element of `multiResolve(false)` (each valid result) equals it. So `ReferencesSearch` of a
+     *   method finds each reference whose `multiResolve` holds that method.
+     * - `PhpBaseMemberReference.resolveGlobalDescriptors(Function)`: the results of
+     *   `MemberReferenceImpl.resolveInHierarchy`; when the class reference is no `ConstantReference`
+     *   and `resolveInSubclasses(Set)` is true, also the members of `MemberReferenceImpl.lookInSubclasses`
+     *   (as a `PhpMemberResolveResult` with `isFromSubclass()` true).
+     * - `MethodReferenceImpl.resolveInSubclasses(Set, PhpExpression)`: true when the set is empty;
+     *   or when the class reference is no `self` or `parent` reference and each result is a method
+     *   whose containing class `isAbstract()` (`isAbstractMemberReference`); or when
+     *   `PhpLangUtil.canBeResolvedInSubclasses(classReference)` and each result is a method of a
+     *   trait (`isInsideTrait`). `PhpClassImpl.isAbstract()` is also true for an interface (the AST
+     *   check `isInterface()`, and the stub flag that `PhpClassStubImpl.packFlags` takes from
+     *   `isAbstract()`).
+     * - `MethodReferenceImpl.resolve(PhpReference)` gives one element of these results
+     *   (`findBaseMethodInHierarchy`).
+     *
+     * So the targets of a call on a value of an abstract class or an interface hold the base
+     * method and each implementation, and the anchor is one of them. The base methods come first
+     * in the rule: such a call is a call through a base type.
      */
     override fun usageMark(reference: PsiReference, anchor: PsiElement, passMark: String?): String? {
         if (methodClass?.isInstance(anchor) != true) return passMark
@@ -302,7 +329,7 @@ class PhpSuperMethodsProvider : SuperMethodsProvider {
         }
         val context = markContext(anchor)
         val manager = anchor.manager
-        return usageMarkOf(targets, anchor, context.overrides, context.hasBase, passMark) { a, b -> manager.areElementsEquivalent(a, b) }
+        return usageMarkOf(targets, anchor, context.bases, context.overrides, passMark) { a, b -> manager.areElementsEquivalent(a, b) }
     }
 
     /**
@@ -324,12 +351,12 @@ class PhpSuperMethodsProvider : SuperMethodsProvider {
         return if (hidden) UsageDrop.PHP_SELF_REFERENCE else null
     }
 
-    /** The overriding methods and the base check of [method], computed one time until the next PSI change. */
+    /** The base methods and the overriding methods of [method], computed one time until the next PSI change. */
     private fun markContext(method: PsiElement): MarkContext =
         CachedValuesManager.getCachedValue(method, MARK_CONTEXT) {
             val overrides = walkMethods(processOverridingMethodsMethod, typedHierarchyMemberProcessorClass, method) { true }
             CachedValueProvider.Result.create(
-                MarkContext(overrides, findBaseDeclarations(method).isNotEmpty()),
+                MarkContext(findBaseDeclarations(method).filter { it != method }, overrides),
                 PsiModificationTracker.MODIFICATION_COUNT,
             )
         }
