@@ -148,6 +148,7 @@ class MeasuresTest(unittest.TestCase):
 class ArmLabelTest(unittest.TestCase):
     def test_arm_label_of_each_form(self):
         cases = [(run("C"), "C"), (run("C", no_tools=True), "C-no-tools"), (run("P"), "P"), (run("PF"), "PF"),
+                 (run("PFN"), "PFN"), (run("PFN", stop=5), "PFN-stop-5"),
                  (run("PS", aid="rule"), "PS-rule"), (run("PS", aid="skill"), "PS-skill"),
                  (run("P", variant="instructions"), "P-instructions"),
                  (run("P", variant="no-tool-search", stop=5), "P-no-tool-search-stop-5"),
@@ -248,6 +249,7 @@ class FlagsTest(unittest.TestCase):
     def test_no_plugin_call_flag(self):
         with_ide = {"Bash": 1, ide("ide_find_usages"): 2, "StructuredOutput": 1}
         cases = [(run("P"), True), (run("PS", aid="skill"), True), (run("PF", "timeout"), True),
+                 (run("PFN"), True), (run("PFN", "invalid"), False),
                  (run("P", "stopped", stop=5), True), (run("C"), False), (run("C", no_tools=True), False),
                  (run("PS", aid="rule", tools=with_ide), False), (run("P", "invalid"), False),
                  (run("PF", "api_error"), False), (run("PF", "key_leak"), False)]
@@ -442,19 +444,49 @@ class TablesTest(unittest.TestCase):
             run("PF", challenge=x, model=HAIKU, sc=score(0, 2, 2)),
         ]
         rows = triage.paired(records)
-        self.assertEqual([(HAIKU, "PF", x), (OPUS, "PF", x), (OPUS, "PS-rule", x)],
+        # The arms in the order of runner.ARMS: PS before PF.
+        self.assertEqual([(HAIKU, "PF", x), (OPUS, "PS-rule", x), (OPUS, "PF", x)],
                          [(r["model"], r["arm_label"], r["challenge"]) for r in rows])
-        haiku, pf, ps = rows
-        self.assertEqual((0.0, 1.0, -1.0), (haiku["f1_arm"], haiku["f1_c"], haiku["f1_diff"]))
+        self.assertEqual(["C"] * 3, [r["base_label"] for r in rows])
+        haiku, ps, pf = rows
+        self.assertEqual((0.0, 1.0, -1.0), (haiku["f1_arm"], haiku["f1_base"], haiku["f1_diff"]))
         c_f1 = (1.0 + 2 * 1.0 * 0.5 / 1.5) / 2
         self.assertAlmostEqual(1.0 - c_f1, pf["f1_diff"])
-        self.assertEqual((1.0, 0.5, 0.5), (pf["exact_arm"], pf["exact_c"], pf["exact_diff"]))
+        self.assertEqual((1.0, 0.5, 0.5), (pf["exact_arm"], pf["exact_base"], pf["exact_diff"]))
         self.assertAlmostEqual(0.3, pf["cost_usd_diff"])
-        self.assertEqual((40.0, 15.0, 25.0), (pf["seconds_arm"], pf["seconds_c"], pf["seconds_diff"]))
-        self.assertEqual((2.0, 2.0, 0.0), (pf["tool_calls_arm"], pf["tool_calls_c"], pf["tool_calls_diff"]))
+        self.assertEqual((40.0, 15.0, 25.0), (pf["seconds_arm"], pf["seconds_base"], pf["seconds_diff"]))
+        self.assertEqual((2.0, 2.0, 0.0), (pf["tool_calls_arm"], pf["tool_calls_base"], pf["tool_calls_diff"]))
         self.assertEqual((0.0, -0.5), (ps["exact_arm"], ps["exact_diff"]))
-        self.assertEqual({"model", "arm_label", "challenge"} | {f"{k}_{p}" for k in triage.PAIRED
-                                                                for p in ("arm", "c", "diff")}, set(pf))
+        self.assertEqual({"model", "arm_label", "base_label", "challenge"} | {f"{k}_{p}" for k in triage.PAIRED
+                                                                              for p in ("arm", "base", "diff")},
+                         set(pf))
+
+    def test_paired_rows_PFN_minus_PF(self):
+        x, y, z = "demo-x", "demo-y", "demo-z"
+        records = [
+            run("C", challenge=x, sc=score(2, 0, 0), cost=0.1),
+            run("PF", challenge=x, sc=score(1, 0, 1), cost=0.4, seconds=30.0),
+            run("PFN", challenge=x, sc=score(2, 0, 0), cost=0.5, seconds=20.0),
+            run("PFN", challenge=x, n=2, sc=score(2, 0, 0), cost=0.5, seconds=20.0),
+            # y: no C run, so only PFN - PF.
+            run("PF", challenge=y, sc=score(2, 0, 0)), run("PFN", challenge=y, sc=score(0, 2, 2)),
+            # z: the PF run is no measurement, so only PFN - C.
+            run("C", challenge=z, sc=score(2, 0, 0)), run("PF", "invalid", challenge=z),
+            run("PFN", challenge=z, sc=score(2, 0, 0)),
+            run("PS", challenge=x, aid="rule", sc=score(2, 0, 0)),
+            # A PFN run that was stopped is in no pair; PFN of another model has no PF run.
+            run("PFN", "stopped", challenge=y, n=2, stop=5), run("PFN", challenge=x, model=HAIKU, sc=score(2, 0, 0)),
+        ]
+        rows = triage.paired(records)
+        self.assertEqual([(OPUS, "PS-rule", "C", x), (OPUS, "PF", "C", x), (OPUS, "PFN", "C", x),
+                          (OPUS, "PFN", "C", z), (OPUS, "PFN", "PF", x), (OPUS, "PFN", "PF", y)],
+                         [(r["model"], r["arm_label"], r["base_label"], r["challenge"]) for r in rows])
+        pfn_x, pfn_y = rows[4], rows[5]
+        self.assertAlmostEqual(1.0 - 2 * 1.0 * 0.5 / 1.5, pfn_x["f1_diff"])
+        self.assertEqual((1.0, 0.0, 1.0), (pfn_x["exact_arm"], pfn_x["exact_base"], pfn_x["exact_diff"]))
+        self.assertAlmostEqual(0.1, pfn_x["cost_usd_diff"])
+        self.assertEqual((20.0, 30.0, -10.0), (pfn_x["seconds_arm"], pfn_x["seconds_base"], pfn_x["seconds_diff"]))
+        self.assertEqual((0.0, 1.0, -1.0), (pfn_y["f1_arm"], pfn_y["f1_base"], pfn_y["f1_diff"]))
 
     def test_bootstrap_is_stable_with_a_seed_and_handles_small_lists(self):
         self.assertEqual((None, None, None), triage.bootstrap([]))
@@ -482,10 +514,11 @@ class TablesTest(unittest.TestCase):
             run("PS", aid="rule", stop=5, model=OPUS, first_tools=["Bash", "Bash"]),
             run("P", "timeout", variant="instructions", stop=5, first_tools=[]),
             run("C", first_tools=["Bash"]),
+            run("PFN", first_tools=first_ide), run("PF", first_tools=["Bash"]),
         ]
         rows = triage.adoption_rows(records)
         self.assertEqual([("P-instructions-stop-5", OPUS, 1, 0, 0.0), ("PS-rule-stop-5", HAIKU, 4, 2, 0.5),
-                          ("PS-rule-stop-5", OPUS, 1, 0, 0.0)],
+                          ("PS-rule-stop-5", OPUS, 1, 0, 0.0), ("PF", OPUS, 1, 0, 0.0), ("PFN", OPUS, 1, 1, 1.0)],
                          [(r["arm_label"], r["model"], r["runs"], r["ide_first"], r["share"]) for r in rows])
 
 
@@ -549,8 +582,29 @@ class ReportTest(unittest.TestCase):
             self.assertIn(line, text)
         paired = [line for line in text.splitlines() if line.startswith(f"| {OPUS} | PF |")]
         self.assertEqual(2, len(paired), text)
-        self.assertTrue(paired[0].startswith(f"| {OPUS} | PF | `{CH['id']}` | 0.400 | 1.000 | -0.600 |"), paired[0])
-        self.assertTrue(paired[1].startswith(f"| {OPUS} | PF | all | 0.400 | 1.000 | -0.600 |"), paired[1])
+        self.assertTrue(paired[0].startswith(f"| {OPUS} | PF | C | `{CH['id']}` | 0.400 | 1.000 | -0.600 |"),
+                        paired[0])
+        self.assertTrue(paired[1].startswith(f"| {OPUS} | PF | C | all | 0.400 | 1.000 | -0.600 |"), paired[1])
+
+    def test_report_has_the_rows_PFN_minus_PF_and_the_arm_order(self):
+        put_run(self.batch, run("PFN", sc=score(2, 0, 1), answer=["pkg/a.go:3", "pkg/e.go:2"], cost=0.3))
+        put_run(self.batch, run("PS", aid="rule", n=2, sc=score(1, 0, 2), answer=["pkg/a.go:3"]))
+        with open(triage.report(self.batch, self.set_file, self.out), encoding="utf-8") as f:
+            lines = f.read().splitlines()
+        self.assertEqual(["C", "PS-rule", "PF", "PFN"],
+                         [line.split(" | ")[2] for line in lines if line.startswith(f"| `{CH['id']}` | {OPUS} |")])
+        paired = [line for line in lines if line.startswith(f"| {OPUS} | ")]
+        pairs = (("PS-rule", "C"), ("PF", "C"), ("PFN", "C"), ("PFN", "PF"))
+        self.assertEqual([[arm, base, cell] for arm, base in pairs for cell in (f"`{CH['id']}`", "all")],
+                         [line.split(" | ")[1:4] for line in paired])
+        # PFN: f1 0.8 (precision 1, recall 2/3); PF: f1 0.4.
+        self.assertTrue(paired[6].startswith(f"| {OPUS} | PFN | PF | `{CH['id']}` | 0.800 | 0.400 | 0.400 |"),
+                        paired[6])
+        self.assertTrue(any(line.startswith("| model | arm | base | challenge | f1 arm | f1 base | f1 diff |")
+                            for line in lines))
+        adoption = [line.split(" | ")[0][2:] for line in lines if line.endswith(" |") and f" | {OPUS} | " in line
+                    and line.count(" | ") == 4]
+        self.assertEqual(["PS-rule", "PS-rule-stop-5", "PF", "PFN"], adoption)
 
     def test_table_prints_one_line_for_each_run(self):
         out = io.StringIO()

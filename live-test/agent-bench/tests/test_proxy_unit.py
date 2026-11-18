@@ -28,13 +28,19 @@ PROJECT = "/bench/trees/caddy"
 
 
 class FakeUpstream:
-    """A fake IDE MCP server. It records each request. `initialize` gives a server version, `tools/list`
-    gives the permitted tools and the WRITERS, `tools/call` echoes its arguments, a notification gets 202
-    with no body. A `tools/call` with the argument `query` = `slow` waits until `release` is set."""
+    """A fake IDE MCP server. It records each request and the body of each answer (`replies`). `initialize`
+    gives a server version, `tools/list` gives the permitted tools and the WRITERS, `tools/call` echoes its
+    arguments, a notification gets 202 with no body. A `tools/call` with the argument `query` = `slow` waits
+    until `release` is set. `call_result` replaces the result of `tools/call`; `call_body` and `call_type`
+    replace its whole answer body and its Content-Type."""
 
     def __init__(self):
         self.requests = []
+        self.replies = []
         self.reply_headers = {}
+        self.call_result = None
+        self.call_body = None
+        self.call_type = "application/json"
         self.slow_started = threading.Event()
         self.release = threading.Event()
         fake = self
@@ -60,13 +66,17 @@ class FakeUpstream:
                     if arguments.get("query") == "slow":
                         fake.slow_started.set()
                         fake.release.wait(10)
-                    result = {"content": [{"type": "text", "text": json.dumps({"echo": arguments})}],
-                              "isError": False}
+                    echo = {"content": [{"type": "text", "text": json.dumps({"echo": arguments})}], "isError": False}
+                    result = fake.call_result or echo
                 else:
                     result = {}
                 data = json.dumps({"jsonrpc": "2.0", "id": body["id"], "result": result}).encode("utf-8")
+                call = method == "tools/call"
+                if call and fake.call_body is not None:
+                    data = fake.call_body
+                fake.replies.append(data)
                 self.send_response(200)
-                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Type", fake.call_type if call else "application/json")
                 for name, value in fake.reply_headers.items():
                     self.send_header(name, value)
                 self.send_header("Content-Length", str(len(data)))
@@ -108,8 +118,9 @@ class ProxyTestCase(unittest.TestCase):
         self.addCleanup(self.server.shutdown)
         self.port = self.server.server_address[1]
 
-    def entry(self, run, instructions=None, upstream=None):
-        return {"run": run, "upstream": upstream or self.fake.url, "project": PROJECT, "instructions": instructions}
+    def entry(self, run, instructions=None, upstream=None, **extra):
+        return {"run": run, "upstream": upstream or self.fake.url, "project": PROJECT, "instructions": instructions,
+                **extra}
 
     def request(self, path, data=None, method="POST", headers=None):
         req = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}", data=data, method=method,
@@ -291,6 +302,92 @@ class ProxyTestCase(unittest.TestCase):
         self.assertNotIn("project_path", text)
         self.assertNotIn(PROJECT, text)
         self.assertNotIn("/agent/given", text)
+
+    # -- the note of a route --
+
+    NOTE = "This list can be incomplete: a text search for the name finds more."
+
+    def noted_route(self, run="run-n"):
+        token = proxy.new_token()
+        proxy.add_route(self.routes, token, self.entry(run, notes={"ide_find_usages": self.NOTE}))
+        return token
+
+    def call_raw(self, name, token):
+        """The status and the raw answer body of one `tools/call`."""
+        msg = {"jsonrpc": "2.0", "id": 7, "method": "tools/call",
+               "params": {"name": name, "arguments": {"file": "a.go"}}}
+        status, _, body = self.request(f"/r/{token}/mcp", json.dumps(msg).encode("utf-8"),
+                                       headers={"Content-Type": "application/json"})
+        return status, body
+
+    @staticmethod
+    def text_result(value, is_error=False):
+        return {"content": [{"type": "text", "text": json.dumps(value)}], "isError": is_error}
+
+    def test_note_is_appended_to_the_notes_of_the_result(self):
+        token = self.noted_route()
+        payload = {"usages": [{"file": "a.go", "line": 3, "name": "Größe"}], "totalCount": 1,
+                   "notes": ["main.Shape.Area (normal.go:21:2) is the base method."]}
+        self.fake.call_result = {"content": [{"type": "text", "text": json.dumps(payload)},
+                                             {"type": "text", "text": "second block"}],
+                                 "isError": False, "_meta": {"k": 1}}
+        status, raw = self.call_raw("ide_find_usages", token)
+        self.assertEqual(200, status)
+        envelope = json.loads(raw)
+        text = envelope["result"]["content"][0]["text"]
+        expected = {**payload, "notes": payload["notes"] + [self.NOTE]}
+        self.assertEqual(json.dumps(expected, separators=(",", ":"), ensure_ascii=False), text)
+        self.assertEqual({"jsonrpc": "2.0", "id": 7, "result": {
+            "content": [{"type": "text", "text": text}, {"type": "text", "text": "second block"}],
+            "isError": False, "_meta": {"k": 1}}}, envelope)
+        self.assertEqual(json.dumps(envelope, separators=(",", ":"), ensure_ascii=False).encode("utf-8"), raw)
+        [line] = self.log_lines("run-n")
+        self.assertEqual((True, False, len(raw)), (line["note_added"], line["is_error"], line["bytes"]))
+        self.assertEqual({"ts", "ms", "method", "tool", "arguments", "refused", "is_error", "bytes", "status",
+                          "note_added"}, set(line))
+
+    def test_note_makes_the_list_when_notes_is_absent_or_null(self):
+        token = self.noted_route()
+        for payload in ({"usages": []}, {"usages": [], "notes": None}):
+            with self.subTest(payload=payload):
+                self.fake.call_result = self.text_result(payload)
+                _, raw = self.call_raw("ide_find_usages", token)
+                self.assertEqual({"usages": [], "notes": [self.NOTE]},
+                                 json.loads(json.loads(raw)["result"]["content"][0]["text"]))
+        self.assertEqual([True, True], [line["note_added"] for line in self.log_lines("run-n")])
+
+    def test_answer_with_no_note_passes_byte_for_byte(self):
+        noted, null_notes = self.noted_route(), proxy.new_token()
+        proxy.add_route(self.routes, null_notes, self.entry("run-z", notes=None))
+        payload = {"usages": [{"file": "a.go", "line": 3}]}
+        rpc_error = json.dumps({"jsonrpc": "2.0", "id": 7, "error": {"code": -32603, "message": "x"}}).encode("utf-8")
+        stream = (b"event: message\ndata: "
+                  + json.dumps({"jsonrpc": "2.0", "id": 7, "result": self.text_result(payload)}).encode("utf-8")
+                  + b"\n\n")
+        cases = [
+            ("error result", noted, "ide_find_usages", {"result": self.text_result({"error": "x"}, is_error=True)}),
+            ("error payload with no error flag", noted, "ide_find_usages", {"result": self.text_result(
+                {"error": "tool_error", "message": "No named element at position."})}),
+            ("JSON-RPC error", noted, "ide_find_usages", {"body": rpc_error}),
+            ("text that is no JSON", noted, "ide_find_usages", {"result": {
+                "content": [{"type": "text", "text": "The index is not ready."}], "isError": False}}),
+            ("JSON that is no object", noted, "ide_find_usages", {"result": self.text_result([1, 2])}),
+            ("no content", noted, "ide_find_usages", {"result": {"content": [], "isError": False}}),
+            ("event stream", noted, "ide_find_usages", {"body": stream, "type": "text/event-stream"}),
+            ("tool with no note", noted, "ide_find_class", {"result": self.text_result(payload)}),
+            ("route with no notes", self.token, "ide_find_usages", {"result": self.text_result(payload)}),
+            ("notes null", null_notes, "ide_find_usages", {"result": self.text_result(payload)}),
+        ]
+        for what, token, tool, reply in cases:
+            with self.subTest(what):
+                self.fake.call_result = reply.get("result")
+                self.fake.call_body = reply.get("body")
+                self.fake.call_type = reply.get("type", "application/json")
+                status, raw = self.call_raw(tool, token)
+                self.assertEqual((200, self.fake.replies[-1]), (status, raw))
+        lines = self.log_lines("run-n") + self.log_lines() + self.log_lines("run-z")
+        self.assertEqual(len(cases), len(lines))
+        self.assertFalse(any("note_added" in line for line in lines))
 
     # -- route file --
 

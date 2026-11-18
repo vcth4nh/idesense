@@ -217,7 +217,7 @@ class CommandTest(RunnerCase):
         self.assertEqual(["--tools", ""], self.dry("C", "-no-tools")[-2:])
 
     def test_arm_P_has_mcp_config_with_route_url(self):
-        for arm, extra in (("P", ()), ("PS", ("-aid", "rule")), ("PF", ())):
+        for arm, extra in (("P", ()), ("PS", ("-aid", "rule")), ("PF", ()), ("PFN", ())):
             cmd = self.dry(arm, *extra)
             self.assertEqual("--mcp-config", cmd[-2], arm)
             config = json.loads(cmd[-1])
@@ -239,9 +239,9 @@ class CommandTest(RunnerCase):
     def test_arm_PF_prompt_has_the_sentence_and_others_do_not(self):
         sentence = runner.PF_SENTENCE.format(server=SERVER)
         base = challenges.prompt(CHALLENGE, RECORD, ROOT)
-        for arm, extra in (("C", ()), ("P", ()), ("PS", ("-aid", "skill")), ("PF", ())):
+        for arm, extra in (("C", ()), ("P", ()), ("PS", ("-aid", "skill")), ("PF", ()), ("PFN", ())):
             text = prompt_of(self.dry(arm, *extra))
-            if arm == "PF":
+            if arm in ("PF", "PFN"):
                 paragraphs = text.split("\n\n")
                 self.assertEqual(sentence, paragraphs[-2])
                 self.assertEqual(challenges.TAIL, paragraphs[-1])
@@ -262,7 +262,7 @@ class CommandTest(RunnerCase):
 
     def test_docker_command_has_the_container_flags_and_no_mount(self):
         for arm, extra in (("C", ()), ("C", ("-no-tools",)), ("P", ("-variant", "no-tool-search")),
-                           ("PS", ("-aid", "skill")), ("PF", ())):
+                           ("PS", ("-aid", "skill")), ("PF", ()), ("PFN", ())):
             cmd = self.dry(arm, *extra)
             self.assertEqual(["docker", "run"], cmd[:2])
             flags = cmd[:cmd.index(IMAGE["id"])]
@@ -283,7 +283,10 @@ class CommandTest(RunnerCase):
     def test_arm_options_are_checked(self):
         for arm, extra, word in (("C", ("-aid", "skill"), "-aid"), ("P", ("-no-tools",), "-no-tools"),
                                  ("C", ("-variant", "instructions"), "-variant"), ("C", ("-n", "0"), "-n"),
-                                 ("C", ("-stop-after-tools", "0"), "-stop-after-tools")):
+                                 ("C", ("-stop-after-tools", "0"), "-stop-after-tools"),
+                                 ("PFN", ("-aid", "skill"), "-aid"), ("PFN", ("-variant", "instructions"), "-variant"),
+                                 ("PFN", ("-variant", "no-tool-search"), "-variant"),
+                                 ("PFN", ("-no-tools",), "-no-tools")):
             code, _, err = self.main(*self.run_args(arm, *extra), "-dry-run")
             self.assertEqual(2, code, (arm, extra))
             self.assertIn(word, err)
@@ -309,6 +312,100 @@ class CommandTest(RunnerCase):
         self.assertEqual(2, code)
         self.assertIn("slots", err)
         self.assertEqual([], self.docker_calls())
+
+
+class PfnTest(RunnerCase):
+    """Arm PFN: the prompt of arm PF, and a route with the notes of the product language (runner.NOTES_FILE)."""
+    GO_ROOT = "/home/ubuntu/dev/ws/0001/caddy"
+    GO_SERVER = "goland-idesense"
+    GO_CHALLENGE = {"id": "caddy-refs-Helper", "product": "caddy", "tree": "caddy", "family": "refs",
+                    "keys": "caddy/test.jsonl", "key_id": "go:example.com/demo.Helper", "sample": "hard",
+                    "note": "test"}
+    GO_RECORD = {"id": "go:example.com/demo.Helper", "lang": "go", "kind": "func", "name": "Helper", "container": "",
+                 "decl": {"file": "demo/helper.go", "line": 3, "col": 6}, "implementers": [], "source": "go/types",
+                 "sites": [{"file": "demo/use.go", "line": 7, "col": 2, "class": "required", "why": "use"}]}
+    PY_TOOLS = ["ide_find_implementations", "ide_find_usages", "ide_type_hierarchy"]
+
+    def notes(self, lang):
+        with open(runner.NOTES_FILE, encoding="utf-8") as f:
+            return json.load(f)[lang]
+
+    def caddy_args(self, arm):
+        """The run options of a caddy challenge (a Go key record, a slot and an image of caddy)."""
+        t = lambda *p: os.path.join(self.tmp, *p)
+        write(t("keys", "caddy", "test.jsonl"), json.dumps(self.GO_RECORD) + "\n")
+        write(t("trees", "caddy", "demo", "helper.go"), "package demo\n")
+        write(t("slots.json"), json.dumps({"beets": {"slot": "0000", "path": ROOT, "product": "beets"},
+                                           "caddy": {"slot": "0001", "path": self.GO_ROOT, "product": "caddy"}}))
+        write(t("images", "caddy.json"), json.dumps({"image": "idesense-bench-caddy:p2", "id": "sha256:cafe",
+                                                     "server_name": self.GO_SERVER,
+                                                     "slots": {"caddy": {"slot": "0001", "path": self.GO_ROOT}}}))
+        write(t("set-caddy.jsonl"), json.dumps(self.GO_CHALLENGE) + "\n")
+        return runner._parser().parse_args(["run", "-set", t("set-caddy.jsonl"), "-challenge", self.GO_CHALLENGE["id"],
+                                            "-arm", arm, "-model", MODEL, "-batch", "b1"])
+
+    def test_notes_file_has_a_note_for_each_tool_of_the_plan(self):
+        with open(runner.NOTES_FILE, encoding="utf-8") as f:
+            notes = json.load(f)
+        self.assertEqual(["go", "python"], sorted(notes))
+        self.assertEqual(self.PY_TOOLS, sorted(notes["python"]))
+        self.assertEqual(["ide_find_usages"], sorted(notes["go"]))
+        for lang, texts in notes.items():
+            for tool, text in texts.items():
+                self.assertIn(tool, proxy.PERMITTED_TOOLS)
+                self.assertTrue(text.startswith("This list can be incomplete: "), (lang, tool))
+
+    def test_PFN_has_the_PF_prompt_and_the_notes_of_the_product_language(self):
+        beets = runner.prepare(runner._parser().parse_args(self.run_args("PFN")))
+        caddy = runner.prepare(self.caddy_args("PFN"))
+        self.assertEqual((self.notes("python"), self.notes("go")), (beets["notes"], caddy["notes"]))
+        for run, server in ((beets, SERVER), (caddy, self.GO_SERVER)):
+            text = run["cmd"][run["cmd"].index("-p") + 1]
+            self.assertEqual(runner.PF_SENTENCE.format(server=server), text.split("\n\n")[-2])
+            self.assertEqual(challenges.TAIL, text.split("\n\n")[-1])
+        pf = runner.prepare(self.caddy_args("PF"))
+        self.assertIsNone(pf["notes"])
+        self.assertEqual(caddy["cmd"][caddy["cmd"].index("-p") + 1], pf["cmd"][pf["cmd"].index("-p") + 1])
+
+    def test_PFN_route_has_the_notes_and_PF_route_has_none(self):
+        code, rec, _, err = self.start("PFN")
+        self.assertEqual((0, "ok", "PFN"), (code, rec["outcome"], rec["arm"]), err)
+        self.assertEqual(f"{CHALLENGE['id']}__PFN__{MODEL}__1", rec["id"])
+        self.assertTrue(os.path.isdir(self.folder("PFN")))
+        sentence = runner.PF_SENTENCE.format(server=SERVER)
+        self.assertEqual(sentence, prompt_of(self.runs_of_docker()[0]["argv"]).split("\n\n")[-2])
+        code, rec, _, err = self.start("PF")
+        self.assertEqual((0, "ok"), (code, rec["outcome"]), err)
+        routes = [c["route"] for c in self.docker_calls() if "route" in c]
+        self.assertEqual(2, len(routes))
+        self.assertEqual(self.notes("python"), routes[0]["notes"])
+        self.assertIsNone(routes[1].get("notes"))
+        self.assertEqual({}, self.routes_now())
+
+    def test_dry_run_prints_the_arm(self):
+        code, out, err = self.main(*self.run_args("PFN"), "-dry-run")
+        self.assertEqual(0, code, err)
+        self.assertIn(f"runner: dry run {CHALLENGE['id']}__PFN__{MODEL}__1: arm PFN; route notes (python): "
+                      + ", ".join(self.PY_TOOLS) + "\n", err)
+        self.assertEqual(runner.PF_SENTENCE.format(server=SERVER), prompt_of(json.loads(out)).split("\n\n")[-2])
+        code, out, err = self.main(*self.run_args("PF"), "-dry-run")
+        self.assertEqual(0, code, err)
+        self.assertIn(f"runner: dry run {CHALLENGE['id']}__PF__{MODEL}__1: arm PF\n", err)
+        self.assertNotIn("route notes", err)
+        self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
+
+    def test_PFN_with_no_notes_of_the_language_starts_nothing(self):
+        path, go = os.path.join(self.tmp, "notes.json"), self.notes("go")
+        with mock.patch.object(runner, "NOTES_FILE", path):
+            code, _, err = self.main(*self.run_args("PFN"), "-dry-run")
+            self.assertEqual(2, code)
+            self.assertIn(path, err)
+            write(path, json.dumps({"go": go}))
+            code, _, _, err = self.start("PFN")
+            self.assertEqual(2, code)
+            self.assertIn("python", err)
+            self.assertEqual([], self.docker_calls())
+            self.assertEqual(0, self.main(*self.run_args("PF"), "-dry-run")[0], "only arm PFN reads the note file")
 
 
 class KeyTest(RunnerCase):
@@ -431,6 +528,18 @@ class RunTest(RunnerCase):
         self.assertEqual(["Grep", "ToolSearch"], rec["first_tools"])
         self.assertEqual(2, sum(rec["tools"].values()))
         self.assertTrue(os.path.isdir(self.folder("C-stop-2")))
+
+    def test_stop_after_tools_does_not_count_structured_output(self):
+        tool = lambda i, name: json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": f"toolu_{i}", "name": name, "input": {}}]}})
+        names = ("Bash", "StructuredOutput", "Bash", "Grep")
+        path = os.path.join(self.tmp, "stop.jsonl")
+        init = json.dumps({"type": "system", "subtype": "init", "mcp_servers": []})
+        write(path, "".join(line + "\n" for line in [init] + [tool(i, name) for i, name in enumerate(names)]))
+        code, rec, _, err = self.start("C", "-stop-after-tools", "2", fixture=path, delay=1, sleep=30)
+        self.assertEqual((0, "stopped"), (code, rec["outcome"]), err)
+        self.assertEqual(["Bash", "StructuredOutput", "Bash"], rec["first_tools"])
+        self.assertEqual({"Bash": 2, "StructuredOutput": 1}, rec["tools"])
 
     def test_route_is_removed_after_the_run(self):
         code, rec, _, _ = self.start("PF")

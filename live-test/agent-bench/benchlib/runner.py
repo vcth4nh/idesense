@@ -1,6 +1,6 @@
 """One run of the agent benchmark: Claude Code in print mode in a product container answers one challenge.
 
-    python3 -m benchlib.runner run -set <file> -challenge <id> -arm <C|P|PS|PF> -model <model> -batch <name>
+    python3 -m benchlib.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN> -model <model> -batch <name>
         [-aid skill|rule] [-variant instructions|no-tool-search] [-stop-after-tools N] [-no-tools] [-env-scrub]
         [-n <run number>] [-dry-run]                                 (run from live-test/agent-bench)
     python3 -m benchlib.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1]
@@ -9,9 +9,11 @@
 Arms: `C` has no MCP server. `P` has the MCP server of the IDE of the product, through a route of the filter
 proxy (`benchlib.proxy`). `PS` is `P` with an aid (`-aid skill` or `-aid rule`, installed by the entry script of
 the image). `PF` is `P` with the sentence PF_SENTENCE as its own paragraph before the answer paragraph of the
-prompt. `-no-tools` (arm C only) adds `--tools ""` (the memory probe). `-variant instructions` gives the route the
-text INSTRUCTIONS; `-variant no-tool-search` sets `ENABLE_TOOL_SEARCH=false` (plugin arms only).
-`-stop-after-tools N` kills the container after the N-th `tool_use` block (the adoption probe).
+prompt. `PFN` is `PF`, and its route has the notes of NOTES_FILE for the language of the product (LANGS): the
+proxy appends the note of a tool to the `notes` of each result of that tool. `-no-tools` (arm C only) adds
+`--tools ""` (the memory probe). `-variant instructions` gives the route the text INSTRUCTIONS; `-variant
+no-tool-search` sets `ENABLE_TOOL_SEARCH=false` (arms P, PS and PF). `-stop-after-tools N` kills the container
+after the N-th `tool_use` block that is not a block of `StructuredOutput` (the adoption probe).
 `-env-scrub` (each arm; default off) sets `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`: Claude Code removes credentials
 such as ANTHROPIC_API_KEY from the environment of Bash. Claude Code 2.1.326 needs bubblewrap for it.
 
@@ -22,7 +24,8 @@ the project of the route and the slot that the entry script keeps (`BENCH_SLOT`)
 `-e BENCH_AID=<aid or none>`, `-e ANTHROPIC_API_KEY` (the name only: the value is in the environment of the docker
 process and never in a command line or a file), the image id, then the arguments of `claude` (CLAUDE_FLAGS). A plugin
 arm adds `--mcp-config {"mcpServers": {"<server name>": {"type": "http", "url": "<route url>"}}}`. `-dry-run` prints
-this command as a JSON list and does nothing else; it does not read the key.
+this command as a JSON list, and on stderr one line with the run id, the arm and the tools of the route notes. It
+does nothing else; it does not read the key.
 
 Run id `<challenge>__<arm>[-<aid>][-<variant>][-no-tools][-stop-<N>][-scrub]__<model>__<n>`, run folder
 `RUNS/<batch>/<run id>/` with `transcript.jsonl` (the stdout of the container), `stderr.txt`, `proxy.jsonl` (the
@@ -113,17 +116,19 @@ ROUTES_FILE = os.path.join(BENCH, "proxy", "routes.json")
 PROXY_LOG_DIR = os.path.join(BENCH, "proxy", "log")
 SLOTS_FILE = trees.SLOTS_FILE
 KEY_FILE = "/home/ubuntu/dev/idesense/.local/.api-keys/vcth4nh"
+NOTES_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "notes.json")
 
 PLUGIN_VERSION = "2.1.1-bench.f4ff0a2"
 IDE_URLS = {"caddy": "http://127.0.0.1:29374/mcp/streamable-http",
             "beets": "http://127.0.0.1:29372/mcp/streamable-http"}
+LANGS = {"caddy": "go", "beets": "python"}  # the language of a product: its key in NOTES_FILE
 HEALTH_URL = "http://172.17.0.1:29380/health"
 READY_TIMEOUT = audit.READY_TIMEOUT
 WALL_LIMIT = 30 * 60
 HANDSHAKE_LIMIT = 120
 
-ARMS = ("C", "P", "PS", "PF")
-PLUGIN_ARMS = ("P", "PS", "PF")
+ARMS = ("C", "P", "PS", "PF", "PFN")
+PLUGIN_ARMS = ("P", "PS", "PF", "PFN")
 AIDS = ("skill", "rule")
 VARIANTS = ("instructions", "no-tool-search")
 # The container flags of the plan (Global Constraints). No mount, no volume, no host network, no Docker socket.
@@ -318,8 +323,8 @@ def _check_args(args) -> None:
         raise SetupError("arm PS needs -aid skill or -aid rule")
     if args.aid and args.arm != "PS":
         raise SetupError(f"-aid is for arm PS only, not for arm {args.arm}")
-    if args.variant and args.arm not in PLUGIN_ARMS:
-        raise SetupError(f"-variant is for a plugin arm (P, PS, PF), not for arm {args.arm}")
+    if args.variant and args.arm not in ("P", "PS", "PF"):
+        raise SetupError(f"-variant is for the arms P, PS and PF, not for arm {args.arm}")
     if args.no_tools and args.arm != "C":
         raise SetupError(f"-no-tools is for arm C only, not for arm {args.arm}")
     if args.n < 1:
@@ -355,6 +360,19 @@ def image_problem(image: dict, tree: str, slot: dict) -> str | None:
     return None
 
 
+def route_notes(product: str) -> dict:
+    """The notes of NOTES_FILE for the language of the product: {tool name: text}."""
+    try:
+        with open(NOTES_FILE, encoding="utf-8") as f:
+            notes = json.load(f)
+    except (OSError, ValueError) as e:
+        raise SetupError(f"{NOTES_FILE}: no note file ({type(e).__name__}: {e})") from None
+    texts = notes.get(LANGS.get(product)) if isinstance(notes, dict) else None
+    if not isinstance(texts, dict) or not texts:
+        raise SetupError(f"{NOTES_FILE}: no notes for the language {LANGS.get(product)!r} of the product {product!r}")
+    return texts
+
+
 def pf_prompt(text: str, server: str) -> str:
     """The prompt with PF_SENTENCE as its own paragraph before the answer paragraph."""
     head, sep, tail = text.rpartition("\n\n")
@@ -380,8 +398,9 @@ def prepare(args) -> dict:
     image = load_image(product)
     server, root = image["server_name"], slot["path"]
     text = challenges.prompt(ch, record, root)
-    if args.arm == "PF":
+    if args.arm in ("PF", "PFN"):
         text = pf_prompt(text, server)
+    notes = route_notes(product) if args.arm == "PFN" else None
     plugin = args.arm in PLUGIN_ARMS
     token = proxy.new_token() if plugin else None
     name = "run-" + secrets.token_hex(6)
@@ -400,7 +419,7 @@ def prepare(args) -> dict:
     run_id = run_id_of(args)
     return {"run_id": run_id, "folder": os.path.join(RUNS, args.batch, run_id), "ch": ch, "record": record,
             "product": product, "tree": tree, "slot": slot, "root": root, "image": image, "server": server,
-            "plugin": plugin, "token": token, "name": name, "cmd": cmd,
+            "plugin": plugin, "token": token, "notes": notes, "name": name, "cmd": cmd,
             "image_problem": image_problem(image, tree, slot)}
 
 
@@ -466,7 +485,7 @@ def run_container(cmd: list[str], env: dict, name: str, transcript: str, stderr_
                   stop_after: int | None) -> tuple[int, float, str]:
     """Run the docker command. Its stdout goes to `transcript` line by line, its stderr to `stderr_path`. Return the
     exit code, the seconds and how it ended: `exit`, `timeout` (killed after `limit` s) or `stopped` (killed after
-    the `stop_after`-th tool_use block)."""
+    the `stop_after`-th tool_use block that is not a block of `StructuredOutput`)."""
     state = {"ended": None}
     lock = threading.Lock()
     start = time.monotonic()
@@ -489,7 +508,8 @@ def run_container(cmd: list[str], env: dict, name: str, transcript: str, stderr_
                 out.write(raw)
                 out.flush()
                 if stop_after and state["ended"] is None:
-                    seen.update(block_id or object() for block_id, _ in _tool_uses(_event(raw)))
+                    seen.update(block_id or object() for block_id, name in _tool_uses(_event(raw))
+                                if name != "StructuredOutput")
                     if len(seen) >= stop_after:
                         stop("stopped")
             proc.wait()
@@ -557,6 +577,8 @@ def run_one(args) -> tuple[int, dict | None]:
     if args.dry_run:
         if run["image_problem"]:
             print(f"runner: note: {run['image_problem']}", file=sys.stderr)
+        notes = f"; route notes ({LANGS[run['product']]}): {', '.join(sorted(run['notes']))}" if run["notes"] else ""
+        print(f"runner: dry run {run['run_id']}: arm {args.arm}{notes}", file=sys.stderr)
         print(json.dumps(run["cmd"], ensure_ascii=False))
         return 0, None
     run_id, folder = run["run_id"], run["folder"]
@@ -596,7 +618,7 @@ def run_one(args) -> tuple[int, dict | None]:
         if route_run:
             proxy.add_route(ROUTES_FILE, run["token"], {
                 "run": route_run, "upstream": ide_url, "project": root,
-                "instructions": INSTRUCTIONS if args.variant == "instructions" else None})
+                "instructions": INSTRUCTIONS if args.variant == "instructions" else None, "notes": run["notes"]})
         rec["started"] = _now()
         exit_code, seconds, ended = run_container(
             run["cmd"], {**os.environ, "ANTHROPIC_API_KEY": key}, run["name"], files["transcript.jsonl"],

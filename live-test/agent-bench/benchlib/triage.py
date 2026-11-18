@@ -23,11 +23,12 @@ site has no class.
   a sorted list of `path:line`.
 - `summary.md`, with one Markdown table in each section: "Batch" (the run count of each outcome, set aside,
   unfinished, the total cost of the runs), "By challenge, model and arm" (`summary_rows`), "Paired differences"
-  (`paired`; after the lines of the challenges of a model and an arm, the line `all` has the means over the
-  challenges and, for each difference, its mean and its 95 % interval from `bootstrap`), "Adoption"
-  (`adoption_rows`) and "Flags" (for each flag the count of the runs where it is true or above 0, and at most
-  FLAG_IDS run ids). Numbers: 3 decimals for scores and shares, 4 for USD, 1 for seconds and the means of counts, 0
-  for tokens; `-` for None.
+  (`paired`: each plugin arm - C, and PFN - PF; after the lines of the challenges of a model, an arm and a base,
+  the line `all` has the means over the challenges and, for each difference, its mean and its 95 % interval from
+  `bootstrap`), "Adoption" (`adoption_rows`) and "Flags" (for each flag the count of the runs where it is true or
+  above 0, and at most FLAG_IDS run ids). The tables give the arms in the order of `runner.ARMS` (C, P, PS, PF,
+  PFN). Numbers: 3 decimals for scores and shares, 4 for USD, 1 for seconds and the means of counts, 0 for tokens;
+  `-` for None.
 
 `table` prints one line for each run: challenge, arm label, model, n, outcome, tp, fp, miss, exact, USD, turns,
 seconds, tool calls, IDE calls.
@@ -337,6 +338,11 @@ def _plugin_label(label: str) -> bool:
     return label.split("-", 1)[0] in runner.PLUGIN_ARMS
 
 
+def _arm_order(label: str) -> tuple:
+    """The sort key of an arm label: the arm in the order of runner.ARMS (C, P, PS, PF, PFN), then the label."""
+    return runner.ARMS.index(label.split("-", 1)[0]), label
+
+
 def summary_rows(records) -> list[dict]:
     """One row for each (challenge, model, arm label), over the runs that are not EXCLUDED and not `stopped`: `runs`,
     `outcomes`, the means of MEANS, the share `exact`, `adoption` (plugin arms: the share of runs with an IDE call;
@@ -346,7 +352,7 @@ def summary_rows(records) -> list[dict]:
         if rec.get("outcome") != "stopped":
             groups.setdefault((rec["challenge"], rec["model"], arm_label(rec)), []).append(rec)
     rows = []
-    for (challenge, model, label), recs in sorted(groups.items()):
+    for (challenge, model, label), recs in sorted(groups.items(), key=lambda g: (g[0][:2], _arm_order(g[0][2]))):
         counted = [rec for rec in recs if rec.get("outcome") not in EXCLUDED]
         ms = [measures(rec) for rec in counted]
         row = {"challenge": challenge, "model": model, "arm_label": label, "runs": len(counted),
@@ -361,20 +367,25 @@ def summary_rows(records) -> list[dict]:
 
 
 def paired(records) -> list[dict]:
-    """One row for each (model, plugin arm label, challenge) where the arm and the label `C` both have a run that is
-    not EXCLUDED and not `stopped`: for each PAIRED measure `<m>_arm`, `<m>_c` (the means) and `<m>_diff` (arm - C)."""
+    """One row for each (model, plugin arm label, base label, challenge) where the arm and the base both have a run
+    that is not EXCLUDED and not `stopped`. The base of each plugin arm label is `C`; a label `PFN<rest>` also has
+    the base `PF<rest>`. For each PAIRED measure: `<m>_arm`, `<m>_base` (the means) and `<m>_diff` (arm - base)."""
     rows = {(r["challenge"], r["model"], r["arm_label"]): r for r in summary_rows(records) if r["runs"]}
     out = []
     for (challenge, model, label), row in rows.items():
-        c = rows.get((challenge, model, "C"))
-        if c is None or not _plugin_label(label):
+        if not _plugin_label(label):
             continue
-        item = {"model": model, "arm_label": label, "challenge": challenge}
-        for k in PAIRED:
-            a, b = row[k], c[k]
-            item.update({f"{k}_arm": a, f"{k}_c": b, f"{k}_diff": None if a is None or b is None else a - b})
-        out.append(item)
-    return sorted(out, key=lambda r: (r["model"], r["arm_label"], r["challenge"]))
+        for base_label in ["C"] + (["PF" + label[3:]] if label.split("-", 1)[0] == "PFN" else []):
+            base = rows.get((challenge, model, base_label))
+            if base is None:
+                continue
+            item = {"model": model, "arm_label": label, "base_label": base_label, "challenge": challenge}
+            for k in PAIRED:
+                a, b = row[k], base[k]
+                item.update({f"{k}_arm": a, f"{k}_base": b, f"{k}_diff": None if a is None or b is None else a - b})
+            out.append(item)
+    return sorted(out, key=lambda r: (r["model"], _arm_order(r["arm_label"]), _arm_order(r["base_label"]),
+                                      r["challenge"]))
 
 
 def bootstrap(values: list[float], seed: int = 1, n: int = 10000) -> tuple[float, float, float]:
@@ -399,7 +410,7 @@ def adoption_rows(records) -> list[dict]:
         if rec.get("arm") in runner.PLUGIN_ARMS and rec.get("outcome") not in EXCLUDED:
             groups.setdefault((arm_label(rec), rec["model"]), []).append(rec)
     rows = []
-    for (label, model), recs in sorted(groups.items()):
+    for (label, model), recs in sorted(groups.items(), key=lambda g: (_arm_order(g[0][0]), g[0][1])):
         hits = sum(1 for rec in recs if any(str(name).startswith(IDE_PREFIX) for name in rec.get("first_tools") or []))
         rows.append({"arm_label": label, "model": model, "runs": len(recs), "ide_first": hits,
                      "share": hits / len(recs)})
@@ -456,20 +467,19 @@ def _summary_section(records) -> str:
 
 
 def _paired_section(records) -> str:
-    sides = ("arm", "c", "diff")
-    header = ["model", "arm", "challenge"] + [f"{NAMES.get(k, k)} {side if side != 'c' else 'C'}"
-                                              for k in PAIRED for side in sides]
+    sides = ("arm", "base", "diff")
+    header = ["model", "arm", "base", "challenge"] + [f"{NAMES.get(k, k)} {side}" for k in PAIRED for side in sides]
     groups: dict[tuple, list] = {}
     for row in paired(records):
-        groups.setdefault((row["model"], row["arm_label"]), []).append(row)
+        groups.setdefault((row["model"], row["arm_label"], row["base_label"]), []).append(row)
     rows = []
-    for (model, label), group in groups.items():
-        rows += [[model, label, f"`{r['challenge']}`"] + [_fmt(r[f"{k}_{side}"], k) for k in PAIRED for side in sides]
-                 for r in group]
-        line = [model, label, "all"]
+    for (model, label, base), group in groups.items():
+        rows += [[model, label, base, f"`{r['challenge']}`"]
+                 + [_fmt(r[f"{k}_{side}"], k) for k in PAIRED for side in sides] for r in group]
+        line = [model, label, base, "all"]
         for k in PAIRED:
             mean, low, high = bootstrap([r[f"{k}_diff"] for r in group if r[f"{k}_diff"] is not None])
-            line += [_fmt(_mean(r[f"{k}_arm"] for r in group), k), _fmt(_mean(r[f"{k}_c"] for r in group), k),
+            line += [_fmt(_mean(r[f"{k}_arm"] for r in group), k), _fmt(_mean(r[f"{k}_base"] for r in group), k),
                      _fmt(mean, k) + ("" if low is None else f" [{_fmt(low, k)}, {_fmt(high, k)}]")]
         rows.append(line)
     return _md(header, rows)
@@ -526,8 +536,9 @@ def report(batch_dir: str, set_file: str, out_dir: str) -> str:
         "## Batch", _batch_section(batch),
         "## By challenge, model and arm", _summary_section(records),
         "## Paired differences",
-        "Arm - C, for each challenge of a model and an arm. The line `all`: the means over the challenges; each "
-        "difference with its bootstrap mean and 95 % interval over the challenges.",
+        "Arm - base, for each challenge of a model, an arm and a base. The base is C for each plugin arm, and also PF "
+        "for PFN. The line `all`: the means over the challenges; each difference with its bootstrap mean and 95 % "
+        "interval over the challenges.",
         _paired_section(records),
         "## Adoption", _adoption_section(records),
         "## Flags", _flags_section(rows)]) + "\n"

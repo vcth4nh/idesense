@@ -2,11 +2,16 @@
 
 A plugin arm reaches its IDE only through this proxy, at `http://172.17.0.1:29380/r/<token>/mcp` (the
 docker0 address). The route file maps each token to one run:
-`{"<token>": {"run": ..., "upstream": <IDE MCP url>, "project": <absolute path>, "instructions": null}}`.
+`{"<token>": {"run": ..., "upstream": <IDE MCP url>, "project": <absolute path>, "instructions": null,
+"notes": null}}`. `notes` is absent, null or `{"<tool name>": "<text>"}`.
 For a POST of one JSON-RPC object on a route, the proxy:
 
 - answers `tools/call` of a tool outside PERMITTED_TOOLS itself (a tool error), with no call to the IDE;
 - sets `params.arguments.project_path` of each other `tools/call` to the project of the route;
+- appends the note text of the route for the tool to the list `notes` of the result of a `tools/call`, when the
+  answer is no error and its `result.content[0].text` is the JSON text of an object. The proxy makes the list
+  when `notes` is absent or null, writes the object again as compact JSON text, and the log line gets
+  `"note_added": true`. Each other answer of a `tools/call` passes byte for byte;
 - keeps only the permitted tools in the answer of `tools/list`;
 - sets `result.instructions` of the answer of `initialize` when the route has an `instructions` text;
 - forwards each other method with no change.
@@ -204,6 +209,38 @@ def _is_error(body: bytes):
     return "error" in envelope or (isinstance(result, dict) and result.get("isError") is True)
 
 
+def _with_note(entry, tool, rec, body: bytes) -> bytes:
+    """The answer body of a `tools/call` with the note of the route for `tool` (module text). The body stays as it
+    is for a tool with no note, an error, an answer that is no JSON, a result text that is no JSON object and an
+    object with the key `error` (the error payload of the plugin)."""
+    notes = entry.get("notes")
+    note = notes.get(tool) if isinstance(notes, dict) else None
+    if not isinstance(note, str):
+        return body
+    try:
+        envelope = json.loads(body)
+    except ValueError:
+        return body
+    result = envelope.get("result") if isinstance(envelope, dict) and "error" not in envelope else None
+    if not isinstance(result, dict) or result.get("isError") is True:
+        return body
+    content = result.get("content")
+    block = content[0] if isinstance(content, list) and content else None
+    text = block.get("text") if isinstance(block, dict) else None
+    if not isinstance(text, str):
+        return body
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        return body
+    if not isinstance(payload, dict) or "error" in payload or not isinstance(payload.get("notes"), (list, type(None))):
+        return body
+    payload["notes"] = (payload.get("notes") or []) + [note]
+    block["text"] = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+    rec["note_added"] = True
+    return _body(envelope)
+
+
 class ProxyHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     # An idle keep-alive connection of a removed container does not hold its thread for ever.
@@ -301,6 +338,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
             return _rpc_error(502, msg.get("id"), f"upstream failure: {type(e).__name__}: {e}")
         if status == 200 and method in ("initialize", "tools/list"):
             return self._filter(entry, method, msg.get("id"), rec, status, headers, body)
+        if status == 200 and method == "tools/call":
+            return status, headers, _with_note(entry, params.get("name"), rec, body)
         return status, headers, body
 
     def _filter(self, entry, method, request_id, rec, status, headers, body):
