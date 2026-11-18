@@ -108,7 +108,7 @@ internal class UsageRules(
  * [SuperMethodsProvider.findDirectReferences] of the provider of its language. When the provider
  * gives references, the search of that target takes them and uses no handler (#175): the Java and
  * Kotlin handlers send the search of a member to its base declarations, so they cannot search the
- * member itself.
+ * member itself. The PHP factory asks a question for a method with a base method (#182).
  *
  * The search of the handler takes one of two paths:
  * - Go: `processElementUsages`, the search of the IDE's Find Usages action. In GoLand only

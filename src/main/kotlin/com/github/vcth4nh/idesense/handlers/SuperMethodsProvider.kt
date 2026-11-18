@@ -20,8 +20,8 @@ interface SuperMethodsProvider {
 
     /**
      * The references to [element] itself in [scope], for a language whose find-usages handler sends
-     * the search of a member to its base declarations. Null (the default): the search takes the
-     * find-usages handler for [element].
+     * the search of a member to its base declarations, or whose handler factory asks a question for
+     * a member (PHP, #182). Null (the default): the search takes the find-usages handler for [element].
      */
     fun findDirectReferences(element: PsiElement, scope: SearchScope): Collection<PsiReference>? = null
 

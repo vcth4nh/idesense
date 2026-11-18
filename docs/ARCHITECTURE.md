@@ -67,7 +67,12 @@ a class of results by default (dynamic usages), a tool has no user to ask. The o
 rule (2026-11-17): the tool takes the wider result and marks each row that is not a sure
 match (`match: BASE`, `match: OVERRIDE`, `match: DYNAMIC`), and the response names what was
 added, in terms of the code. A tool never drops such rows silently and never returns them
-without a mark. `ide_find_usages` is the first tool that applies this rule (#171, #196).
+without a mark. `ide_find_usages` is the first tool that applies this rule (#171, #196). For a
+PHP method, PhpStorm asks "find usages of base method?" and then searches the selected methods
+and the methods that override them, with no mark. The tool asks no question
+(`PhpSuperMethodsProvider.findDirectReferences`, #182): it searches the method, its base methods
+and its overriding methods (#183), and decides the mark of each usage from the declarations that
+its reference resolves to (`PhpSuperMethodsProvider.usageMark`).
 
 **No silent drop.** The owner's rule (2026-11-17): when a tool leaves out rows that the IDE's
 search returned, the first page has a `notes` entry with the kind of the rows, their count and

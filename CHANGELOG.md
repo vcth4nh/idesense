@@ -29,13 +29,22 @@
   `REFERENCE`: for example `Shape` in the PHP doc comment `/** @var Shape[] */`. A caller that
   filters on `REFERENCE` no longer gets these usages (#132).
 - `ide_find_usages` and `ide_explain_symbol` include the usages of the base declarations of a Go,
-  Java, JavaScript, Kotlin, Python, Rust or TypeScript member. The result is the union of the usages
-  of the member and the usages of each declaration that it overrides or implements. A usage of a
-  base declaration has `match: BASE`: the call can run this member or another implementation. A
-  usage whose reference matches only by the name has `match: DYNAMIC`. A usage with no `match`
+  Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member. The result is the union of the
+  usages of the member and the usages of each declaration that it overrides or implements. A usage
+  of a base declaration has `match: BASE`: the call can run this member or another implementation.
+  A usage whose reference matches only by the name has `match: DYNAMIC`. A usage with no `match`
   refers to the member itself. The `notes` entry of `ide_find_usages` names the base declarations
   and gives the count of the `BASE` usages. The `topUsages` of `ide_explain_symbol` lists the code
-  usages with no `match` first (#171, #172, #175, #196, #208).
+  usages with no `match` first (#171, #172, #175, #182, #196, #208).
+- `ide_find_usages` and `ide_explain_symbol` leave out a key of a Go composite literal that names a
+  struct field with the same name as the type of the query (`certmagic.ACMEIssuer{CA: iss.CA}` for
+  the type `CA`). Find Usages of GoLand lists such a key as a usage of the type, but the key refers
+  to the field. A key of an embedded field names the type and stays in the list.
+- The first page of `ide_find_usages` has a `notes` entry for each kind of usage that the result
+  leaves out, with the count (`<n> or more` when the search stopped at its limit), and an entry for
+  each base method that the search does not search (a method of the Python class `object`).
+  `ide_explain_symbol` has the new optional field `notes` with the same entries; its `usageCount`
+  and `topUsages` do not hold a usage that is left out.
 
 ### Fixed
 - `ide_type_hierarchy` and `ide_call_hierarchy` dispose the per-call hierarchy browser once the
@@ -127,6 +136,22 @@
   known type. The mark follows the rule of the "Dynamic usages" group of the IDE's Find Usages
   window, and in JavaScript and TypeScript also the rule of WebStorm. A symbol name in a code span
   of a Markdown file has the mark too, as in the IDE. WebStorm hides these usages by default (#196).
+- `ide_find_usages` and `ide_explain_symbol` on a PHP method with a base method no longer give the
+  `warnings` entry "Find-usages handler factory PhpFindUsagesHandlerFactory threw while creating
+  the handler" and no longer write a stack trace to the IDE log for each call. PhpStorm's handler
+  factory asked "Do you want to find usages of base method?", and off the EDT the question threw.
+  The tool now asks the factory for no PHP method: it searches the references to the method itself
+  and the usages of each base method with `match: BASE` (#182).
+- `ide_find_usages` and `ide_explain_symbol` on a PHP method also return the usages of each method
+  that overrides or implements it, as Find Usages of PhpStorm does. Such a usage has the new mark
+  `match: OVERRIDE`: it is a call on a value whose type has the overriding method. At an interface
+  method these calls were absent, with no note. The `notes` entry of `ide_find_usages` names the
+  overriding methods and gives the count of the `OVERRIDE` usages. The declarations of the
+  overriding methods are not usages (#183).
+- `ide_find_usages` and `ide_explain_symbol` on a PHP class, interface, trait or enum leave out the
+  references through `$this`, `self` or `static` inside the class, as Find Usages of PhpStorm does by
+  default. The tool listed them as plain usages. The first page has a `notes` entry with their
+  count (#179).
 
 ## [2.1.0] - 2026-11-09
 
