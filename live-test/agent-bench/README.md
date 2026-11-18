@@ -27,6 +27,7 @@ live-test/agent-bench/
   ide/bench-ide.sh          start, stop, status of one benchmark IDE instance
   image/Dockerfile          product image: tool chain, Claude Code, the trees with warm caches
   image/entry.sh            entry point of a run container: aid, cleanup, start of the agent
+  notes.json                the note texts of arm PFN: for each language, a text for each tool
   tests/test_*_unit.py      Python unit tests
   tests/fixtures/           small package for the key tests, stream-json transcripts for the runner
 ```
@@ -35,6 +36,69 @@ The data root `BENCH` is `/home/ubuntu/dev/idesense-bench/`. It is not a reposit
 folders `trees/`, `ide/`, `keys/`, `audit/`, `challenges/`, `images/`, `proxy/`, `runs/` and
 `scratch/`. A key file is `BENCH/keys/<product>/<set>.jsonl`, with one key record for each line
 (see `benchlib/keys.py`).
+
+## Keys
+
+A Go key comes from `gokeys extract`: the name resolution of `go/types`, with one load for each
+build configuration. Build the binary in `live-test/agent-bench/gokeys` and make the caddy key:
+
+```
+go build -o BENCH/scratch/gokeys-bin .
+BENCH/scratch/gokeys-bin extract -tree BENCH/trees/caddy -configs linux,windows,darwin -out BENCH/keys/caddy/symbols.jsonl
+```
+
+A record of a method or an interface method has two families:
+
+- `family` is the structural family: the closure through `types.Implements` over the module types
+  and interfaces that have a method with this name.
+- `coupled` is the part of `family` that a rename must change with the record (sorted, with the
+  record). A link joins two methods with the same name when the module converts a value of a type
+  to an interface type (an assignment, an argument, a return value, a composite literal element, a
+  channel send, a comparison, an explicit conversion, a guard `var _ J = (*T)(nil)`), converts a
+  value of one interface type to another one, or asserts an interface value to a type (`x.(U)`, a
+  case of a type switch). A link goes to the declared method; for a promoted method, to the method
+  of the embedded type. `coupled` is the closure of the record over the links, cut to `family`. A
+  library method is no part of a link. Test files and each build configuration count.
+- An assertion `x.(U)` to an interface `U`, where `x` has an interface type `J1` with a method,
+  also links each type `V` that is no interface, that the module converts to `J1`, and that
+  implements `U`: the links of the conversion of `V` to `U`. The conversion can go directly to
+  `J1`, or to an interface `J0` whose values one or more conversions give to `J1`. The assertion
+  and the conversion can be in different packages and configurations. Example in caddy: a
+  module type goes to `caddy.Module` as the result of its `New` function, and an assertion on a
+  `caddy.Module` value to `caddy.Provisioner` links its `Provision` method.
+
+A use of a family member outside `coupled` is `dnc` with `"optional": true`, and it keeps its `rel`:
+a rename can change it, and need not change it. The rename view (`challenges.view`) uses the record
+as it is, but a forbidden site on a line with an optional use and no required use is `dnc`. The refs
+view and the audit read the record through `keys.structural_view`, where such a use is `required`
+again. So these two views are the views of the key before `coupled`.
+
+Limits of `coupled`:
+
+- An assertion on a value of an empty interface (`any`) gives no link. So a type that reaches an
+  interface only through such an assertion gets no link, and its method is optional. A rename
+  that keeps its old name builds, but the assertion fails at run time. Example in caddy: a
+  handler or a matcher module with no guard line for the interface reaches `caddyhttp.MiddlewareHandler` or
+  `caddyhttp.RequestMatcher` only through an assertion on a result of `Context.LoadModule`,
+  whose type is `any`.
+- `satisfy` also records an assertion `x.(T)` as a conversion of `T` to the type of `x` when that
+  type can hold `T`. So such an assertion also gives a conversion for the assertions above. The
+  output of `extract` counts the links that can need such a conversion.
+- A conversion with a type parameter on one side gives no link. The output of `extract` counts
+  these conversions. The constraint check of a type argument gives no link.
+- A use that resolves to a coupled member in one configuration and to another member in another
+  configuration stays `required`. The output of `extract` counts these uses.
+
+`gokeys accept` proves a key: it renames the sites in a copy of the tree and loads each
+configuration. The default renames each declaration of `family` and each use with a `rel`.
+`-minimal` renames the declarations of `coupled` and each use with a `rel` and no `optional` (the
+required uses, and the uses in a generated file). When `coupled` is smaller than `family`, it finds
+the member of a declaration through the `decl` of the member record, so the key file must have the
+records of the family.
+
+```
+BENCH/scratch/gokeys-bin accept -tree BENCH/trees/caddy -keys <key file> -ids <id,...|@file> -configs linux,windows,darwin -scratch <dir> [-minimal]
+```
 
 ## Agent runs
 
@@ -48,7 +112,12 @@ commands and its file formats.
   container, and it has no word that tells the agent of a benchmark.
 - **Arms.** `C` has no plugin. `P` has the plugin as an MCP server. `PS` has the plugin and an aid
   (`skill` or `rule`). `PF` has the plugin and one sentence in the prompt that tells the agent to
-  use it.
+  use it. `PFN` is `PF`, and the proxy adds a fixed note to the results of some IDE tools.
+- **Notes.** `notes.json` has the note texts of arm `PFN`: for each language (`go`, `python`) a
+  text for each tool. The runner gives the route of a `PFN` run the notes of the language of the
+  product (caddy: `go`, beets: `python`). For a result of such a tool that is no error, the proxy
+  appends the text to the list `notes` of the result, and the proxy log line of the call has
+  `"note_added": true`. Each other answer passes with no change.
 - **Proxy.** A container reaches a benchmark IDE only through `benchlib/proxy.py`. The proxy has
   one route for each run, passes only a fixed list of 15 tools (no rename, no file move, no
   plugin install, no restart), and sets the project of each call.
@@ -60,7 +129,7 @@ python3 -B -m benchlib.image build <caddy|beets>
 python3 -B -m benchlib.image gate <caddy|beets>
 python3 -B -m benchlib.proxy serve -routes BENCH/proxy/routes.json -log-dir BENCH/proxy/log
 python3 -B -m benchlib.runner handshake -product <caddy|beets>
-python3 -B -m benchlib.runner run -set <challenges.jsonl> -challenge <id> -arm <C|P|PS|PF> -model <model> -batch <name> [-dry-run]
+python3 -B -m benchlib.runner run -set <challenges.jsonl> -challenge <id> -arm <C|P|PS|PF|PFN> -model <model> -batch <name> [-dry-run]
 python3 -B -m benchlib.runner batch -plan <plan.jsonl> -batch <name> -jobs 2
 ```
 

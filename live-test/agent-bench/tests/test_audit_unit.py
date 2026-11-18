@@ -809,6 +809,41 @@ class RunTest(unittest.TestCase):
                            "miss": [{"file": "b.go", "line": 4, "configs": ["linux"], "why": ["use"], "rel": ["self"]}],
                            "errors": [], "auto": ["decoy", "miss"]}], rows)
 
+    def test_the_audit_reads_an_optional_use_as_required(self):
+        """An optional use (a member outside the coupled family) is a use for the audit: the results, the
+        disagreements and the hardness of a key with optional uses equal those of the same key with the uses
+        required."""
+        plain = record([site("a.go", 1, "dnc", "decl", 15), site("a.go", 3, rel="self"), site("a.go", 4, rel="super"),
+                        site("b.go", 6, rel="sibling"), site("b.go", 6, "forbidden", "decoy", 9),
+                        site("c.go", 2, rel="sub")], family=["go:m.App.Run", "go:m.Runner.Run"])
+        split = json.loads(json.dumps(plain))
+        for s in split["sites"]:
+            if s.get("rel") in ("super", "sibling", "sub"):
+                s.update({"class": "dnc", "optional": True})
+        split["coupled"] = ["go:m.App.Run"]
+        self.assertEqual(("easy", "easy"), (audit.hardness(plain), audit.hardness(split)))
+
+        def answer(tool, args):
+            if tool == "ide_find_definition":
+                return definition("a.go", 1, 15)
+            return page([usage("a.go", 3), usage("b.go", 6), usage("d.go", 8)])
+
+        outputs = []
+        for rec in (plain, split):
+            d, path = self.keyfile([rec])
+            server, _ = fake(self, answer)
+            out = os.path.join(d, "audit")
+            self.assertEqual(0, audit.main(["run", "-keys", path, "-url", server.url, "-project", "/p", "-n", "10",
+                                            "-seed", "1", "-repeats", "1", "-out", out]))
+            self.assertEqual(0, audit.main(["disagreements", "-results", out, "-keys", path]))
+            got = []
+            for name in ("results.jsonl", "disagreements.jsonl"):
+                with open(os.path.join(out, name), encoding="utf-8") as f:
+                    got.append([r for r in map(json.loads, f) if r["id"] != "_meta"])
+            outputs.append(got)
+        self.assertEqual(outputs[0], outputs[1])
+        self.assertEqual(4, outputs[1][0][1]["extra"]["sites"])  # the definition probe reads 4 required sites
+
     def test_disagreements_classify_against_the_keys(self):
         mix = record([site("a.go", 1, "dnc", "decl", 6), site("a.go", 3), site("a.go", 4),
                       site("a.go", 4, col=9), site("b.go", 6), site("c.go", 9, "forbidden", "decoy")], rid="go:m.Mix")

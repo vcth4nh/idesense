@@ -35,7 +35,9 @@ Python keys) write this unit, so the probes pass `col` as `column` with no conve
 
 Audit view of `ide_find_usages` (see `usages_view`): the class of a site has the rename meaning, so
 each use of each family member is `required`, with `rel` = `self`, `super`, `sub`, `sibling` or
-`embedded` (no `rel` counts as `self`). An `embedded` site is a selector or a composite literal key that
+`embedded` (no `rel` counts as `self`). The audit reads each record through `keys.structural_view`: an
+optional use (a member outside the coupled family of a Go key) is `required` there, as in a key with no
+`coupled` list. An `embedded` site is a selector or a composite literal key that
 names an embedded field of the type of the record; the IDE resolves it to the field, not to the type.
 Find Usages lists the `self` uses and, for a method, the uses of the interface methods that it
 implements (`super`). So the usages probe scores against a view in which a required site with another
@@ -92,7 +94,7 @@ def hardness(record: dict) -> str:
     A forbidden line is a line that a whole-word scan of the name finds and the key rejects. A line with a
     required site and a decoy is a required line, and the scan is correct there.
     """
-    return "decoys" if "forbidden" in keys.line_classes(record).values() else "easy"
+    return "decoys" if "forbidden" in keys.line_classes(keys.structural_view(record)).values() else "easy"
 
 
 def sample(records: list[dict], n: int, seed: int) -> list[dict]:
@@ -407,6 +409,7 @@ def run_audit(records: list[dict], client: McpClient, repeats: int, out=None, pr
     Each result goes to the open file `out` as soon as it is known. A probe that gives no result (None)
     is left out: the definition probe of a record whose only required sites are `embedded`."""
     results = []
+    records = [keys.structural_view(rec) for rec in records]
     for repeat in range(1, repeats + 1):
         for i, rec in enumerate(records, 1):
             for tool in probes_for(rec):
@@ -588,7 +591,7 @@ def disagreements(results: list[dict], records_by_id: dict[str, dict], host_conf
         if not (fp or miss or errors or marked):
             continue
         flake = len({_outcome(res) for res in group}) > 1
-        record = records_by_id[rid]
+        record = keys.structural_view(records_by_id[rid])
         if tool == USAGES:
             view = usages_view(record)
             miss_out, fp_out = _miss_entries(miss, view, with_rel=True), _fp_entries(fp, view, group)

@@ -17,6 +17,12 @@ A key file `BENCH/keys/<product>/<set>.jsonl` has one key record for each line:
 - source: go/types, scan, plant, reflection, runtime.
 - Paths are relative to the tree root.
 
+A Go record of a method or an interface method also has `coupled`: the sorted ids of the family members that a
+rename must change with the record (see `live-test/agent-bench/README.md`). A use of a family member outside
+`coupled` is `dnc` with `"optional": true` and keeps its `rel`: a rename can change it, and need not. A question
+about the uses of a symbol (the refs view, the audit) reads the record through `structural_view`, where such a
+use is `required` again.
+
 The score works on source lines, `(file, line)`, not on sites.
 """
 import json
@@ -46,6 +52,20 @@ def save_keys(path: str, records: list[dict]) -> None:
     except BaseException:
         os.unlink(tmp)
         raise
+
+
+def structural_view(record: dict) -> dict:
+    """A copy of the record in which each optional use has its class of the structural family: `required`, or
+    `dnc` for a use in a generated file (`why` `generated`). The `optional` field goes. The record itself does not
+    change."""
+    sites = []
+    for site in record["sites"]:
+        if site.get("optional"):
+            site = {k: v for k, v in site.items() if k != "optional"}
+            if site["why"] == "use":
+                site["class"] = "required"
+        sites.append(site)
+    return {**record, "sites": sites}
 
 
 def line_classes(record: dict) -> dict[tuple[str, int], str]:

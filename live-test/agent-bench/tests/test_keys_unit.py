@@ -3,6 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
+import json
 import shutil
 import tempfile
 import unittest
@@ -78,6 +79,29 @@ class ScoreTest(unittest.TestCase):
     def test_unknown_class_is_an_error(self):
         with self.assertRaisesRegex(ValueError, "do-not-care"):
             keys.line_classes(record([site(1, "do-not-care")]))
+
+
+class StructuralViewTest(unittest.TestCase):
+    def test_optional_use_is_required_again(self):
+        """The view gives each optional use its class of the structural family: `required` for a use, `dnc` for a
+        use in a generated file. The `optional` field goes; each other site and field stays."""
+        rid = "go:example.com/m.App.Run"
+        opt = dict(site(3, "dnc"), rel="sibling", optional=True)
+        gen = dict(site(4, "dnc", "generated"), rel="super", optional=True)
+        req = dict(site(5, "required"), rel="self")
+        rec = dict(record([opt, gen, req, site(3, "forbidden", "decoy", col=20), site(6, "dnc", "decl")]),
+                   family=[rid, "go:example.com/m.Runner.Run"], coupled=[rid])
+        before = json.dumps(rec, sort_keys=True)
+        got = keys.structural_view(rec)
+        self.assertEqual([dict(site(3, "required"), rel="sibling"), dict(site(4, "dnc", "generated"), rel="super"),
+                          req, site(3, "forbidden", "decoy", col=20), site(6, "dnc", "decl")], got["sites"])
+        self.assertEqual({k: v for k, v in rec.items() if k != "sites"}, {k: v for k, v in got.items() if k != "sites"})
+        self.assertEqual(before, json.dumps(rec, sort_keys=True))
+        # The rename key ignores the optional line, and a decoy there makes it forbidden; the structural view
+        # requires the line.
+        self.assertEqual("forbidden", keys.line_classes(rec)[("a.go", 3)])
+        self.assertEqual("required+decoy", keys.line_classes(got)[("a.go", 3)])
+        self.assertEqual(record([site(1, "required")]), keys.structural_view(record([site(1, "required")])))
 
 
 class SaveLoadTest(unittest.TestCase):
