@@ -682,6 +682,66 @@ class PfsTest(RunnerCase):
         self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
 
 
+class GuideTest(RunnerCase):
+    """Variant guide: the route gets runner.GUIDE_INSTRUCTIONS (the instruction of PFG in the server instructions), and
+    each other part of the run is the part of a run with no variant."""
+    HEAD = "Use the tools of this server for code navigation in the open project. "
+    LABELS = (("P", (), "P"), ("PS", ("-aid", "rule"), "PS-rule"), ("PF", (), "PF"))
+
+    @staticmethod
+    def neutral(run):
+        """The docker command of a prepared run with no container name and no route token."""
+        return [a.replace(run["name"], "NAME").replace(run["token"], "TOKEN") for a in run["cmd"]]
+
+    def test_guide_text_is_the_head_and_the_PFG_sentence(self):
+        self.assertEqual(("instructions", "no-tool-search", "guide"), runner.VARIANTS)
+        self.assertTrue(runner.GUIDE_INSTRUCTIONS.startswith(self.HEAD))
+        self.assertTrue(runner.GUIDE_INSTRUCTIONS.endswith(runner.PFG_SENTENCE))
+        self.assertEqual(self.HEAD + PfgTest.TEXT, runner.GUIDE_INSTRUCTIONS)
+
+    def test_prepare_gives_the_parts_of_a_run_with_no_variant(self):
+        for arm, extra, label in self.LABELS:
+            plain = runner.prepare(runner._parser().parse_args(self.run_args(arm, *extra)))
+            guide = runner.prepare(runner._parser().parse_args(self.run_args(arm, *extra, "-variant", "guide")))
+            self.assertEqual((True, None, None), (guide["plugin"], guide["notes"], guide["additions"]), arm)
+            self.assertEqual(self.neutral(plain), self.neutral(guide), arm)
+            self.assertEqual(f"{CHALLENGE['id']}__{label}-guide__{MODEL}__1", guide["run_id"])
+        code, out, err = self.main(*self.run_args("P", "-variant", "guide"), "-dry-run")
+        self.assertEqual(0, code, err)
+        self.assertIn(f"runner: dry run {CHALLENGE['id']}__P-guide__{MODEL}__1: arm P\n", err)
+        self.assertEqual(prompt_of(self.dry("P")), prompt_of(json.loads(out)))
+        self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
+
+    def test_route_of_a_P_run_has_the_guide_instructions(self):
+        code, rec, _, err = self.start("P", "-variant", "guide")
+        self.assertEqual((0, "ok", "P", "guide", f"{CHALLENGE['id']}__P-guide__{MODEL}__1"),
+                         (code, rec["outcome"], rec["arm"], rec["variant"], rec["id"]), err)
+        self.assertTrue(os.path.isdir(self.folder("P-guide")))
+        routes = [c["route"] for c in self.docker_calls() if "route" in c]
+        self.assertEqual([(runner.GUIDE_INSTRUCTIONS, None, None)],
+                         [(route["instructions"], route["notes"], route["additions"]) for route in routes])
+        self.assertEqual(prompt_of(self.dry("P")), prompt_of(self.runs_of_docker()[0]["argv"]))
+        self.assertEqual({}, self.routes_now())
+
+    def test_route_instructions_of_each_variant(self):
+        texts = {None: None, "instructions": runner.INSTRUCTIONS, "no-tool-search": None,
+                 "guide": runner.GUIDE_INSTRUCTIONS}
+        for arm, extra, label in self.LABELS:
+            for variant, text in texts.items():
+                code, rec, _, err = self.start(arm, *extra, *(("-variant", variant) if variant else ()))
+                self.assertEqual((0, "ok"), (code, rec["outcome"]), (label, variant, err))
+                route = [c["route"] for c in self.docker_calls() if "route" in c][-1]
+                self.assertEqual(text, route["instructions"], (label, variant))
+        self.assertEqual({}, self.routes_now())
+
+    def test_guide_is_refused_for_the_other_arms(self):
+        for arm in ("C", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS"):
+            code, out, err = self.main(*self.run_args(arm, "-variant", "guide"), "-dry-run")
+            self.assertEqual((2, ""), (code, out), arm)
+            self.assertIn(f"-variant is for the arms P, PS and PF, not for arm {arm}", err)
+        self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
+
+
 class KeyTest(RunnerCase):
     def test_read_key_refuses_two_lines(self):
         path = os.path.join(self.tmp, "k2")

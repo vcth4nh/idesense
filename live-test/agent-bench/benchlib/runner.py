@@ -1,8 +1,8 @@
 """One run of the agent benchmark: Claude Code in print mode in a product container answers one challenge.
 
     python3 -m benchlib.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL|PFG|PFI|PFS>
-        -model <model> -batch <name> [-aid skill|rule] [-variant instructions|no-tool-search] [-stop-after-tools N]
-        [-no-tools] [-env-scrub] [-n <run number>] [-dry-run]        (run from live-test/agent-bench)
+        -model <model> -batch <name> [-aid skill|rule] [-variant instructions|no-tool-search|guide]
+        [-stop-after-tools N] [-no-tools] [-env-scrub] [-n <run number>] [-dry-run]  (run from live-test/agent-bench)
     python3 -m benchlib.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1]
     python3 -m benchlib.runner handshake -product <caddy|beets>
 
@@ -22,7 +22,8 @@ PFG_SENTENCE after PF_SENTENCE in the same paragraph, and its route has no notes
 its route has the note PFG_SENTENCE for ADDITION_TOOL, with no read of NOTES_FILE and no additions. `PFS` is `PF`
 with PFS_SENTENCE after PF_SENTENCE in the same paragraph, and its route has no notes and no additions. `-no-tools`
 (arm C only) adds `--tools ""` (the memory probe). `-variant instructions` gives the route the text INSTRUCTIONS;
-`-variant no-tool-search` sets `ENABLE_TOOL_SEARCH=false` (arms P, PS and PF). `-stop-after-tools N` kills the
+`-variant no-tool-search` sets `ENABLE_TOOL_SEARCH=false` (arms P, PS and PF). `-variant guide` (arms P, PS and PF)
+gives the route the text GUIDE_INSTRUCTIONS and changes no other part of the run. `-stop-after-tools N` kills the
 container after the N-th `tool_use` block that is not a block of `StructuredOutput` (the adoption probe).
 `-env-scrub` (each arm; default off) sets `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`: Claude Code removes credentials
 such as ANTHROPIC_API_KEY from the environment of Bash. Claude Code 2.1.326 needs bubblewrap for it.
@@ -155,7 +156,7 @@ ADDITION_NOTES = {
               "line refers to is not known. Read the code at each of these lines before you count it."),
 }
 AIDS = ("skill", "rule")
-VARIANTS = ("instructions", "no-tool-search")
+VARIANTS = ("instructions", "no-tool-search", "guide")
 # The container flags of the plan (Global Constraints). No mount, no volume, no host network, no Docker socket.
 CONTAINER_FLAGS = ["--rm", "--user", "1000:1000", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                    "--memory", "6g", "--cpus", "4", "--pids-limit", "1024", "--network", "bridge"]
@@ -169,6 +170,7 @@ PFS_SENTENCE = ("A usage list of the IDE can be incomplete: a call on a value wi
 INSTRUCTIONS = ("This server gives the code analysis of a JetBrains IDE for the open project: find usages, go to "
                 "definition, implementations, type and call hierarchies, symbol and file search. Its results come "
                 "from the IDE index and resolve names by their meaning, not by their text.")
+GUIDE_INSTRUCTIONS = "Use the tools of this server for code navigation in the open project. " + PFG_SENTENCE
 LEAK_WORDS = ("idesense-bench", "-plant-", "BENCH_", "/home/ubuntu/dev/idesense/")
 RUN_FIELDS = ("id", "challenge", "arm", "aid", "variant", "no_tools", "stop_after_tools", "env_scrub", "model", "n",
               "image_id", "started", "seconds", "plugin_version_start", "plugin_version_end", "outcome", "reason",
@@ -692,8 +694,8 @@ def run_one(args) -> tuple[int, dict | None]:
         if route_run:
             proxy.add_route(ROUTES_FILE, run["token"], {
                 "run": route_run, "upstream": ide_url, "project": root,
-                "instructions": INSTRUCTIONS if args.variant == "instructions" else None, "notes": run["notes"],
-                "additions": run["additions"]})
+                "instructions": {"instructions": INSTRUCTIONS, "guide": GUIDE_INSTRUCTIONS}.get(args.variant),
+                "notes": run["notes"], "additions": run["additions"]})
         rec["started"] = _now()
         exit_code, seconds, ended = run_container(
             run["cmd"], {**os.environ, "ANTHROPIC_API_KEY": key}, run["name"], files["transcript.jsonl"],

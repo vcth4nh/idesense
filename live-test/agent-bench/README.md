@@ -122,6 +122,14 @@ commands and its file formats.
   IDE can be incomplete, as the notes of `PFN` do. The proxy does not change the results of
   `PFS`. So the four arms `PFN`, `PFG`, `PFI` and `PFS` separate the place of the text (prompt or
   note) and its wording (statement or instruction).
+- **Variants.** The option `-variant` changes a run of the arms `P`, `PS` and `PF`.
+  `instructions` gives the route a description of the plugin, and the proxy sets it as the server
+  instructions in the answer of `initialize`. `guide` gives the route other server instructions:
+  one sentence that tells the agent to use the tools of the server, then the sentence of `PFG`.
+  The prompt of a `guide` run is the prompt of its arm, and the proxy does not change its results.
+  A plugin can send server instructions, but it cannot write the prompt. So `PF` with `guide` and
+  `PFG` separate the place of the instruction (server instructions or prompt). `no-tool-search`
+  sets `ENABLE_TOOL_SEARCH=false` in the container.
 - **Notes.** `notes.json` has the note texts of arm `PFN`: for each language (`go`, `python`) a
   text for each tool. The runner gives the route of a `PFN` run the notes of the language of the
   product (caddy: `go`, beets: `python`). For a result of such a tool that is no error, the proxy
