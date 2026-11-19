@@ -113,7 +113,9 @@ commands and its file formats.
 - **Arms.** `C` has no plugin. `P` has the plugin as an MCP server. `PS` has the plugin and an aid
   (`skill` or `rule`). `PF` has the plugin and one sentence in the prompt that tells the agent to
   use it. `PFN` is `PF`, and the proxy adds a fixed note to the results of some IDE tools. `PFR`
-  and `PFL` are `PF`, and the proxy adds name-only rows to the usage result of the target.
+  and `PFL` are `PF`, and the proxy adds name-only rows to the usage result of the target. `PFG`
+  is `PF` with one more sentence in the same paragraph: it tells the agent to search the text for
+  the name after a usage list of the IDE. The proxy does not change the results of `PFG`.
 - **Notes.** `notes.json` has the note texts of arm `PFN`: for each language (`go`, `python`) a
   text for each tool. The runner gives the route of a `PFN` run the notes of the language of the
   product (caddy: `go`, beets: `python`). For a result of such a tool that is no error, the proxy
@@ -141,7 +143,7 @@ python3 -B -m benchlib.image build <caddy|beets>
 python3 -B -m benchlib.image gate <caddy|beets>
 python3 -B -m benchlib.proxy serve -routes BENCH/proxy/routes.json -log-dir BENCH/proxy/log
 python3 -B -m benchlib.runner handshake -product <caddy|beets>
-python3 -B -m benchlib.runner run -set <challenges.jsonl> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL> -model <model> -batch <name> [-dry-run]
+python3 -B -m benchlib.runner run -set <challenges.jsonl> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL|PFG> -model <model> -batch <name> [-dry-run]
 python3 -B -m benchlib.runner batch -plan <plan.jsonl> -batch <name> -jobs 2
 ```
 

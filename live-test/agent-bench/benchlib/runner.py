@@ -1,6 +1,6 @@
 """One run of the agent benchmark: Claude Code in print mode in a product container answers one challenge.
 
-    python3 -m benchlib.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL> -model <model>
+    python3 -m benchlib.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL|PFG> -model <model>
         -batch <name> [-aid skill|rule] [-variant instructions|no-tool-search] [-stop-after-tools N] [-no-tools]
         [-env-scrub] [-n <run number>] [-dry-run]                    (run from live-test/agent-bench)
     python3 -m benchlib.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1]
@@ -17,7 +17,8 @@ a result of ADDITION_TOOL for the target declaration, and appends the note ADDIT
 ADDITION_FIELD, and `usages` stays. ADDITIONS_FILE is `{"<challenge id>": {"name": "<attribute name>", "known":
 [[file, line], ...], "rows": [<row object>, ...]}}`. `known` holds the positions of the rows that the IDE gives for
 the target declaration. A row object has `file`, `line`, `column`, `preview`, `usageType` and `enclosingScope`, and
-never `match`. With no usable entry for the challenge, a `PFR` or `PFL` run does not start. `-no-tools` (arm C
+never `match`. With no usable entry for the challenge, a `PFR` or `PFL` run does not start. `PFG` is `PF` with
+PFG_SENTENCE after PF_SENTENCE in the same paragraph, and its route has no notes and no additions. `-no-tools` (arm C
 only) adds `--tools ""` (the memory probe). `-variant instructions` gives the route the text INSTRUCTIONS; `-variant
 no-tool-search` sets `ENABLE_TOOL_SEARCH=false` (arms P, PS and PF). `-stop-after-tools N` kills the container
 after the N-th `tool_use` block that is not a block of `StructuredOutput` (the adoption probe).
@@ -136,9 +137,9 @@ READY_TIMEOUT = audit.READY_TIMEOUT
 WALL_LIMIT = 30 * 60
 HANDSHAKE_LIMIT = 120
 
-ARMS = ("C", "P", "PS", "PF", "PFN", "PFR", "PFL")
-PLUGIN_ARMS = ("P", "PS", "PF", "PFN", "PFR", "PFL")
-PF_ARMS = ("PF", "PFN", "PFR", "PFL")          # the arms with PF_SENTENCE in the prompt
+ARMS = ("C", "P", "PS", "PF", "PFN", "PFR", "PFL", "PFG")
+PLUGIN_ARMS = ("P", "PS", "PF", "PFN", "PFR", "PFL", "PFG")
+PF_ARMS = ("PF", "PFN", "PFR", "PFL", "PFG")   # the arms with PF_SENTENCE in the prompt
 ADDITIONS_FILE = os.path.join(BENCH, "additions.json")
 ADDITION_TOOL = "ide_find_usages"
 ADDITION_FORMS = {"PFR": "rows", "PFL": "field"}
@@ -158,6 +159,9 @@ CONTAINER_FLAGS = ["--rm", "--user", "1000:1000", "--cap-drop", "ALL", "--securi
                    "--memory", "6g", "--cpus", "4", "--pids-limit", "1024", "--network", "bridge"]
 DOCKER_ERRORS = (125, 126, 127)  # docker run: the daemon failed, the command cannot run, the command is absent
 PF_SENTENCE = 'Use the IDE tools of the MCP server "{server}" for code navigation in this task.'
+PFG_SENTENCE = ("A usage list of the IDE holds the references that the IDE can prove, and it can lack a line. "
+                "After a usage list, search the text for the name, and check each line that the list does not "
+                "hold.")
 INSTRUCTIONS = ("This server gives the code analysis of a JetBrains IDE for the open project: find usages, go to "
                 "definition, implementations, type and call hierarchies, symbol and file search. Its results come "
                 "from the IDE index and resolve names by their meaning, not by their text.")
@@ -432,12 +436,14 @@ def route_additions(challenge_id: str, arm: str) -> dict | None:
                             "note": note}}
 
 
-def pf_prompt(text: str, server: str) -> str:
-    """The prompt with PF_SENTENCE as its own paragraph before the answer paragraph."""
+def pf_prompt(text: str, server: str, after: str | None = None) -> str:
+    """The prompt with PF_SENTENCE as its own paragraph before the answer paragraph. With `after`, the paragraph is
+    PF_SENTENCE, a space and `after`."""
     head, sep, tail = text.rpartition("\n\n")
     if not sep or tail != challenges.TAIL:
         raise SetupError("the last paragraph of the prompt is not the answer paragraph")
-    return f"{head}\n\n{PF_SENTENCE.format(server=server)}\n\n{tail}"
+    paragraph = PF_SENTENCE.format(server=server) + (" " + after if after else "")
+    return f"{head}\n\n{paragraph}\n\n{tail}"
 
 
 def prepare(args) -> dict:
@@ -458,7 +464,7 @@ def prepare(args) -> dict:
     server, root = image["server_name"], slot["path"]
     text = challenges.prompt(ch, record, root)
     if args.arm in PF_ARMS:
-        text = pf_prompt(text, server)
+        text = pf_prompt(text, server, PFG_SENTENCE if args.arm == "PFG" else None)
     notes = route_notes(product) if args.arm == "PFN" else None
     additions = route_additions(ch["id"], args.arm)
     plugin = args.arm in PLUGIN_ARMS

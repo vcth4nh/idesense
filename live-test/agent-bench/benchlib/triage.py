@@ -23,11 +23,11 @@ site has no class.
   a sorted list of `path:line`.
 - `summary.md`, with one Markdown table in each section: "Batch" (the run count of each outcome, set aside,
   unfinished, the total cost of the runs), "By challenge, model and arm" (`summary_rows`), "Paired differences"
-  (`paired`: each plugin arm - C, and PFN, PFR and PFL - PF; after the lines of the challenges of a model, an arm
-  and a base, the line `all` has the means over the challenges and, for each difference, its mean and its 95 %
+  (`paired`: each plugin arm - C, and PFN, PFR, PFL and PFG - PF; after the lines of the challenges of a model, an
+  arm and a base, the line `all` has the means over the challenges and, for each difference, its mean and its 95 %
   interval from `bootstrap`), "Adoption" (`adoption_rows`) and "Flags" (for each flag the count of the runs where it
   is true or above 0, and at most FLAG_IDS run ids). The tables give the arms in the order of `runner.ARMS` (C, P,
-  PS, PF, PFN, PFR, PFL). Numbers: 3 decimals for scores and shares, 4 for USD, 1 for seconds and the means of
+  PS, PF, PFN, PFR, PFL, PFG). Numbers: 3 decimals for scores and shares, 4 for USD, 1 for seconds and the means of
   counts, 0 for tokens; `-` for None.
 
 `table` prints one line for each run: challenge, arm label, model, n, outcome, tp, fp, miss, exact, USD, turns,
@@ -339,8 +339,8 @@ def _plugin_label(label: str) -> bool:
 
 
 def _arm_order(label: str) -> tuple:
-    """The sort key of an arm label: the arm in the order of runner.ARMS (C, P, PS, PF, PFN, PFR, PFL), then the
-    label."""
+    """The sort key of an arm label: the arm in the order of runner.ARMS (C, P, PS, PF, PFN, PFR, PFL, PFG), then
+    the label."""
     return runner.ARMS.index(label.split("-", 1)[0]), label
 
 
@@ -370,14 +370,14 @@ def summary_rows(records) -> list[dict]:
 def paired(records) -> list[dict]:
     """One row for each (model, plugin arm label, base label, challenge) where the arm and the base both have a run
     that is not EXCLUDED and not `stopped`. The base of each plugin arm label is `C`; a label `PFN<rest>`,
-    `PFR<rest>` or `PFL<rest>` also has the base `PF<rest>`. For each PAIRED measure: `<m>_arm`, `<m>_base` (the
-    means) and `<m>_diff` (arm - base)."""
+    `PFR<rest>`, `PFL<rest>` or `PFG<rest>` also has the base `PF<rest>`. For each PAIRED measure: `<m>_arm`,
+    `<m>_base` (the means) and `<m>_diff` (arm - base)."""
     rows = {(r["challenge"], r["model"], r["arm_label"]): r for r in summary_rows(records) if r["runs"]}
     out = []
     for (challenge, model, label), row in rows.items():
         if not _plugin_label(label):
             continue
-        pf_base = label.split("-", 1)[0] in ("PFN", "PFR", "PFL")
+        pf_base = label.split("-", 1)[0] in ("PFN", "PFR", "PFL", "PFG")
         for base_label in ["C"] + (["PF" + label[3:]] if pf_base else []):
             base = rows.get((challenge, model, base_label))
             if base is None:
@@ -540,8 +540,8 @@ def report(batch_dir: str, set_file: str, out_dir: str) -> str:
         "## By challenge, model and arm", _summary_section(records),
         "## Paired differences",
         "Arm - base, for each challenge of a model, an arm and a base. The base is C for each plugin arm, and also PF "
-        "for PFN, PFR and PFL. The line `all`: the means over the challenges; each difference with its bootstrap mean "
-        "and 95 % interval over the challenges.",
+        "for PFN, PFR, PFL and PFG. The line `all`: the means over the challenges; each difference with its bootstrap "
+        "mean and 95 % interval over the challenges.",
         _paired_section(records),
         "## Adoption", _adoption_section(records),
         "## Flags", _flags_section(rows)]) + "\n"

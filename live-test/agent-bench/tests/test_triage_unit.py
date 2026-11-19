@@ -503,13 +503,26 @@ class TablesTest(unittest.TestCase):
         self.assertAlmostEqual(1.0 - 2 / 3, by_pair[("PFL", "PF")]["f1_diff"])
         self.assertAlmostEqual(2 / 3 - 1.0, by_pair[("PFR-stop-5", "PF-stop-5")]["f1_diff"])
 
+    def test_paired_rows_of_PFG_have_the_bases_C_and_PF(self):
+        records = [
+            run("PFG", sc=score(2, 0, 0)), run("PFG", stop=5, sc=score(1, 0, 1)), run("PF", stop=5, sc=score(2, 0, 0)),
+            run("PF", sc=score(1, 0, 1)), run("C", sc=score(2, 0, 0)),
+        ]
+        rows = triage.paired(records)
+        self.assertEqual([("PF", "C"), ("PF-stop-5", "C"), ("PFG", "C"), ("PFG", "PF"), ("PFG-stop-5", "C"),
+                          ("PFG-stop-5", "PF-stop-5")],
+                         [(r["arm_label"], r["base_label"]) for r in rows])
+        by_pair = {(r["arm_label"], r["base_label"]): r for r in rows}
+        self.assertAlmostEqual(1.0 - 2 / 3, by_pair[("PFG", "PF")]["f1_diff"])
+        self.assertAlmostEqual(2 / 3 - 1.0, by_pair[("PFG-stop-5", "PF-stop-5")]["f1_diff"])
+
     def test_tables_give_the_arms_in_the_order_of_runner_ARMS(self):
-        arms = ("PFL", "PFR", "PFN", "PF", "PS", "P", "C")
+        arms = ("PFG", "PFL", "PFR", "PFN", "PF", "PS", "P", "C")
         records = [run(arm, aid="rule" if arm == "PS" else None, sc=score(2, 0, 0)) for arm in arms]
-        self.assertEqual(("C", "P", "PS", "PF", "PFN", "PFR", "PFL"), runner.ARMS)
-        self.assertEqual(["C", "P", "PS-rule", "PF", "PFN", "PFR", "PFL"],
+        self.assertEqual(("C", "P", "PS", "PF", "PFN", "PFR", "PFL", "PFG"), runner.ARMS)
+        self.assertEqual(["C", "P", "PS-rule", "PF", "PFN", "PFR", "PFL", "PFG"],
                          [r["arm_label"] for r in triage.summary_rows(records)])
-        self.assertEqual(["P", "PS-rule", "PF", "PFN", "PFR", "PFL"],
+        self.assertEqual(["P", "PS-rule", "PF", "PFN", "PFR", "PFL", "PFG"],
                          [r["arm_label"] for r in triage.adoption_rows(records)])
 
     def test_bootstrap_is_stable_with_a_seed_and_handles_small_lists(self):

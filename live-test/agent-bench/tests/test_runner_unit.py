@@ -288,7 +288,7 @@ class CommandTest(RunnerCase):
                                  ("PFN", ("-aid", "skill"), "-aid"), ("PFN", ("-variant", "instructions"), "-variant"),
                                  ("PFN", ("-variant", "no-tool-search"), "-variant"),
                                  ("PFN", ("-no-tools",), "-no-tools"),
-                                 *((arm, extra, extra[0]) for arm in ("PFR", "PFL")
+                                 *((arm, extra, extra[0]) for arm in ("PFR", "PFL", "PFG")
                                    for extra in (("-aid", "skill"), ("-variant", "instructions"),
                                                  ("-variant", "no-tool-search"), ("-no-tools",)))):
             code, _, err = self.main(*self.run_args(arm, *extra), "-dry-run")
@@ -522,6 +522,56 @@ class AdditionsTest(RunnerCase):
         code, _, err = self.main(*self.run_args("PF"), "-dry-run")
         self.assertEqual(0, code, err)
         self.assertNotIn("route additions", err)
+        self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
+
+
+class PfgTest(RunnerCase):
+    """Arm PFG: the prompt of arm PF with runner.PFG_SENTENCE after the PF sentence in the same paragraph, and a route
+    with no notes and no additions."""
+    TEXT = ("A usage list of the IDE holds the references that the IDE can prove, and it can lack a line. After a usage "
+            "list, search the text for the name, and check each line that the list does not hold.")
+
+    def test_PFG_prompt_has_the_PFG_sentence_in_the_PF_paragraph(self):
+        self.assertEqual(self.TEXT, runner.PFG_SENTENCE)
+        self.assertEqual(("PF", "PFN", "PFR", "PFL", "PFG"), runner.PF_ARMS)
+        base = challenges.prompt(CHALLENGE, RECORD, ROOT)
+        self.assertTrue(base.endswith("\n\n" + challenges.TAIL))
+        head, sentence = base[:-len(challenges.TAIL)], runner.PF_SENTENCE.format(server=SERVER)
+        pf, pfg = prompt_of(self.dry("PF")), prompt_of(self.dry("PFG"))
+        self.assertEqual(f"{head}{sentence}\n\n{challenges.TAIL}", pf, "the PF prompt did not change")
+        self.assertEqual(f"{head}{sentence} {self.TEXT}\n\n{challenges.TAIL}", pfg)
+        self.assertEqual(len(pf.split("\n\n")), len(pfg.split("\n\n")), "no new paragraph")
+        self.assertEqual([f"{sentence} {self.TEXT}", challenges.TAIL], pfg.split("\n\n")[-2:])
+        self.assertEqual((pf, pfg), (runner.pf_prompt(base, SERVER), runner.pf_prompt(base, SERVER, self.TEXT)))
+        self.assertEqual(pf, prompt_of(self.dry("PFN")), "arm PFN keeps the PF prompt")
+
+    def test_prepare_gives_a_plugin_run_with_no_notes_and_no_additions(self):
+        self.assertFalse(os.path.exists(runner.ADDITIONS_FILE))
+        self.assertIn("PFG", runner.PLUGIN_ARMS)
+        with mock.patch.object(runner, "NOTES_FILE", os.path.join(self.tmp, "absent-notes.json")):
+            run = runner.prepare(runner._parser().parse_args(self.run_args("PFG")))
+        self.assertEqual((True, None, None), (run["plugin"], run["notes"], run["additions"]))
+        self.assertRegex(run["token"], "^[0-9a-f]{32}$")
+        self.assertEqual("--mcp-config", run["cmd"][-2])
+        self.assertIn(proxy.route_url(run["token"]), run["cmd"][-1])
+        self.assertIsNone(runner.route_additions(CHALLENGE["id"], "PFG"))
+
+    def test_route_of_a_run_has_no_notes_and_no_additions(self):
+        code, rec, _, err = self.start("PFG")
+        self.assertEqual((0, "ok", "PFG", f"{CHALLENGE['id']}__PFG__{MODEL}__1"),
+                         (code, rec["outcome"], rec["arm"], rec["id"]), err)
+        routes = [c["route"] for c in self.docker_calls() if "route" in c]
+        self.assertEqual([(None, None)], [(route["notes"], route["additions"]) for route in routes])
+        self.assertIn(self.TEXT, prompt_of(self.runs_of_docker()[0]["argv"]))
+        self.assertEqual({}, self.routes_now())
+
+    def test_dry_run_line_has_no_notes_and_no_additions(self):
+        code, out, err = self.main(*self.run_args("PFG"), "-dry-run")
+        self.assertEqual(0, code, err)
+        self.assertIn(f"runner: dry run {CHALLENGE['id']}__PFG__{MODEL}__1: arm PFG\n", err)
+        self.assertNotIn("route notes", err)
+        self.assertNotIn("route additions", err)
+        self.assertEqual("docker", json.loads(out)[0])
         self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
 
 
