@@ -15,6 +15,7 @@ live-test/agent-bench/
   benchlib/trees.py         pinned tree: copy, manifest, one-commit repository
   benchlib/pykeys.py        Python identifier scan, unique-name keys, reflection hierarchy
   benchlib/trace_plugin.py  pytest plugin: log the callers of target functions
+  benchlib/callkeys.py      caller keys of two levels: Python calls file, key records, trace check
   benchlib/plant.py         shared-name plant, key from the state before the change
   benchlib/mcp.py           JSON-RPC client for one MCP server, all pages of a result
   benchlib/audit.py         audit: tool calls, comparison, result records, summary
@@ -100,11 +101,72 @@ records of the family.
 BENCH/scratch/gokeys-bin accept -tree BENCH/trees/caddy -keys <key file> -ids <id,...|@file> -configs linux,windows,darwin -scratch <dir> [-minimal]
 ```
 
+## Caller keys
+
+A caller key gives the callers of a function X at two levels: the functions that call X, and the
+functions that call these callers. Three commands make the caller keys of a tree:
+
+```
+BENCH/scratch/gokeys-bin calls -tree BENCH/trees/caddy -configs linux,windows,darwin -out <calls.jsonl> [-check]
+python3 -B -m benchlib.callkeys pycalls -root BENCH/trees/beets -unique <unique.jsonl> [-plant <plant.jsonl>] -out <calls.jsonl>
+python3 -B -m benchlib.callkeys make -calls <calls.jsonl> [-symbols <symbols.jsonl>] -out BENCH/keys/<tree>/callers.jsonl
+```
+
+`gokeys calls` (Go) and `callkeys pycalls` (Python) write the calls file of a tree: one record for
+each function declaration, with the uses of its name. `callkeys make` reads the calls file and
+writes the key records. For Go, `-symbols` is the key file of `gokeys extract` for the same tree.
+The module text of `benchlib/callkeys.py` has the file formats.
+
+A function is open when it has one of the causes of the table below, else it is closed. A closed
+function with no use has no caller in the tree: a Go function, or a Python test function. A Python
+test function has a name that starts with `test`, in a file whose base name matches `test_*.py` or
+`*_test.py`. A function X is a target when X is closed, has an id and one caller or more, and each
+caller of X is closed. The key record of X has a required site at the declaration of each caller
+(level 1) and of each caller of a caller (level 2). A caller at level 2 can be open.
+
+| Cause | Language | The function is open when |
+|---|---|---|
+| `no-key` | Go, Python | it has no id and a use, or (Python) its name occurs in the code or in a string |
+| `value` | Go, Python | a use is no call (a read of a Python property is a call) |
+| `outside` | Go, Python | a use is outside each function declaration |
+| `unknown` | Python | a key site has no name node in the syntax tree |
+| `nested` | Python | its `def` is inside another `def` |
+| `decorator` | Python | a decorator is not in `ALLOWED_DECORATORS` |
+| `generator` | Python | it is a generator or a coroutine |
+| `implicit` | Python | its name starts and ends with two underscores |
+| `uncalled` | Python | it has no use, and it is no test function |
+| `interface` | Go | its symbols record has another member in `family`, or an entry in `external` |
+| `unproven` | Go | its symbols record has a site with the `why` `string` or `unproven` |
+| `variants` | Go | two records of the calls file have its id |
+| `no-symbols` | Go | the symbols file has no record with its id |
+
+Each language has a proof of the keys:
+
+- Go: `gokeys calls -check` compares the calls of the syntax with the static calls of the SSA
+  program of `go/ssa`, for each build configuration. The exit code is 1 when a pair of a caller
+  and a function is on one side only.
+- Python: `callkeys targets` writes the targets file for the chosen key records: X and each caller
+  at level 1. `benchlib.trace_plugin` logs the callers of these functions while the test suite
+  runs. `callkeys tracecheck` compares the trace with the keys. The exit code is 1 when a call
+  comes from a function of the tree that is no caller in the key, or when a function with callers
+  gets a call from outside the tree.
+
+```
+python3 -B -m benchlib.callkeys targets -keys <keys.jsonl> -ids <id,...|@file> -out <targets.json>
+PYTHONPATH=<worktree>/live-test/agent-bench pytest -p benchlib.trace_plugin --trace-targets=<targets.json> --trace-out=<trace.jsonl>
+python3 -B -m benchlib.callkeys tracecheck -keys <keys.jsonl> -calls <calls.jsonl> -trace <trace.jsonl> -ids <id,...|@file>
+```
+
+The limit of the keys: they hold only chains of calls that are certain. A chain through an
+interface value, a function value or `getattr` has no key. Such a function is open (`interface`,
+`value` or `uncalled`), so it is no target and no caller at level 1 of a target.
+
 ## Agent runs
 
 A run is one container from a product image. The agent in it (Claude Code in print mode) answers
 one challenge about one tree with a JSON list of `path:line` sites. Each module text has its
-commands and its file formats.
+commands and its file formats. The family `callers` asks for the callers of a function at two
+levels, and the command `calls` of `benchlib.challenges` writes its set `calls1` of 20 challenges.
 
 - **Trees and slots.** `BENCH/trees/<tree>` is the pinned master of a tree. The agent and the IDE
   use a copy at a neutral path, the slot: `/home/ubuntu/dev/ws/<slot id>/<product>`
@@ -153,6 +215,7 @@ commands and its file formats.
   score), the stream-json transcript, the error output and the proxy log of the run.
 
 ```
+python3 -B -m benchlib.challenges calls -out BENCH/challenges/calls1.jsonl [-seed 1]
 python3 -B -m benchlib.image build <caddy|beets>
 python3 -B -m benchlib.image gate <caddy|beets>
 python3 -B -m benchlib.proxy serve -routes BENCH/proxy/routes.json -log-dir BENCH/proxy/log

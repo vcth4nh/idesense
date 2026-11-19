@@ -348,8 +348,8 @@ def use(line, in_line=None, call=True, read=False, lit=False, file="m.py", in_fi
 
 
 def py(name, line, uses=(), rid=None, kind="function", container="", top=None, decorators=(), generator=False,
-       is_async=False, mentions=0):
-    decl = pos(line)
+       is_async=False, mentions=0, file="m.py"):
+    decl = pos(line, file)
     return {"id": "py:m." + name if rid is None else rid, "lang": "python", "kind": kind, "name": name,
             "container": container, "decl": decl, "end": line + 5, "top": top or decl,
             "decorators": list(decorators), "generator": generator, "async": is_async, "mentions": mentions,
@@ -380,53 +380,86 @@ def caller_site(line, level, lit=False, plant=False, cls="required", why="caller
             "plant": plant, **extra}
 
 
+# A test file: a function in it whose name starts with `test` is a test function.
+T = "test_m.py"
+
 # Scenario of the Python key tests: X has the level-1 callers A, B and C. A also calls B (B is at both levels:
 # level 1) and is called by D, which is open (a value use at module level); so A is no target. B is called by E, a
-# leaf (id "", no use, no mention); so B is a target too. O calls nothing.
+# test function with no use (id "", no mention); so B is a target too. C is a test function with no use. O calls
+# nothing and has no use: it is open (`uncalled`).
 PLANT_B = "plant:python:t:K.caller_b"
 SCENARIO = [
-    py("target_func", 10, [use(21, 20), use(31, 30, lit=True), use(32, 30), use(61, 60, lit=True)]),
+    py("target_func", 10, [use(21, 20), use(31, 30, lit=True), use(32, 30), use(61, 60, lit=True, file=T, in_file=T)]),
     py("caller_a", 20, [use(33, 30), use(41, 40)]),
-    py("caller_b", 30, [use(51, 50, lit=True)], rid=PLANT_B),
+    py("caller_b", 30, [use(51, 50, lit=True, file=T, in_file=T)], rid=PLANT_B),
     py("open_d", 40, [use(3, None, call=False, read=True)]),
-    py("leaf_e", 50, rid=""),
-    py("caller_c", 60),
+    py("test_leaf_e", 50, rid="", file=T),
+    py("test_caller_c", 60, file=T),
     py("other_o", 70),
 ]
 
 
 class CausesTest(unittest.TestCase):
     def test_each_python_cause_alone(self):
+        # The test function `test_holder` calls each function that needs a use to be no `uncalled`.
+        def called(line):
+            return [use(line, 10, in_file=T)]
+
         calls = [
-            py("holder", 10),
-            py("no_key", 20, rid="", mentions=2),
-            py("value", 30, [use(11, 10, call=False, read=True)]),
+            py("test_holder", 10, file=T),
+            py("no_key", 20, called(14), rid="", mentions=2),
+            py("value", 30, [use(11, 10, call=False, read=True, in_file=T)]),
             py("outside", 40, [use(3, None)]),
-            py("unknown", 50, [use(12, 10, unknown=True)]),
-            py("nested", 60, top=pos(10)),
-            py("decorator", 70, decorators=["app.route", "staticmethod"]),
-            py("generator", 80, generator=True),
-            py("coroutine", 90, is_async=True),
-            py("__enter__", 100, rid=""),
-            py("leaf", 110, rid=""),
-            py("allowed", 120, decorators=["functools.lru_cache", "pytest.mark.parametrize", "staticmethod",
-                                           "abc.abstractmethod", "mock.patch.object"]),
-            py("prop", 130, [use(13, 10, call=False, read=True)], decorators=["property"]),
+            py("unknown", 50, [use(12, 10, unknown=True, in_file=T)]),
+            py("nested", 60, called(15), top=pos(10, T)),
+            py("decorator", 70, called(16), decorators=["app.route", "staticmethod"]),
+            py("generator", 80, called(17), generator=True),
+            py("coroutine", 90, called(18), is_async=True),
+            py("__enter__", 100, called(19)),
+            py("test_leaf", 110, rid="", file=T),
+            py("allowed", 120, called(20), decorators=["functools.lru_cache", "pytest.mark.parametrize",
+                                                       "staticmethod", "abc.abstractmethod", "mock.patch.object"]),
+            py("prop", 130, [use(13, 10, call=False, read=True, in_file=T)], decorators=["property"]),
+            py("uncalled", 140),
         ]
         causes = callkeys.open_causes(calls)
         self.assertEqual({
-            ("m.py", 10, 5): [], ("m.py", 20, 5): ["no-key"], ("m.py", 30, 5): ["value"],
+            (T, 10, 5): [], ("m.py", 20, 5): ["no-key"], ("m.py", 30, 5): ["value"],
             ("m.py", 40, 5): ["outside"], ("m.py", 50, 5): ["unknown"], ("m.py", 60, 5): ["nested"],
             ("m.py", 70, 5): ["decorator"], ("m.py", 80, 5): ["generator"], ("m.py", 90, 5): ["generator"],
-            ("m.py", 100, 5): ["implicit"], ("m.py", 110, 5): [], ("m.py", 120, 5): [],
-            ("m.py", 130, 5): []}, causes)
+            ("m.py", 100, 5): ["implicit"], (T, 110, 5): [], ("m.py", 120, 5): [],
+            ("m.py", 130, 5): [], ("m.py", 140, 5): ["uncalled"]}, causes)
+        self.assertEqual("uncalled", callkeys.CAUSES["python"][-1])
+        self.assertNotIn("uncalled", callkeys.CAUSES["go"])
+
+    def test_uncalled_needs_no_use_and_no_test_function(self):
+        """A test function: the name starts with `test`, and the base name of the file matches `test_*.py` or
+        `*_test.py`. The cause applies to a record with an id and to a record with the id "", and `no-key` does
+        not change."""
+        cases = [
+            (py("plain_function", 10), ["uncalled"]),
+            (py("plain_no_id", 20, rid=""), ["uncalled"]),
+            (py("mentioned_no_id", 30, rid="", mentions=1), ["no-key", "uncalled"]),
+            (py("test_named_only", 40), ["uncalled"]),  # m.py is no test file
+            (py("helper", 10, file="test_m.py"), ["uncalled"]),  # the name does not start with `test`
+            (py("test_in_prefix_file", 20, file="test_m.py"), []),
+            (py("test_in_suffix_file", 30, rid="", file="pkg/m_test.py"), []),
+            (py("testcase_runner", 40, kind="method", container="K", file="tests/test_m.py"), []),
+            (py("test_in_test_folder", 50, file="test_dir/m.py"), ["uncalled"]),  # the base name counts
+            (py("test_other_suffix", 60, file="test_m.pyi"), ["uncalled"]),
+            (py("test_called", 70, [use(3, None)], file="test_m.py"), ["outside"]),
+        ]
+        causes = callkeys.open_causes([rec for rec, _ in cases])
+        for rec, expected in cases:
+            self.assertEqual(expected, causes[(rec["decl"]["file"], rec["decl"]["line"], 5)], rec["name"])
 
     def test_unknown_use_of_pycalls_is_also_a_value_outside_the_functions(self):
         unknown = {**use(5, None, call=False), "unknown": True}
         self.assertEqual(["value", "outside", "unknown"], callkeys.open_causes([py("f", 10, [unknown])])[("m.py", 10, 5)])
 
     def test_decorator_with_another_expression_is_open(self):
-        self.assertEqual(["decorator"], callkeys.open_causes([py("f", 10, decorators=["?"])])[("m.py", 10, 5)])
+        self.assertEqual(["decorator"],
+                         callkeys.open_causes([py("test_f", 10, decorators=["?"], file=T)])[(T, 10, 5)])
 
     def test_each_go_cause_alone(self):
         calls = [
@@ -469,32 +502,41 @@ class MakeTest(unittest.TestCase):
                 caller_site(20, 1),
                 caller_site(30, 1, plant=True),  # also a caller of A: the lowest level; one use is no lit
                 caller_site(40, 2),  # open, but a level-2 caller need not be closed
-                caller_site(50, 2, lit=True),
-                caller_site(60, 1, lit=True),
+                caller_site(50, 2, lit=True, file=T),
+                caller_site(60, 1, lit=True, file=T),
             ]}, records[0])
-        # B: its only caller is the leaf E, which has no caller.
+        # B: its only caller is the test function E, which has no caller.
         self.assertEqual({"1": 1, "2": 0}, records[1]["levels"])
         self.assertTrue(records[1]["plant"])
-        self.assertEqual([{**pos(30), "class": "dnc", "why": "decl"}, caller_site(50, 1, lit=True)],
+        self.assertEqual([{**pos(30), "class": "dnc", "why": "decl"}, caller_site(50, 1, lit=True, file=T)],
                          records[1]["sites"])
-        self.assertEqual({"functions": 7, "closed": 6, "targets": 2}, {k: stats[k] for k in ("functions", "closed", "targets")})
-        self.assertEqual({"value": 1, "outside": 1}, {k: v for k, v in stats["causes"].items() if v})
+        self.assertEqual({"functions": 7, "closed": 5, "targets": 2}, {k: stats[k] for k in ("functions", "closed", "targets")})
+        self.assertEqual({"value": 1, "outside": 1, "uncalled": 1}, {k: v for k, v in stats["causes"].items() if v})
         self.assertEqual(({3: 1, 1: 1}, {2: 1, 0: 1}), (dict(stats["level1"]), dict(stats["level2"])))
 
     def test_recursion_is_not_asked(self):
-        calls = [py("recursive_one", 10, [use(11, 10), use(21, 20)]), py("caller_f", 20)]
+        calls = [py("recursive_one", 10, [use(11, 10), use(21, 20, file=T, in_file=T)]),
+                 py("test_caller_f", 20, file=T)]
         [rec] = callkeys.make_keys(calls)[0]
         self.assertEqual({"1": 1, "2": 0}, rec["levels"])
-        self.assertEqual([{**pos(10), "class": "dnc", "why": "decl"}, caller_site(20, 1)], rec["sites"])
+        self.assertEqual([{**pos(10), "class": "dnc", "why": "decl"}, caller_site(20, 1, file=T)], rec["sites"])
 
     def test_open_level_one_caller_makes_no_target(self):
         calls = [py("target", 10, [use(21, 20)]), py("open_caller", 20, [use(3, None)])]
         self.assertEqual([], callkeys.make_keys(calls)[0])
 
+    def test_uncalled_level_one_caller_makes_no_target(self):
+        """A non-test function with no use can have a caller through `getattr`: it is open, so a function that it
+        calls is no target. The same caller as a test function makes a target."""
+        calls = [py("target", 10, [use(21, 20)]), py("plain_caller", 20)]
+        self.assertEqual([], callkeys.make_keys(calls)[0])
+        calls = [py("target", 10, [use(21, 20, file=T, in_file=T)]), py("test_caller", 20, file=T)]
+        self.assertEqual(["py:m.target"], [r["id"] for r in callkeys.make_keys(calls)[0]])
+
     def test_property_target(self):
-        calls = [py("prop_target", 10, [use(21, 20, call=False, read=True)], kind="method", container="K",
-                    decorators=["property"]),
-                 py("reader", 20)]
+        calls = [py("prop_target", 10, [use(21, 20, call=False, read=True, file=T, in_file=T)], kind="method",
+                    container="K", decorators=["property"]),
+                 py("test_reader", 20, file=T)]
         [rec] = callkeys.make_keys(calls)[0]
         self.assertEqual((True, "method", "K", {"1": 1, "2": 0}),
                          (rec["property"], rec["kind"], rec["container"], rec["levels"]))
@@ -537,10 +579,12 @@ class MakeTest(unittest.TestCase):
         write_jsonl(calls, SCENARIO)
         code, stdout, _ = run_main(["make", "-calls", calls, "-out", out])
         self.assertEqual(0, code)
-        self.assertIn("make: 7 functions, 6 closed, 2 targets", stdout)
+        self.assertIn("make: 7 functions, 5 closed, 2 targets", stdout)
+        self.assertIn("open causes: no-key 0, value 1, outside 1, unknown 0, nested 0, decorator 0, generator 0, "
+                      "implicit 0, uncalled 1", stdout)
         rec = keys.load_keys(out)[0]
         self.assertEqual("py:m.target_func", rec["id"])
-        exact = {("m.py", n) for n in (20, 30, 40, 50, 60)}
+        exact = {("m.py", n) for n in (20, 30, 40)} | {(T, 50), (T, 60)}
         self.assertTrue(keys.score(exact, rec)["exact"])
         self.assertEqual((5, 0, 0, 1, True), tuple(keys.score(exact | {("m.py", 10)}, rec)[k]
                                                    for k in ("tp", "fp", "miss", "ignored", "exact")))
@@ -587,7 +631,8 @@ class TraceTest(unittest.TestCase):
         with open(out, encoding="utf-8") as f:
             targets = json.load(f)
         # B is a level-1 caller of X and a target: one time. E is the level-1 caller of B.
-        self.assertEqual([{"id": f"m.py:{n}", "file": "m.py", "line": n} for n in (10, 20, 30, 50, 60)], targets)
+        self.assertEqual([{"id": f"m.py:{n}", "file": "m.py", "line": n} for n in (10, 20, 30)]
+                         + [{"id": f"{T}:{n}", "file": T, "line": n} for n in (50, 60)], targets)
 
     def test_targets_refuses_an_unknown_id(self):
         out = os.path.join(self.d, "targets.json")
@@ -600,15 +645,15 @@ class TraceTest(unittest.TestCase):
             ("m.py:10", "m.py", 21),  # in A: a caller of X
             ("m.py:10", "m.py", 32),  # in B
             ("m.py:20", "m.py", 41),  # in D: a caller of A
-            ("m.py:60", "/usr/lib/python3/unittest/case.py", 5),  # C has no caller: external is allowed
-            ("m.py:60", ".venv/lib/python3.12/site-packages/_pytest/python.py", 7),
+            (f"{T}:60", "/usr/lib/python3/unittest/case.py", 5),  # C has no caller: external is allowed
+            (f"{T}:60", ".venv/lib/python3.12/site-packages/_pytest/python.py", 7),
         ])
         self.assertEqual(0, code, stdout)
         self.assertEqual([
             "m.py:10:5 level 0: key 2, external 0, outside 0, callers reached 2 of 3",
             "m.py:20:5 level 1: key 1, external 0, outside 0, callers reached 1 of 2",
             "m.py:30:5 level 1: key 0, external 0, outside 0, callers reached 0 of 1",
-            "m.py:60:5 level 1: key 0, external 2, outside 0, callers reached 0 of 0",
+            "test_m.py:60:5 level 1: key 0, external 2, outside 0, callers reached 0 of 0",
             "tracecheck: 4 functions, 5 sites: key 3, external 2, outside 0; trace lines of other ids: 0",
         ], stdout.splitlines())
 

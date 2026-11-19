@@ -2,7 +2,8 @@
 
     python3 -m benchlib.challenges show -set <file> [-root <trees root>] [-slots] [-keys <keys root>]
     python3 -m benchlib.challenges pilot -out <file> [-seed 1]
-    python3 -m benchlib.challenges main -out <file> [-seed 1]   (run from live-test/agent-bench)
+    python3 -m benchlib.challenges main -out <file> [-seed 1]
+    python3 -m benchlib.challenges calls -out <file> [-seed 1]   (run from live-test/agent-bench)
 
 A challenge set is a JSONL file with one challenge record for each line:
 
@@ -11,12 +12,14 @@ A challenge set is a JSONL file with one challenge record for each line:
      "sample": "hard", "note": "interface `CA` of `caddytls`"}
 
 - family: `refs` (the lines that use the symbol), `rename` (the lines that a rename changes), `impls` (the
-  declaration lines of the implementers or subclasses).
+  declaration lines of the implementers or subclasses), `callers` (the declaration lines of the functions that
+  call the function, and of the functions that call these callers: a key record of `benchlib.callkeys make`).
 - keys: the key file, relative to `BENCH/keys`; key_id: the id of the key record in it.
 - sample: `hard`, `random` or `control`. note: how the record was chosen (not shown to the agent).
 
 The score uses a view of the key record (`view`). In the rename view, a forbidden site on a line with an optional
-use and no required site is `dnc`. The answer is the JSON object of `schema`, and
+use and no required site is `dnc`. The callers view is the key record itself; a key record whose `source` is not
+`calls` is a ValueError there. The answer is the JSON object of `schema`, and
 `parse_sites` reads it. Normalisation of an answer entry: white space at the two ends is removed; the form is
 `path:line` or `path:line:column` (the column is dropped); an absolute path loses the prefix `root + "/"`;
 the path is normalised (`posixpath.normpath`, so a leading `./` goes). Each other entry goes to the `invalid`
@@ -24,14 +27,17 @@ list: no line, a line range, a line below 1, a path outside the root (an absolut
 a relative path that leaves it), an entry that is not a string. `score_answer` takes an answer line out of the
 score when its path is no file of the master manifest `TREES/<tree>.manifest`, and counts it in `outside`.
 
-The prompt texts are those of the plan, amendment A3. The root of a prompt is a parameter: the runner gives the
+The prompt texts are those of the plan, amendment A3. The texts of the family `callers` come from the plan of the
+call chains (task 3): the head of the kind and the tail of the language in one paragraph, and a Python property
+(`"property": true`) takes the head CALLERS_PY_PROPERTY. The root of a prompt is a parameter: the runner gives the
 slot path of the tree. For Go, the package name comes from the package clause of the declaration file in the
 master tree `TREES/<tree>`.
 
 `show` prints for each challenge the id, the line counts of the view, the text scan (`text_scan`, `-` for a Go
-`impls` challenge) and the prompt. The prompt root is `<trees root>/<tree>`, or with `-slots` the slot path of
-the tree. The text scan always reads the master tree. `-keys` sets the folder of the key files. `pilot` writes the
-pilot set of 8 challenges (see `pilot_set`), `main` the main set of 30 challenges (see `main_set`).
+`impls` challenge and for a `callers` challenge) and the prompt. The prompt root is `<trees root>/<tree>`, or with
+`-slots` the slot path of the tree. The text scan always reads the master tree. `-keys` sets the folder of the key
+files. `pilot` writes the pilot set of 8 challenges (see `pilot_set`), `main` the main set of 30 challenges (see
+`main_set`), `calls` the set calls1 of 20 `callers` challenges (see `calls_set`).
 """
 import argparse
 import contextlib
@@ -50,7 +56,7 @@ KEYS = os.path.join(BENCH, "keys")
 TREES = os.path.join(BENCH, "trees")
 AUDIT = os.path.join(BENCH, "audit")
 FIELDS = ("id", "product", "tree", "family", "keys", "key_id", "sample", "note")
-FAMILIES = ("refs", "rename", "impls")
+FAMILIES = ("refs", "rename", "impls", "callers")
 SAMPLES = ("hard", "random", "control")
 REFS_RELS = ("self", "super", "sub")
 # The main set: the id prefixes of test code, and the interface of the pilot that its `structure` rule skips.
@@ -88,6 +94,25 @@ IMPLS_GO = ("Find each type of this repository that implements the interface `{n
             "Test code counts. Answer with the line that holds the name of each type in its declaration.")
 IMPLS_PY = ("Find each class of this repository that is a direct or indirect subclass of the class `{name}`, which "
             "is declared at {decl}. Test code counts. Answer with the line of each class statement.")
+# The family `callers` (plan of the call chains, task 3): a head for the kind and a tail for the language, in one
+# paragraph. A Python property takes CALLERS_PY_PROPERTY.
+CALLERS_GO_FUNC = ("Find each function or method of this repository that calls the function `{name}` of the package "
+                   "`{package}`, which is declared at {decl}.")
+CALLERS_METHOD = ("Find each function or method of this repository that calls the method `{name}` of {owner}, which "
+                  "is declared at {decl}.")
+CALLERS_PY_FUNC = ("Find each function or method of this repository that calls the function `{name}`, which is "
+                   "declared at {decl}.")
+CALLERS_PY_PROPERTY = ("Find each function or method of this repository that reads the property `{name}` of {owner}, "
+                       "which is declared at {decl}.")
+CALLERS_TAIL_GO = (" Find also each function or method that calls one of these callers. Do not go further than these "
+                   "two levels. A call inside a function literal counts for the function or method declaration that "
+                   "holds the literal. Test code counts.{build} Answer with the line that holds the name of each such "
+                   "function or method in its declaration. Do not list `{name}` itself.")
+CALLERS_TAIL_PY = (" Find also each function or method that calls one of these callers. Do not go further than these "
+                   "two levels. A call inside a lambda or a nested function counts for the outermost function or "
+                   "method that holds it. A read of a property is a call of the property. Test code counts. Answer "
+                   "with the line of the `def` statement of each such function or method. Do not list `{name}` "
+                   "itself.")
 # (family, lang, kind) -> text. Another combination has no text.
 TASKS = {("refs", "go", "method"): REFS_METHOD, ("refs", "go", "iface_method"): REFS_METHOD,
          ("refs", "python", "method"): REFS_METHOD, ("refs", "go", "func"): REFS_GO_FUNC,
@@ -95,7 +120,16 @@ TASKS = {("refs", "go", "method"): REFS_METHOD, ("refs", "go", "iface_method"): 
          ("refs", "python", "function"): REFS_PY, ("refs", "python", "class"): REFS_PY,
          ("rename", "go", "method"): RENAME, ("rename", "go", "iface_method"): RENAME,
          ("rename", "python", "method"): RENAME,
-         ("impls", "go", "interface"): IMPLS_GO, ("impls", "python", "class"): IMPLS_PY}
+         ("impls", "go", "interface"): IMPLS_GO, ("impls", "python", "class"): IMPLS_PY,
+         ("callers", "go", "func"): CALLERS_GO_FUNC + CALLERS_TAIL_GO,
+         ("callers", "go", "method"): CALLERS_METHOD + CALLERS_TAIL_GO,
+         ("callers", "python", "method"): CALLERS_METHOD + CALLERS_TAIL_PY,
+         ("callers", "python", "function"): CALLERS_PY_FUNC + CALLERS_TAIL_PY}
+# The set calls1 (`calls_set`).
+CALLS_PRODUCTS = ("caddy", "beets")
+CALLS_PER_PRODUCT = 10
+CALLS_MAX_REQUIRED = 40  # the most required lines of a candidate of the rules `closure` and `random`
+CALLS_RANDOM = 4  # the picks of the rule `random`
 
 SITE = re.compile(r"(.+?):([0-9]+)(?::[0-9]+)?")
 # The package clause of a Go file: the first token after white space and comments (Go specification).
@@ -177,6 +211,10 @@ def view(ch: dict, record: dict) -> dict:
         return _rename_view(record)
     if ch["family"] == "impls":
         return _impls_view(record)
+    if ch["family"] == "callers":
+        if record.get("source") != "calls":
+            raise ValueError(f"{record['id']}: a callers key needs the source `calls`, it has {record.get('source')!r}")
+        return record
     raise ValueError(f"{ch['id']}: unknown family {ch['family']!r}")
 
 
@@ -195,6 +233,8 @@ def prompt(ch: dict, record: dict, root: str) -> str:
     with no text."""
     lang, kind, container = record["lang"], record["kind"], record["container"]
     task = TASKS.get((ch["family"], lang, kind))
+    if ch["family"] == "callers" and lang == "python" and record.get("property"):
+        task = CALLERS_PY_PROPERTY + CALLERS_TAIL_PY
     if task is None:
         raise ValueError(f"{record['id']}: no prompt text for the family {ch['family']!r}, the language {lang!r} "
                          f"and the kind {kind!r}")
@@ -269,7 +309,10 @@ def _manifest_paths(path: str) -> list[str]:
 def text_scan(ch: dict, record: dict, tree_root: str) -> dict:
     """A whole-word scan of the name over the files of the manifest `<tree_root>.manifest`, scored against the
     view: `lines` is the count of the lines that the scan finds; a `dnc` line counts in no ratio. A symbolic link
-    and a file with a NUL byte are not scanned. Lines are counted at `\\n`."""
+    and a file with a NUL byte are not scanned. Lines are counted at `\\n`. A `callers` challenge gets no numbers
+    (None): its answer lines are declarations of other functions, which need not hold the name."""
+    if ch["family"] == "callers":
+        return {"lines": None, "precision": None, "recall": None}
     word = re.compile(r"(?<!\w)" + re.escape(record["name"]) + r"(?!\w)")
     found = set()
     for rel in _manifest_paths(tree_root + ".manifest"):
@@ -309,10 +352,11 @@ def _required_lines(record: dict) -> int:
     return sum(1 for cls in keys.line_classes(_refs_view(record)).values() if cls in REQUIRED)
 
 
-def _seeded(candidates: list[dict], seed: int, what: str) -> tuple[dict, str]:
+def _seeded(candidates: list, seed: int, what: str, key=lambda r: r["id"]) -> tuple:
+    """A seeded choice from the candidates sorted by `key` (default: the id), and its note text."""
     if not candidates:
         raise LookupError(f"no key record for {what}")
-    chosen = random.Random(seed).choice(sorted(candidates, key=lambda r: r["id"]))
+    chosen = random.Random(seed).choice(sorted(candidates, key=key))
     return chosen, f"seeded choice (seed {seed}) among {len(candidates)} {what}"
 
 
@@ -603,6 +647,165 @@ def main_set(seed: int, keys_root: str = KEYS, audit_root: str = AUDIT, trees_ro
     return out
 
 
+def _required_sites(record: dict) -> int:
+    """`required(r)` of the set calls1: the count of the sites with the class `required`."""
+    return sum(1 for s in record["sites"] if s["class"] == "required")
+
+
+def _required_set(record: dict) -> frozenset:
+    """The required lines `(file, line)` of the record."""
+    return frozenset((s["file"], s["line"]) for s in record["sites"] if s["class"] == "required")
+
+
+def _test_decl(record: dict) -> bool:
+    """A declaration in test code: Go, a `_test.go` file; Python, a file below `test/` or `beets/test/`."""
+    file = record["decl"]["file"]
+    return file.endswith("_test.go") if record["lang"] == "go" else file.startswith(("test/", "beets/test/"))
+
+
+def _lit_caller(record: dict) -> bool:
+    """A required site of level 1 with `lit` true."""
+    return any(s["class"] == "required" and s["level"] == 1 and s["lit"] for s in record["sites"])
+
+
+def _decl_line(p: dict) -> tuple[str, int]:
+    return p["file"], p["line"]
+
+
+def calls_set(seed: int, keys_root: str = KEYS) -> list[dict]:
+    """The 20 challenges of the set calls1 of the family `callers`: 10 for caddy, then 10 for beets, from the key
+    files `<tree>/callers.jsonl` of `callkeys make`. A CANDIDATE is a key record with 1 or more level-1 callers.
+    The rules of a product run in this order, each in a context with its rule name (`<product> <number> <class
+    word>`):
+
+        1  wide      the base tree: the candidate with the most required lines
+        2a build     caddy, the base tree: among the candidates with a required site whose `configs` has no
+                     `linux`, the one with the most required lines
+        2b property  beets, the base tree: a seeded pick among the candidates with `property` true, 1 or more
+                     level-2 callers and no test declaration (`_test_decl`)
+        3a closure   caddy, the base tree: a seeded pick among the candidates with a lit level-1 caller
+                     (`_lit_caller`), 1 or more level-2 callers, CALLS_MAX_REQUIRED or fewer required lines and no
+                     test declaration
+        3b nested    beets, the base tree: a seeded pick among the candidates with a lit level-1 caller and 1 or
+                     more level-2 callers
+        4  plant     for each planted tree `<product>-plant-<n>` (n 1, 2, 3) that has a planted target: the planted
+                     target with the most required lines
+        5  plant     a seeded pick among the via targets of the three planted trees, sorted by tree, then id
+        6  random    the base tree: CALLS_RANDOM seeded picks, one after the other, among the candidates with 2 or
+                     more level-2 callers, CALLS_MAX_REQUIRED or fewer required lines and no test declaration
+
+    The required lines of a record are its required sites (`_required_sites`, `_required_set`). A PLANTED TARGET
+    is a candidate whose decl (file, line) is the decl of a record of `<tree>/plant.jsonl`; a VIA TARGET is a
+    candidate that is no planted target and has a required level-1 site at such a decl. A record is no candidate of
+    a later pick when an earlier pick of the product has its id (also in another tree of the product) or its set of
+    required lines. A pick of the most takes the lowest id on a tie; a seeded pick is `_seeded`. The note is the
+    class word, the rule facts (the text of `_seeded`, or `most required lines (<n>)`) and the counts of the
+    levels. The id is `<product>-callers-<Name>`, for a planted tree `<product>-plant<n>-callers-<Name>`; `<Name>`
+    is `<container>.<name>` for a method and `<name>` for a function. LookupError with the rule name when a rule
+    has no candidate, when two challenges have one id, or when a product does not get CALLS_PER_PRODUCT
+    challenges (only rule 4 has a variable count)."""
+    def records(rel: str) -> list[dict]:
+        return [r for r in keys.load_keys(os.path.join(keys_root, rel)) if r["id"] != "_meta"]
+
+    def candidates(tree: str) -> list[dict]:
+        return [r for r in records(f"{tree}/callers.jsonl") if r["levels"]["1"] >= 1]
+
+    @contextlib.contextmanager
+    def rule(name: str):
+        try:
+            yield
+        except LookupError as e:
+            raise LookupError(f"rule `{name}`: {e}") from None
+
+    def most(rest: list[dict], what: str) -> tuple[dict, str]:
+        if not rest:
+            raise LookupError(f"no key record for {what}")
+        best = min(rest, key=lambda r: (-_required_sites(r), r["id"]))
+        return best, f"most required lines ({_required_sites(best)})"
+
+    ids = set()
+
+    def product_set(product: str) -> list[dict]:
+        out, chosen = [], []  # chosen: the records of the challenges of the product so far
+
+        def free(cands: list[dict]) -> list[dict]:
+            """The candidates with no id and no set of required lines of an earlier pick of the product."""
+            return [r for r in cands
+                    if not any(r["id"] == c["id"] or _required_set(r) == _required_set(c) for c in chosen)]
+
+        def add(word: str, tree: str, n: int | None, record: dict, facts: str) -> None:
+            name = f"{record['container']}.{record['name']}" if record["kind"] == "method" else record["name"]
+            cid = f"{product}-plant{n}-callers-{name}" if n else f"{product}-callers-{name}"
+            if cid in ids:
+                raise LookupError(f"two challenges with the id {cid}")
+            levels = record["levels"]
+            ids.add(cid)
+            chosen.append(record)
+            out.append(_challenge(cid, product, tree, "callers", f"{tree}/callers.jsonl", record,
+                                  "random" if word == "random" else "hard",
+                                  f"{word}: {facts}; levels 1: {levels['1']}, 2: {levels['2']}"))
+
+        base = candidates(product)
+        with rule(f"{product} 1 wide"):
+            add("wide", product, None, *most(free(base), "candidates"))
+        if product == "caddy":
+            with rule(f"{product} 2a build"):
+                add("build", product, None, *most(
+                    free([r for r in base if any(s["class"] == "required" and "linux" not in s["configs"]
+                                                 for s in r["sites"])]),
+                    "candidates with a required site off Linux"))
+            with rule(f"{product} 3a closure"):
+                add("closure", product, None, *_seeded(
+                    free([r for r in base if _lit_caller(r) and r["levels"]["2"] >= 1
+                          and _required_sites(r) <= CALLS_MAX_REQUIRED and not _test_decl(r)]),
+                    seed, f"candidates with a lit level-1 caller, 1 or more level-2 callers, {CALLS_MAX_REQUIRED} or "
+                          "fewer required lines and no test declaration"))
+        else:
+            with rule(f"{product} 2b property"):
+                add("property", product, None, *_seeded(
+                    free([r for r in base if r["property"] and r["levels"]["2"] >= 1 and not _test_decl(r)]),
+                    seed, "candidates with property true, 1 or more level-2 callers and no test declaration"))
+            with rule(f"{product} 3b nested"):
+                add("nested", product, None, *_seeded(
+                    free([r for r in base if _lit_caller(r) and r["levels"]["2"] >= 1]),
+                    seed, "candidates with a lit level-1 caller and 1 or more level-2 callers"))
+        planted, via = {}, []  # via: (tree, n, record)
+        for n in (1, 2, 3):
+            tree = f"{product}-plant-{n}"
+            decls = {_decl_line(r["decl"]) for r in records(f"{tree}/plant.jsonl")}
+            cands = candidates(tree)
+            planted[n] = [r for r in cands if _decl_line(r["decl"]) in decls]
+            via += [(tree, n, r) for r in cands if _decl_line(r["decl"]) not in decls and any(
+                s["class"] == "required" and s["level"] == 1 and _decl_line(s) in decls for s in r["sites"])]
+        with rule(f"{product} 4 plant"):
+            trees = 0
+            for n in (1, 2, 3):
+                rest = free(planted[n])
+                if rest:
+                    add("plant", f"{product}-plant-{n}", n, *most(rest, f"planted targets of {product}-plant-{n}"))
+                    trees += 1
+            if not trees:
+                raise LookupError(f"no planted target in {product}-plant-1, -2 and -3")
+        with rule(f"{product} 5 plant"):
+            (tree, n, record), facts = _seeded([v for v in via if free([v[2]])], seed,
+                                               f"via targets of {product}-plant-1, -2 and -3",
+                                               key=lambda v: (v[0], v[2]["id"]))
+            add("plant", tree, n, record, facts)
+        with rule(f"{product} 6 random"):
+            pool = [r for r in base if r["levels"]["2"] >= 2 and _required_sites(r) <= CALLS_MAX_REQUIRED
+                    and not _test_decl(r)]
+            for _ in range(CALLS_RANDOM):
+                add("random", product, None, *_seeded(
+                    free(pool), seed, f"candidates with 2 or more level-2 callers, {CALLS_MAX_REQUIRED} or fewer "
+                                      "required lines and no test declaration"))
+        if len(out) != CALLS_PER_PRODUCT:
+            raise LookupError(f"rule `{product} 4 plant`: {product} has {len(out)} challenges, expected "
+                              f"{CALLS_PER_PRODUCT} ({trees} planted trees with a planted target)")
+        return out
+
+    return [ch for product in CALLS_PRODUCTS for ch in product_set(product)]
+
+
 def _number(value: float | None) -> str:
     return "-" if value is None else f"{value:.3f}"
 
@@ -627,8 +830,9 @@ def _show(args) -> int:
         for cls in keys.line_classes(view(ch, record)).values():
             counts["required" if cls in REQUIRED else cls] += 1
         tree = os.path.join(args.root, ch["tree"])
-        if ch["family"] == "impls" and record["lang"] == "go":
-            # The declaration line of a Go type does not name the interface: the scan measures nothing here.
+        if ch["family"] == "callers" or (ch["family"] == "impls" and record["lang"] == "go"):
+            # The declaration line of a Go type does not name the interface, and the declaration line of a caller
+            # does not name the function that it calls: the scan measures nothing here.
             numbers = "lines -, precision -, recall -"
         else:
             scan = text_scan(ch, record, tree)
@@ -657,6 +861,13 @@ def _main(args) -> int:
     return 0
 
 
+def _calls(args) -> int:
+    chosen = calls_set(args.seed, KEYS)
+    keys.save_keys(args.out, chosen)
+    print(f"{len(chosen)} challenges in {args.out}", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python3 -m benchlib.challenges", description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -672,8 +883,11 @@ def main(argv: list[str] | None = None) -> int:
     main_cmd = sub.add_parser("main", help="write the main set")
     main_cmd.add_argument("-out", required=True, help="output file (JSONL)")
     main_cmd.add_argument("-seed", type=int, default=1)
+    calls_cmd = sub.add_parser("calls", help="write the set calls1 of the family callers")
+    calls_cmd.add_argument("-out", required=True, help="output file (JSONL)")
+    calls_cmd.add_argument("-seed", type=int, default=1)
     args = parser.parse_args(argv)
-    return {"show": _show, "pilot": _pilot, "main": _main}[args.command](args)
+    return {"show": _show, "pilot": _pilot, "main": _main, "calls": _calls}[args.command](args)
 
 
 if __name__ == "__main__":

@@ -54,14 +54,19 @@ OPEN for each of these causes, else CLOSED:
     generator   (Python) `generator` or `async` is true
     implicit    (Python) the name starts and ends with two underscores: Python calls such a method with no use of
                 its name (`K()` runs `__init__`, `with` runs `__enter__`), so "no use" does not prove "no caller"
+    uncalled    (Python) the function has no use and is no test function (`is_test_function`: the name starts with
+                `test`, and the base name of the file matches `test_*.py` or `*_test.py`): Python code can call a
+                function through `getattr` with a computed name, so "no use" proves "no caller" only for a test
+                function, which only the test runner calls
     interface   (Go) the symbols record has a `family` with another id, or a non-empty `external`
     unproven    (Go) the symbols record has a site with `why` `string` or `unproven`
     variants    (Go) two records of calls.jsonl have this `id` (not "")
     no-symbols  (Go) `id` is not "" and the symbols file has no record with it
 
 The CALLERS of a function are the functions at the `in` positions of its uses; each `in` must be the `decl` of a
-record. A function X is a TARGET when X is closed, has an id and one caller or more, and each caller of X is
-closed. For each target, in the order of calls.jsonl, `make` writes one key record:
+record. A closed function with no use has no caller in the tree: a Go function (`main`, `init`, a test), or a
+Python test function. A function X is a TARGET when X is closed, has an id and one caller or more, and each
+caller of X is closed. For each target, in the order of calls.jsonl, `make` writes one key record:
 
     {"id", "lang", "kind", "name", "container", "decl", "family": [<id>], "implementers": [], "external": [],
      "source": "calls", "depth": 2, "property": bool, "plant": bool, "levels": {"1": <n>, "2": <n>},
@@ -92,8 +97,10 @@ the totals with the count of the trace lines of other ids, then each `outside` s
 import argparse
 import ast
 import collections
+import fnmatch
 import json
 import os
+import posixpath
 import re
 import sys
 import tempfile
@@ -108,10 +115,13 @@ ALLOWED_DECORATORS = ("staticmethod", "classmethod", "property", "cached_propert
                       "abstractmethod")
 PROPERTY_DECORATORS = ("property", "cached_property")
 
+TEST_FILES = ("test_*.py", "*_test.py")  # the base name of the file of a Python test function
+
 NO_KEY, VALUE, OUTSIDE = "no-key", "value", "outside"
 UNKNOWN, NESTED, DECORATOR, GENERATOR, IMPLICIT = "unknown", "nested", "decorator", "generator", "implicit"
+UNCALLED = "uncalled"
 INTERFACE, UNPROVEN, VARIANTS, NO_SYMBOLS = "interface", "unproven", "variants", "no-symbols"
-CAUSES = {"python": (NO_KEY, VALUE, OUTSIDE, UNKNOWN, NESTED, DECORATOR, GENERATOR, IMPLICIT),
+CAUSES = {"python": (NO_KEY, VALUE, OUTSIDE, UNKNOWN, NESTED, DECORATOR, GENERATOR, IMPLICIT, UNCALLED),
           "go": (NO_KEY, VALUE, OUTSIDE, INTERFACE, UNPROVEN, VARIANTS, NO_SYMBOLS)}
 VERDICTS = ("key", "external", "outside")
 
@@ -321,6 +331,12 @@ def is_property(rec: dict) -> bool:
     return any(d.rsplit(".", 1)[-1] in PROPERTY_DECORATORS for d in rec.get("decorators", ()))
 
 
+def is_test_function(rec: dict) -> bool:
+    """A Python test function: the name starts with `test`, and the base name of the file matches TEST_FILES."""
+    base = posixpath.basename(rec["decl"]["file"])
+    return rec["name"].startswith("test") and any(fnmatch.fnmatchcase(base, p) for p in TEST_FILES)
+
+
 def _counts_as_call(rec: dict, use: dict, lang: str) -> bool:
     return use["call"] or (lang == "python" and use.get("read", False) and is_property(rec))
 
@@ -371,6 +387,8 @@ def _causes(rec: dict, lang: str, by_id: dict, symbols: dict) -> list[str]:
             found.add(GENERATOR)
         if rec["name"].startswith("__") and rec["name"].endswith("__"):
             found.add(IMPLICIT)
+        if not uses and not is_test_function(rec):
+            found.add(UNCALLED)
     elif rid:
         syms = symbols.get(rid, [])
         if not syms:

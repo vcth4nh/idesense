@@ -6,6 +6,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import contextlib
 import io
 import json
+import random
+import re
 import shutil
 import tempfile
 import unittest
@@ -47,12 +49,24 @@ def lines(rec):
     return {(f, n): c for (f, n), c in keys.line_classes(rec).items()}
 
 
+def callers_record():
+    """A key record of `callkeys make` for `Run` at a.go:1: two callers at level 1, one at level 2."""
+    def caller(file, line, level):
+        return {"file": file, "line": line, "col": 6, "class": "required", "why": "caller", "level": level,
+                "lit": False, "plant": False, "configs": ["linux"]}
+
+    rec = record([site(1, "dnc", "decl", col=6), caller("a.go", 5, 1), caller("a.go", 9, 1), caller("b/c.go", 3, 2)],
+                 kind="func", container="")
+    return dict(rec, source="calls", depth=2, property=False, plant=False, levels={"1": 2, "2": 1})
+
+
 # One case for each prompt text of amendment A3: (family, lang, kind, container).
 PROMPT_CASES = [("refs", "go", "method", "App"), ("refs", "go", "iface_method", "Runner"), ("refs", "go", "func", ""),
                 ("refs", "go", "type", ""), ("refs", "go", "interface", ""), ("refs", "python", "method", "App"),
                 ("refs", "python", "function", ""), ("refs", "python", "class", ""), ("rename", "go", "method", "App"),
                 ("rename", "python", "method", "App"), ("impls", "go", "interface", ""),
-                ("impls", "python", "class", "")]
+                ("impls", "python", "class", ""), ("callers", "go", "func", ""), ("callers", "go", "method", "App"),
+                ("callers", "python", "method", "App"), ("callers", "python", "function", "")]
 
 
 class MasterTree(unittest.TestCase):
@@ -146,6 +160,12 @@ class ViewTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "forbidden"):
             challenges.view(challenge("impls"), record(kind="interface", container="", implementers=[bad]))
 
+    def test_callers_view_is_the_record_itself(self):
+        rec = callers_record()
+        self.assertIs(rec, challenges.view(challenge("callers"), rec))
+        with self.assertRaisesRegex(ValueError, "source"):
+            challenges.view(challenge("callers"), dict(rec, source="go/types"))
+
 
 class AnswerTest(MasterTree):
     def test_parse_sites_forms(self):
@@ -178,6 +198,21 @@ class AnswerTest(MasterTree):
         self.assertEqual({"tp": 1, "fp": 1, "miss": 0, "ignored": 0, "precision": 0.5, "recall": 1.0,
                           "exact": False, "invalid": 1, "outside": 3, "listed": 2}, s)
 
+    def test_score_answer_of_a_callers_challenge(self):
+        """An exact answer, an answer with an absent line, with a line of another function, and with the line of
+        the target (a dnc line: no error)."""
+        rec, ch = callers_record(), challenge("callers")
+        exact = {("a.go", 5), ("a.go", 9), ("b/c.go", 3)}
+
+        def score(sites):
+            s = challenges.score_answer(ch, rec, sites, [])
+            return s["tp"], s["fp"], s["miss"], s["ignored"], s["exact"]
+
+        self.assertEqual((3, 0, 0, 0, True), score(exact))
+        self.assertEqual((2, 0, 1, 0, False), score(exact - {("b/c.go", 3)}))
+        self.assertEqual((3, 1, 0, 0, False), score(exact | {("a.go", 20)}))
+        self.assertEqual((3, 0, 0, 1, True), score(exact | {("a.go", 1)}))
+
 
 class PromptTest(MasterTree):
     def prompts(self):
@@ -199,7 +234,7 @@ class PromptTest(MasterTree):
             self.assertEqual(TAIL, paragraphs[-1])
             self.assertNotIn("\n", paragraphs[1])
             seen.add(case.split()[0])
-        self.assertEqual({"refs", "rename", "impls"}, seen)
+        self.assertEqual({"refs", "rename", "impls", "callers"}, seen)
         self.assertEqual("Find each line of this repository that calls or names the method `Run` of the type "
                          "`caddyhttp.App`, which is declared at a.go:1. A line counts when it refers to this method, "
                          "to a method that overrides or implements it, or to a method that it overrides or "
@@ -264,6 +299,48 @@ class PromptTest(MasterTree):
             with self.assertRaisesRegex(ValueError, "no prompt text"):
                 self.task(family, kind, "", lang="go")
 
+    def test_callers_prompt_is_the_head_and_the_tail_of_the_language(self):
+        """The whole prompt of each combination of the family `callers`: Go function, Go method, Python function,
+        Python method, Python property."""
+        go_tail = (" Find also each function or method that calls one of these callers. Do not go further than these "
+                   "two levels. A call inside a function literal counts for the function or method declaration that "
+                   "holds the literal. Test code counts. A file counts also when the build for this machine does not "
+                   "compile it. Answer with the line that holds the name of each such function or method in its "
+                   "declaration. Do not list `Run` itself.")
+        py_tail = (" Find also each function or method that calls one of these callers. Do not go further than these "
+                   "two levels. A call inside a lambda or a nested function counts for the outermost function or "
+                   "method that holds it. A read of a property is a call of the property. Test code counts. Answer "
+                   "with the line of the `def` statement of each such function or method. Do not list `Run` "
+                   "itself.")
+        beets_head = f"The repository at {ROOT} is a checkout of the project beets. Work only with this checkout."
+        py_decl = {"file": "beets/library.py", "line": 7, "col": 9}
+
+        def py_record(kind, container, prop):
+            return dict(record(kind=kind, container=container, lang="python"), decl=py_decl, property=prop)
+
+        cases = [
+            (challenge("callers"), record(kind="func", container=""), HEAD,
+             "Find each function or method of this repository that calls the function `Run` of the package "
+             "`caddyhttp`, which is declared at a.go:1." + go_tail),
+            (challenge("callers"), record(kind="method", container="App"), HEAD,
+             "Find each function or method of this repository that calls the method `Run` of the type "
+             "`caddyhttp.App`, which is declared at a.go:1." + go_tail),
+            (challenge("callers", product="beets", tree="beets"), py_record("function", "", False), beets_head,
+             "Find each function or method of this repository that calls the function `Run`, which is declared at "
+             "beets/library.py:7." + py_tail),
+            (challenge("callers", product="beets", tree="beets"), py_record("method", "App", False), beets_head,
+             "Find each function or method of this repository that calls the method `Run` of the class `App`, "
+             "which is declared at beets/library.py:7." + py_tail),
+            (challenge("callers", product="beets", tree="beets"), py_record("method", "App", True), beets_head,
+             "Find each function or method of this repository that reads the property `Run` of the class `App`, "
+             "which is declared at beets/library.py:7." + py_tail),
+        ]
+        for ch, rec, head, task in cases:
+            self.assertEqual(f"{head}\n\n{task}\n\n{TAIL}", challenges.prompt(ch, rec, ROOT), task)
+        for kind, lang in (("iface_method", "go"), ("type", "go"), ("interface", "go"), ("class", "python")):
+            with self.assertRaisesRegex(ValueError, "no prompt text"):
+                self.task("callers", kind, "", lang=lang)
+
     def test_schema(self):
         self.assertEqual({"type": "object", "properties": {"sites": {"type": "array", "items": {"type": "string"}}},
                           "required": ["sites"], "additionalProperties": False}, challenges.schema(challenge()))
@@ -289,6 +366,11 @@ class TextScanTest(unittest.TestCase):
                       site(2, "dnc", "comment", file="sub/b.go")])
         got = challenges.text_scan(challenge("refs"), rec, tree)
         self.assertEqual({"lines": 4, "precision": 0.5, "recall": 0.5}, got)
+
+    def test_text_scan_gives_no_numbers_for_a_callers_challenge(self):
+        """No tree is read: the root does not exist."""
+        got = challenges.text_scan(challenge("callers"), callers_record(), "/nonexistent/caddy")
+        self.assertEqual({"lines": None, "precision": None, "recall": None}, got)
 
 
 def jsonl(path, records):
@@ -793,6 +875,285 @@ class MainSetTest(unittest.TestCase):
         with mock.patch.object(challenges, "TREES", trees_root), contextlib.redirect_stdout(out):
             self.assertEqual(0, challenges.main(["show", "-set", path, "-root", trees_root, "-keys", keys_root]))
         self.assertEqual(30, sum(1 for line in out.getvalue().splitlines() if line.startswith("== ")))
+
+
+def csite(file, line, level, lit=False, configs=GO_ALL, cls="required"):
+    """A caller site of a key record of `callkeys make`. A site in a Go file has `configs`."""
+    s = {"file": file, "line": line, "col": 6, "class": cls, "why": "caller" if cls == "required" else "variant",
+         "level": level, "lit": lit, "plant": False}
+    if file.endswith(".go"):
+        s["configs"] = list(configs)
+    return s
+
+
+def ckey(rid, n1=1, n2=0, container="", decl=None, lit=False, lit2=False, off=None, prop=False, at=None, extra=()):
+    """A key record of `callkeys make` for the target `rid`: `n1` level-1 and `n2` level-2 required caller sites on
+    their own lines of a file of the record (`at`: a given file, so two records can have equal required lines).
+    `lit` and `off` (configs with no linux) go to the first level-1 site, `lit2` to the first level-2 site;
+    `extra` adds sites. `decl` is (file, line). `levels` counts the required sites of each level."""
+    go = rid.startswith(("go:", "plant:go:"))
+    ext, name = (".go" if go else ".py"), rid.rsplit(".", 1)[-1]
+    file = at or "calls/" + re.sub(r"\W", "_", rid) + ext
+    dfile, dline = decl or ((name.lower() if go else f"beets/{name}") + ext, 1)
+    sites = [csite(file, 10 + i, 1, lit=lit and i == 0, configs=off if off and i == 0 else GO_ALL) for i in range(n1)]
+    sites += [csite(file, 100 + i, 2, lit=lit2 and i == 0) for i in range(n2)] + list(extra)
+    levels = {str(n): sum(1 for s in sites if s["class"] == "required" and s["level"] == n) for n in (1, 2)}
+    sites.append({"file": dfile, "line": dline, "col": 6, "class": "dnc", "why": "decl"})
+    return {"id": rid, "lang": "go" if go else "python",
+            "kind": "method" if container else "func" if go else "function", "name": name, "container": container,
+            "decl": {"file": dfile, "line": dline, "col": 6}, "family": [rid], "implementers": [], "external": [],
+            "source": "calls", "depth": 2, "property": prop, "plant": rid.startswith("plant:"), "levels": levels,
+            "sites": sorted(sites, key=lambda s: (s["file"], s["line"], s["col"]))}
+
+
+def plant_rec(rid, container, decl):
+    """A record of a plant file: only its `decl` counts for `calls_set`."""
+    return {"id": rid, "lang": "go" if rid.startswith("plant:go:") else "python", "kind": "method",
+            "name": rid.rsplit(".", 1)[-1], "container": container,
+            "decl": {"file": decl[0], "line": decl[1], "col": 6}, "source": "plant"}
+
+
+P1A, P1B = "plant:go:caddy-plant-1:A.Apply", "plant:go:caddy-plant-1:B.Apply"
+P2, P3, P3X = "plant:go:caddy-plant-2:C.Apply", "plant:go:caddy-plant-3:D.Apply", "plant:go:caddy-plant-3:E.Apply"
+Q1, Q2 = "plant:python:beets-plant-1:K.apply", "plant:python:beets-plant-2:L.apply"
+Q3A, Q3B = "plant:python:beets-plant-3:M.apply", "plant:python:beets-plant-3:N.apply"
+PB = "py:beets"
+# The candidates of the random rules (the closure and property rules can take one of them first).
+CADDY_RANDOM = {f"{M}.R1", f"{M}.R2", f"{M}.R3", f"{M}.R4", f"{M}.BuildMac", f"{M}.BuildDnc", f"{M}.ClosureDeep",
+                f"{M}.Srv.ClosureA"}
+BEETS_RANDOM = {f"{PB}.r.f1", f"{PB}.r.f2", f"{PB}.r.f3", f"{PB}.r.f4", f"{PB}.p.K.prop_b", f"{PB}.n.nested_deep"}
+
+
+def calls_fixture(root, reverse=False, drop=(), replace=None, extra=None):
+    """A keys root and a trees root in which each rule of `calls_set` has known candidates and near misses.
+    `drop` removes records by id from each key file, `replace` puts another record in the place of an id, `extra`
+    adds records to a key file (path relative to the keys root). Each Go declaration file gets a package clause."""
+    def put(rel, rs):
+        rs = [(replace or {}).get(r["id"], r) for r in rs + (extra or {}).get(rel, []) if r["id"] not in drop]
+        jsonl(os.path.join(root, "keys", rel), list(reversed(rs)) if reverse else rs)
+        for r in rs:
+            if r["lang"] == "go":
+                write(os.path.join(root, "trees", rel.split("/")[0], r["decl"]["file"]), "package m\n")
+
+    # caddy: Wide and WideCopy have the same required lines and a site off Linux; BuildDnc is off Linux only at a
+    # dnc site; ClosureDeep has a lit site only at level 2; RNone has no level-1 caller.
+    put("caddy/callers.jsonl", [
+        ckey(f"{M}.Wide", 5, 45, at="calls/wide.go", off=WIN),
+        ckey(f"{M}.WideCopy", 5, 45, at="calls/wide.go", off=WIN),
+        ckey(f"{M}.BuildWin", 2, 10, off=WIN), ckey(f"{M}.BuildMac", 1, 5, off=MAC),
+        ckey(f"{M}.BuildDnc", 1, 20, extra=[csite("calls/dnc.go", 500, 2, cls="dnc", configs=WIN)]),
+        ckey(f"{M}.Srv.ClosureA", 2, 3, container="Srv", lit=True), ckey(f"{M}.ClosureB", 1, 1, lit=True),
+        ckey(f"{M}.ClosureNoL2", 1, 0, lit=True), ckey(f"{M}.ClosureBig", 1, 40, lit=True),
+        ckey(f"{M}.ClosureTest", 1, 1, lit=True, decl=("closure_test.go", 3)),
+        ckey(f"{M}.ClosureDeep", 1, 2, lit2=True),
+        *[ckey(f"{M}.R{i}", 1, 2) for i in range(1, 5)],
+        ckey(f"{M}.RFewL2", 1, 1), ckey(f"{M}.RBig", 1, 40), ckey(f"{M}.RTest", 1, 2, decl=("r_test.go", 3)),
+        ckey(f"{M}.RNone", 0, 0)])
+    # caddy-plant-1: two planted targets (A also has a level-1 site at the decl of B: it is no via target), Wide
+    # with the id of the rule-1 pick and a level-1 site at a planted decl, a via target, and a level-2 site at a
+    # planted decl (no via target).
+    put("caddy-plant-1/plant.jsonl", [plant_rec(P1A, "A", ("p1.go", 10)), plant_rec(P1B, "B", ("p1.go", 20))])
+    put("caddy-plant-1/callers.jsonl", [
+        ckey(P1A, 3, container="A", decl=("p1.go", 10), extra=[csite("p1.go", 20, 1)]),
+        ckey(P1B, 5, container="B", decl=("p1.go", 20)),
+        ckey(f"{M}.Wide", 5, 45, at="calls/wide.go", off=WIN, extra=[csite("p1.go", 10, 1)]),
+        ckey(f"{M}.ViaOne", 1, extra=[csite("p1.go", 10, 1)]),
+        ckey(f"{M}.NotVia", 1, 1, extra=[csite("p1.go", 20, 2)])])
+    put("caddy-plant-2/plant.jsonl", [plant_rec(P2, "C", ("p2.go", 30))])
+    put("caddy-plant-2/callers.jsonl", [
+        ckey(P2, 2, container="C", decl=("p2.go", 30)), ckey(f"{M}.ViaOne", 1, extra=[csite("p2.go", 30, 1)]),
+        ckey(f"{M}.ViaTwo", 0, 1, extra=[csite("p2.go", 30, 1)])])
+    # caddy-plant-3: the planted record D has no level-1 caller (no candidate), E has no key record.
+    put("caddy-plant-3/plant.jsonl", [plant_rec(P3, "D", ("p3.go", 40)), plant_rec(P3X, "E", ("p3.go", 50))])
+    put("caddy-plant-3/callers.jsonl", [
+        ckey(P3, 0, container="D", decl=("p3.go", 40)), ckey(f"{M}.ViaThree", 1, extra=[csite("p3.go", 40, 1)])])
+    # beets: nested_test (a test declaration) and nested_big (more than 40 required lines) are candidates of the
+    # nested rule; the other test declarations and near misses are no candidates.
+    put("beets/callers.jsonl", [
+        ckey(f"{PB}.w.wide_one", 5, 40),
+        ckey(f"{PB}.p.K.prop_a", 1, 1, container="K", prop=True),
+        ckey(f"{PB}.p.K.prop_b", 2, 2, container="K", prop=True),
+        ckey(f"{PB}.p.K.prop_nol2", 1, 0, container="K", prop=True),
+        ckey(f"{PB}.p.K.prop_test", 1, 1, container="K", prop=True, decl=("test/test_p.py", 3)),
+        ckey(f"{PB}.p.K.prop_btest", 1, 1, container="K", prop=True, decl=("beets/test/helper.py", 3)),
+        ckey(f"{PB}.n.nested_a", 1, 1, lit=True),
+        ckey(f"{PB}.n.nested_test", 1, 1, lit=True, decl=("test/test_n.py", 3)),
+        ckey(f"{PB}.n.nested_big", 1, 41, lit=True), ckey(f"{PB}.n.nested_nol2", 1, 0, lit=True),
+        ckey(f"{PB}.n.nested_deep", 1, 2, lit2=True),
+        *[ckey(f"{PB}.r.f{i}", 1, 2) for i in range(1, 5)],
+        ckey(f"{PB}.r.f_few", 1, 1), ckey(f"{PB}.r.f_big", 1, 40),
+        ckey(f"{PB}.r.f_test", 1, 2, decl=("test/test_r.py", 3)),
+        ckey(f"{PB}.r.f_btest", 1, 2, decl=("beets/test/r.py", 3))])
+    # beets-plant-1 has no planted target; beets-plant-3 has two with equal counts.
+    put("beets-plant-1/plant.jsonl", [plant_rec(Q1, "K", ("beets/q1.py", 10))])
+    put("beets-plant-1/callers.jsonl", [ckey(f"{PB}.v.via_one", 1, extra=[csite("beets/q1.py", 10, 1)])])
+    put("beets-plant-2/plant.jsonl", [plant_rec(Q2, "L", ("beets/q2.py", 20))])
+    put("beets-plant-2/callers.jsonl", [ckey(Q2, 2, container="L", decl=("beets/q2.py", 20))])
+    put("beets-plant-3/plant.jsonl", [plant_rec(Q3A, "M", ("beets/q3.py", 30)),
+                                      plant_rec(Q3B, "N", ("beets/q3.py", 40))])
+    put("beets-plant-3/callers.jsonl", [
+        ckey(Q3A, 3, container="M", decl=("beets/q3.py", 30)), ckey(Q3B, 3, container="N", decl=("beets/q3.py", 40)),
+        ckey(f"{PB}.v.via_three", 1, extra=[csite("beets/q3.py", 40, 1)])])
+    return os.path.join(root, "keys"), os.path.join(root, "trees")
+
+
+def picks(chs):
+    """(product, class word, tree, key id) of each challenge, in the order of the set."""
+    return [(ch["product"], ch["note"].split(":")[0], ch["tree"], ch["key_id"]) for ch in chs]
+
+
+class CallsSetTest(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d)
+        self.keys, self.trees = calls_fixture(os.path.join(self.d, "one"))
+
+    def sets(self):
+        return {seed: challenges.calls_set(seed, self.keys) for seed in SEEDS}
+
+    def test_each_rule_chooses_the_expected_record(self):
+        seen = {}
+        for chs in self.sets().values():
+            got = picks(chs)
+            self.assertEqual(20, len(got))
+            self.assertEqual([("caddy", "wide", "caddy", f"{M}.Wide"), ("caddy", "build", "caddy", f"{M}.BuildWin")],
+                             got[:2])
+            self.assertIn(got[2][3], (f"{M}.Srv.ClosureA", f"{M}.ClosureB"))
+            self.assertEqual([("caddy", "plant", "caddy-plant-1", P1B), ("caddy", "plant", "caddy-plant-2", P2)],
+                             got[3:5])
+            self.assertIn(got[5][1:], [("plant", "caddy-plant-1", f"{M}.ViaOne"),
+                                       ("plant", "caddy-plant-2", f"{M}.ViaOne"),
+                                       ("plant", "caddy-plant-2", f"{M}.ViaTwo"),
+                                       ("plant", "caddy-plant-3", f"{M}.ViaThree")])
+            self.assertEqual(("beets", "wide", "beets", f"{PB}.w.wide_one"), got[10])
+            self.assertIn(got[11][3], (f"{PB}.p.K.prop_a", f"{PB}.p.K.prop_b"))
+            self.assertIn(got[12][3], (f"{PB}.n.nested_a", f"{PB}.n.nested_test", f"{PB}.n.nested_big"))
+            self.assertEqual([("beets", "plant", "beets-plant-2", Q2), ("beets", "plant", "beets-plant-3", Q3A)],
+                             got[13:15])
+            self.assertIn(got[15][1:], [("plant", "beets-plant-1", f"{PB}.v.via_one"),
+                                        ("plant", "beets-plant-3", f"{PB}.v.via_three")])
+            self.assertEqual(["closure", "property", "nested"], [got[2][1], got[11][1], got[12][1]])
+            for start, pool in ((6, CADDY_RANDOM), (16, BEETS_RANDOM)):
+                product = got[start][0]
+                chosen = {p[3] for p in got[start - 6:start]}
+                randoms = got[start:start + 4]
+                self.assertEqual({(product, "random", product)}, {p[:3] for p in randoms})
+                self.assertEqual(4, len({p[3] for p in randoms}))
+                self.assertLessEqual({p[3] for p in randoms}, pool - chosen)
+            for ch in chs:
+                self.assertEqual(list(challenges.FIELDS), list(ch))
+                self.assertEqual(("callers", f"{ch['tree']}/callers.jsonl", "random" if ch["note"].startswith("random")
+                                  else "hard"), (ch["family"], ch["keys"], ch["sample"]))
+            for i in (2, 5, 6, 11, 12, 15, 16):
+                seen.setdefault(i, set()).add(got[i])
+        # Each seeded rule gives more than one pick over the seeds.
+        for i, values in seen.items():
+            self.assertGreater(len(values), 1, i)
+
+    def test_same_seed_and_another_record_order_give_the_same_set(self):
+        again, _ = calls_fixture(os.path.join(self.d, "two"), reverse=True)
+        sets = self.sets()
+        for seed in SEEDS:
+            self.assertEqual(sets[seed], challenges.calls_set(seed, again))
+        self.assertGreater(len({json.dumps(chs) for chs in sets.values()}), 1)
+
+    def test_via_pick_is_seeded_over_the_via_targets_sorted_by_tree_then_id(self):
+        """The via targets of caddy: Wide of caddy-plant-1 is one by its sites, but rule 1 chose its id."""
+        pool = [("caddy-plant-1", f"{M}.ViaOne"), ("caddy-plant-2", f"{M}.ViaOne"), ("caddy-plant-2", f"{M}.ViaTwo"),
+                ("caddy-plant-3", f"{M}.ViaThree")]
+        for seed, chs in self.sets().items():
+            via = chs[5]
+            self.assertEqual(random.Random(seed).choice(pool), (via["tree"], via["key_id"]))
+            self.assertTrue(via["note"].startswith(f"plant: seeded choice (seed {seed}) among 4 via targets "),
+                            via["note"])
+
+    def test_notes_start_with_the_class_word_then_the_rule_facts_then_the_levels(self):
+        chs = challenges.calls_set(3, self.keys)
+        notes = {(ch["tree"], ch["key_id"]): ch["note"] for ch in chs}
+        self.assertEqual("wide: most required lines (50); levels 1: 5, 2: 45", notes[("caddy", f"{M}.Wide")])
+        self.assertEqual("build: most required lines (12); levels 1: 2, 2: 10", notes[("caddy", f"{M}.BuildWin")])
+        self.assertEqual("plant: most required lines (5); levels 1: 5, 2: 0", notes[("caddy-plant-1", P1B)])
+        self.assertEqual("plant: most required lines (3); levels 1: 3, 2: 0", notes[("beets-plant-3", Q3A)])
+        prop = chs[11]
+        levels = {f"{PB}.p.K.prop_a": "1: 1, 2: 1", f"{PB}.p.K.prop_b": "1: 2, 2: 2"}[prop["key_id"]]
+        self.assertEqual("property: seeded choice (seed 3) among 2 candidates with property true, 1 or more level-2 "
+                         f"callers and no test declaration; levels {levels}", prop["note"])
+        for ch in chs:
+            self.assertRegex(ch["note"], r"^(wide|build|closure|property|nested|plant|random): "
+                                         r"(most required lines \(\d+\)|seeded choice \(seed 3\) among \d+ .+); "
+                                         r"levels 1: \d+, 2: \d+$")
+
+    def test_ids_name_the_tree_and_the_function(self):
+        for chs in self.sets().values():
+            self.assertEqual(20, len({ch["id"] for ch in chs}))
+            for ch in chs:
+                rec = challenges.record_of(ch, self.keys)
+                name = f"{rec['container']}.{rec['name']}" if rec["kind"] == "method" else rec["name"]
+                tree = ch["tree"].replace(f"{ch['product']}-plant-", f"{ch['product']}-plant")
+                self.assertEqual(f"{tree}-callers-{name}", ch["id"])
+        ids = {ch["id"] for ch in challenges.calls_set(1, self.keys)}
+        self.assertLessEqual({"caddy-callers-Wide", "caddy-callers-BuildWin", "caddy-plant1-callers-B.Apply",
+                              "caddy-plant2-callers-C.Apply", "beets-callers-wide_one", "beets-plant2-callers-L.apply",
+                              "beets-plant3-callers-M.apply"}, ids)
+
+    def test_a_chosen_record_and_a_record_with_its_required_lines_are_no_candidates(self):
+        """Wide (the pick of rule 1) and WideCopy (its required lines) have the most required lines of the
+        candidates of the build rule. WideCopy with other lines is the build pick."""
+        for chs in self.sets().values():
+            self.assertEqual(f"{M}.BuildWin", chs[1]["key_id"])
+            self.assertNotIn(f"{M}.WideCopy", {ch["key_id"] for ch in chs})
+        moved = ckey(f"{M}.WideCopy", 5, 45, at="calls/other.go", off=WIN)
+        keys_root, _ = calls_fixture(os.path.join(self.d, "moved"), replace={moved["id"]: moved})
+        chs = challenges.calls_set(1, keys_root)
+        self.assertEqual([f"{M}.Wide", f"{M}.WideCopy"], [chs[0]["key_id"], chs[1]["key_id"]])
+
+    def test_a_rule_with_no_candidate_names_the_rule(self):
+        cases = [({f"{M}.BuildWin", f"{M}.BuildMac"}, "caddy 2a build"),
+                 ({f"{M}.Srv.ClosureA", f"{M}.ClosureB"}, "caddy 3a closure"),
+                 ({P1A, P1B, P2}, "caddy 4 plant"),
+                 ({f"{M}.ViaOne", f"{M}.ViaTwo", f"{M}.ViaThree"}, "caddy 5 plant"),
+                 ({f"{M}.R1", f"{M}.R2", f"{M}.R3", f"{M}.R4", f"{M}.BuildMac", f"{M}.ClosureDeep"}, "caddy 6 random"),
+                 ({f"{PB}.p.K.prop_a", f"{PB}.p.K.prop_b"}, "beets 2b property"),
+                 ({f"{PB}.n.nested_a", f"{PB}.n.nested_test", f"{PB}.n.nested_big"}, "beets 3b nested")]
+        for i, (drop, rule) in enumerate(cases):
+            keys_root, _ = calls_fixture(os.path.join(self.d, f"drop{i}"), drop=drop)
+            with self.assertRaisesRegex(LookupError, f"rule `{rule}`: "):
+                challenges.calls_set(1, keys_root)
+        keys_root, _ = calls_fixture(os.path.join(self.d, "none"))
+        jsonl(os.path.join(keys_root, "caddy", "callers.jsonl"), [ckey(f"{M}.RNone", 0, 0)])
+        with self.assertRaisesRegex(LookupError, "rule `caddy 1 wide`: "):
+            challenges.calls_set(1, keys_root)
+
+    def test_a_product_with_another_count_than_ten_names_the_rule(self):
+        keys_root, _ = calls_fixture(os.path.join(self.d, "nine"), drop={P2})
+        with self.assertRaisesRegex(LookupError, "rule `caddy 4 plant`: caddy has 9 challenges, expected 10"):
+            challenges.calls_set(1, keys_root)
+        third = ckey(P3X, 1, container="E", decl=("p3.go", 50))
+        keys_root, _ = calls_fixture(os.path.join(self.d, "eleven"), extra={"caddy-plant-3/callers.jsonl": [third]})
+        with self.assertRaisesRegex(LookupError, "rule `caddy 4 plant`: caddy has 11 challenges, expected 10"):
+            challenges.calls_set(1, keys_root)
+
+    def test_two_equal_ids_are_a_lookup_error(self):
+        twin = ckey("go:example.com/other.Wide", 2, 10, off=WIN)
+        keys_root, _ = calls_fixture(os.path.join(self.d, "twin"), replace={f"{M}.BuildWin": twin})
+        with self.assertRaisesRegex(LookupError, "rule `caddy 2a build`: .*caddy-callers-Wide"):
+            challenges.calls_set(1, keys_root)
+
+    def test_cli_calls_writes_the_set_that_load_and_show_read(self):
+        path = os.path.join(self.d, "calls1.jsonl")
+        with mock.patch.object(challenges, "KEYS", self.keys), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(0, challenges.main(["calls", "-out", path, "-seed", "2"]))
+        self.assertEqual(sorted(challenges.calls_set(2, self.keys), key=lambda ch: ch["id"]), challenges.load(path))
+        out = io.StringIO()
+        with mock.patch.object(challenges, "TREES", self.trees), contextlib.redirect_stdout(out):
+            self.assertEqual(0, challenges.main(["show", "-set", path, "-root", self.trees, "-keys", self.keys]))
+        text = out.getvalue()
+        self.assertEqual(20, sum(1 for line in text.splitlines() if line.startswith("== ")))
+        self.assertEqual(20, text.count("text scan: lines -, precision -, recall -"))
+        self.assertIn("view lines: required 50, forbidden 0, dnc 1", text)
+        self.assertIn("calls the function `Wide` of the package `m`, which is declared at wide.go:1.", text)
+        self.assertIn("calls the method `Apply` of the type `m.B`, which is declared at p1.go:20.", text)
+        self.assertIn("reads the property `prop_", text)
 
 
 if __name__ == "__main__":
