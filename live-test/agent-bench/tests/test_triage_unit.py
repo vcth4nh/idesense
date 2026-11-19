@@ -516,13 +516,30 @@ class TablesTest(unittest.TestCase):
         self.assertAlmostEqual(1.0 - 2 / 3, by_pair[("PFG", "PF")]["f1_diff"])
         self.assertAlmostEqual(2 / 3 - 1.0, by_pair[("PFG-stop-5", "PF-stop-5")]["f1_diff"])
 
+    def test_paired_rows_of_PFI_and_PFS_have_the_bases_C_and_PF(self):
+        self.assertEqual(("PFN", "PFR", "PFL", "PFG", "PFI", "PFS"), triage.PF_BASED)
+        self.assertEqual([arm for arm in runner.ARMS if arm in triage.PF_BASED], list(triage.PF_BASED),
+                         "the order of runner.ARMS")
+        records = [
+            run("PFS", sc=score(2, 1, 0)), run("PFI", stop=5, sc=score(1, 0, 1)), run("PFI", sc=score(2, 0, 0)),
+            run("PF", stop=5, sc=score(2, 0, 0)), run("PF", sc=score(1, 0, 1)), run("C", sc=score(2, 0, 0)),
+        ]
+        rows = triage.paired(records)
+        self.assertEqual([("PF", "C"), ("PF-stop-5", "C"), ("PFI", "C"), ("PFI", "PF"), ("PFI-stop-5", "C"),
+                          ("PFI-stop-5", "PF-stop-5"), ("PFS", "C"), ("PFS", "PF")],
+                         [(r["arm_label"], r["base_label"]) for r in rows])
+        by_pair = {(r["arm_label"], r["base_label"]): r for r in rows}
+        self.assertAlmostEqual(1.0 - 2 / 3, by_pair[("PFI", "PF")]["f1_diff"])
+        self.assertAlmostEqual(2 / 3 - 1.0, by_pair[("PFI-stop-5", "PF-stop-5")]["f1_diff"])
+        self.assertAlmostEqual(0.8 - 2 / 3, by_pair[("PFS", "PF")]["f1_diff"])
+
     def test_tables_give_the_arms_in_the_order_of_runner_ARMS(self):
-        arms = ("PFG", "PFL", "PFR", "PFN", "PF", "PS", "P", "C")
+        arms = ("PFS", "PFI", "PFG", "PFL", "PFR", "PFN", "PF", "PS", "P", "C")
         records = [run(arm, aid="rule" if arm == "PS" else None, sc=score(2, 0, 0)) for arm in arms]
-        self.assertEqual(("C", "P", "PS", "PF", "PFN", "PFR", "PFL", "PFG"), runner.ARMS)
-        self.assertEqual(["C", "P", "PS-rule", "PF", "PFN", "PFR", "PFL", "PFG"],
+        self.assertEqual(("C", "P", "PS", "PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS"), runner.ARMS)
+        self.assertEqual(["C", "P", "PS-rule", "PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS"],
                          [r["arm_label"] for r in triage.summary_rows(records)])
-        self.assertEqual(["P", "PS-rule", "PF", "PFN", "PFR", "PFL", "PFG"],
+        self.assertEqual(["P", "PS-rule", "PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS"],
                          [r["arm_label"] for r in triage.adoption_rows(records)])
 
     def test_bootstrap_is_stable_with_a_seed_and_handles_small_lists(self):
@@ -642,6 +659,11 @@ class ReportTest(unittest.TestCase):
         adoption = [line.split(" | ")[0][2:] for line in lines if line.endswith(" |") and f" | {OPUS} | " in line
                     and line.count(" | ") == 4]
         self.assertEqual(["PS-rule", "PS-rule-stop-5", "PF", "PFN"], adoption)
+
+    def test_report_names_the_arms_with_the_base_PF(self):
+        with open(triage.report(self.batch, self.set_file, self.out), encoding="utf-8") as f:
+            text = f.read()
+        self.assertIn("The base is C for each plugin arm, and also PF for PFN, PFR, PFL, PFG, PFI and PFS. ", text)
 
     def test_table_prints_one_line_for_each_run(self):
         out = io.StringIO()

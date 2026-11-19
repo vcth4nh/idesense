@@ -1,8 +1,8 @@
 """One run of the agent benchmark: Claude Code in print mode in a product container answers one challenge.
 
-    python3 -m benchlib.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL|PFG> -model <model>
-        -batch <name> [-aid skill|rule] [-variant instructions|no-tool-search] [-stop-after-tools N] [-no-tools]
-        [-env-scrub] [-n <run number>] [-dry-run]                    (run from live-test/agent-bench)
+    python3 -m benchlib.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL|PFG|PFI|PFS>
+        -model <model> -batch <name> [-aid skill|rule] [-variant instructions|no-tool-search] [-stop-after-tools N]
+        [-no-tools] [-env-scrub] [-n <run number>] [-dry-run]        (run from live-test/agent-bench)
     python3 -m benchlib.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1]
     python3 -m benchlib.runner handshake -product <caddy|beets>
 
@@ -18,10 +18,12 @@ ADDITION_FIELD, and `usages` stays. ADDITIONS_FILE is `{"<challenge id>": {"name
 [[file, line], ...], "rows": [<row object>, ...]}}`. `known` holds the positions of the rows that the IDE gives for
 the target declaration. A row object has `file`, `line`, `column`, `preview`, `usageType` and `enclosingScope`, and
 never `match`. With no usable entry for the challenge, a `PFR` or `PFL` run does not start. `PFG` is `PF` with
-PFG_SENTENCE after PF_SENTENCE in the same paragraph, and its route has no notes and no additions. `-no-tools` (arm C
-only) adds `--tools ""` (the memory probe). `-variant instructions` gives the route the text INSTRUCTIONS; `-variant
-no-tool-search` sets `ENABLE_TOOL_SEARCH=false` (arms P, PS and PF). `-stop-after-tools N` kills the container
-after the N-th `tool_use` block that is not a block of `StructuredOutput` (the adoption probe).
+PFG_SENTENCE after PF_SENTENCE in the same paragraph, and its route has no notes and no additions. `PFI` is `PF`, and
+its route has the note PFG_SENTENCE for ADDITION_TOOL, with no read of NOTES_FILE and no additions. `PFS` is `PF`
+with PFS_SENTENCE after PF_SENTENCE in the same paragraph, and its route has no notes and no additions. `-no-tools`
+(arm C only) adds `--tools ""` (the memory probe). `-variant instructions` gives the route the text INSTRUCTIONS;
+`-variant no-tool-search` sets `ENABLE_TOOL_SEARCH=false` (arms P, PS and PF). `-stop-after-tools N` kills the
+container after the N-th `tool_use` block that is not a block of `StructuredOutput` (the adoption probe).
 `-env-scrub` (each arm; default off) sets `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`: Claude Code removes credentials
 such as ANTHROPIC_API_KEY from the environment of Bash. Claude Code 2.1.326 needs bubblewrap for it.
 
@@ -137,9 +139,9 @@ READY_TIMEOUT = audit.READY_TIMEOUT
 WALL_LIMIT = 30 * 60
 HANDSHAKE_LIMIT = 120
 
-ARMS = ("C", "P", "PS", "PF", "PFN", "PFR", "PFL", "PFG")
-PLUGIN_ARMS = ("P", "PS", "PF", "PFN", "PFR", "PFL", "PFG")
-PF_ARMS = ("PF", "PFN", "PFR", "PFL", "PFG")   # the arms with PF_SENTENCE in the prompt
+ARMS = ("C", "P", "PS", "PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS")
+PLUGIN_ARMS = ("P", "PS", "PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS")
+PF_ARMS = ("PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS")   # the arms with PF_SENTENCE in the prompt
 ADDITIONS_FILE = os.path.join(BENCH, "additions.json")
 ADDITION_TOOL = "ide_find_usages"
 ADDITION_FORMS = {"PFR": "rows", "PFL": "field"}
@@ -162,6 +164,8 @@ PF_SENTENCE = 'Use the IDE tools of the MCP server "{server}" for code navigatio
 PFG_SENTENCE = ("A usage list of the IDE holds the references that the IDE can prove, and it can lack a line. "
                 "After a usage list, search the text for the name, and check each line that the list does not "
                 "hold.")
+PFS_SENTENCE = ("A usage list of the IDE can be incomplete: a call on a value with no known type is absent. "
+                "A text search for the name finds such calls.")
 INSTRUCTIONS = ("This server gives the code analysis of a JetBrains IDE for the open project: find usages, go to "
                 "definition, implementations, type and call hierarchies, symbol and file search. Its results come "
                 "from the IDE index and resolve names by their meaning, not by their text.")
@@ -464,8 +468,10 @@ def prepare(args) -> dict:
     server, root = image["server_name"], slot["path"]
     text = challenges.prompt(ch, record, root)
     if args.arm in PF_ARMS:
-        text = pf_prompt(text, server, PFG_SENTENCE if args.arm == "PFG" else None)
+        text = pf_prompt(text, server, {"PFG": PFG_SENTENCE, "PFS": PFS_SENTENCE}.get(args.arm))
     notes = route_notes(product) if args.arm == "PFN" else None
+    if args.arm == "PFI":
+        notes = {ADDITION_TOOL: PFG_SENTENCE}
     additions = route_additions(ch["id"], args.arm)
     plugin = args.arm in PLUGIN_ARMS
     token = proxy.new_token() if plugin else None

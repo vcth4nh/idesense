@@ -288,7 +288,7 @@ class CommandTest(RunnerCase):
                                  ("PFN", ("-aid", "skill"), "-aid"), ("PFN", ("-variant", "instructions"), "-variant"),
                                  ("PFN", ("-variant", "no-tool-search"), "-variant"),
                                  ("PFN", ("-no-tools",), "-no-tools"),
-                                 *((arm, extra, extra[0]) for arm in ("PFR", "PFL", "PFG")
+                                 *((arm, extra, extra[0]) for arm in ("PFR", "PFL", "PFG", "PFI", "PFS")
                                    for extra in (("-aid", "skill"), ("-variant", "instructions"),
                                                  ("-variant", "no-tool-search"), ("-no-tools",)))):
             code, _, err = self.main(*self.run_args(arm, *extra), "-dry-run")
@@ -318,8 +318,8 @@ class CommandTest(RunnerCase):
         self.assertEqual([], self.docker_calls())
 
 
-class PfnTest(RunnerCase):
-    """Arm PFN: the prompt of arm PF, and a route with the notes of the product language (runner.NOTES_FILE)."""
+class CaddyCase(RunnerCase):
+    """A RunnerCase that also makes the run options of a caddy challenge."""
     GO_ROOT = "/home/ubuntu/dev/ws/0001/caddy"
     GO_SERVER = "goland-idesense"
     GO_CHALLENGE = {"id": "caddy-refs-Helper", "product": "caddy", "tree": "caddy", "family": "refs",
@@ -328,11 +328,6 @@ class PfnTest(RunnerCase):
     GO_RECORD = {"id": "go:example.com/demo.Helper", "lang": "go", "kind": "func", "name": "Helper", "container": "",
                  "decl": {"file": "demo/helper.go", "line": 3, "col": 6}, "implementers": [], "source": "go/types",
                  "sites": [{"file": "demo/use.go", "line": 7, "col": 2, "class": "required", "why": "use"}]}
-    PY_TOOLS = ["ide_find_implementations", "ide_find_usages", "ide_type_hierarchy"]
-
-    def notes(self, lang):
-        with open(runner.NOTES_FILE, encoding="utf-8") as f:
-            return json.load(f)[lang]
 
     def caddy_args(self, arm):
         """The run options of a caddy challenge (a Go key record, a slot and an image of caddy)."""
@@ -347,6 +342,15 @@ class PfnTest(RunnerCase):
         write(t("set-caddy.jsonl"), json.dumps(self.GO_CHALLENGE) + "\n")
         return runner._parser().parse_args(["run", "-set", t("set-caddy.jsonl"), "-challenge", self.GO_CHALLENGE["id"],
                                             "-arm", arm, "-model", MODEL, "-batch", "b1"])
+
+
+class PfnTest(CaddyCase):
+    """Arm PFN: the prompt of arm PF, and a route with the notes of the product language (runner.NOTES_FILE)."""
+    PY_TOOLS = ["ide_find_implementations", "ide_find_usages", "ide_type_hierarchy"]
+
+    def notes(self, lang):
+        with open(runner.NOTES_FILE, encoding="utf-8") as f:
+            return json.load(f)[lang]
 
     def test_notes_file_has_a_note_for_each_tool_of_the_plan(self):
         with open(runner.NOTES_FILE, encoding="utf-8") as f:
@@ -533,7 +537,7 @@ class PfgTest(RunnerCase):
 
     def test_PFG_prompt_has_the_PFG_sentence_in_the_PF_paragraph(self):
         self.assertEqual(self.TEXT, runner.PFG_SENTENCE)
-        self.assertEqual(("PF", "PFN", "PFR", "PFL", "PFG"), runner.PF_ARMS)
+        self.assertEqual(("PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS"), runner.PF_ARMS)
         base = challenges.prompt(CHALLENGE, RECORD, ROOT)
         self.assertTrue(base.endswith("\n\n" + challenges.TAIL))
         head, sentence = base[:-len(challenges.TAIL)], runner.PF_SENTENCE.format(server=SERVER)
@@ -572,6 +576,109 @@ class PfgTest(RunnerCase):
         self.assertNotIn("route notes", err)
         self.assertNotIn("route additions", err)
         self.assertEqual("docker", json.loads(out)[0])
+        self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
+
+
+class PfiTest(CaddyCase):
+    """Arm PFI: the prompt of arm PF, and a route whose note for ide_find_usages is runner.PFG_SENTENCE (the
+    instruction of PFG at the place of the notes of PFN)."""
+    NOTES = {"ide_find_usages": PfgTest.TEXT}
+
+    @staticmethod
+    def prompt_in(run):
+        return run["cmd"][run["cmd"].index("-p") + 1]
+
+    def test_PFI_prompt_is_the_PF_prompt(self):
+        self.assertIn("PFI", runner.PF_ARMS)
+        self.assertEqual(prompt_of(self.dry("PF")), prompt_of(self.dry("PFI")))
+        self.assertEqual(self.prompt_in(runner.prepare(self.caddy_args("PF"))),
+                         self.prompt_in(runner.prepare(self.caddy_args("PFI"))))
+
+    def test_prepare_gives_the_PFG_sentence_as_the_note_of_find_usages(self):
+        self.assertEqual("ide_find_usages", runner.ADDITION_TOOL)
+        self.assertFalse(os.path.exists(runner.ADDITIONS_FILE))
+        self.assertIn("PFI", runner.PLUGIN_ARMS)
+        for notes_file in (runner.NOTES_FILE, os.path.join(self.tmp, "absent-notes.json")):
+            with mock.patch.object(runner, "NOTES_FILE", notes_file):
+                beets = runner.prepare(runner._parser().parse_args(self.run_args("PFI")))
+                caddy = runner.prepare(self.caddy_args("PFI"))
+            for run in (beets, caddy):
+                self.assertEqual((True, self.NOTES, None), (run["plugin"], run["notes"], run["additions"]), notes_file)
+                self.assertEqual("--mcp-config", run["cmd"][-2])
+        self.assertIsNone(runner.route_additions(CHALLENGE["id"], "PFI"))
+
+    def test_route_of_a_run_has_the_note(self):
+        code, rec, _, err = self.start("PFI")
+        self.assertEqual((0, "ok", "PFI", f"{CHALLENGE['id']}__PFI__{MODEL}__1"),
+                         (code, rec["outcome"], rec["arm"], rec["id"]), err)
+        self.assertTrue(os.path.isdir(self.folder("PFI")))
+        routes = [c["route"] for c in self.docker_calls() if "route" in c]
+        self.assertEqual([(self.NOTES, None)], [(route["notes"], route["additions"]) for route in routes])
+        self.assertEqual(prompt_of(self.dry("PF")), prompt_of(self.runs_of_docker()[0]["argv"]))
+        self.assertEqual({}, self.routes_now())
+
+    def test_dry_run_line_names_the_tool_of_the_note(self):
+        code, out, err = self.main(*self.run_args("PFI"), "-dry-run")
+        self.assertEqual(0, code, err)
+        self.assertIn(f"runner: dry run {CHALLENGE['id']}__PFI__{MODEL}__1: arm PFI; route notes (python): "
+                      "ide_find_usages\n", err)
+        self.assertNotIn("route additions", err)
+        self.assertEqual("docker", json.loads(out)[0])
+        self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
+
+
+class PfsTest(RunnerCase):
+    """Arm PFS: the prompt of arm PF with runner.PFS_SENTENCE (the statement of PFN) after the PF sentence in the same
+    paragraph, and a route with no notes and no additions."""
+    TEXT = ("A usage list of the IDE can be incomplete: a call on a value with no known type is absent. A text search "
+            "for the name finds such calls.")
+
+    def head_and_sentence(self):
+        base = challenges.prompt(CHALLENGE, RECORD, ROOT)
+        self.assertTrue(base.endswith("\n\n" + challenges.TAIL))
+        return base[:-len(challenges.TAIL)], runner.PF_SENTENCE.format(server=SERVER)
+
+    def test_PFS_prompt_has_the_PFS_sentence_in_the_PF_paragraph(self):
+        self.assertEqual(self.TEXT, runner.PFS_SENTENCE)
+        self.assertIn("PFS", runner.PF_ARMS)
+        head, sentence = self.head_and_sentence()
+        pf, pfs = prompt_of(self.dry("PF")), prompt_of(self.dry("PFS"))
+        self.assertEqual(f"{head}{sentence} {self.TEXT}\n\n{challenges.TAIL}", pfs)
+        self.assertEqual(len(pf.split("\n\n")), len(pfs.split("\n\n")), "no new paragraph")
+        self.assertEqual([f"{sentence} {self.TEXT}", challenges.TAIL], pfs.split("\n\n")[-2:])
+        self.assertEqual(pfs, runner.pf_prompt(challenges.prompt(CHALLENGE, RECORD, ROOT), SERVER, self.TEXT))
+
+    def test_prompts_of_PF_PFN_and_PFG_did_not_change(self):
+        head, sentence = self.head_and_sentence()
+        pf = f"{head}{sentence}\n\n{challenges.TAIL}"
+        self.assertEqual(pf, prompt_of(self.dry("PF")))
+        self.assertEqual(pf, prompt_of(self.dry("PFN")))
+        self.assertEqual(f"{head}{sentence} {PfgTest.TEXT}\n\n{challenges.TAIL}", prompt_of(self.dry("PFG")))
+
+    def test_prepare_gives_a_plugin_run_with_no_notes_and_no_additions(self):
+        self.assertFalse(os.path.exists(runner.ADDITIONS_FILE))
+        self.assertIn("PFS", runner.PLUGIN_ARMS)
+        with mock.patch.object(runner, "NOTES_FILE", os.path.join(self.tmp, "absent-notes.json")):
+            run = runner.prepare(runner._parser().parse_args(self.run_args("PFS")))
+        self.assertEqual((True, None, None), (run["plugin"], run["notes"], run["additions"]))
+        self.assertEqual("--mcp-config", run["cmd"][-2])
+        self.assertIsNone(runner.route_additions(CHALLENGE["id"], "PFS"))
+
+    def test_route_of_a_run_has_no_notes_and_no_additions(self):
+        code, rec, _, err = self.start("PFS")
+        self.assertEqual((0, "ok", "PFS", f"{CHALLENGE['id']}__PFS__{MODEL}__1"),
+                         (code, rec["outcome"], rec["arm"], rec["id"]), err)
+        routes = [c["route"] for c in self.docker_calls() if "route" in c]
+        self.assertEqual([(None, None)], [(route["notes"], route["additions"]) for route in routes])
+        self.assertIn(self.TEXT, prompt_of(self.runs_of_docker()[0]["argv"]))
+        self.assertEqual({}, self.routes_now())
+
+    def test_dry_run_line_has_no_notes_and_no_additions(self):
+        code, _, err = self.main(*self.run_args("PFS"), "-dry-run")
+        self.assertEqual(0, code, err)
+        self.assertIn(f"runner: dry run {CHALLENGE['id']}__PFS__{MODEL}__1: arm PFS\n", err)
+        self.assertNotIn("route notes", err)
+        self.assertNotIn("route additions", err)
         self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
 
 
