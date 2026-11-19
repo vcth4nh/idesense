@@ -3,13 +3,16 @@
 This harness makes the answer keys for questions about the symbols of real products. It compares
 the answers of the IdeSense plugin with these keys (the audit). A key never comes from the plugin
 or from an IDE. It also runs a coding agent on such questions, with and without the plugin, and
-scores the answers of the agent with the same keys (the agent runs).
+scores the answers of the agent with the same keys (the agent runs). `METHOD.md` gives the rules
+of the benchmark: the key sources and their proofs, the arms, the score, the controls and the
+limits.
 
 ## Layout
 
 ```
 live-test/agent-bench/
   README.md                 this file
+  METHOD.md                 the method of the benchmark
   benchlib/__init__.py
   benchlib/keys.py          key record, JSONL load and save, site classes, score
   benchlib/trees.py         pinned tree: copy, manifest, one-commit repository
