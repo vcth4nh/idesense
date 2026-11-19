@@ -225,25 +225,44 @@ func countLine(m map[string]int) string {
 // extract loads the module at tree one time for each configuration (GOOS) and returns its
 // key records, sorted by id.
 func extract(tree string, configs []string) ([]Record, *stats, error) {
+	x, err := newExtractor(tree, configs)
+	if err != nil {
+		return nil, nil, err
+	}
+	for ci := range configs {
+		if err := x.load(ci); err != nil {
+			return nil, nil, err
+		}
+	}
+	x.viaAssertions()
+	if err := x.readUnbuilt(); err != nil {
+		return nil, nil, err
+	}
+	return x.records(), &x.st, nil
+}
+
+// newExtractor checks the configurations and gives an extractor of the module at tree with no
+// load.
+func newExtractor(tree string, configs []string) (*extractor, error) {
 	if len(configs) == 0 || len(configs) > 32 {
-		return nil, nil, fmt.Errorf("give 1 to 32 configurations")
+		return nil, fmt.Errorf("give 1 to 32 configurations")
 	}
 	seen := map[string]bool{}
 	for _, c := range configs {
 		if seen[c] {
-			return nil, nil, fmt.Errorf("configuration %s two times", c)
+			return nil, fmt.Errorf("configuration %s two times", c)
 		}
 		seen[c] = true
 	}
 	abs, err := filepath.Abs(tree)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	roots := []string{abs}
 	if real, err := filepath.EvalSymlinks(abs); err == nil && real != abs {
 		roots = append(roots, real)
 	}
-	x := &extractor{
+	return &extractor{
 		roots:         roots,
 		configs:       configs,
 		decls:         map[string]*decl{},
@@ -278,17 +297,7 @@ func extract(tree string, configs []string) ([]Record, *stats, error) {
 			paramConv: map[string]bool{},
 			optional:  map[string]int{},
 		},
-	}
-	for ci := range configs {
-		if err := x.load(ci); err != nil {
-			return nil, nil, err
-		}
-	}
-	x.viaAssertions()
-	if err := x.readUnbuilt(); err != nil {
-		return nil, nil, err
-	}
-	return x.records(), &x.st, nil
+	}, nil
 }
 
 // typeEntry is one module named type of one load, in one package variant.
@@ -309,20 +318,22 @@ func variantOf(p *packages.Package) string {
 	return ""
 }
 
-func (x *extractor) load(ci int) error {
+// loadPackages loads the module one time for configuration ci (GOOS ci, GOARCH amd64), test
+// files and test packages included. It gives the packages of the patterns, each package of the
+// graph, the file set, and the paths of the module packages (the packages of the patterns and
+// each variant of them). A load or type error is an error.
+func (x *extractor) loadPackages(ci int) (initial, all []*packages.Package, fset *token.FileSet, modPaths map[string]bool, err error) {
 	goos := x.configs[ci]
-	start := time.Now()
 	cfg := &packages.Config{
 		Mode:  loadMode,
 		Dir:   x.roots[0],
 		Tests: true,
 		Env:   append(os.Environ(), "GOOS="+goos, "GOARCH=amd64", "GOWORK=off"),
 	}
-	initial, err := packages.Load(cfg, "./...")
+	initial, err = packages.Load(cfg, "./...")
 	if err != nil {
-		return fmt.Errorf("%s: load: %w", goos, err)
+		return nil, nil, nil, nil, fmt.Errorf("%s: load: %w", goos, err)
 	}
-	var all []*packages.Package
 	var errs []string
 	packages.Visit(initial, nil, func(p *packages.Package) {
 		all = append(all, p)
@@ -337,23 +348,48 @@ func (x *extractor) load(ci int) error {
 			more = fmt.Sprintf("\n... and %d more", len(errs)-50)
 			errs = errs[:50]
 		}
-		return fmt.Errorf("%s: %d load or type errors:\n%s%s", goos, len(errs), strings.Join(errs, "\n"), more)
+		return nil, nil, nil, nil, fmt.Errorf("%s: %d load or type errors:\n%s%s", goos, len(errs), strings.Join(errs, "\n"), more)
 	}
 	if len(initial) == 0 {
-		return fmt.Errorf("%s: no package below %s", goos, x.roots[0])
+		return nil, nil, nil, nil, fmt.Errorf("%s: no package below %s", goos, x.roots[0])
 	}
-	fset := initial[0].Fset
-
-	// The module packages: the packages of the patterns and each variant of them.
-	modPaths := map[string]bool{}
+	modPaths = map[string]bool{}
 	for _, p := range initial {
 		modPaths[p.PkgPath] = true
+	}
+	return initial, all, initial[0].Fset, modPaths, nil
+}
+
+// loadLine is the statistics line of the load of one configuration.
+func loadLine(goos string, initial, all int, d time.Duration) string {
+	return fmt.Sprintf("config %s: %d packages of the patterns, %d in the graph, %.1fs", goos, initial, all, d.Seconds())
+}
+
+// declareAll records the declarations of each module package of a load (each package variant
+// included) and gives the map of their objects to ids.
+func (x *extractor) declareAll(all []*packages.Package, fset *token.FileSet, modPaths map[string]bool) (map[types.Object]string, []*typeEntry) {
+	objID := map[types.Object]string{}
+	var entries []*typeEntry
+	for _, p := range all {
+		if !modPaths[p.PkgPath] || p.Types == nil {
+			continue
+		}
+		entries = append(entries, x.declare(p, fset, objID)...)
+	}
+	return objID, entries
+}
+
+func (x *extractor) load(ci int) error {
+	goos := x.configs[ci]
+	start := time.Now()
+	initial, all, fset, modPaths, err := x.loadPackages(ci)
+	if err != nil {
+		return err
 	}
 	if err := x.readSources(initial, fset); err != nil {
 		return err
 	}
-	objID := map[types.Object]string{}
-	var entries []*typeEntry
+	objID, entries := x.declareAll(all, fset, modPaths)
 	variantPkgs := map[string][]*packages.Package{}
 	for _, p := range all {
 		if !modPaths[p.PkgPath] || p.Types == nil {
@@ -362,7 +398,6 @@ func (x *extractor) load(ci int) error {
 		if v := variantOf(p); v != "" {
 			variantPkgs[v] = append(variantPkgs[v], p)
 		}
-		entries = append(entries, x.declare(p, fset, objID)...)
 	}
 	for _, te := range entries {
 		x.methods(te, objID, modPaths)
@@ -376,8 +411,7 @@ func (x *extractor) load(ci int) error {
 	if err := x.findLinks(initial, fset, objID); err != nil {
 		return fmt.Errorf("%s: %w", goos, err)
 	}
-	x.st.loads = append(x.st.loads, fmt.Sprintf("config %s: %d packages of the patterns, %d in the graph, %.1fs",
-		goos, len(initial), len(all), time.Since(start).Seconds()))
+	x.st.loads = append(x.st.loads, loadLine(goos, len(initial), len(all), time.Since(start)))
 	return nil
 }
 
