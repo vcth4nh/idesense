@@ -691,17 +691,23 @@ def calls_set(seed: int, keys_root: str = KEYS) -> list[dict]:
         4  plant     for each planted tree `<product>-plant-<n>` (n 1, 2, 3) that has a planted target: the planted
                      target with the most required lines
         5  plant     a seeded pick among the via targets of the three planted trees, sorted by tree, then id
-        6  random    the base tree: CALLS_RANDOM seeded picks, one after the other, among the candidates with 2 or
-                     more level-2 callers, CALLS_MAX_REQUIRED or fewer required lines and no test declaration
+        6  random    the base tree: one seeded sample of CALLS_RANDOM among the candidates with 2 or more level-2
+                     callers, CALLS_MAX_REQUIRED or fewer required lines and no test declaration: the free
+                     candidates sorted by id, in the order of `random.Random(seed).shuffle`. A record with the
+                     required lines of an earlier record of the sample is skipped, and the next record comes in its
+                     place.
 
     The required lines of a record are its required sites (`_required_sites`, `_required_set`). A PLANTED TARGET
     is a candidate whose decl (file, line) is the decl of a record of `<tree>/plant.jsonl`; a VIA TARGET is a
     candidate that is no planted target and has a required level-1 site at such a decl. A record is no candidate of
     a later pick when an earlier pick of the product has its id (also in another tree of the product) or its set of
     required lines. A pick of the most takes the lowest id on a tie; a seeded pick is `_seeded`. The note is the
-    class word, the rule facts (the text of `_seeded`, or `most required lines (<n>)`) and the counts of the
-    levels. The id is `<product>-callers-<Name>`, for a planted tree `<product>-plant<n>-callers-<Name>`; `<Name>`
-    is `<container>.<name>` for a method and `<name>` for a function. LookupError with the rule name when a rule
+    class word, the rule facts (the text of `_seeded`, `seeded sample (seed <s>) of <k> among <n> <candidates>`
+    with the count of the free candidates before the sample, or `most required lines (<n>)`) and the counts of the
+    levels. Rule 6 takes one sample and not CALLS_RANDOM seeded picks: a choice of one seed from a list with one
+    record less each time takes almost the same index each time, so the picks are neighbours in the id order. The
+    id is `<product>-callers-<Name>`, for a planted tree `<product>-plant<n>-callers-<Name>`; `<Name>` is
+    `<container>.<name>` for a method and `<name>` for a function. LookupError with the rule name when a rule
     has no candidate, when two challenges have one id, or when a product does not get CALLS_PER_PRODUCT
     challenges (only rule 4 has a variable count)."""
     def records(rel: str) -> list[dict]:
@@ -792,12 +798,23 @@ def calls_set(seed: int, keys_root: str = KEYS) -> list[dict]:
                                                key=lambda v: (v[0], v[2]["id"]))
             add("plant", tree, n, record, facts)
         with rule(f"{product} 6 random"):
-            pool = [r for r in base if r["levels"]["2"] >= 2 and _required_sites(r) <= CALLS_MAX_REQUIRED
-                    and not _test_decl(r)]
-            for _ in range(CALLS_RANDOM):
-                add("random", product, None, *_seeded(
-                    free(pool), seed, f"candidates with 2 or more level-2 callers, {CALLS_MAX_REQUIRED} or fewer "
-                                      "required lines and no test declaration"))
+            what = (f"candidates with 2 or more level-2 callers, {CALLS_MAX_REQUIRED} or fewer required lines and no "
+                    "test declaration")
+            pool = free([r for r in base if r["levels"]["2"] >= 2 and _required_sites(r) <= CALLS_MAX_REQUIRED
+                         and not _test_decl(r)])
+            facts = f"seeded sample (seed {seed}) of {CALLS_RANDOM} among {len(pool)} {what}"
+            order = sorted(pool, key=lambda r: r["id"])
+            random.Random(seed).shuffle(order)
+            added = 0
+            for record in order:
+                if added == CALLS_RANDOM:
+                    break
+                if free([record]):  # no record of the sample so far has its required lines
+                    add("random", product, None, record, facts)
+                    added += 1
+            if added < CALLS_RANDOM:
+                raise LookupError(f"{added} of {CALLS_RANDOM} records for the seeded sample (seed {seed}) among "
+                                  f"{len(pool)} {what}")
         if len(out) != CALLS_PER_PRODUCT:
             raise LookupError(f"rule `{product} 4 plant`: {product} has {len(out)} challenges, expected "
                               f"{CALLS_PER_PRODUCT} ({trees} planted trees with a planted target)")

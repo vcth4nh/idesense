@@ -1013,7 +1013,7 @@ class CallsSetTest(unittest.TestCase):
 
     def test_each_rule_chooses_the_expected_record(self):
         seen = {}
-        for chs in self.sets().values():
+        for seed, chs in self.sets().items():
             got = picks(chs)
             self.assertEqual(20, len(got))
             self.assertEqual([("caddy", "wide", "caddy", f"{M}.Wide"), ("caddy", "build", "caddy", f"{M}.BuildWin")],
@@ -1038,8 +1038,10 @@ class CallsSetTest(unittest.TestCase):
                 chosen = {p[3] for p in got[start - 6:start]}
                 randoms = got[start:start + 4]
                 self.assertEqual({(product, "random", product)}, {p[:3] for p in randoms})
-                self.assertEqual(4, len({p[3] for p in randoms}))
-                self.assertLessEqual({p[3] for p in randoms}, pool - chosen)
+                # One seeded sample: the first 4 free candidates, sorted by id, in the shuffle order of the seed.
+                order = sorted(pool - chosen)
+                random.Random(seed).shuffle(order)
+                self.assertEqual(order[:4], [p[3] for p in randoms])
             for ch in chs:
                 self.assertEqual(list(challenges.FIELDS), list(ch))
                 self.assertEqual(("callers", f"{ch['tree']}/callers.jsonl", "random" if ch["note"].startswith("random")
@@ -1078,10 +1080,16 @@ class CallsSetTest(unittest.TestCase):
         levels = {f"{PB}.p.K.prop_a": "1: 1, 2: 1", f"{PB}.p.K.prop_b": "1: 2, 2: 2"}[prop["key_id"]]
         self.assertEqual("property: seeded choice (seed 3) among 2 candidates with property true, 1 or more level-2 "
                          f"callers and no test declaration; levels {levels}", prop["note"])
+        free = len(CADDY_RANDOM - {chs[2]["key_id"]})
+        for ch in chs[6:10]:
+            rec = challenges.record_of(ch, self.keys)
+            self.assertEqual(f"random: seeded sample (seed 3) of 4 among {free} candidates with 2 or more level-2 "
+                             "callers, 40 or fewer required lines and no test declaration; levels 1: "
+                             f"{rec['levels']['1']}, 2: {rec['levels']['2']}", ch["note"])
         for ch in chs:
             self.assertRegex(ch["note"], r"^(wide|build|closure|property|nested|plant|random): "
-                                         r"(most required lines \(\d+\)|seeded choice \(seed 3\) among \d+ .+); "
-                                         r"levels 1: \d+, 2: \d+$")
+                                         r"(most required lines \(\d+\)|seeded choice \(seed 3\) among \d+ .+|"
+                                         r"seeded sample \(seed 3\) of 4 among \d+ .+); levels 1: \d+, 2: \d+$")
 
     def test_ids_name_the_tree_and_the_function(self):
         for chs in self.sets().values():
@@ -1138,6 +1146,36 @@ class CallsSetTest(unittest.TestCase):
         keys_root, _ = calls_fixture(os.path.join(self.d, "twin"), replace={f"{M}.BuildWin": twin})
         with self.assertRaisesRegex(LookupError, "rule `caddy 2a build`: .*caddy-callers-Wide"):
             challenges.calls_set(1, keys_root)
+
+    def test_random_skips_a_record_with_the_required_lines_of_an_earlier_record_of_the_sample(self):
+        """R2 has the required lines of R1. The sample takes the next record of the shuffle order in its place.
+        With only R1 to R4 free, the shuffle order ends after 3 records: LookupError."""
+        twin = ckey(f"{M}.R2", 1, 2, at="calls/" + re.sub(r"\W", "_", f"{M}.R1") + ".go")
+        keys_root, _ = calls_fixture(os.path.join(self.d, "twin"), replace={twin["id"]: twin})
+        for seed in SEEDS:
+            chs = challenges.calls_set(seed, keys_root)
+            order = sorted(CADDY_RANDOM - {chs[2]["key_id"]})
+            random.Random(seed).shuffle(order)
+            first = next(i for i in order if i in (f"{M}.R1", f"{M}.R2"))
+            expected = [i for i in order if i not in ({f"{M}.R1", f"{M}.R2"} - {first})][:4]
+            self.assertEqual(expected, [ch["key_id"] for ch in chs[6:10]])
+        keys_root, _ = calls_fixture(os.path.join(self.d, "short"), replace={twin["id"]: twin},
+                                     drop={f"{M}.BuildMac", f"{M}.BuildDnc", f"{M}.ClosureDeep", f"{M}.Srv.ClosureA"})
+        with self.assertRaisesRegex(LookupError, "rule `caddy 6 random`: 3 of 4 .* among 4 candidates"):
+            challenges.calls_set(1, keys_root)
+
+    def test_random_picks_are_no_neighbours_in_the_id_order(self):
+        """16 free candidates whose ids differ only in a number: 4 successive seeded choices from a list with one
+        record less each time take neighbours; one seeded sample does not (seed 1)."""
+        numbered = [ckey(f"{M}.N{i:02d}", 1, 2) for i in range(16)]
+        keys_root, _ = calls_fixture(os.path.join(self.d, "numbered"), drop=CADDY_RANDOM,
+                                     extra={"caddy/callers.jsonl": numbered})
+        chs = challenges.calls_set(1, keys_root)
+        ids = sorted(r["id"] for r in numbered)
+        positions = sorted(ids.index(ch["key_id"]) for ch in chs[6:10])
+        self.assertEqual(4, len(set(positions)))
+        self.assertNotEqual(list(range(positions[0], positions[0] + 4)), positions)
+        self.assertTrue(chs[6]["note"].startswith("random: seeded sample (seed 1) of 4 among 16 candidates "))
 
     def test_cli_calls_writes_the_set_that_load_and_show_read(self):
         path = os.path.join(self.d, "calls1.jsonl")
