@@ -3,15 +3,29 @@
 A plugin arm reaches its IDE only through this proxy, at `http://172.17.0.1:29380/r/<token>/mcp` (the
 docker0 address). The route file maps each token to one run:
 `{"<token>": {"run": ..., "upstream": <IDE MCP url>, "project": <absolute path>, "instructions": null,
-"notes": null}}`. `notes` is absent, null or `{"<tool name>": "<text>"}`.
+"notes": null, "additions": null}}`. `notes` is absent, null or `{"<tool name>": "<text>"}`. `additions` is
+absent, null or `{"<tool name>": <addition>}`. An addition has the keys `known` (a list of `[file, line]` pairs:
+the positions of the rows that the IDE gives for the target declaration), `rows` (a list of row objects, each with
+a text `file` and an int `line`: the rows to add), `form` (`rows` or `field`), `field` (the key of the new list for
+the form `field`) and `note` (a text). An addition with a key absent or of another type is no addition.
 For a POST of one JSON-RPC object on a route, the proxy:
 
 - answers `tools/call` of a tool outside PERMITTED_TOOLS itself (a tool error), with no call to the IDE;
 - sets `params.arguments.project_path` of each other `tools/call` to the project of the route;
 - appends the note text of the route for the tool to the list `notes` of the result of a `tools/call`, when the
-  answer is no error and its `result.content[0].text` is the JSON text of an object. The proxy makes the list
-  when `notes` is absent or null, writes the object again as compact JSON text, and the log line gets
-  `"note_added": true`. Each other answer of a `tools/call` passes byte for byte;
+  answer is no error and its `result.content[0].text` is the JSON text of an object with no key `error`. The proxy
+  makes the list when `notes` is absent or null, writes the object again as compact JSON text, and the log line
+  gets `"note_added": true`;
+- then adds the rows of the addition of the route for the tool to such a result, when `usages` of the object is a
+  list of one or more row objects and the `[file, line]` of each row is in `known`, `hasMore` is not true, `notes`
+  is absent, null or a list, and one or more rows of the addition have a `[file, line]` that no row of `usages`
+  has (the new rows, in the order of the addition). The result has no field that names the target declaration: a
+  page whose rows are all rows of the target is a result for the target. The rows come one time, on the last page.
+  The form `rows` appends the new rows to `usages`, and an int `totalCollected` grows by their count. The form
+  `field` puts them in the key `field` of the object, and `usages` and `totalCollected` stay. The proxy appends
+  `note` to `notes` (it makes the list when `notes` is absent or null), writes the object again as compact JSON
+  text, and the log line gets `"rows_added": <count of the new rows>` and `"addition": <form>`.
+  Each other answer of a `tools/call` passes byte for byte;
 - keeps only the permitted tools in the answer of `tools/list`;
 - sets `result.instructions` of the answer of `initialize` when the route has an `instructions` text;
 - forwards each other method with no change.
@@ -58,6 +72,7 @@ RETURN_HEADERS = ("Content-Type", "Mcp-Session-Id")
 UNROUTED_LOG = "_unrouted.jsonl"
 ROUTE_PATH = re.compile(r"/r/([^/]+)/mcp")
 RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+ADDITION_FORMS = ("rows", "field")
 
 
 def new_token() -> str:
@@ -209,35 +224,94 @@ def _is_error(body: bytes):
     return "error" in envelope or (isinstance(result, dict) and result.get("isError") is True)
 
 
-def _with_note(entry, tool, rec, body: bytes) -> bytes:
-    """The answer body of a `tools/call` with the note of the route for `tool` (module text). The body stays as it
-    is for a tool with no note, an error, an answer that is no JSON, a result text that is no JSON object and an
-    object with the key `error` (the error payload of the plugin)."""
-    notes = entry.get("notes")
-    note = notes.get(tool) if isinstance(notes, dict) else None
-    if not isinstance(note, str):
-        return body
+def _result_object(body: bytes):
+    """(envelope, first content block, object of its text) of an answer body of a `tools/call`, or None for an
+    error, an answer that is no JSON, a result text that is no JSON object and an object with the key `error` (the
+    error payload of the plugin)."""
     try:
         envelope = json.loads(body)
     except ValueError:
-        return body
+        return None
     result = envelope.get("result") if isinstance(envelope, dict) and "error" not in envelope else None
     if not isinstance(result, dict) or result.get("isError") is True:
-        return body
+        return None
     content = result.get("content")
     block = content[0] if isinstance(content, list) and content else None
     text = block.get("text") if isinstance(block, dict) else None
     if not isinstance(text, str):
-        return body
+        return None
     try:
         payload = json.loads(text)
     except ValueError:
+        return None
+    if not isinstance(payload, dict) or "error" in payload:
+        return None
+    return envelope, block, payload
+
+
+def _with_note(entry, tool, rec, body: bytes) -> bytes:
+    """The answer body of a `tools/call` with the note of the route for `tool` (module text). The body stays as it
+    is for a tool with no note, for an answer that `_result_object` does not read and for `notes` of another type."""
+    notes = entry.get("notes")
+    note = notes.get(tool) if isinstance(notes, dict) else None
+    parsed = _result_object(body) if isinstance(note, str) else None
+    if parsed is None or not isinstance(parsed[2].get("notes"), (list, type(None))):
         return body
-    if not isinstance(payload, dict) or "error" in payload or not isinstance(payload.get("notes"), (list, type(None))):
-        return body
+    envelope, block, payload = parsed
     payload["notes"] = (payload.get("notes") or []) + [note]
     block["text"] = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
     rec["note_added"] = True
+    return _body(envelope)
+
+
+def _is_site(file, line) -> bool:
+    """True for a text file and an int line (no bool)."""
+    return isinstance(file, str) and isinstance(line, int) and not isinstance(line, bool)
+
+
+def _addition(entry, tool):
+    """The addition of the route for `tool` when it has the five keys with their types (module text), else None."""
+    additions = entry.get("additions")
+    add = additions.get(tool) if isinstance(additions, dict) else None
+    if not isinstance(add, dict) or add.get("form") not in ADDITION_FORMS:
+        return None
+    known, rows = add.get("known"), add.get("rows")
+    if not (isinstance(add.get("field"), str) and isinstance(add.get("note"), str) and isinstance(known, list)
+            and all(isinstance(p, list) and len(p) == 2 and _is_site(*p) for p in known) and isinstance(rows, list)
+            and all(isinstance(r, dict) and _is_site(r.get("file"), r.get("line")) for r in rows)):
+        return None
+    return add
+
+
+def _with_addition(entry, tool, rec, body: bytes) -> bytes:
+    """The answer body of a `tools/call` with the rows of the addition of the route for `tool` (module text). The
+    body stays as it is unless each condition of the module text holds."""
+    add = _addition(entry, tool)
+    parsed = _result_object(body) if add else None
+    if parsed is None:
+        return body
+    envelope, block, payload = parsed
+    usages, known = payload.get("usages"), {tuple(p) for p in add["known"]}
+    if not (isinstance(usages, list) and usages
+            and all(isinstance(u, dict) and _is_site(u.get("file"), u.get("line")) and (u["file"], u["line"]) in known
+                    for u in usages)):
+        return body
+    if payload.get("hasMore") is True or not isinstance(payload.get("notes"), (list, type(None))):
+        return body
+    listed = {(u["file"], u["line"]) for u in usages}
+    new = [row for row in add["rows"] if (row["file"], row["line"]) not in listed]
+    if not new:
+        return body
+    if add["form"] == "rows":
+        payload["usages"] = usages + new
+        total = payload.get("totalCollected")
+        if isinstance(total, int) and not isinstance(total, bool):
+            payload["totalCollected"] = total + len(new)
+    else:
+        payload[add["field"]] = new
+    payload["notes"] = (payload.get("notes") or []) + [add["note"]]
+    block["text"] = json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+    rec.update(rows_added=len(new), addition=add["form"])
     return _body(envelope)
 
 
@@ -339,7 +413,8 @@ class ProxyHandler(BaseHTTPRequestHandler):
         if status == 200 and method in ("initialize", "tools/list"):
             return self._filter(entry, method, msg.get("id"), rec, status, headers, body)
         if status == 200 and method == "tools/call":
-            return status, headers, _with_note(entry, params.get("name"), rec, body)
+            body = _with_note(entry, params.get("name"), rec, body)
+            return status, headers, _with_addition(entry, params.get("name"), rec, body)
         return status, headers, body
 
     def _filter(self, entry, method, request_id, rec, status, headers, body):

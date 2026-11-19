@@ -1,8 +1,8 @@
 """One run of the agent benchmark: Claude Code in print mode in a product container answers one challenge.
 
-    python3 -m benchlib.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN> -model <model> -batch <name>
-        [-aid skill|rule] [-variant instructions|no-tool-search] [-stop-after-tools N] [-no-tools] [-env-scrub]
-        [-n <run number>] [-dry-run]                                 (run from live-test/agent-bench)
+    python3 -m benchlib.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL> -model <model>
+        -batch <name> [-aid skill|rule] [-variant instructions|no-tool-search] [-stop-after-tools N] [-no-tools]
+        [-env-scrub] [-n <run number>] [-dry-run]                    (run from live-test/agent-bench)
     python3 -m benchlib.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1]
     python3 -m benchlib.runner handshake -product <caddy|beets>
 
@@ -10,8 +10,15 @@ Arms: `C` has no MCP server. `P` has the MCP server of the IDE of the product, t
 proxy (`benchlib.proxy`). `PS` is `P` with an aid (`-aid skill` or `-aid rule`, installed by the entry script of
 the image). `PF` is `P` with the sentence PF_SENTENCE as its own paragraph before the answer paragraph of the
 prompt. `PFN` is `PF`, and its route has the notes of NOTES_FILE for the language of the product (LANGS): the
-proxy appends the note of a tool to the `notes` of each result of that tool. `-no-tools` (arm C only) adds
-`--tools ""` (the memory probe). `-variant instructions` gives the route the text INSTRUCTIONS; `-variant
+proxy appends the note of a tool to the `notes` of each result of that tool. `PFR` and `PFL` are `PF`, and their
+route has the additions of the challenge (`route_additions`): the proxy adds the name-only rows of ADDITIONS_FILE to
+a result of ADDITION_TOOL for the target declaration, and appends the note ADDITION_NOTES of the form. `PFR`
+(form `rows`) adds them to `usages`, each with `"match": "DYNAMIC"`. `PFL` (form `field`) puts them in the list
+ADDITION_FIELD, and `usages` stays. ADDITIONS_FILE is `{"<challenge id>": {"name": "<attribute name>", "known":
+[[file, line], ...], "rows": [<row object>, ...]}}`. `known` holds the positions of the rows that the IDE gives for
+the target declaration. A row object has `file`, `line`, `column`, `preview`, `usageType` and `enclosingScope`, and
+never `match`. With no usable entry for the challenge, a `PFR` or `PFL` run does not start. `-no-tools` (arm C
+only) adds `--tools ""` (the memory probe). `-variant instructions` gives the route the text INSTRUCTIONS; `-variant
 no-tool-search` sets `ENABLE_TOOL_SEARCH=false` (arms P, PS and PF). `-stop-after-tools N` kills the container
 after the N-th `tool_use` block that is not a block of `StructuredOutput` (the adoption probe).
 `-env-scrub` (each arm; default off) sets `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`: Claude Code removes credentials
@@ -23,9 +30,11 @@ the project of the route and the slot that the entry script keeps (`BENCH_SLOT`)
 `slots.json`. The docker command: `docker run` with CONTAINER_FLAGS, `--name run-<hex>`, `-e BENCH_SLOT=<slot id>`,
 `-e BENCH_AID=<aid or none>`, `-e ANTHROPIC_API_KEY` (the name only: the value is in the environment of the docker
 process and never in a command line or a file), the image id, then the arguments of `claude` (CLAUDE_FLAGS). A plugin
-arm adds `--mcp-config {"mcpServers": {"<server name>": {"type": "http", "url": "<route url>"}}}`. `-dry-run` prints
-this command as a JSON list, and on stderr one line with the run id, the arm and the tools of the route notes. It
-does nothing else; it does not read the key.
+arm adds `--mcp-config {"mcpServers": {"<server name>": {"type": "http", "url": "<route url>"}}}`. The route entry
+(`proxy.add_route`) has the run, the IDE URL as upstream, the root as project, the instructions, the notes and the
+additions of the run. `-dry-run` prints this command as a JSON list, and on stderr one line with the run id, the
+arm, the tools of the route notes, and the form and the row count of the route additions. It does nothing else; it
+does not read the key.
 
 Run id `<challenge>__<arm>[-<aid>][-<variant>][-no-tools][-stop-<N>][-scrub]__<model>__<n>`, run folder
 `RUNS/<batch>/<run id>/` with `transcript.jsonl` (the stdout of the container), `stderr.txt`, `proxy.jsonl` (the
@@ -127,8 +136,21 @@ READY_TIMEOUT = audit.READY_TIMEOUT
 WALL_LIMIT = 30 * 60
 HANDSHAKE_LIMIT = 120
 
-ARMS = ("C", "P", "PS", "PF", "PFN")
-PLUGIN_ARMS = ("P", "PS", "PF", "PFN")
+ARMS = ("C", "P", "PS", "PF", "PFN", "PFR", "PFL")
+PLUGIN_ARMS = ("P", "PS", "PF", "PFN", "PFR", "PFL")
+PF_ARMS = ("PF", "PFN", "PFR", "PFL")          # the arms with PF_SENTENCE in the prompt
+ADDITIONS_FILE = os.path.join(BENCH, "additions.json")
+ADDITION_TOOL = "ide_find_usages"
+ADDITION_FORMS = {"PFR": "rows", "PFL": "field"}
+ADDITION_FIELD = "nameOnlyMatches"
+ADDITION_NOTES = {
+    "rows": ("{n} rows of `usages` have `match` = `DYNAMIC` and come from the name only: each is an attribute "
+             "`{name}` on a value whose type does not declare `{name}`, so the declaration that the row refers to "
+             "is not known. Read the code at each of these rows before you count it."),
+    "field": ("`nameOnlyMatches` holds {n} lines that are not in `usages` and come from the name only: each is an "
+              "attribute `{name}` on a value whose type does not declare `{name}`, so the declaration that the "
+              "line refers to is not known. Read the code at each of these lines before you count it."),
+}
 AIDS = ("skill", "rule")
 VARIANTS = ("instructions", "no-tool-search")
 # The container flags of the plan (Global Constraints). No mount, no volume, no host network, no Docker socket.
@@ -373,6 +395,43 @@ def route_notes(product: str) -> dict:
     return texts
 
 
+def _addition_problem(item) -> str | None:
+    """Why the entry of a challenge in ADDITIONS_FILE is not usable, or None."""
+    if not isinstance(item, dict):
+        return "no entry object"
+    if not isinstance(item.get("name"), str) or not item["name"]:
+        return "`name` is no text with one or more characters"
+    known, rows = item.get("known"), item.get("rows")
+    if not isinstance(known, list) or not all(isinstance(p, list) and len(p) == 2 and proxy._is_site(*p)
+                                              for p in known):
+        return "`known` is no list of [file, line] pairs"
+    if not isinstance(rows, list) or not rows or not all(
+            isinstance(r, dict) and proxy._is_site(r.get("file"), r.get("line")) for r in rows):
+        return "`rows` is no list of one or more objects with a text `file` and an int `line`"
+    return None
+
+
+def route_additions(challenge_id: str, arm: str) -> dict | None:
+    """The additions of the route of a run (module text): {ADDITION_TOOL: addition} for an arm of ADDITION_FORMS,
+    None for another arm (with no read of ADDITIONS_FILE)."""
+    form = ADDITION_FORMS.get(arm)
+    if form is None:
+        return None
+    try:
+        with open(ADDITIONS_FILE, encoding="utf-8") as f:
+            items = json.load(f)
+    except (OSError, ValueError) as e:
+        raise SetupError(f"{ADDITIONS_FILE}: no addition file ({type(e).__name__}: {e})") from None
+    item = items.get(challenge_id) if isinstance(items, dict) else None
+    problem = _addition_problem(item)
+    if problem:
+        raise SetupError(f"{ADDITIONS_FILE}: the entry of the challenge {challenge_id!r} is not usable: {problem}")
+    rows = [{**row, "match": "DYNAMIC"} for row in item["rows"]] if form == "rows" else item["rows"]
+    note = ADDITION_NOTES[form].format(n=len(rows), name=item["name"])
+    return {ADDITION_TOOL: {"known": item["known"], "rows": rows, "form": form, "field": ADDITION_FIELD,
+                            "note": note}}
+
+
 def pf_prompt(text: str, server: str) -> str:
     """The prompt with PF_SENTENCE as its own paragraph before the answer paragraph."""
     head, sep, tail = text.rpartition("\n\n")
@@ -398,9 +457,10 @@ def prepare(args) -> dict:
     image = load_image(product)
     server, root = image["server_name"], slot["path"]
     text = challenges.prompt(ch, record, root)
-    if args.arm in ("PF", "PFN"):
+    if args.arm in PF_ARMS:
         text = pf_prompt(text, server)
     notes = route_notes(product) if args.arm == "PFN" else None
+    additions = route_additions(ch["id"], args.arm)
     plugin = args.arm in PLUGIN_ARMS
     token = proxy.new_token() if plugin else None
     name = "run-" + secrets.token_hex(6)
@@ -419,7 +479,7 @@ def prepare(args) -> dict:
     run_id = run_id_of(args)
     return {"run_id": run_id, "folder": os.path.join(RUNS, args.batch, run_id), "ch": ch, "record": record,
             "product": product, "tree": tree, "slot": slot, "root": root, "image": image, "server": server,
-            "plugin": plugin, "token": token, "notes": notes, "name": name, "cmd": cmd,
+            "plugin": plugin, "token": token, "notes": notes, "additions": additions, "name": name, "cmd": cmd,
             "image_problem": image_problem(image, tree, slot)}
 
 
@@ -578,7 +638,9 @@ def run_one(args) -> tuple[int, dict | None]:
         if run["image_problem"]:
             print(f"runner: note: {run['image_problem']}", file=sys.stderr)
         notes = f"; route notes ({LANGS[run['product']]}): {', '.join(sorted(run['notes']))}" if run["notes"] else ""
-        print(f"runner: dry run {run['run_id']}: arm {args.arm}{notes}", file=sys.stderr)
+        add = run["additions"][ADDITION_TOOL] if run["additions"] else None
+        added = f"; route additions: {add['form']}, {len(add['rows'])} rows" if add else ""
+        print(f"runner: dry run {run['run_id']}: arm {args.arm}{notes}{added}", file=sys.stderr)
         print(json.dumps(run["cmd"], ensure_ascii=False))
         return 0, None
     run_id, folder = run["run_id"], run["folder"]
@@ -618,7 +680,8 @@ def run_one(args) -> tuple[int, dict | None]:
         if route_run:
             proxy.add_route(ROUTES_FILE, run["token"], {
                 "run": route_run, "upstream": ide_url, "project": root,
-                "instructions": INSTRUCTIONS if args.variant == "instructions" else None, "notes": run["notes"]})
+                "instructions": INSTRUCTIONS if args.variant == "instructions" else None, "notes": run["notes"],
+                "additions": run["additions"]})
         rec["started"] = _now()
         exit_code, seconds, ended = run_container(
             run["cmd"], {**os.environ, "ANTHROPIC_API_KEY": key}, run["name"], files["transcript.jsonl"],

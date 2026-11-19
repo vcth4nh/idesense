@@ -34,8 +34,8 @@ live-test/agent-bench/
 
 The data root `BENCH` is `/home/ubuntu/dev/idesense-bench/`. It is not a repository. It has the
 folders `trees/`, `ide/`, `keys/`, `audit/`, `challenges/`, `images/`, `proxy/`, `runs/` and
-`scratch/`. A key file is `BENCH/keys/<product>/<set>.jsonl`, with one key record for each line
-(see `benchlib/keys.py`).
+`scratch/`, and the file `additions.json` (the rows of the arms `PFR` and `PFL`). A key file is
+`BENCH/keys/<product>/<set>.jsonl`, with one key record for each line (see `benchlib/keys.py`).
 
 ## Keys
 
@@ -112,12 +112,24 @@ commands and its file formats.
   container, and it has no word that tells the agent of a benchmark.
 - **Arms.** `C` has no plugin. `P` has the plugin as an MCP server. `PS` has the plugin and an aid
   (`skill` or `rule`). `PF` has the plugin and one sentence in the prompt that tells the agent to
-  use it. `PFN` is `PF`, and the proxy adds a fixed note to the results of some IDE tools.
+  use it. `PFN` is `PF`, and the proxy adds a fixed note to the results of some IDE tools. `PFR`
+  and `PFL` are `PF`, and the proxy adds name-only rows to the usage result of the target.
 - **Notes.** `notes.json` has the note texts of arm `PFN`: for each language (`go`, `python`) a
   text for each tool. The runner gives the route of a `PFN` run the notes of the language of the
   product (caddy: `go`, beets: `python`). For a result of such a tool that is no error, the proxy
   appends the text to the list `notes` of the result, and the proxy log line of the call has
   `"note_added": true`. Each other answer passes with no change.
+- **Name-only rows.** PyCharm leaves out a line `x.name` when the type of `x` is known and does
+  not declare `name`. The arms `PFR` and `PFL` show the effect of such lines in a result of
+  `ide_find_usages`, with no change of the plugin. `BENCH/additions.json` has one entry for each
+  challenge: the attribute name, the positions of the rows that the IDE gives for the target
+  (`known`), and the rows to add. The runner gives the route of a `PFR` or `PFL` run the entry of
+  its challenge. A run with no usable entry does not start. The proxy adds the rows only to a
+  result whose rows are all at positions of `known`, and only to the last page. A row that is
+  already in the result is not added again. `PFR` adds the rows to `usages`, each with
+  `"match": "DYNAMIC"`. `PFL` keeps `usages` and puts the rows in the list `nameOnlyMatches`.
+  The proxy also appends a note with the row count and the name to `notes`, and the proxy log
+  line of the call has `rows_added` and `addition`.
 - **Proxy.** A container reaches a benchmark IDE only through `benchlib/proxy.py`. The proxy has
   one route for each run, passes only a fixed list of 15 tools (no rename, no file move, no
   plugin install, no restart), and sets the project of each call.
@@ -129,7 +141,7 @@ python3 -B -m benchlib.image build <caddy|beets>
 python3 -B -m benchlib.image gate <caddy|beets>
 python3 -B -m benchlib.proxy serve -routes BENCH/proxy/routes.json -log-dir BENCH/proxy/log
 python3 -B -m benchlib.runner handshake -product <caddy|beets>
-python3 -B -m benchlib.runner run -set <challenges.jsonl> -challenge <id> -arm <C|P|PS|PF|PFN> -model <model> -batch <name> [-dry-run]
+python3 -B -m benchlib.runner run -set <challenges.jsonl> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL> -model <model> -batch <name> [-dry-run]
 python3 -B -m benchlib.runner batch -plan <plan.jsonl> -batch <name> -jobs 2
 ```
 

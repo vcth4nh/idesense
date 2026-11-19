@@ -115,6 +115,7 @@ class RunnerCase(unittest.TestCase):
         self.ide = []
         for name, value in (("RUNS", self.runs), ("IMAGES", t("images")), ("ROUTES_FILE", self.routes),
                             ("PROXY_LOG_DIR", self.log_dir), ("SLOTS_FILE", t("slots.json")), ("KEY_FILE", t("key")),
+                            ("ADDITIONS_FILE", t("additions.json")),
                             ("check_ide", self.fake_ide), ("proxy_healthy", lambda *a, **k: True)):
             p = mock.patch.object(runner, name, value)
             p.start()
@@ -286,7 +287,10 @@ class CommandTest(RunnerCase):
                                  ("C", ("-stop-after-tools", "0"), "-stop-after-tools"),
                                  ("PFN", ("-aid", "skill"), "-aid"), ("PFN", ("-variant", "instructions"), "-variant"),
                                  ("PFN", ("-variant", "no-tool-search"), "-variant"),
-                                 ("PFN", ("-no-tools",), "-no-tools")):
+                                 ("PFN", ("-no-tools",), "-no-tools"),
+                                 *((arm, extra, extra[0]) for arm in ("PFR", "PFL")
+                                   for extra in (("-aid", "skill"), ("-variant", "instructions"),
+                                                 ("-variant", "no-tool-search"), ("-no-tools",)))):
             code, _, err = self.main(*self.run_args(arm, *extra), "-dry-run")
             self.assertEqual(2, code, (arm, extra))
             self.assertIn(word, err)
@@ -406,6 +410,119 @@ class PfnTest(RunnerCase):
             self.assertIn("python", err)
             self.assertEqual([], self.docker_calls())
             self.assertEqual(0, self.main(*self.run_args("PF"), "-dry-run")[0], "only arm PFN reads the note file")
+
+
+class AdditionsTest(RunnerCase):
+    """Arms PFR and PFL: the prompt of arm PF, and a route with the additions of runner.ADDITIONS_FILE for the
+    challenge."""
+    ROWS = [{"file": "beets/a.py", "line": 12, "column": 9, "preview": "item.label", "usageType": "REFERENCE",
+             "enclosingScope": ["a", "run"]},
+            {"file": "beets/b.py", "line": 3, "column": 5, "preview": "obj.label", "usageType": "REFERENCE",
+             "enclosingScope": ["b"]}]
+    KNOWN = [["beets/util.py", 5], ["beets/a.py", 10]]
+
+    def setUp(self):
+        super().setUp()
+        self.item = {"name": "label", "known": self.KNOWN, "rows": self.ROWS}
+        write(runner.ADDITIONS_FILE, json.dumps({CHALLENGE["id"]: self.item, "other-challenge": {"name": "x"}}))
+
+    def test_arm_with_no_form_has_no_additions_and_reads_no_file(self):
+        os.unlink(runner.ADDITIONS_FILE)
+        for arm in ("C", "P", "PS", "PF", "PFN"):
+            self.assertIsNone(runner.route_additions(CHALLENGE["id"], arm), arm)
+
+    def test_PFR_rows_have_match_DYNAMIC(self):
+        got = runner.route_additions(CHALLENGE["id"], "PFR")
+        self.assertEqual(["ide_find_usages"], list(got))
+        add = got["ide_find_usages"]
+        self.assertEqual(["known", "rows", "form", "field", "note"], list(add))
+        self.assertEqual((self.KNOWN, "rows", "nameOnlyMatches"), (add["known"], add["form"], add["field"]))
+        self.assertEqual([{**row, "match": "DYNAMIC"} for row in self.ROWS], add["rows"])
+        self.assertNotIn("match", self.ROWS[0], "the rows are copies")
+        self.assertTrue(add["note"].startswith("2 rows of `usages` have `match` = `DYNAMIC` and come from the name "
+                                               "only: each is an attribute `label` on a value whose type does not "
+                                               "declare `label`, "), add["note"])
+        self.assertEqual(runner.ADDITION_NOTES["rows"].format(n=2, name="label"), add["note"])
+        self.assertIs(add, proxy._addition({"additions": got}, runner.ADDITION_TOOL), "the proxy takes the addition")
+
+    def test_PFL_rows_are_the_file_rows(self):
+        got = runner.route_additions(CHALLENGE["id"], "PFL")
+        add = got["ide_find_usages"]
+        self.assertEqual((self.KNOWN, self.ROWS, "field", "nameOnlyMatches"),
+                         (add["known"], add["rows"], add["form"], add["field"]))
+        self.assertFalse(any("match" in row for row in add["rows"]))
+        self.assertTrue(add["note"].startswith("`nameOnlyMatches` holds 2 lines that are not in `usages` and come "
+                                               "from the name only: each is an attribute `label` on a value whose "
+                                               "type does not declare `label`, "), add["note"])
+        self.assertEqual(runner.ADDITION_NOTES["field"].format(n=2, name="label"), add["note"])
+        self.assertIs(add, proxy._addition({"additions": got}, runner.ADDITION_TOOL), "the proxy takes the addition")
+
+    def test_bad_file_or_entry_is_a_setup_error(self):
+        item = lambda **change: json.dumps({CHALLENGE["id"]: {**self.item, **change}})
+        cases = [("no JSON", "{not json"), ("a list", "[]"), ("no entry", json.dumps({"other": self.item})),
+                 ("entry no object", json.dumps({CHALLENGE["id"]: ["label"]})),
+                 ("name absent", json.dumps({CHALLENGE["id"]: {"known": self.KNOWN, "rows": self.ROWS}})),
+                 ("name empty", item(name="")), ("name no text", item(name=7)),
+                 ("known no list", item(known={"beets/a.py": 10})),
+                 ("known pair with a text line", item(known=[["beets/a.py", "10"]])),
+                 ("known pair with a bool line", item(known=[["beets/a.py", True]])),
+                 ("known pair of one item", item(known=[["beets/a.py"]])),
+                 ("rows absent", json.dumps({CHALLENGE["id"]: {"name": "label", "known": self.KNOWN}})),
+                 ("rows empty", item(rows=[])), ("rows no list", item(rows=self.ROWS[0])),
+                 ("row no object", item(rows=["beets/a.py:12"])), ("row with no file", item(rows=[{"line": 3}])),
+                 ("row with a text line", item(rows=[{"file": "beets/a.py", "line": "12"}]))]
+        for what, text in [("absent file", None)] + cases:
+            with self.subTest(what):
+                if text is None:
+                    os.unlink(runner.ADDITIONS_FILE)
+                else:
+                    write(runner.ADDITIONS_FILE, text)
+                for arm in ("PFR", "PFL"):
+                    with self.assertRaises(runner.SetupError) as e:
+                        runner.route_additions(CHALLENGE["id"], arm)
+                    self.assertIn(runner.ADDITIONS_FILE, str(e.exception))
+        os.unlink(runner.ADDITIONS_FILE)
+        code, _, _, err = self.start("PFR")
+        self.assertEqual(2, code)
+        self.assertIn(runner.ADDITIONS_FILE, err)
+        self.assertEqual([], self.docker_calls())
+
+    def test_prepare_gives_the_PF_prompt_and_the_additions(self):
+        pf = runner.prepare(runner._parser().parse_args(self.run_args("PF")))
+        self.assertIsNone(pf["additions"])
+        self.assertEqual(runner.PF_SENTENCE.format(server=SERVER), prompt_of(pf["cmd"]).split("\n\n")[-2])
+        self.assertIsNone(runner.prepare(runner._parser().parse_args(self.run_args("PFN")))["additions"])
+        for arm in ("PFR", "PFL"):
+            run = runner.prepare(runner._parser().parse_args(self.run_args(arm)))
+            self.assertEqual(runner.route_additions(CHALLENGE["id"], arm), run["additions"], arm)
+            self.assertEqual((True, None), (run["plugin"], run["notes"]), arm)
+            self.assertEqual(prompt_of(pf["cmd"]), prompt_of(run["cmd"]), arm)
+            self.assertEqual("--mcp-config", run["cmd"][-2], arm)
+
+    def test_route_of_a_run_has_the_additions(self):
+        for arm in ("PFR", "PFL", "PF"):
+            code, rec, _, err = self.start(arm)
+            self.assertEqual((0, "ok", arm), (code, rec["outcome"], rec["arm"]), err)
+            self.assertEqual(f"{CHALLENGE['id']}__{arm}__{MODEL}__1", rec["id"])
+        routes = [c["route"] for c in self.docker_calls() if "route" in c]
+        self.assertEqual(3, len(routes))
+        self.assertEqual(runner.route_additions(CHALLENGE["id"], "PFR"), routes[0]["additions"])
+        self.assertEqual(runner.route_additions(CHALLENGE["id"], "PFL"), routes[1]["additions"])
+        self.assertIsNone(routes[2]["additions"])
+        self.assertEqual([None] * 3, [route["notes"] for route in routes])
+        self.assertEqual({}, self.routes_now())
+
+    def test_dry_run_prints_the_form_and_the_row_count(self):
+        for arm, form in (("PFR", "rows"), ("PFL", "field")):
+            code, out, err = self.main(*self.run_args(arm), "-dry-run")
+            self.assertEqual(0, code, err)
+            self.assertIn(f"runner: dry run {CHALLENGE['id']}__{arm}__{MODEL}__1: arm {arm}; route additions: {form}, "
+                          "2 rows\n", err)
+            self.assertEqual(runner.PF_SENTENCE.format(server=SERVER), prompt_of(json.loads(out)).split("\n\n")[-2])
+        code, _, err = self.main(*self.run_args("PF"), "-dry-run")
+        self.assertEqual(0, code, err)
+        self.assertNotIn("route additions", err)
+        self.assertEqual(({}, []), (self.routes_now(), self.docker_calls()))
 
 
 class KeyTest(RunnerCase):

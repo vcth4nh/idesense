@@ -389,6 +389,152 @@ class ProxyTestCase(unittest.TestCase):
         self.assertEqual(len(cases), len(lines))
         self.assertFalse(any("note_added" in line for line in lines))
 
+    # -- the addition of a route --
+
+    ADD_NOTE = "2 lines come from the name only."
+    LOG_KEYS = {"ts", "ms", "method", "tool", "arguments", "refused", "is_error", "bytes", "status"}
+
+    @staticmethod
+    def row(file, line, **extra):
+        return {"file": file, "line": line, "column": 5, "preview": "x.label", "usageType": "REFERENCE",
+                "enclosingScope": ["demo", "run"], **extra}
+
+    def addition(self, form="rows", **change):
+        """An addition for a target whose IDE rows are src/core.py:10 and src/use.py:4. Its rows are not in the
+        order of their paths, so a test sees the order of the addition."""
+        return {"known": [["src/core.py", 10], ["src/use.py", 4]],
+                "rows": [self.row("src/zeta.py", 8, match="DYNAMIC"), self.row("src/alpha.py", 2, match="DYNAMIC")],
+                "form": form, "field": "nameOnlyMatches", "note": self.ADD_NOTE, **change}
+
+    def added_route(self, run="run-a", add=None, tool="ide_find_usages", **extra):
+        token = proxy.new_token()
+        proxy.add_route(self.routes, token, self.entry(run, additions={tool: add or self.addition()}, **extra))
+        return token
+
+    def usages_payload(self, **change):
+        """The object of a usage result with the two rows of the target."""
+        return {"usages": [self.row("src/core.py", 10), self.row("src/use.py", 4)], "truncated": False,
+                "nextCursor": None, "hasMore": False, "totalCollected": 2, "offset": 0, "pageSize": 100,
+                "stale": False, "warnings": [], **change}
+
+    def call_payload(self, token, payload, tool="ide_find_usages"):
+        """The object of the result text of one `tools/call` whose IDE result text is `payload`, and the raw body."""
+        self.fake.call_result = self.text_result(payload)
+        status, raw = self.call_raw(tool, token)
+        self.assertEqual(200, status)
+        return json.loads(json.loads(raw)["result"]["content"][0]["text"]), raw
+
+    def test_addition_rows_are_appended_to_the_usages(self):
+        token = self.added_route()
+        got, raw = self.call_payload(token, self.usages_payload())
+        rows = self.addition()["rows"]
+        expected = self.usages_payload(usages=self.usages_payload()["usages"] + rows, totalCollected=4,
+                                       notes=[self.ADD_NOTE])
+        self.assertEqual(expected, got)
+        self.assertEqual(["src/core.py", "src/use.py", "src/zeta.py", "src/alpha.py"],
+                         [u["file"] for u in got["usages"]])
+        # Compact JSON text; the added rows have the key order of the route file.
+        self.assertEqual(json.dumps(got, separators=(",", ":"), ensure_ascii=False),
+                         json.loads(raw)["result"]["content"][0]["text"])
+        self.assertEqual(list(self.usages_payload()) + ["notes"], list(got))
+        [line] = self.log_lines("run-a")
+        self.assertEqual((2, "rows", len(raw)), (line["rows_added"], line["addition"], line["bytes"]))
+        self.assertEqual(self.LOG_KEYS | {"rows_added", "addition"}, set(line))
+
+    def test_addition_field_holds_the_rows(self):
+        rows = [self.row("src/zeta.py", 8), self.row("src/alpha.py", 2)]
+        token = self.added_route(add=self.addition("field", field="byName", rows=rows))
+        got, _ = self.call_payload(token, self.usages_payload())
+        self.assertEqual(self.usages_payload(byName=rows, notes=[self.ADD_NOTE]), got)
+        self.assertEqual((self.usages_payload()["usages"], 2), (got["usages"], got["totalCollected"]))
+        [line] = self.log_lines("run-a")
+        self.assertEqual((2, "field"), (line["rows_added"], line["addition"]))
+        self.assertEqual(self.LOG_KEYS | {"rows_added", "addition"}, set(line))
+
+    def test_addition_note_ends_the_notes(self):
+        token = self.added_route()
+        absent = self.usages_payload()
+        cases = ((absent, [self.ADD_NOTE]), (self.usages_payload(notes=None), [self.ADD_NOTE]),
+                 (self.usages_payload(notes=["src/base.py:3 is the base method."]),
+                  ["src/base.py:3 is the base method.", self.ADD_NOTE]))
+        for payload, notes in cases:
+            with self.subTest(notes=payload.get("notes", "absent")):
+                got, _ = self.call_payload(token, payload)
+                self.assertEqual(notes, got["notes"])
+        self.assertEqual([2, 2, 2], [line["rows_added"] for line in self.log_lines("run-a")])
+
+    def test_answer_with_no_addition_passes_byte_for_byte(self):
+        def route(**change):
+            return self.added_route(run="run-u", add=self.addition(**change))
+
+        added = route()
+        no_note = self.addition()
+        del no_note["note"]
+        all_known = self.addition(known=[["src/core.py", 10], ["src/use.py", 4], ["src/zeta.py", 8],
+                                         ["src/alpha.py", 2]])
+        no_usages = self.usages_payload()
+        del no_usages["usages"]
+        payload = self.usages_payload()
+        cases = [
+            ("no additions on the route", self.token, {"result": self.text_result(payload)}),
+            ("an addition for another tool", self.added_route(run="run-u", tool="ide_find_class"),
+             {"result": self.text_result(payload)}),
+            ("hasMore true", added, {"result": self.text_result(self.usages_payload(hasMore=True))}),
+            ("a row of usages outside known", added, {"result": self.text_result(self.usages_payload(
+                usages=[self.row("src/core.py", 10), self.row("src/core.py", 11)]))}),
+            ("usages empty", added, {"result": self.text_result(self.usages_payload(usages=[]))}),
+            ("usages absent", added, {"result": self.text_result(no_usages)}),
+            ("the payload has error", added, {"result": self.text_result(self.usages_payload(error="tool_error"))}),
+            ("result.isError true", added, {"result": self.text_result(payload, is_error=True)}),
+            ("text that is no JSON", added, {"result": {
+                "content": [{"type": "text", "text": "The index is not ready."}], "isError": False}}),
+            ("notes is a text", added, {"result": self.text_result(self.usages_payload(notes="a text"))}),
+            ("an addition with no note", self.added_route(run="run-u", add=no_note),
+             {"result": self.text_result(payload)}),
+            ("form with another value", route(form="list"), {"result": self.text_result(payload)}),
+            ("rows no list", route(rows=self.row("src/zeta.py", 8)), {"result": self.text_result(payload)}),
+            ("each row of the addition in usages", self.added_route(run="run-u", add=all_known),
+             {"result": self.text_result(self.usages_payload(usages=self.usages_payload()["usages"] + [
+                 self.row("src/alpha.py", 2), self.row("src/zeta.py", 8)]))}),
+        ]
+        for what, token, reply in cases:
+            with self.subTest(what):
+                self.fake.call_result = reply["result"]
+                status, raw = self.call_raw("ide_find_usages", token)
+                self.assertEqual((200, self.fake.replies[-1]), (status, raw))
+        lines = self.log_lines("run-u") + self.log_lines()
+        self.assertEqual(len(cases), len(lines))
+        self.assertFalse(any("rows_added" in line or "addition" in line for line in lines))
+
+    def test_addition_row_in_usages_is_left_out(self):
+        add = self.addition(known=[["src/core.py", 10], ["src/use.py", 4], ["src/zeta.py", 8]])
+        token = self.added_route(add=add)
+        usages = self.usages_payload()["usages"] + [self.row("src/zeta.py", 8, column=9)]
+        got, _ = self.call_payload(token, self.usages_payload(usages=usages, totalCollected=3))
+        self.assertEqual(usages + [add["rows"][1]], got["usages"])
+        self.assertEqual(4, got["totalCollected"])
+        [line] = self.log_lines("run-a")
+        self.assertEqual((1, "rows"), (line["rows_added"], line["addition"]))
+
+    def test_total_collected_that_is_no_int_stays(self):
+        token = self.added_route()
+        absent = self.usages_payload()
+        del absent["totalCollected"]
+        got, _ = self.call_payload(token, absent)
+        self.assertEqual(4, len(got["usages"]))
+        self.assertNotIn("totalCollected", got)
+        got, _ = self.call_payload(token, self.usages_payload(totalCollected=True))
+        self.assertEqual(4, len(got["usages"]))
+        self.assertIs(True, got["totalCollected"])
+
+    def test_route_note_comes_before_the_addition_note(self):
+        token = self.added_route(notes={"ide_find_usages": self.NOTE})
+        got, _ = self.call_payload(token, self.usages_payload(notes=["src/base.py:3 is the base method."]))
+        self.assertEqual(["src/base.py:3 is the base method.", self.NOTE, self.ADD_NOTE], got["notes"])
+        self.assertEqual(4, len(got["usages"]))
+        [line] = self.log_lines("run-a")
+        self.assertEqual((True, 2, "rows"), (line["note_added"], line["rows_added"], line["addition"]))
+
     # -- route file --
 
     def test_add_route_refuses_fleet_port(self):
