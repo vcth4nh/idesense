@@ -55,11 +55,6 @@ dependencies {
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
         exclude(group = "org.slf4j")
     }
-    implementation(libs.ktor.server.cors) {
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
-        exclude(group = "org.slf4j")
-    }
 
     // Testing
     testImplementation(libs.junit)
