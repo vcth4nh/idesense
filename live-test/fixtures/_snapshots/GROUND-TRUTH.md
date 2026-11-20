@@ -5,6 +5,9 @@ Some snapshot rows encode platform quirks intentionally. When you see a
 IDE legitimately returns that output, and changing the probe to "fix" it
 will just snapshot a different empty/odd result.
 
+This file holds the notes that cover more than one language. The notes of one language are
+in `<lang>/GROUND-TRUTH.md`.
+
 - **`hier-callee-makeDefault` constructor callees split by language.** **Kotlin & PHP**
   return empty callees — constructor invocations inside a method body don't surface as
   call-hierarchy callees there. **Java & TypeScript** are non-empty: Java surfaces the
@@ -23,7 +26,8 @@ will just snapshot a different empty/odd result.
   JDK / stdlib / stub file (`java.lang.Object`, JS `Number.parseInt`, Python
   `int`, …) is reduced to basename + symbol identity, with no directory and no
   line/column — so it reads as `Object.class` / `lib.es5.d.ts` / `builtins.pyi`,
-  not a path. By design (see "Path normalization — project vs library"); a
+  not a path. By design (see "Path normalization — project vs library" in
+  `live-test/CONVENTIONS.md`); a
   toolchain or IDE bump no longer drifts these rows, so it is not a re-bless
   trigger.
 - **JS/TS return the full transitive super chain**: e.g.

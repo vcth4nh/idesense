@@ -1,5 +1,9 @@
 # Captured ground truth: Go fixture
 
+These results of the Go fixture look wrong, but the IDE returns the same. Do not change
+a probe to "fix" one. The notes that cover more than one language are in
+[../GROUND-TRUTH.md](../GROUND-TRUTH.md).
+
 - **Go `hier-type-*` resolves structural interfaces**: a struct (`Circle`,
   `Rectangle`, `Square`) lists the interfaces it implicitly satisfies as
   `supertypes` (`Drawable`, `Shape`), and an interface (`Drawable`, `Shape`)
@@ -51,8 +55,8 @@
   receiver). The keys name the embedded field (`ide_find_definition` on one
   resolves to the `ANONYMOUS_FIELD` at normal.go:38); GoLand 2026.1 did not list
   them (11 usages), 2026.2 does. The other 3 are the word `baseShape` in the
-  fixture comments at normal.go:25, 28 and 29 (`usageType` `COMMENT`, see the next
-  entry). Not a tool artifact.
+  fixture comments at normal.go:25, 28 and 29 (`usageType` `COMMENT`, see the note on
+  #130 and #132 below). Not a tool artifact.
 - **Go `find_usages` on a type leaves out the literal keys of a same-named field (#213).**
   When a struct has a named field with the name of a type (`CA *CA`), Find Usages of
   GoLand on the type also lists each composite literal key that names that field

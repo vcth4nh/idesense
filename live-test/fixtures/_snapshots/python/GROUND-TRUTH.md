@@ -1,5 +1,9 @@
 # Captured ground truth: Python fixture
 
+These results of the Python fixture look wrong, but the IDE returns the same. Do not change
+a probe to "fix" one. The notes that cover more than one language are in
+[../GROUND-TRUTH.md](../GROUND-TRUTH.md).
+
 - **Python `impls-Drawable.draw`**: returns empty. `Drawable` is a
   `typing.Protocol`, so PyCharm has no nominal implementer set to enumerate
   (`usage-Drawable-protocol` is likewise empty).
@@ -25,8 +29,9 @@
   (`FindUsagesHandlerBase.processElementUsages`,
   `lib/intellij.platform.analysis.impl.jar`, build 262.8665), and that constructor
   sets the dynamic flag when the reference resolves to nothing. The window
-  observation of the same rule is the beets entry (group "Dynamic usages in Project
-  Files").
+  observation of the same rule is the beets note "173 usages of `BeetsPlugin`" in
+  `live-test/real-products/_snapshots/beets/GROUND-TRUTH.md` (group "Dynamic usages in
+  Project Files").
 - **Python `find_usages` searches the base method too (#208).** The window
   observations of PyCharm 2026.2.0.1 on 2026-11-17:
   - `Circle.area` (`src/normal.py:36:9`): the IDE asks "Method area overrides method of

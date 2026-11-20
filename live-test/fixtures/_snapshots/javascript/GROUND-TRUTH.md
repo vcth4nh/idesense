@@ -1,5 +1,9 @@
 # Captured ground truth: JavaScript fixture
 
+These results of the JavaScript fixture look wrong, but the IDE returns the same. Do not change
+a probe to "fix" one. The notes that cover more than one language are in
+[../GROUND-TRUTH.md](../GROUND-TRUTH.md).
+
 - **JS `hier-sub-Probe-*` subtypes omit a cross-file child that `extends` a
   `require()`-imported base.** `ProbeTestChild` (in `test/probe.test.js`,
   `class ProbeTestChild extends Probe` with `Probe` `require()`-imported from
@@ -15,4 +19,5 @@
   a dynamically-constructed mixin class (`Amplifier(Plain)`); the IDE cannot
   statically resolve the super — confirmed the gutter shows nothing either.
   This is expected ground truth (not a tool gap), unlike the immediate-only
-  case above.
+  case of the note "JS/TS return the full transitive super chain" in
+  `../GROUND-TRUTH.md`.

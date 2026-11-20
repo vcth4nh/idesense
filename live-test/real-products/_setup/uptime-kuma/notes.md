@@ -97,7 +97,7 @@ folder). WebStorm downloads these type files by itself, and the lockfile does no
 
 ## Parked rows
 
-Each of these rows shows an open defect (see "Parked rows" in `live-test/CLAUDE.md`).
+Each of these rows shows an open defect (see "Parked rows" in `live-test/CONVENTIONS.md`).
 
 | Row | Issue | Defect |
 |---|---|---|

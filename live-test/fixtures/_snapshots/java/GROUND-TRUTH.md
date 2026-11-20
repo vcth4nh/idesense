@@ -1,5 +1,9 @@
 # Captured ground truth: Java fixture
 
+These results of the Java fixture look wrong, but the IDE returns the same. Do not change
+a probe to "fix" one. The notes that cover more than one language are in
+[../GROUND-TRUTH.md](../GROUND-TRUTH.md).
+
 - **Java `find-symbol` for overridden methods**: collapses to the topmost
   super; concrete overrides on subclasses are not separately surfaced.
 - **Java hierarchy node `name` is the bare member or class name** (IntelliJ

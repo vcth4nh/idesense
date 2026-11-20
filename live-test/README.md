@@ -8,9 +8,10 @@ Run after every plugin version bump.
 
 A second suite runs the same tools on pinned real products. See "Real products" below.
 
-> Maintaining or extending this suite? See `CLAUDE.md` in this directory
-> for conventions (id naming, snapshot format, bless safety rules,
-> captured-ground-truth quirks, fixture-edit safety).
+> Maintaining or extending this suite? See [CONVENTIONS.md](CONVENTIONS.md) for the
+> conventions (id naming, snapshot format, bless safety, fixture-edit safety). A result that
+> looks wrong on purpose has a note in the `GROUND-TRUTH.md` next to its snapshot folder.
+> An agent reads [AGENTS.md](AGENTS.md) first.
 
 ## Requirements
 
@@ -109,7 +110,7 @@ run of `--suite all`, and it fails a run that names it with `--product`.
 ./run.py --close-products                         # leave only the fixtures open in every IDE
 ./run.py --check-fixtures --product caddy         # offline check of one product
 ./run.py --write-anchors --product caddy          # regenerate its ANCHORS.md
-./run.py --product caddy --bless --bless-canary   # bless, canary rows included (needs permission)
+./run.py --product caddy --bless --bless-canary   # bless, canary rows included (see the bless rule in AGENTS.md)
 ```
 
 The plain `./run.py` is the fixture suite. It never restarts an IDE.
@@ -200,24 +201,27 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
    A row that differs between two runs becomes a `shape` row or goes out. PhpStorm indexes
    the content of a `.phar` file, and after a restart this content can be absent: no row may
    resolve into a phar or count a result in one.
-9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug.
+9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug,
+   with only `Read` and the read-only tools. The prompt, the MCP config, the runner and the
+   transcript analysis are local files that this repository does not track.
 10. **Triage.** One outcome for each finding: an issue, a decision of the maintainer, a
     setup correction, or a ground-truth note.
-11. **Bless, with permission.** Park the rows that show an open defect. Then
+11. **Bless, under the bless rule of `AGENTS.md`.** Park the rows that show an open defect. Then
     `--bless --bless-canary`, `--write-anchors`, `--check-fixtures`, and two verify runs.
     A row that pins an expected error stops this bless: the error gates refuse a new error
     row. Bless the file of that tool first, with
     `--tool <tool> --bless --bless-canary --bless-errors`, and read the new expected file.
     Then bless all rows with no `--bless-errors`. Never use `--bless-errors` for all rows:
     it switches off both error gates, and a timeout becomes an expected row.
-12. **Notes.** Complete `notes.md` and the ground-truth notes in `CLAUDE.md`.
+12. **Notes.** Complete `notes.md` and the ground-truth notes in
+    `_snapshots/<folder>/GROUND-TRUTH.md`.
 
 ### Change a pin
 
 1. Check out the new commit in the submodule and stage the submodule entry.
 2. Run the `bootstrap.sh` of the product again.
 3. `./run.py --product <folder>`. Read each difference.
-4. Re-bless with permission. Then `--write-anchors` and `--check-fixtures`.
+4. Re-bless under the bless rule of `AGENTS.md`. Then `--write-anchors` and `--check-fixtures`.
 
 ### Rules
 
@@ -289,8 +293,8 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
     complete). Run the `bootstrap.sh` of the product, look at the IDE, and run again.
     Never bless in this state.
   - The plugin changed the output of the tool of that canary row, and the fixture suite
-    shows the same change. Then run `--product <folder> --bless --bless-canary` with
-    permission, and read the `git diff` of the expected files before the commit.
+    shows the same change. Then run `--product <folder> --bless --bless-canary` under the
+    bless rule of `AGENTS.md`, and read the `git diff` of the expected files before the commit.
 - **`MISCONFIGURED` after the first open of a product** — at its first open an IDE can stop
   before it adds a library root (for example the dependency folder of a JavaScript product).
   Then the canary row that resolves into a dependency differs: the gate tries again for the
@@ -320,7 +324,7 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
   toolchain change shifted JDK source line numbers. Re-bless once
   intentionally.
 - **Result that looks wrong but the IDE consistently returns it** — see
-  "Captured ground truth" in `CLAUDE.md`. Some IDE quirks are blessed on
+  the `GROUND-TRUTH.md` of that language or product. Some IDE quirks are blessed on
   purpose; don't try to "fix" them by changing the probe.
 
 ## Why not in CI?

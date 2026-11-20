@@ -6,7 +6,8 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   `beets` and names the base class `beets.plugins.BeetsPlugin`. `beets/__init__.py` has a
   module `__getattr__`. `def-plugins-via-module-getattr` gives the error "Could not resolve
   symbol definition". In PyCharm, Go to Declaration does nothing at that position. The error
-  row needs the two-step bless (see "Rows that pin an expected error").
+  row needs the two-step bless (see "Rows that pin an expected error" in
+  `live-test/CONVENTIONS.md`).
 - **beets: 103 subclasses of `BeetsPlugin`.** `impls-BeetsPlugin` and `hier-sub-BeetsPlugin`
   give 103 classes, and a scan of the source finds 105. The two other classes are
   `PlaylistPlugin` (its base is the name of the bullet above) and a local `OtherPlugin` whose

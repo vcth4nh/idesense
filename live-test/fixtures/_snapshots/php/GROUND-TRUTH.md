@@ -1,10 +1,15 @@
 # Captured ground truth: PHP fixture
 
+These results of the PHP fixture look wrong, but the IDE returns the same. Do not change
+a probe to "fix" one. The notes that cover more than one language are in
+[../GROUND-TRUTH.md](../GROUND-TRUTH.md).
+
 - **PHP `hier-callee-makeDefault`**: empty callees — constructor invocations don't
   surface (same as Kotlin; unlike Java/TS).
 - **PHP `find_usages` takes the search of Find Usages of PhpStorm (#179, #182, #183).** The
   search facts come from the bytecode of `php.jar` (build 262.8665). The window observations
-  are the one of #182 below and the phpunit entries.
+  are the one of #182 below and the notes in
+  `live-test/real-products/_snapshots/phpunit/GROUND-TRUTH.md`.
   - A method. The tool asks the handler factory for no PHP method, so the question "Do you
     want to find usages of base method?" (a dialog that throws off the EDT) cannot occur, and
     no row has a `warnings` entry. The tool searches the method, each base method, the other

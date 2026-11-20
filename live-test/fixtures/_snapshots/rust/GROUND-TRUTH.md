@@ -1,5 +1,9 @@
 # Captured ground truth: Rust fixture
 
+These results of the Rust fixture look wrong, but the IDE returns the same. Do not change
+a probe to "fix" one. The notes that cover more than one language are in
+[../GROUND-TRUTH.md](../GROUND-TRUTH.md).
+
 - **Rust `qualifiedName` comes from RustRover's `RsQualifiedNameProvider`**
   (2026.2+): crate-qualified module paths (`live_test_rust::normal::Circle`),
   trait-impl members as `<live_test_rust::normal::Circle as

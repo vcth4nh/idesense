@@ -20,8 +20,8 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 - **uptime-kuma: empty rows.** `usage-Monitor.start` gives 0 usages: each call goes through a
   value with no type, and Find Usages of WebStorm says "Nothing found".
   `hier-sub-NotificationProvider` and `impls-NotificationProvider` give nothing, although 105
-  classes extend the class through `require` (see the JavaScript fixture note on CommonJS
-  subtypes). `hier-super-KumaColumnCompiler` gives no supertype, and
+  classes extend the class through `require` (see the note on `hier-sub-Probe-*` in
+  `live-test/fixtures/_snapshots/javascript/GROUND-TRUTH.md`). `hier-super-KumaColumnCompiler` gives no supertype, and
   `find-file-dayjs.min.js-libraries-scope` gives no file. WebStorm shows the same for each of
   these rows.
 - **uptime-kuma: a `.vue` file as a caller.** `hier-caller-sleep-d1` has the nodes

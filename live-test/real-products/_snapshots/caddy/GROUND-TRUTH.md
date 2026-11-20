@@ -4,7 +4,8 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 
 - **No caller through an interface.** `ide_call_hierarchy` shows no caller for a Go method
   that is called only through an interface value (`hier-caller-App.Provision`). The Hierarchy
-  window of GoLand shows the same.
+  window of GoLand shows the same in its default state: its toggle "Respecting Interface
+  Calls" is off by default, and the tool has no parameter for it (#218).
 - **Build constraints.** A declaration in a file that the build constraints exclude has no
   usage (`usage-FastAbs-decl-windows`, a `_windows.go` file on a Linux host). GoLand says
   "Nothing found" and shows a banner about the OS mismatch. The row depends on the OS of the
@@ -27,7 +28,8 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 - **Qualified method name.** `ide_find_symbol` finds nothing for `package.Type.Method`
   (`find-symbol-caddyhttp.App.Provision-qualified`). The Go to Symbol popup of GoLand finds
   nothing too. `Type.Method` works.
-- **Structure of a Go file.** The result covers the package (see the Go fixture note above).
+- **Structure of a Go file.** The result covers the package (see the note "Go `file_structure`
+  is package-scoped" in `live-test/fixtures/_snapshots/go/GROUND-TRUTH.md`).
   This is the default of the Structure tool window. The File Structure popup lists only the
   file.
 - **Go SDK methods.** `super-responseRecorder.Write` lists interface methods of the Go SDK.
@@ -44,6 +46,7 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   keys `CA:`, at `modules/caddytls/acmeissuer.go:256:3`, `acmeissuer_test.go:19:3` and
   `automation.go:484:4`. Each key names a struct field `CA`: `ide_find_definition` at the
   first position gives the field `CA` of `certmagic.ACMEIssuer`, not the interface. The tool
-  leaves the 3 keys out, and the `notes` entry gives the count 3 (see the Go fixture note).
+  leaves the 3 keys out, and the `notes` entry gives the count 3 (see the note on #213 in
+  `live-test/fixtures/_snapshots/go/GROUND-TRUTH.md`).
   The interface `caddyhttp.Handler` (`modules/caddyhttp/caddyhttp.go:65:6`, no row) has 2
   such keys: `Handler:` in an `http.Server` literal and in an `http3.Server` literal.

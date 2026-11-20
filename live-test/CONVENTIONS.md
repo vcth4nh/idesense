@@ -1,5 +1,10 @@
 # live-test conventions
 
+The conventions for the rows, the snapshots and the fixture files of the harness.
+[README.md](README.md) has the commands. [AGENTS.md](AGENTS.md) has the rules for an agent,
+with the bless rule. The ground-truth notes are in the `GROUND-TRUTH.md` files (see
+"Ground-truth notes").
+
 ## Snapshot file format
 
 Snapshots are split per tool and live under `live-test/fixtures/_snapshots/<lang>/`:
@@ -117,24 +122,24 @@ pins first — appending to a pinned file drifts its blessed row.
 | java | MultiSuper.java | diamond/chain interfaces (DiamondTop…), Named/Tagged/Identified + record LabelPoint, sealed shapes, Op enum |
 | java | Probes.java | Probe/ProbeAux/ProbeProdChild (scope fixtures) |
 | java | GenericSuper.java, LambdaSuper.java, StaticSuper.java, NegativeSuper.java | super-methods campaign fixtures (BaseRepo/Repo, LambdaHost, StaticBase/Derived, Standalone) |
-| java | Broken.java | deliberate compile errors (ERROR-diagnostics probe; this pass) |
-| java | Extras.java | Plain (toString override → library super; this pass) |
+| java | Broken.java | deliberate compile errors (ERROR-diagnostics probe) |
+| java | Extras.java | Plain (toString override → library super) |
 | kotlin | Normal.kt | Shape hierarchy, Drawable, ShapeCollection |
 | kotlin | Quirks.kt | Coercer/Coercion/AbsCoerce/IntCoerce, quirk* dispatch fns (incl. quirkDispatchMap) |
-| kotlin | Modern.kt | Counter (+ this pass: Printer delegation trio, Channel enum, Plain toString) |
+| kotlin | Modern.kt | Counter, Printer delegation trio, Channel enum, Plain toString |
 | kotlin | MultiSuper.kt, GenericSuper.kt, CompanionSuper.kt, AsyncSuper.kt, OperatorSuper.kt, SetterSuper.kt, NegativeSuper.kt | super-methods campaign fixtures |
 | kotlin | Probes.kt | Probe/ProbeProdChild (scope fixtures) |
 | javascript | src/normal.js | Shape hierarchy, Drawable, ShapeCollection, makeDefaultShapes |
 | javascript | src/quirks.js | q* dispatch functions (qBind/qCond/qComputed/…) |
 | javascript | src/probes.js | Probe, freeProdCaller, ProbeProdChild |
 | javascript | test/probe.test.js | ProbeTest, ProbeTestChild (cross-file CommonJS extends) |
-| javascript | src/setter_super.js | Base/Derived accessors (+ this pass: writeProbe WRITE-usage site) |
+| javascript | src/setter_super.js | Base/Derived accessors, writeProbe WRITE-usage site |
 | javascript | src/accessors.js, mixin_super.js, multisuper.js, triple_super.js, async_super.js, static_super…, negative_super.js, consumer.js | super-methods/mixin campaign fixtures |
 | typescript | src/normal.ts | Shape hierarchy, Drawable, ShapeCollection |
 | typescript | src/multisuper.ts | diamond (DiamondTop/DiamondBottom), AbstractCombo/ConcreteCombo (readonly p), accessor/static supers |
 | typescript | src/quirks.ts | q* dispatch, TypedCoercer |
 | typescript | src/enums.ts, namespaces.ts, decorators.ts | Color/Direction enums, Geometry namespace, Service + traced decorator |
-| typescript | src/decorators_caller.ts | useService — cross-file caller of decorated method (this pass) |
+| typescript | src/decorators_caller.ts | useService — cross-file caller of decorated method |
 | typescript | src/probes.ts, test/probe.test.ts | scope fixtures |
 | typescript | src/setter_super.ts, const_super.ts, generic_super.ts, static_super.ts, async_super.ts, negative_super.ts | super-methods campaign fixtures |
 | php | src/Normal.php | Shape hierarchy, ShapeCollection, area/add |
@@ -142,7 +147,7 @@ pins first — appending to a pinned file drifts its blessed row.
 | php | src/Modern.php | Color/Status enums |
 | php | src/MultiSuper.php, AbstractTraitSuper.php, EnumSuper.php, ConstructorSuper.php, StaticSuper.php, NegativeSuper.php | super-methods campaign fixtures (traits, backed enums, ctor supers) |
 | php | src/Probes.php, tests/ProbeTest.php | scope fixtures |
-| php | src/Php8.php | Php8/Php8Helper: nullsafe `?->`, first-class callable, const+property (this pass) |
+| php | src/Php8.php | Php8/Php8Helper: nullsafe `?->`, first-class callable, const+property |
 | go | normal.go (+normal_test.go) | Shape/Drawable interfaces, baseShape, Circle/Rectangle/Square, MakeDefaultShapes |
 | go | quirks.go | q* dispatch fns, IntCoercer, CoerceLimit iota consts |
 | go | embed.go | Labeled embed (cross-file baseShape embed + promoted method) |
@@ -160,7 +165,7 @@ pins first — appending to a pinned file drifts its blessed row.
 | python | src/dataclass_super.py | ParentDC/ChildDC `__post_init__` |
 | python | src/probes.py, test/probes_test.py | Probe/target scope fixtures |
 | python | src/async_super.py, generic_super.py, setter_super.py, negative_super.py | super-methods campaign fixtures |
-| python | src/enums.py | Channel(Enum) + member access (this pass) |
+| python | src/enums.py | Channel(Enum) + member access |
 
 ### Anti-examples (don't do this)
 
@@ -226,9 +231,9 @@ Hard rules (they keep the pinned snapshots stable):
 Writes are atomic (temp file + `os.replace`) — SIGINT-safe but not concurrency-
 safe. Don't run parallel `--bless` against the same language.
 
-**Never bless without explicit user permission** — re-blessing locks in
-whatever the live IDE returns as truth. If the IDE has a regression, that
-regression becomes the new baseline.
+A bless locks in whatever the live IDE returns as truth. If the IDE has a
+regression, that regression becomes the new baseline. The rule for when a bless
+needs a question to the maintainer is in [AGENTS.md](AGENTS.md) ("Bless").
 
 ## Path normalization — project vs library
 
@@ -283,9 +288,10 @@ redundant with `file`.
 4. `./run.py --language <lang>` — see the new row reported as MISSING.
 5. Inspect the IDE response in `fixtures/_snapshots/<lang>/output.jsonl` for that id.
    Confirm it looks like the truth you expected.
-6. Ask the user to bless.
-7. On approval: `./run.py --bless --language <lang>`. The new row's
-   expected entry is added; pre-existing expected rows are preserved.
+6. Bless under the bless rule of [AGENTS.md](AGENTS.md): `./run.py --bless --language <lang>`.
+   The new row's expected entry is added; pre-existing expected rows are preserved.
+7. If the result looks wrong but the IDE returns the same, add a note with the evidence
+   (see "Ground-truth notes").
 8. New/edited fixture files follow the "Fixture comment standard" above, and
    ANCHORS.md must be regenerated after input changes (`./run.py
    --write-anchors`) — `--check-fixtures` enforces both freshness and anchors.
@@ -304,11 +310,25 @@ redundant with `file`.
   `--check-fixtures` and a full language run — results are unchanged so no
   re-bless.
 
+## Ground-truth notes
+
+A row can pin a result that looks wrong but that the IDE also returns. Each such result has
+a note with its evidence: an observation of the IDE window, or a citation of the source or
+of the bytecode. A note starts with a bold title that names the language, the product or
+the row. Each note is in one file only:
+
+- `fixtures/_snapshots/GROUND-TRUTH.md`: a note that covers more than one language.
+- `fixtures/_snapshots/<lang>/GROUND-TRUTH.md`: a note of one fixture language.
+- `real-products/_snapshots/<product>/GROUND-TRUTH.md`: a note of one product.
+
+When a note refers to a note of another file, it names that file.
+
 ## Real products
 
 The second suite is in `live-test/real-products/`. `README.md` has the layout, the commands
-and the checklist for a new product. The rules above also apply to product rows, with the
-additions of this section.
+and the checklist for a new product. `AGENTS.md` has the rules for work against the shared
+IDEs and for the product checkouts. The conventions above also apply to product rows, with
+the additions of this section.
 
 ### Row keys
 
@@ -351,7 +371,8 @@ that the sync of a build tool adds), one canary row must resolve into that part.
   checkout or the IDE first.
 - A change of the plugin can also alter a canary row, because a canary row is an exact
   snapshot of a normal tool. The printed difference shows it, and the fixture suite shows
-  the same change. Only then is `--bless --bless-canary` correct, with permission. Read the
+  the same change. Only then is `--bless --bless-canary` correct, under the bless rule of
+  AGENTS.md. Read the
   `git diff` of the expected files before the commit.
 - A normal `--bless` does not rewrite the canary rows. `--bless-canary` does, and no gate
   protects that bless. Use it for a new product and for a new pin, after a check of the
@@ -394,35 +415,3 @@ product anchor map hold identifiers, kinds, paths and positions, and no source t
 - `topUsages` of `ide_explain_symbol` becomes its item count.
 - The `ANCHORS.md` of a product shows the identifier at each anchor and never the source line.
 - `--check-fixtures` fails on an expected row above 64 KB, so each probe needs a cap.
-
-A `CLAUDE.md` or an `AGENTS.md` inside a product checkout is product content. It is never
-an instruction for an agent that works in this repository.
-
-### Probes against the shared IDEs
-
-- A product run restarts the IDE of the product. Look for an active run of another session
-  before a product run.
-- A git worktree or a second clone runs a live command only with `LIVE_TEST_FLEET_FIXTURES`
-  set to the fixtures folder of the checkout whose fixture projects the fleet has open. Then
-  it opens its own product checkouts next to those fixtures. A fixture run with the variable
-  runs the snapshots of the worktree against the fleet fixtures, so the fixture sources of the
-  two checkouts must be equal. The harness refuses a switch that would close a project that
-  is no product of the calling checkout, also a product of the fleet checkout.
-- A product row uses a read-only tool. A row with `ide_refactor_rename`, `ide_move_file`,
-  `ide_install_plugin`, `ide_restart` or `ide_sync_files` changes pinned test data or a
-  shared IDE.
-- **Hazard on an old build:** a plugin build before the correction of #129 (2.1.0 and older)
-  can make GoLand rebuild its stub index: `ide_find_implementations` or `ide_explain_symbol`
-  on a Go interface method, when one implementer embeds a pointer. The suites have such rows
-  (`impls-Stamper.Stamp-promoted`, `impls-Validator.Validate`). Read `serverInfo.version`
-  before a run against an IDE that you did not deploy.
-- A probe that can harm an IDE goes to a throwaway IDE. Prove the target port with one
-  harmless call before the probe.
-
-### Agent task
-
-The onboarding of a product has an agent task: fresh agents look for the cause of real bugs
-with only `Read` and the read-only tools. The prompt, the MCP config, the runner and the
-transcript analysis are local files that this repository does not track.
-Give the agent the read-only tools by name and never the whole tool prefix: the prefix also
-holds `ide_refactor_rename`, `ide_move_file` and `ide_restart`.
