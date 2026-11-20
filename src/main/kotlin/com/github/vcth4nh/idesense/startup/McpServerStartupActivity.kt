@@ -27,7 +27,7 @@ class McpServerStartupActivity : ProjectActivity {
         try {
             BuildDiagnosticsCacheService.getInstance(project).initialize()
 
-            // McpServerService self-initializes asynchronously from its constructor (see issue #73).
+            // McpServerService self-initializes asynchronously from its constructor.
             // This call is a redundant safety net — initialize() is idempotent.
             val mcpService = McpServerService.getInstance()
             mcpService.initialize()

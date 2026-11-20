@@ -76,7 +76,7 @@ class McpServerService(
         LOG.info("Initializing MCP Server Service (Protocol: ${McpConstants.MCP_PROTOCOL_VERSION})")
         jsonRpcHandler = JsonRpcHandler(toolRegistry)
         // Self-initialize asynchronously so the server starts even if postStartupActivity
-        // doesn't fire (see issue #73). initialize() is idempotent (@Synchronized + isInitialized
+        // doesn't fire. initialize() is idempotent (@Synchronized + isInitialized
         // guard), so the redundant call from McpServerStartupActivity is a safe no-op.
         coroutineScope.launch { initialize() }
     }

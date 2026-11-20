@@ -208,7 +208,7 @@ Package map under `src/main/kotlin/com/github/vcth4nh/idesense/`
 - `resources/META-INF/` — `plugin.xml` + optional `*-features.xml` language extensions
 
 Tests: `src/test/kotlin` (`*UnitTest` = `TestCase`, no platform; `*Test` =
-`BasePlatformTestCase`), fixtures in `src/test/testData/`, live harness in `live-test/`.
+`BasePlatformTestCase`), live harness in `live-test/`.
 
 ## Architecture Concepts
 

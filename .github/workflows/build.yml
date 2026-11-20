@@ -3,7 +3,7 @@
 # - Run the 'buildPlugin' task and prepare artifact for further tests (code PRs and pushes to main).
 # - Run the 'test' task (every PR and push to main — docs changes can fail tests via DocsDriftUnitTest).
 # - Run Qodana inspections (pushes to main only).
-# - Run the 'runPluginVerifier' task (pushes to main only).
+# - Run the 'verifyPlugin' task (pushes to main only).
 # - Create a draft release (pushes to main only).
 #
 # The workflow is triggered on push and pull_request events.

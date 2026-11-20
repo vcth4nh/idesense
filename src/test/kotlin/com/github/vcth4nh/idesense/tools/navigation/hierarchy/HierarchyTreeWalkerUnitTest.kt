@@ -28,7 +28,7 @@ class HierarchyTreeWalkerUnitTest : TestCase() {
         assertFalse(HierarchyKind.SUBTYPES.isCall)
     }
 
-    // --- rethrowIfCancellation (#141): never swallow a read-action cancellation -------------
+    // --- rethrowIfCancellation: never swallow a read-action cancellation --------------------
     // The platform's coroutine readAction{} retries the block when a CannotReadException
     // (a ProcessCanceledException) escapes it; the walker must let that signal through.
 
@@ -74,10 +74,10 @@ class HierarchyTreeWalkerUnitTest : TestCase() {
         assertNull(caught(InvocationTargetException(IllegalStateException("genuine failure"))))
     }
 
-    // --- classifyBrowserConstruction (#30): browser construction must self-heal on a --------
+    // --- classifyBrowserConstruction: browser construction must self-heal on a --------------
     // cold-start read cancellation (rethrow for the readAction retry) and surface the REAL
     // cause of a genuine failure instead of masking everything as "non-HierarchyBrowserBaseEx".
-    // #141 added rethrowIfCancellation at the tree-BUILD sites but not this construction site.
+    // An earlier fix added rethrowIfCancellation at the tree-BUILD sites but not this construction site.
 
     /** Runs the classifier and returns whatever it rethrew, or null if it returned normally. */
     private fun rethrownByClassify(invokeResult: Result<Any?>): Throwable? = try {
@@ -90,13 +90,13 @@ class HierarchyTreeWalkerUnitTest : TestCase() {
     fun testClassifyRethrowsReadCancellationForRetry() {
         // The cold-start race: createHierarchyBrowser throws CannotReadException. It MUST
         // escape so the enclosing coroutine readAction{} performs its write-pending restart,
-        // not be flattened to a hard "non-HierarchyBrowserBaseEx" failure (#30).
+        // not be flattened to a hard "non-HierarchyBrowserBaseEx" failure.
         val pce = ReadAction.CannotReadException()
         assertSame(pce, rethrownByClassify(Result.failure(pce)))
     }
 
     fun testClassifyRethrowsReflectionWrappedCancellation() {
-        // The exact #30 shape: Method.invoke wraps the cancellation in InvocationTargetException.
+        // The exact shape of the defect: Method.invoke wraps the cancellation in InvocationTargetException.
         val pce = ProcessCanceledException()
         assertSame(pce, rethrownByClassify(Result.failure(InvocationTargetException(pce))))
     }
