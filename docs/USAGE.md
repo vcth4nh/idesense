@@ -61,7 +61,7 @@ These tools activate based on available language plugins:
   - [ide_restart](#ide_restart)
   - [ide_read_file](#ide_read_file)
 - [Refactoring Tools](#refactoring-tools)
-  - [ide_refactor_rename](#ide_refactor_rename)
+  - [ide_refactor_rename](#ide_refactor_rename-universal---all-languages)
   - [ide_move_file](#ide_move_file)
 - [Extended Tools (Language-Aware)](#extended-tools-language-aware)
   - [ide_type_hierarchy](#ide_type_hierarchy)
@@ -1496,7 +1496,7 @@ Finds implementation, inheritor, and override locations for a class/interface/tr
 
 Finds IDE Go-to-Super targets for a code element — methods that override/implement a member, the direct supertypes of a class/interface/struct/trait, the SAM a lambda implements, or an overridden field/property/constant.
 
-**Languages:** Java, Kotlin, Python, JS/TS, PHP, Go (returns interface method(s) a struct method satisfies via `GoSuperMethodSearch`), Rust (returns trait fn/const/type alias the impl satisfies via `RsGotoSuperHandlerKt.gotoSuperTargets`).
+**Languages:** Java, Kotlin, Python, JS/TS, PHP, Go (returns interface method(s) a struct method satisfies), Rust (returns trait fn/const/type alias the impl satisfies).
 
 **Go interface methods:** A method that a Go interface declares has no super method, so the result is that method with an empty hierarchy. At that position Go to Super of GoLand shows the interfaces that the enclosing type satisfies. A position on the type name returns them.
 
