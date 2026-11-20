@@ -20,8 +20,9 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   is no subtype node: `hier-sub-Sink` gives 8 types, and `impls-Sink-trait` gives 9 `impl`
   blocks.
 - **ripgrep: the Rust call hierarchy has no scope.** `hier-caller-search_path-production-scope`
-  equals `hier-caller-search_path-d1`. RustRover removes the scope action from its Call
-  Hierarchy window (`RsCallHierarchyBrowser.prependActions`, bytecode).
+  equals `hier-caller-search_path-d1`: it lists the caller in `crates/core/search.rs`, a file
+  in no source folder. RustRover removes the scope action from its Call Hierarchy window
+  (`RsCallHierarchyBrowser.prependActions`, bytecode).
 - **ripgrep: a call in a `macro_rules!` body is no caller.** `hier-caller-set_errored-macro-body`
   gives no caller: the only call is in the body of `err_message!`. The Hierarchy window of
   RustRover shows none.
@@ -40,12 +41,27 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   `Cargo.lock` decides its version. `def-Vec-into-stdlib`, `hier-sub-Sink`,
   `hier-callee-add_parents-d1` and `hier-callee-search-d1` name files of the standard library of
   the toolchain that rustup selects (`rust-src`). A module path of `std` can change with the
-  toolchain version; then these rows need a re-bless.
-- **ripgrep: parked rows.** `hier-sub-Flag` is parked with #185 (the subtypes stop at 100 of
-  104), `usage-messages-macro-body` and `hier-caller-search_slice-d1` with #186 (an element in
-  an injected fragment gets the path and the line of the fragment), `def-pathutil-mod-decl` with
-  #187 (a module file gets `crate::pathutil.rs` and the kind `SYMBOL`),
-  `find-symbol-f1_sjis-macro-made` with #188 (a function that a macro call makes is absent),
-  `def-messages-from-macro-body` with #189 (a position in a fragment is no anchor) and
-  `search-text-set_errored` with #184. #190 (the default outline hides the items that macro
-  calls make) has no row.
+  toolchain version (for example `std::sync::poison::rwlock::RwLock::write` in
+  `hier-callee-add_parents-d1`); then these rows need a re-bless.
+- **ripgrep: `ide_file_structure` in dumb mode.** In dumb mode `ide_file_structure` gives
+  `internal_error` (`IndexNotReadyException` of RustRover) and not a reduced outline. The
+  comment on #174 has the stack. For the wait after an open, see "Measured" in
+  `live-test/real-products/_setup/ripgrep/notes.md`.
+- **ripgrep: two `shape` rows hold elements of a doctest (#186).**
+  `hier-caller-search_slice-d2` and `usage-Match-page1` hold elements of a doctest with the
+  path of the fragment. They are `shape` rows: their counts equal the counts of RustRover, and
+  the fix of #186 keeps them. So they are not parked.
+- **ripgrep: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
+  `live-test/CONVENTIONS.md`).
+
+  | Row | Issue | Defect |
+  |---|---|---|
+  | `hier-sub-Flag` | #185 | the subtypes of a trait stop at 100 with no signal (104 types implement `Flag`) |
+  | `usage-messages-macro-body`, `hier-caller-search_slice-d1` | #186 | an element in an injected fragment (a `macro_rules!` body, a doctest) gets the path and the line of the fragment; the two usages of `messages()` in macro bodies count as one |
+  | `def-pathutil-mod-decl` | #187 | a module file gets the qualified name `crate::pathutil.rs` and the kind `SYMBOL` |
+  | `find-symbol-f1_sjis-macro-made` | #188 | a function that a macro call makes is absent (the 330 tests of `rgtest!`) |
+  | `def-messages-from-macro-body` | #189 | a position inside an injected fragment is no anchor |
+  | `search-text-set_errored` | #184 | a match in a `macro_rules!` body comes a second time, with the path `/messages.rs` |
+
+  #190 (the default Rust outline hides the items that macro calls make) has no row: a row
+  would also show the line of #188. No structure row of this product has a macro-made item.

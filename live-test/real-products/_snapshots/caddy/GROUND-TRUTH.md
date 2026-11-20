@@ -23,8 +23,12 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   satisfies by structure (`hier-super-caddyhttp.App-byname`).
 - **Usage scopes in Go.** `ide_find_usages` with `project_production_files` or
   `project_test_files` gives `scope_matches_no_files`: a Go project has no source roots, and
-  the Find Usages dialog of GoLand has no such scope. The hierarchy tools accept the scope
-  `test` through the Go test file names, and their scope `production` is empty.
+  the Find Usages dialog of GoLand has no such scope. The Go fixture pins the same
+  (`usage-Circle-struct-production-scope` in
+  `live-test/fixtures/_snapshots/go/expected/ide_find_usages.jsonl`). The hierarchy tools
+  accept the scope `test` through the Go test file names, and their scope `production` is
+  empty. On `Module`, `canary-hier-sub-Module-test-scope` gives 8 subtypes and
+  `hier-sub-Module-production-scope` gives none.
 - **Qualified method name.** `ide_find_symbol` finds nothing for `package.Type.Method`
   (`find-symbol-caddyhttp.App.Provision-qualified`). The Go to Symbol popup of GoLand finds
   nothing too. `Type.Method` works.

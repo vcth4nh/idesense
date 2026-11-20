@@ -17,8 +17,14 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   `Timestamps.php` of that root from 22.3 s on. So the row that resolves into it is a canary
   row (`canary-def-Timestamps-into-vendored`), and the gate waits for it.
 - **phpunit: phar files.** PhpStorm indexes the content of each `.phar` file as a library, at
-  a path that is not on the disk. After a restart this content can be present or absent. So no
-  row resolves into a phar, and no row counts a result in a phar.
+  a path that is not on the disk (for example
+  `tools/.phpstan/vendor/phpstan/phpstan/phpstan.phar/src/...`). After a restart this content
+  can be present or absent: `idea.log` shows "Updating PHARs" two times at the first open and
+  one time after a restart. On 2026-11-12, `ide_find_class` for a class of the phpstan phar
+  found it after one restart and not after the next one. So no row resolves into a phar, and
+  no row counts a result in a phar. The rows that did were replaced. Two more close and open
+  cycles, one with the phar content present and one with it absent, gave the same result for
+  all rows (66 at that time).
 - **phpunit: qualified names from `PhpQualifiedNameProvider`.** A local variable gets the
   namespace and its name: `def-contextLines-local` gives `\PHPUnit\Util\contextLines`. An
   anonymous class has an empty `name` and the namespace with a trailing `\` as its
@@ -37,14 +43,20 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   implementation: 6 with no `match` (calls on a `DeferringDispatcher` value) and 109 with
   `BASE`. Its `notes` entry names `Dispatcher::dispatch`. No row has a `warnings` entry:
   `explain-DeferringDispatcher.dispatch-pos` has `usageCount` 115 (before the change: 103 and
-  the entry "Find-usages handler factory PhpFindUsagesHandlerFactory threw").
+  the entry "Find-usages handler factory PhpFindUsagesHandlerFactory threw"). #182 and #183 are
+  closed, and the rows are blessed with the corrected result.
 - **phpunit: a class row has no `$this`, `self` or `static` reference (#179).**
   `usage-DeferringDispatcher` (`DeferringDispatcher.php:17:13`) gives 13 usages, and the
   `notes` entry says that 18 references through `$this`, `self` or `static` inside the class
   are not in the list. Find Usages of PhpStorm shows "Usages in Project Files 13 results".
   The class `ShellExitCodeCalculator` (no row) gives 4 usages and the count 16; PhpStorm shows
-  4 results.
-- **phpunit: parked rows.** `find-symbol-SHORT_OPTIONS` and `def-SHORT_OPTIONS-const` are
-  parked with #180 (a class constant gets the kind `CLASS`), `search-text-unordered-code` with
-  #181 (comment and string lines in `context: "code"`), `search-text-wget` with #184 (a match
-  in an injected fragment comes two times) and `search-text-updateTimestamps-build` with #146.
+  4 results. #179 is closed, and the row is blessed with the corrected result.
+- **phpunit: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
+  `live-test/CONVENTIONS.md`).
+
+  | Row | Issue | Defect |
+  |---|---|---|
+  | `find-symbol-SHORT_OPTIONS`, `def-SHORT_OPTIONS-const` | #180 (a sub-issue of #27) | a class constant gets the kind `CLASS` |
+  | `search-text-unordered-code` | #181 | `context: "code"` returns comment lines and string lines |
+  | `search-text-wget` | #184 | a match in an injected fragment (a Markdown code block) comes two times |
+  | `search-text-updateTimestamps-build` | #146 | the files under `build/` are absent |
