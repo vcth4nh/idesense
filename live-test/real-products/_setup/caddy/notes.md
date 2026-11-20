@@ -77,10 +77,5 @@ had no IDE files, so that GoLand made the project model by itself:
   The option "Text occurrences" was off. This is a finding about the tool, not about the
   import.
 
-Project model facts that the probe rows rely on:
-
-- A Go project has no source roots in GoLand. `project_production_files` and
-  `project_test_files` give the error `scope_matches_no_files`, and the Find Usages dialog
-  of GoLand offers no production scope and no test scope. The Go fixture pins the same.
-- The hierarchy scope `test` is different: it follows the Go test file names. On `Module`
-  it gives 8 subtypes, and the scope `production` gives none.
+The notes on the results of the rows, with the scope rows of a Go project, are in
+[../../_snapshots/caddy/GROUND-TRUTH.md](../../_snapshots/caddy/GROUND-TRUTH.md).

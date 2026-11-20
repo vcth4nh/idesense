@@ -91,10 +91,6 @@ with no `.idea` folder, so that PhpStorm made the project model by itself:
 
 Project model facts that the probe rows rely on:
 
-- No folder is a source root or a test root. The usage scopes `project_production_files` and
-  `project_test_files` give `scope_matches_no_files`, also for `ide_find_file`, and the
-  hierarchy scope `production` gives no caller. The rows pin these results. The bootstrap marks
-  no root: it keeps the model that PhpStorm makes by itself.
 - `vendor/` itself is no excluded folder: only its package folders and `vendor/composer` are.
 - Canary rows: 4. `canary-def-Differ-into-dependency` pins the include path of the root
   composer packages, `canary-find-class-TestFinishedSubscriber` the project index, and
@@ -102,37 +98,9 @@ Project model facts that the probe rows rely on:
   project scope). `canary-def-Timestamps-into-vendored` pins the nested composer root
   `build/scripts/phar-set-timestamps`: PhpStorm attaches it about 5 s after it reports smart
   mode, so the gate waits for it.
-- PhpStorm indexes the content of each `.phar` file as a library. A path in a phar has the form
-  `tools/.phpstan/vendor/phpstan/phpstan/phpstan.phar/src/...`, a path that is not on the disk.
-  After a restart, the content of this phar can be present or absent in the index: `idea.log`
-  shows "Updating PHARs" two times at the first open and one time after a restart. On
-  2026-11-12, `ide_find_class` for a class of the phpstan phar found it after one restart and
-  not after the next one.
-- Rule: no row resolves into a phar, and no row counts a result in a phar. The rows that did
-  were replaced. Two more close and open cycles, one with the phar content present and one with
-  it absent, gave the same result for all 66 rows.
 - The PHP outline shows the default values of properties and parameters, the values of
   constants and of enum cases, and no attribute. Only the structure row of a file with no such
   value is an `exact` row.
 
-## Issues
-
-These rows are parked. Each one changes with the fix of its issue only.
-
-| Row | Issue |
-|---|---|
-| `find-symbol-SHORT_OPTIONS`, `def-SHORT_OPTIONS-const` | #180: a class constant gets the kind `CLASS` (sub-issue of #27) |
-| `search-text-unordered-code` | #181: `context: "code"` returns comment lines and string lines |
-| `search-text-wget` | #184: a match in an injected fragment (a Markdown code block) comes two times |
-| `search-text-updateTimestamps-build` | #146: the files under `build/` are absent |
-
-Three issues of this product are closed, and their rows are blessed with the corrected result:
-
-- #179: `usage-DeferringDispatcher` gives 13 usages and a `notes` entry with the count of the
-  18 references through `$this`, `self` or `static` inside the class. Find Usages of PhpStorm
-  shows 13 results.
-- #183: `usage-Dispatcher.dispatch` gives 115 usages, 11 of them with `match` `OVERRIDE`. Find
-  Usages of PhpStorm shows 115 results.
-- #182: `usage-DeferringDispatcher.dispatch-override` gives the same 115 usages, 109 of them
-  with `match` `BASE`. `explain-DeferringDispatcher.dispatch-pos` has `usageCount` 115 and no
-  `warnings` entry.
+The notes on the results of the rows, the phar files and the parked rows are in
+[../../_snapshots/phpunit/GROUND-TRUTH.md](../../_snapshots/phpunit/GROUND-TRUTH.md).

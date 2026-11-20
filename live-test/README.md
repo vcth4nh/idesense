@@ -4,13 +4,15 @@ Snapshot-based regression suite for the IdeSense plugin. Drives real
 HTTP POST requests against running JetBrains IDEs and diffs the responses
 against committed `fixtures/_snapshots/<lang>/expected/<tool>.jsonl` files.
 
-Run after every plugin version bump.
+Run it after each change of tool behavior and before a release (see "Run the suites against
+a new build").
 
 A second suite runs the same tools on pinned real products. See "Real products" below.
 
-> Maintaining or extending this suite? See `CLAUDE.md` in this directory
-> for conventions (id naming, snapshot format, bless safety rules,
-> captured-ground-truth quirks, fixture-edit safety).
+> Maintaining or extending this suite? See [CONVENTIONS.md](CONVENTIONS.md) for the
+> conventions (id naming, snapshot format, bless safety, fixture-edit safety). A result that
+> looks wrong on purpose has a note in the `GROUND-TRUTH.md` next to its snapshot folder.
+> An agent reads [AGENTS.md](AGENTS.md) first.
 
 ## Requirements
 
@@ -41,6 +43,10 @@ The fixture projects are in `live-test/fixtures/`.
 
 Each fixture is a real IDE-openable project. Open it, wait for indexing,
 then run the harness.
+
+In this document, **the fleet** is the set of these IDEs: each one runs on its default port
+and has its fixture projects open. **The fleet checkout** is the checkout of this repository
+whose fixture folders the fleet has open.
 
 Snapshots (`inputs/`, `expected/`, `output.jsonl`) live under
 `live-test/fixtures/_snapshots/<lang>/`, deliberately **outside** the fixture
@@ -99,6 +105,16 @@ live-test/real-products/_setup/<folder>/bootstrap.sh
 The fixture suite needs no product checkout. A product with no checkout is `SKIPPED` in a
 run of `--suite all`, and it fails a run that names it with `--product`.
 
+Some products ship their own `AGENTS.md` or `CLAUDE.md`: product content, and no instruction
+for work on this repository (see [AGENTS.md](AGENTS.md)). Claude Code loads such a file when
+it reads a file in that checkout. To keep these files out, add this key to the Claude Code
+user settings (`~/.claude/settings.json`). This repository ignores `.claude/`, so a project
+settings file stays in one checkout, and a git worktree does not get it.
+
+```json
+"claudeMdExcludes": ["**/live-test/real-products/**/CLAUDE.md", "**/live-test/real-products/**/AGENTS.md"]
+```
+
 ### Commands
 
 ```bash
@@ -109,7 +125,7 @@ run of `--suite all`, and it fails a run that names it with `--product`.
 ./run.py --close-products                         # leave only the fixtures open in every IDE
 ./run.py --check-fixtures --product caddy         # offline check of one product
 ./run.py --write-anchors --product caddy          # regenerate its ANCHORS.md
-./run.py --product caddy --bless --bless-canary   # bless, canary rows included (needs permission)
+./run.py --product caddy --bless --bless-canary   # bless, canary rows included (see the bless rule in AGENTS.md)
 ```
 
 The plain `./run.py` is the fixture suite. It never restarts an IDE.
@@ -177,6 +193,9 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
    git add .gitmodules $P
    ```
 2. **Table entry** in `products.json`: folder, IDE, repository, pin, license, tier, timeouts.
+   `requestTimeoutSeconds` is the time limit of one request. `readyTimeoutSeconds` is the
+   readiness time of the product: how long the harness waits until the product is open and
+   indexed (default 900).
 3. **Search hygiene.** From the repository root, search for one identifier of the product
    with `rg` and with `git grep`. The search must find nothing in the checkout. The `grep`
    of an agent shell (ugrep with `--ignore-files`) also skips the checkout. GNU `grep -r`
@@ -200,24 +219,27 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
    A row that differs between two runs becomes a `shape` row or goes out. PhpStorm indexes
    the content of a `.phar` file, and after a restart this content can be absent: no row may
    resolve into a phar or count a result in one.
-9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug.
+9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug,
+   with only `Read` and the read-only tools. The prompt, the MCP config, the runner and the
+   transcript analysis are local files that this repository does not track.
 10. **Triage.** One outcome for each finding: an issue, a decision of the maintainer, a
     setup correction, or a ground-truth note.
-11. **Bless, with permission.** Park the rows that show an open defect. Then
+11. **Bless, under the bless rule of `AGENTS.md`.** Park the rows that show an open defect. Then
     `--bless --bless-canary`, `--write-anchors`, `--check-fixtures`, and two verify runs.
     A row that pins an expected error stops this bless: the error gates refuse a new error
     row. Bless the file of that tool first, with
     `--tool <tool> --bless --bless-canary --bless-errors`, and read the new expected file.
     Then bless all rows with no `--bless-errors`. Never use `--bless-errors` for all rows:
     it switches off both error gates, and a timeout becomes an expected row.
-12. **Notes.** Complete `notes.md` and the ground-truth notes in `CLAUDE.md`.
+12. **Notes.** Complete `notes.md` and the ground-truth notes in
+    `_snapshots/<folder>/GROUND-TRUTH.md`.
 
 ### Change a pin
 
 1. Check out the new commit in the submodule and stage the submodule entry.
 2. Run the `bootstrap.sh` of the product again.
 3. `./run.py --product <folder>`. Read each difference.
-4. Re-bless with permission. Then `--write-anchors` and `--check-fixtures`.
+4. Re-bless under the bless rule of `AGENTS.md`. Then `--write-anchors` and `--check-fixtures`.
 
 ### Rules
 
@@ -230,14 +252,265 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
 - A product checkout is test data. Change no tracked file in it, and never copy a plugin zip
   into it. Use a fixture project for `ide_install_plugin`.
 
-## Version-bump workflow
+## Operate the IDEs
 
-1. Bump `pluginVersion` in `gradle.properties`.
-2. `./gradlew buildPlugin` and install the resulting ZIP into each IDE
-   (Settings → Plugins → ⚙ → Install Plugin from Disk…).
-3. Restart each IDE. (The plugin is not dynamically reloadable — a full restart is required after reinstall.)
-4. Re-open every fixture; wait for indexing to finish.
-5. Run both suites, the fixtures and the real products:
+The six IDEs of the table in "Per-IDE fixture setup" run with no window (`serverMode`), and
+other sessions use them at the same time. Before you stop or restart an IDE, look for an
+active harness run with `pgrep -af '[l]ive-test/run\.py'`. Run it as a command of its own: a
+shell line that also holds the text `live-test/run.py` finds its own shell.
+
+The folders are the Linux defaults. `<Product><version>` is the paths selector of the IDE, for
+example `GoLand2026.2` (also `IntelliJIdea`, `PyCharm`, `WebStorm`, `PhpStorm`, `RustRover`).
+
+| Placeholder | Holds | Linux default |
+|---|---|---|
+| `<config dir>` | settings (`options/`) | `~/.config/JetBrains/<Product><version>/` |
+| `<system dir>` | caches, indexes, `log/idea.log` | `~/.cache/JetBrains/<Product><version>/` |
+| `<plugins dir>` | custom plugins | `~/.local/share/JetBrains/<Product><version>/` |
+
+### Send a request to an IDE
+
+Each IDE serves MCP at `http://127.0.0.1:<port>/mcp/streamable-http`. A request is one HTTP
+POST with a JSON-RPC body, and the answer is one plain JSON object, not an event stream. The
+server does not read the `Accept` header: the harness sends only `Content-Type`.
+
+```bash
+curl -s http://127.0.0.1:<port>/mcp/streamable-http -H 'Content-Type: application/json' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}'
+```
+
+- `initialize` gives the build that runs in `result.serverInfo.version`. `tools/call` gives
+  the tool result as a JSON text in `result.content[0].text`.
+- `tools/list` (`"method":"tools/list"`) gives only the enabled tools. A call of a disabled
+  tool gets the JSON-RPC error `-32601`, `Tool disabled by user settings: <name>. …`.
+- A call with a `project_path` that the IDE does not have open lists the open projects in
+  `available_projects`. An entry with a `workspace` key is a module folder, not a project.
+- A call needs `project_path` when the IDE has more than one project open (IntelliJ IDEA,
+  WebStorm, each IDE with a product open), else it gets `multiple_projects_open`.
+  `ide_index_status` is the exception: with no arguments it answers for each open project.
+
+### Deploy a build to the IDEs
+
+This procedure installs a build in each IDE through its MCP port, with no window.
+
+1. **Build** with a new version on the command line:
+   `./gradlew buildPlugin -PpluginVersion=<version>-dev.NN`. The reason is in
+   [CONTRIBUTING.md](../docs/CONTRIBUTING.md#dev-builds), "Dev builds". Take a number above
+   each build that an IDE has or that is on the disk (see "Prove which build runs").
+2. **Check the tools.** `tools/list` of each IDE must give `ide_install_plugin` and
+   `ide_restart`, which are off by default. To turn them on, see "Change a plugin setting".
+3. **Copy the zip** (`build/distributions/idesense-<version>-dev.NN.zip`) into one fixture
+   root of each IDE: `java`, `python`, `javascript`, `go`, `php`, `rust`. `ide_install_plugin`
+   accepts only a zip inside the project that `project_path` names. From a worktree, use the
+   folder of `LIVE_TEST_FLEET_FIXTURES`. Git ignores these copies
+   (`live-test/fixtures/*/*.zip`). Never copy a zip into a product checkout.
+4. **Install, then restart** each IDE. `path` is relative to the project root:
+
+   ```
+   {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ide_install_plugin","arguments":{"path":"idesense-<version>-dev.NN.zip","project_path":"<fixture root>"}}}
+   {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"ide_restart","arguments":{"project_path":"<fixture root>"}}}
+   ```
+
+   The install result has `"installed": true` and the `pluginVersion` of the zip. The tool
+   unpacks the zip at once into `<plugins dir>` and replaces the old plugin folder, so remove
+   the copy now. The restart starts `delaySeconds` (default 2) after its answer, and the IDE
+   opens its projects again.
+5. **Wait for the new build.** Call `initialize` every few seconds until `serverInfo.version`
+   is the new version. An answer in the first seconds after `ide_restart` comes from the old
+   process: only the version is a proof. Seen: one restart takes 30 to 40 s.
+6. **Wait for the index.** Call `ide_index_status` with no arguments until `isDumbMode` is
+   `false`.
+
+**Fallback when `ide_install_plugin` is off.** Stop the IDE (see "Start an IDE with no
+display"). Replace the folder `<plugins dir>/idesense` with the content of the zip (one top
+folder, `idesense/`), and write the settings file that turns on the two tools. Start the IDE.
+
+### Prove which build runs
+
+Several sessions deploy to the same IDEs, and the last install wins. Each IDE restart loads
+the build on the disk, also the restart of a project switch. So an earlier check proves
+nothing about the build that runs now.
+
+- **The build that runs:** `serverInfo.version` in the `initialize` answer. The plugin reads
+  it from its loaded plugin descriptor.
+- **The build on the disk:** `<plugins dir>/idesense/lib/idesense-<version>.jar`. The next
+  restart loads it.
+- **What ran when:** at each start the IDE writes the line `Loaded custom plugins: …,
+  IdeSense - IDE MCP Server (<version>)` to `idea.log`. Find it with
+  `grep 'Loaded custom plugins' <system dir>/log/idea*.log` (older entries are in
+  `idea.1.log` and the next files).
+
+### Start an IDE with no display
+
+The IDEs of the harness are `serverMode` instances: remote-development hosts that need no
+display. The harness starts an IDE with the launcher, the environment and the working folder
+of the process before: `setsid --fork <ide launcher> serverMode`. `<ide launcher>` is
+`<app>/bin/<ide>.sh` (`idea.sh`, `pycharm.sh`, `webstorm.sh`, `goland.sh`, `phpstorm.sh`,
+`rustrover.sh`). `setsid --fork` makes the IDE independent of the shell.
+
+- **Projects.** A bare `serverMode` start opens each project that has `opened="true"` in
+  `<config dir>/options/recentProjects.xml`. To change the set, stop the IDE, change the
+  marks, and start it. `--open-product` and `--close-products` do this for a product. At a
+  start with no instance up, a project path after `serverMode` also opens that project. A
+  `serverMode` IDE checks the trust of a project: the harness writes a trust entry for each
+  product to `<config dir>/options/trusted-paths.xml` while the IDE is down.
+- **The fleet process** of an IDE is the JVM (`<app>/jbr/bin/java`) whose command line has
+  `-Didea.paths.selector=<Product><version>` and `serverMode`, and no `-Didea.config.path=`.
+  Find it with a pattern that does not match your own shell, for example
+  `pgrep -af 'paths\.selector=[G]oLand'`.
+- **Stop.** Send SIGTERM to the JVM, and wait until the process is gone (the harness waits
+  90 s). Never use SIGKILL: the IDE saves its state at the shutdown.
+- **Trap: the launcher is not the JVM.** A stop of the launcher can leave the JVM alive (seen
+  on WebStorm 2026.2 with `bin/webstorm`). A start after that only gives its arguments to the
+  running instance and opens nothing. Stop the JVM first.
+- **Trap: a project path for a running instance.** A start while an instance runs hands the
+  project path to that instance. It logged `Opening existing project` and then stalled (seen
+  on WebStorm 2026.2). Change the open projects only while the IDE is down.
+- **Exit with no client.** An instance that an agent started, with no client connected, ended
+  cleanly about 9 minutes after its start (seen on a 2026.1 IDE). The cause is not confirmed.
+  When an IDE that you started is gone, read the end of its `idea.log` first.
+
+### Change a plugin setting
+
+The plugin keeps its settings for the whole IDE in `<config dir>/options/mcp-plugin.xml`
+(Settings → Tools → IdeSense in a window). The option names are the fields of
+`McpSettings.State` (`settings/McpSettings.kt` of the plugin code). An absent option takes its
+default, and the IDE writes no file while all options have their defaults (seen on WebStorm).
+This file turns on each tool except `ide_read_file` and pins the port. Its `disabledTools`
+set is the full set:
+
+```xml
+<application><component name="McpPluginSettings">
+  <option name="disabledTools"><set><option value="ide_read_file" /></set></option>
+  <option name="serverPort" value="29174" />
+</component></application>
+```
+
+The defaults turn off `ide_install_plugin`, `ide_restart`, `ide_read_file`,
+`ide_refactor_rename` and `ide_move_file`. Keep `responseFormat` at its default `JSON`: the
+harness reads each result text as JSON, so a `TOON` text fails each row.
+
+**Write the file only while the IDE is down.** The IDE keeps its settings in memory and writes
+them at its shutdown. So an edit while the IDE runs is lost, also before an `ide_restart`: the
+shutdown writes the old state over it. This sequence works:
+
+1. Back up the file.
+2. Stop the IDE, and wait until the JVM is gone. The shutdown save is then complete.
+3. Write the new file with an atomic replace: a temporary file in the same folder, then a
+   rename over `mcp-plugin.xml` (`os.replace` in Python).
+4. Start the IDE.
+
+`fleet.py` uses this sequence for `recentProjects.xml` and `trusted-paths.xml`. Do not write
+at a fixed time after `ide_restart`: the new process can read its settings some seconds after
+the old one ends (seen on GoLand 2026.2: the new server started 7 s after the shutdown line).
+
+**The log is the proof of a bind setting**, not the file and not a fast reconnect. Each server
+start writes `Starting MCP Server on <host>:<port>` to `idea.log`. A refused host shows before
+it as `Refusing non-loopback bind to '<host>' (not acknowledged in settings); falling back to
+127.0.0.1`. `ss -ltn` shows the address that the kernel bound. A non-loopback bind
+(`serverHost` with `allowNonLoopbackBind`) gives each enabled tool to each machine that
+reaches the port, with no authentication. So test with an address that only the host can
+reach (for example the address of the bridge `docker0`), never a LAN address. After the test,
+write the backup back with the same sequence, and check for `Starting MCP Server on
+127.0.0.1:<port>`.
+
+### Throwaway IDE
+
+A throwaway IDE is a second instance of an installed IDE with its own config, system, plugins
+and log folders. Use it for a probe that can harm an IDE, for a check of the first-run
+defaults, and for a look at an IDE window. A process with its own `-Didea.config.path` is no
+fleet process, so the harness never restarts it. Run rows against it with `--url`.
+
+1. **Root.** Use a root folder with a short absolute path, `<throwaway root>`. The IDE opens a
+   unix socket below its folders, and Linux limits a socket path to about 108 bytes.
+2. **VM options.** Write `<throwaway root>/ide.vmoptions` with four lines:
+   `-Didea.config.path=<throwaway root>/config`, and the same for `idea.system.path`
+   (`system`), `idea.plugins.path` (`plugins`) and `idea.log.path` (`log`). The launcher adds
+   the file that `<PRODUCT>_VM_OPTIONS` names to `<app>/bin/<ide>64.vmoptions`. Read the
+   variable name with `grep -o '\$[A-Z_]*_VM_OPTIONS' <app>/bin/<ide>.sh`. In 2026.2 it is
+   `IDEA_VM_OPTIONS` (IntelliJ IDEA), `WEBIDE_VM_OPTIONS` (WebStorm), and the product name for
+   the others (`GOLAND_VM_OPTIONS`). A `<PRODUCT>_PROPERTIES` file did not set these paths
+   (seen on GoLand 2026.1).
+3. **Config.** `cp -a <config dir> <throwaway root>/config`. The copy keeps the trust
+   settings and the keymap of the fleet IDE. In the copy:
+   - Remove `.lock`.
+   - Remove `options/recentProjects.xml`, else the throwaway IDE opens the fleet projects.
+   - Add the throwaway project to `options/trusted-paths.xml` (the format of
+     `trust_project_paths` in `fleet.py`).
+   - Change `serverPort` in `options/mcp-plugin.xml` to a free port, for example 29199. With
+     the fleet port the throwaway server cannot bind, and each call goes to the fleet IDE. To
+     check the first-run defaults, keep only the `serverPort` option.
+4. **Plugins.** Unzip the zip under test into `<throwaway root>/plugins`. The bundled plugins
+   come from the IDE install. Another custom plugin loads only when you copy it too.
+5. **Project.** Use a copy of a fixture or a small new project, outside `<throwaway root>`.
+   Never open a folder that another IDE has open: two IDEs then write its `.idea/`. A copy of
+   the Python fixture needs `live-test-python.iml`, `misc.xml` and `modules.xml` from `.idea/`
+   of the fleet checkout (git tracks only `modules.xml`). Without them PyCharm has no
+   interpreter, and the usage types differ (seen on PyCharm 2026.2).
+6. **Start:** `<PRODUCT>_VM_OPTIONS=<throwaway root>/ide.vmoptions setsid --fork
+   <ide launcher> serverMode <project>`.
+7. **Prove it before the probe.** `pgrep -af 'idea.config.path=<throwaway root>/[c]onfig'`
+   must find the new JVM, and `<throwaway root>/log/idea.log` must exist; else stop the new
+   process at once. `initialize` on the new port must give the build under test, and a call
+   with an unknown `project_path` must list only the throwaway project. Probe only that port.
+8. **Stop and clean.** Find the JVM by its config path, never by the product name: the fleet
+   instance has the same name. Send SIGTERM, wait until the process is gone, and delete
+   `<throwaway root>`. Do not use `pkill -f` with a pattern that your own shell line holds: it
+   can stop that shell.
+
+**With no path override, the fleet IDE gets the project.** A wrong variable name or an
+unreadable VM options file leaves the default folders. The new process then finds the fleet
+instance and hands the project to it. The fleet IDE opens the throwaway project or stalls on
+it, and the new process waits or keeps a CPU core busy (seen on GoLand 2026.1 and WebStorm
+2026.2). To repair, stop the new process (SIGKILL is safe: it has no state), delete the
+throwaway project folder, and restart the fleet IDE: the restart drops the missing project.
+
+#### Throwaway IDE with a display
+
+A throwaway IDE with a display shows the IDE windows (Find Usages, Call Hierarchy, Structure)
+next to the tool result of the same instance. Use it to establish what the IDE shows (the
+rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
+
+- **Display.** Start a virtual X server (for example Xvfb) on a display number of your own:
+  on a shared display your keys can go into the windows of another session. Start the IDE as
+  above, with `DISPLAY` set and with no `serverMode`: `<ide launcher> <project>`. Check
+  `DISPLAY` in `/proc/<pid>/environ` of the new JVM.
+- **Keyboard.** Drive the IDE by keyboard (for example `xdotool`), and focus its window first.
+  Swing widgets are no X windows: click by pixel only from a screenshot that you read. Open
+  the file (`ctrl+shift+n`), then Go to Line (`ctrl+g`): type `line:column` of the tool call,
+  Return. Then start the action, for example Call Hierarchy (`ctrl+alt+h`) or Structure
+  (`alt+7`).
+- **Shortcuts differ** with the IDE and the copied keymap. Seen in 2026.2: Find Usages was
+  `alt+F7` in IntelliJ IDEA, `alt+shift+7` in RustRover and WebStorm, and either key in
+  different starts of GoLand and PyCharm. For most actions, Find Action (`ctrl+shift+a`) with
+  the action name and Return is a safe way.
+- **Read the window.** Take a screenshot (for example with `xwd`), crop the tool window, scale
+  the crop 2x, and read the image. For a whole tree, click one row, then expand all
+  (`ctrl+KP_Add`). The Find tool window can write its tree as text (Export to Text File,
+  `alt+o`, seen in 2026.2): for a comparison of line sets, the text is better. By default
+  the window shows two usages on one line as one row (seen on WebStorm 2026.2).
+- **Questions.** Some IDEs ask a question before a search, for example if Find Usages must
+  search the base method (seen on WebStorm, PyCharm and RustRover 2026.2; not on IntelliJ IDEA
+  for a Java or Kotlin override). Record the answer with the result. A copy of a Cargo
+  workspace asks to attach the Cargo projects, and it stays in dumb mode until the question
+  has an answer (seen on RustRover 2026.2).
+- **The same instance.** Compare a tool result only with a window of the same instance. A
+  window start can load other features than a `serverMode` start (seen on PyCharm 2026.2:
+  `Disabled plugins: JetBrains Ultimate` in `idea.log` of the window start). For a case that
+  the fixtures do not have, add probe files to the fixture copy: no fixture change, no bless.
+- **Dialogs.** A license, agreement or trial dialog is for the maintainer to answer. Do not
+  click it: stop the throwaway IDE, and ask the maintainer.
+
+## Run the suites against a new build
+
+1. Build the plugin and install it into each IDE. With no window: see "Deploy a build to the
+   IDEs". In an IDE with a window: Settings → Plugins → ⚙ → Install Plugin from Disk…, then
+   restart the IDE (the plugin is not dynamically reloadable). A dev build gets its version on
+   the command line, and a release build has the version of `gradle.properties`: see "Dev
+   builds" and "Release" in [CONTRIBUTING.md](../docs/CONTRIBUTING.md).
+2. Check that each IDE runs the new version (`serverInfo.version`) and that its fixtures are
+   open and indexed.
+3. Run both suites, the fixtures and the real products:
 
    ```bash
    ./live-test/run.py --suite all
@@ -246,25 +519,14 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
    The product part restarts the IDE of each product. A product with no checkout is
    `SKIPPED`.
 
-6. If failures appear:
-   - Read each diff carefully. Is the change intentional (matches the
-     CHANGELOG entry for the new version) or a regression?
-   - Intentional: `./live-test/run.py --bless` and commit alongside the
-     version bump. For a product: `./live-test/run.py --product <folder> --bless`. When the
-     change also alters a canary row, see `MISCONFIGURED` in "Troubleshooting".
+4. If failures appear:
+   - Read each diff carefully. Is the change intentional (it matches the CHANGELOG entry of
+     the change) or a regression?
+   - Intentional: bless under the bless rule of [AGENTS.md](AGENTS.md)
+     (`./live-test/run.py --bless`; for a product: `./live-test/run.py --product <folder> --bless`),
+     and commit the changed snapshots with the change. When the change also alters a canary
+     row, see `MISCONFIGURED` in "Troubleshooting".
    - Regression: file an issue or revert the change.
-
-> **Automating install/restart across IDEs.** Steps 2–3 above can be driven headlessly
-> instead of clicking through Settings → Install from Disk: enable the `ide_install_plugin`
-> and `ide_restart` tools (both off by default), then POST `tools/call` for them to each
-> IDE's port (see the table above). Pass a `project_path` argument when an IDE has multiple
-> fixtures open — IntelliJ IDEA (`java` + `kotlin`) and WebStorm (`javascript` +
-> `typescript`) — otherwise the call fails with `multiple_projects_open`.
->
-> `ide_install_plugin` only accepts a zip **inside the open project** (out-of-root paths are
-> rejected), and the fixture projects are not the plugin repo — so first copy the built zip
-> into each fixture root (`cp build/distributions/*.zip live-test/fixtures/<lang>/`) and pass that
-> in-project path. The copies are gitignored (`live-test/fixtures/*/*.zip`); delete them afterwards.
 
 ## Troubleshooting
 
@@ -289,8 +551,8 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
     complete). Run the `bootstrap.sh` of the product, look at the IDE, and run again.
     Never bless in this state.
   - The plugin changed the output of the tool of that canary row, and the fixture suite
-    shows the same change. Then run `--product <folder> --bless --bless-canary` with
-    permission, and read the `git diff` of the expected files before the commit.
+    shows the same change. Then run `--product <folder> --bless --bless-canary` under the
+    bless rule of `AGENTS.md`, and read the `git diff` of the expected files before the commit.
 - **`MISCONFIGURED` after the first open of a product** — at its first open an IDE can stop
   before it adds a library root (for example the dependency folder of a JavaScript product).
   Then the canary row that resolves into a dependency differs: the gate tries again for the
@@ -316,11 +578,43 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
   `git submodule update` command, then the `bootstrap.sh` of the product.
 - **`[<product>] FAIL pin mismatch: …` or `FAIL modified: …`** — the checkout is not at
   the pinned commit, or a tracked file of it changed. Put the checkout back to the pin.
-- **All entries `FAIL` after a JDK / language toolchain update** — the
-  toolchain change shifted JDK source line numbers. Re-bless once
-  intentionally.
+- **Many rows differ after an update of the IDE** — an update can change names and texts of
+  the platform, for example the qualified name of a Python builtin (seen at the update from
+  2026.1 to 2026.2). A line shift in a JDK or SDK file changes no row: the harness drops the
+  line and the column of each library file ("Path normalization" in CONVENTIONS.md). Read each
+  difference, and re-bless under the bless rule of `AGENTS.md`.
+- **Kotlin rows fail after an IDE restart, and `ide_diagnostics` on a Kotlin fixture file
+  shows unresolved standard library calls** (for example `Unresolved reference 'listOf'` in
+  `src/main/kotlin/demo/Normal.kt`) — the Gradle cache (`~/.gradle/caches/modules-2`) lost the
+  jars of the fixture. The fixture pins Kotlin 2.0.0 (`fixtures/kotlin/build.gradle.kts`);
+  its Gradle wrapper is local and git-ignored. Only the IDE uses these jars, so Gradle can
+  clean them out, and the IDE sees the loss at its next start. Resolve the compile classpath
+  of the fixture again (`dependencies` gets only the metadata, not the jars):
+
+  ```bash
+  echo 'allprojects { tasks.register("resolveCompileClasspath") { doLast { println(configurations.getByName("compileClasspath").resolve()) } } }' > <scratch>/resolve.init.gradle.kts
+  cd <fleet checkout>/live-test/fixtures/kotlin && ./gradlew --no-daemon -q --no-configuration-cache -I <scratch>/resolve.init.gradle.kts resolveCompileClasspath
+  ```
+
+  Seen on IntelliJ IDEA 2026.2: the IDE used the jars again about 20 s later, with no restart.
+- **Java or Kotlin rows differ after an edit of fixture files from outside the IDE** — the
+  IDE has not seen the change (seen on IntelliJ IDEA). Before the run, call `ide_sync_files`
+  with only `project_path` for each project, `java` and `kotlin`.
+- **The output of a harness run looks stopped when it goes to a file** — Python buffers it.
+  Use `python3 -u live-test/run.py … > <log file>`. A run in the background starts in the
+  current folder of the shell, so `./run.py` fails with exit code 127 outside `live-test/`.
+- **A defect that no row shows** — some defects show only in `idea.log`. After a live run,
+  read `idea.log` of each IDE for `WARN` and `SEVERE` entries with a stack frame of the
+  package `com.github.vcth4nh.idesense` or the text `Plugin to blame`. An entry continues up
+  to the next time stamp. Group the entries by message and by the first plugin frame. The
+  plugin writes no log line for each tool call, so match an entry to a call by its time.
+- **An old commit in the checkout whose fixtures the IDEs have open** — never check out a
+  commit from before the move of the fixtures to `live-test/fixtures/` (#138) there. Git
+  moves only the tracked files back; the files of the IDEs and tools (`.idea/`, `.venv`,
+  `gradlew`, `vendor/`) stay behind. A commit has the move when
+  `git merge-base --is-ancestor 9c89a6a <commit>` succeeds. Rebase an older branch first.
 - **Result that looks wrong but the IDE consistently returns it** — see
-  "Captured ground truth" in `CLAUDE.md`. Some IDE quirks are blessed on
+  the `GROUND-TRUTH.md` of that language or product. Some IDE quirks are blessed on
   purpose; don't try to "fix" them by changing the probe.
 
 ## Why not in CI?

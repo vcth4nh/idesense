@@ -59,7 +59,10 @@ A file outside the checkout keeps only its base name and its qualified name.
 | `canary-def-ByteSlice-into-dependency` | `ext_slice.rs` (`bstr::ext_slice::ByteSlice`) | `Cargo.lock`: bstr 1.12.0 |
 | `def-Vec-into-stdlib` | `mod.rs` (`alloc::vec::Vec`) | `rust-src` of the toolchain that rustup selects (1.96.0 on the fleet). RustRover reads a copy of it in its system folder. |
 | `hier-sub-Sink` | `boxed.rs` (`alloc::boxed::Box`) | the same toolchain |
-| `hier-callee-add_parents-d1`, `hier-callee-search-d1` | 16 files of `core`, `alloc` and `std` | the same toolchain. A module path of `std` can change with the toolchain version (for example `std::sync::poison::rwlock::RwLock::write`); then these two rows need a re-bless. |
+| `hier-callee-add_parents-d1`, `hier-callee-search-d1` | 16 files of `core`, `alloc` and `std` | the same toolchain |
+
+The note on a re-bless of these rows after a change of the toolchain is in
+[../../_snapshots/ripgrep/GROUND-TRUTH.md](../../_snapshots/ripgrep/GROUND-TRUTH.md).
 
 ## Measured
 
@@ -113,17 +116,11 @@ with no `.idea` folder:
 
 Project model facts that the probe rows rely on:
 
-- `crates/core` holds the targets of the root package, and it is in no source folder. So a
-  file of `crates/core` is in no production scope and in no test scope:
-  `hier-sub-Flag-production-scope` gives 0, `find-file-mod.rs` gives 5 files and the production
-  scope 2. A `#[cfg(test)]` module in a `src` folder is production code for the scopes.
+- A `#[cfg(test)]` module in a `src` folder is production code for the scopes.
 - The usage scopes work: `matched_path_or_any_parents` has 6 usages, 0 in production files and
   5 in test files. The sixth is a reference in `CHANGELOG.md`. The canary scope row needs the
   test folders of the module file.
 - The Rust type hierarchy takes the scope (`Matcher`: 5 subtypes, 3 production, 2 test).
-- The Rust call hierarchy has no scope: `RsCallHierarchyBrowser.prependActions` removes the
-  scope action (bytecode). `hier-caller-search_path-production-scope` lists the caller in
-  `crates/core/search.rs`.
 - `cfg` is evaluated for the host (unix) and for the features of the sync. The `not(unix)`
   twin of `file_name` has no usage; Find Usages of RustRover says "Nothing found". A call in
   the `cfg(windows)` function goes to the unix `file_name`; Go to Declaration does the same.
@@ -146,29 +143,5 @@ Tools with no row:
 - `ide_refactor_rename`, `ide_move_file`, `ide_sync_files`, `ide_restart`,
   `ide_install_plugin`: no product row uses a tool that writes.
 
-## Issues
-
-These rows are parked. Each one changes with the fix of its issue only.
-
-| Row | Issue |
-|---|---|
-| `hier-sub-Flag` | #185: the subtypes of a trait stop at 100 with no signal (104 types implement `Flag`) |
-| `usage-messages-macro-body`, `hier-caller-search_slice-d1` | #186: an element in an injected fragment (a `macro_rules!` body, a doctest) gets the path and the line of the fragment; the two usages of `messages()` in macro bodies count as one |
-| `def-pathutil-mod-decl` | #187: a module file gets the qualified name `crate::pathutil.rs` and the kind `SYMBOL` |
-| `find-symbol-f1_sjis-macro-made` | #188: a function that a macro call makes is absent (the 330 tests of `rgtest!`) |
-| `def-messages-from-macro-body` | #189: a position inside an injected fragment is no anchor |
-| `search-text-set_errored` | #184: a match in a `macro_rules!` body comes a second time, with the path `/messages.rs` |
-
-#190 (the default Rust outline hides the items that macro calls make) has no row: a row would
-also show the line of #188. No structure row of this product has a macro-made item.
-
-`usage-RegexMatcher.find_at-trait-impl` gives the 26 usages of the trait item `Matcher::find_at`,
-all with `match` `BASE` (#172). They equal the answer Yes to the question of RustRover.
-
-`hier-caller-search_slice-d2` and `usage-Match-page1` also hold elements of a doctest with the
-path of the fragment (#186). They are `shape` rows: their counts equal the counts of RustRover,
-and the fix of #186 keeps them.
-
-In dumb mode `ide_file_structure` gives `internal_error` (`IndexNotReadyException` of RustRover)
-and not a reduced outline; the comment on #174 has the stack. See "Measured" for the wait after
-an open.
+The notes on the results of the rows and the parked rows are in
+[../../_snapshots/ripgrep/GROUND-TRUTH.md](../../_snapshots/ripgrep/GROUND-TRUTH.md).
