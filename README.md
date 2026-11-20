@@ -29,7 +29,7 @@ Advanced tools work across multiple languages based on available plugins:
 - **Go to Definition** - Navigate to symbol declarations
 - **Code Diagnostics** - Access errors, warnings, and quick fixes
 - **Index Status** - Check if code intelligence is ready
-- **Sync Files** - Force sync VFS/PSI cache after external file changes
+- **Sync Files** - Make the IDE pick up files that were created, modified, or deleted outside it (e.g., by coding agents)
 - **Find Class** - Fast class/interface search by name (exact by default; opt into camelCase/substring matching with `fuzzySearch`)
 - **Find File** - Fast file search by name using IDE's file index
 - **Symbol Search** - Find code symbols by name with IntelliJ Go to Symbol matching
@@ -46,7 +46,7 @@ These tools activate based on installed language plugins:
 
 **Refactoring Tools**
 - **Rename Refactoring** - Safe renaming with automatic related element renaming (getters/setters, overriding methods) - works across ALL languages, fully headless (disabled by default)
-- **Move File** - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend (disabled by default)
+- **Move File** - Move a file to a new directory; the IDE also updates references, imports, and the package/namespace when its language plugin supports that for the file type (disabled by default)
 
 ### Why Use This Plugin?
 
@@ -83,7 +83,7 @@ Perfect for AI-assisted development workflows where accuracy and safety matter.
 
 ## Available Tools
 
-The plugin provides **19 MCP tools** — 14 enabled by default, 5 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](docs/USAGE.md)**.
+The plugin provides **20 MCP tools** — 15 enabled by default, 5 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](docs/USAGE.md)**.
 
 **Legend:**
 - **✅** supported & tested
