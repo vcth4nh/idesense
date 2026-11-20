@@ -20,8 +20,9 @@ in `<lang>/GROUND-TRUTH.md`.
   `supertypes: [BackedEnum → UnitEnum, Labeled]`. Verified in WebStorm/PhpStorm: the
   **Supertypes** view shows exactly these, but the default combined ("both") widget shows
   *nothing* for the enum — a rendering quirk of that view, not a tool error. Don't re-bless
-  these to empty. (Whether `direction:both` should mirror the combined widget vs. the
-  supertypes∪subtypes union is a separate open question — see the type_hierarchy follow-up.)
+  these to empty. (`direction: both` is the union of the supertypes walk and the subtypes
+  walk, not the combined widget: see "Why `direction: both` is a union" in
+  `docs/ARCHITECTURE.md`.)
 - **Library/SDK targets show as a bare basename**: a hit resolving into a
   JDK / stdlib / stub file (`java.lang.Object`, JS `Number.parseInt`, Python
   `int`, …) is reduced to basename + symbol identity, with no directory and no
