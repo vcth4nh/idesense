@@ -24,8 +24,8 @@ wrong result becomes the baseline and the suite then protects the defect.
   - The bless needs `--bless-errors` for all rows of a language or of a product.
 - Never bless a product that is `MISCONFIGURED` because of its project model. Repair the
   checkout or the IDE first.
-- Never bless a row as `exact` when its result differs between two equal runs (see "Stability
-  check" in README.md).
+- Never bless a row with the compare mode `exact` when its result differs between two equal
+  runs (see "Compare modes" in CONVENTIONS.md and "Stability check" in README.md).
 - In your report, name the rows that you blessed and the evidence for each group of rows.
 
 The gates of `--bless` and the two-step bless of an error row are in CONVENTIONS.md.
@@ -47,7 +47,7 @@ Other sessions use the same IDEs at the same time.
   shared IDE.
 - A probe that can harm an IDE goes to a throwaway IDE (see "Throwaway IDE" in README.md).
   Prove the target port with one harmless call before the probe.
-- **Hazard on an old build:** a plugin build before the correction of #129 (2.1.0 and older)
+- **Hazard on an old build:** a plugin build before the correction of issue #129 (2.1.0 and older)
   can make GoLand rebuild its stub index: `ide_find_implementations` or `ide_explain_symbol`
   on a Go interface method, when one implementer embeds a pointer. The suites have such rows
   (`impls-Stamper.Stamp-promoted`, `impls-Validator.Validate`).

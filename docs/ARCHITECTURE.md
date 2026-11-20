@@ -58,15 +58,14 @@ unilaterally:
    on a guess.
 2. **Mimic-vs-useful tension.** When faithfully mirroring the IDE (and staying
    language-agnostic) would withhold information that is genuinely more useful to the
-   calling agent, do not quietly pick one. Present the tradeoff and let the maintainer
-   decide. "Mimic the IDE" is the default, not an absolute — usefulness can override
+   calling agent, do not quietly pick one. Present the tradeoff and let the owner of
+   the repository decide. "Mimic the IDE" is the default, not an absolute — usefulness can override
    it, but only with explicit sign-off.
 
-**Text for the calling agent.** A `notes`, `warnings` or error string is read by an agent that has
-no IDE window. It says what the result holds and why, in terms of the code: the symbol, its
-position, the effect on the result. It names no dialog, question, button or window of the IDE. The
-reason for IDE parity goes into `docs/USAGE.md`, the changelog, the issue and the code comments.
-Example: for a symbol with one base declaration, `BaseDeclarationsNote.build` writes this note.
+**Text for the calling agent.** A `notes` entry, a `warnings` entry or an error message is read by
+an agent that has no IDE window, so it speaks in terms of the code and names nothing of the IDE
+window. The rule is in [AGENTS.md](../AGENTS.md). Example: for a symbol with one base declaration,
+`BaseDeclarationsNote.build` writes this note.
 
 ```text
 '<symbol>' overrides or implements <base> (<path>:<line>:<column>). The result also holds the usages of this base declaration, because a call through it can run '<symbol>'. <n> of the <m> usages have match BASE.

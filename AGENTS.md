@@ -19,11 +19,11 @@ CLion, RustRover, DataGrip, Android Studio).
 
   The design principle and the approved deviations are in
   [ARCHITECTURE.md](docs/ARCHITECTURE.md).
-- **Text for the calling agent.** A `notes`, `warnings` or error string of a tool says what the
-  result holds and why, in terms of the code: the symbol, its position, the effect on the
-  result. It names no dialog, question, button or window of the IDE, because the calling agent
-  has no IDE window. The reason for IDE parity goes into `docs/USAGE.md`, the changelog, the
-  issue and the code comments.
+- **Text for the calling agent.** A `notes` entry, a `warnings` entry or an error message in a
+  tool result says what the result holds and why, in terms of the code: the symbol, its
+  position, the effect on the result. It names no dialog, question, button or window of the
+  IDE, because the calling agent has no IDE window. The reason for IDE parity goes into
+  `docs/USAGE.md`, the changelog, the GitHub issue and the code comments.
 - **Cite, do not assert.** A claim about the IntelliJ Platform, a language plugin or an IDE
   needs its evidence: the source or the bytecode (class, jar, build number), or an observation
   of the running IDE. Where an item shows in the IDE UI is a question for the running IDE, not

@@ -44,6 +44,10 @@ The fixture projects are in `live-test/fixtures/`.
 Each fixture is a real IDE-openable project. Open it, wait for indexing,
 then run the harness.
 
+In this document, **the fleet** is the set of these IDEs: each one runs on its default port
+and has its fixture projects open. **The fleet checkout** is the checkout of this repository
+whose fixture folders the fleet has open.
+
 Snapshots (`inputs/`, `expected/`, `output.jsonl`) live under
 `live-test/fixtures/_snapshots/<lang>/`, deliberately **outside** the fixture
 project roots: snapshot text mentions every fixture symbol, and past
@@ -189,6 +193,9 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
    git add .gitmodules $P
    ```
 2. **Table entry** in `products.json`: folder, IDE, repository, pin, license, tier, timeouts.
+   `requestTimeoutSeconds` is the time limit of one request. `readyTimeoutSeconds` is the
+   readiness time of the product: how long the harness waits until the product is open and
+   indexed (default 900).
 3. **Search hygiene.** From the repository root, search for one identifier of the product
    with `rg` and with `git grep`. The search must find nothing in the checkout. The `grep`
    of an agent shell (ugrep with `--ignore-files`) also skips the checkout. GNU `grep -r`

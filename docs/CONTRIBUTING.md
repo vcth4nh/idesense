@@ -198,8 +198,9 @@ FindUsagesHandlerFactory.EP_NAME.getPoint(project)
 `docs/ARCHITECTURE.md`, `SKILL.md` and `tools-reference.md`. It checks these facts:
 
 - The tool count of `ToolNames.ALL`, and the default-disabled set of `McpSettings`.
-- One `ide_*` section in `USAGE.md` for each tool, with a parameter table that equals the schema
-  properties (`project_path` and the aliases `limit`, `maxResults`, `cursor` excepted).
+- One `ide_*` section in `USAGE.md` for each tool. Its parameter table lists each schema
+  property (`project_path` can be absent: it has a section of its own) and no other name,
+  except the pagination names `limit`, `maxResults` and `cursor`.
 - One row for each tool in the mechanism table of `ARCHITECTURE.md`.
 - For each tool that is on by default: a `README.md` table row and a `tools-reference.md`
   section with "Returns". These two files name no unknown tool.
@@ -398,8 +399,9 @@ rubric:
 7. **Live tests.** For a change of tool behavior, run the fixture suite (`./live-test/run.py`).
    Bless under the bless rule of [live-test/AGENTS.md](../live-test/AGENTS.md). Commit the
    changed snapshots in the same pull request.
-8. **IDE parity.** A result that differs from the IDE needs a decision of the maintainer (see
-   "Core Design Principle: Mimic the IDE" in [ARCHITECTURE.md](ARCHITECTURE.md)).
+8. **IDE parity.** A result that differs from the IDE on purpose needs the sign-off of the
+   owner of the repository (see "Core Design Principle: Mimic the IDE" in
+   [ARCHITECTURE.md](ARCHITECTURE.md)).
 9. **Body.** Write `Closes #N` for each issue that the pull request corrects.
 
 ### Merge
