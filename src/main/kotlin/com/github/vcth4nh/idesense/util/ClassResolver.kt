@@ -7,11 +7,13 @@ import com.intellij.psi.PsiElement
 
 /**
  * Resolves any element by its qualified name using IntelliJ's QualifiedNameProvider
- * extension point. Symmetric reverse of [QualifiedNameUtil.getQualifiedName] — every
- * language plugin's QualifiedNameProvider implements both forward and reverse direction.
+ * extension point: the reverse direction of [QualifiedNameUtil.getQualifiedName].
  *
- * Works for any language whose plugin registers a QualifiedNameProvider (Java, Kotlin,
- * Python, PHP, JS/TS, Rust, Go, etc.).
+ * Works for a language whose provider implements the reverse direction (Java, Kotlin,
+ * Python, PHP, JS/TS, etc.). It resolves no Rust name and no Go name: the provider of the
+ * Rust plugin returns null for the reverse direction, and the Go plugin registers no
+ * provider. A caller needs another path for such a name:
+ * [com.github.vcth4nh.idesense.tools.SymbolAnchorResolver] searches it by its symbol name.
  */
 object ClassResolver {
 
@@ -31,7 +33,7 @@ object ClassResolver {
      *
      * Resolution order:
      * 1. Iterate `QualifiedNameProvider.EP_NAME` calling `qualifiedNameToElement` —
-     *    handles Java, Kotlin, Python, PHP classes, JS/TS, Rust, Go, etc.
+     *    handles Java, Kotlin, Python, PHP classes, JS/TS, etc. (no Rust name, no Go name).
      * 2. If the result is from a `.class`/decompiled wrapper, unwrap to its
      *    `navigationElement` so callers see the source-attached element.
      * 3. PHP-specific fallback: if EP iteration returns null and the PHP plugin is

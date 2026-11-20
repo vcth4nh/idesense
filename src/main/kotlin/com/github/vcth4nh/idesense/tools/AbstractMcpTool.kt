@@ -84,12 +84,12 @@ import kotlinx.serialization.json.jsonPrimitive
  *
  * ## PSI Synchronization
  *
- * By default, all tools automatically synchronize PSI with document changes before
+ * When the user setting is on, each tool synchronizes PSI with document changes before
  * execution. This ensures that recently created or modified files (e.g., by external
  * tools like Claude Code's write tool) are visible to PSI-based searches.
  *
  * This behavior is controlled by:
- * - **User setting**: "Sync external file changes" in Settings (enabled by default)
+ * - **User setting**: "Sync external file changes" in Settings (disabled by default)
  * - **Per-tool opt-out**: Override [requiresPsiSync] to `false` for tools that don't use PSI
  *
  * ```kotlin

@@ -15,7 +15,7 @@ sealed class Violation(val parameter: String) {
  * Validates a tool-call `arguments` object against a tool's `inputSchema` (the JSON produced by
  * [SchemaBuilder]). Pure logic — no platform, no settings; the enforcement counterpart to [SchemaBuilder].
  *
- * Strict: unknown keys are rejected (the central fix for #12's silently-ignored typos). Type checking
+ * Strict: unknown keys are rejected, so a typo in a key is not silently ignored. Type checking
  * mirrors the runtime accessors (`jsonPrimitive.int`/`.boolean`/`.content`) — it rejects only the kinds
  * those accessors would throw on, staying lenient on numeric-string coercion (`line:"123"` passes,
  * `line:"abc"` does not). Only required + primitive-type + enum + unknown-key are checked (no nested/min/

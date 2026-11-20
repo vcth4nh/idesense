@@ -88,7 +88,7 @@ class QualifiedNameUtilTest : BasePlatformTestCase() {
             methods.map { QualifiedNameUtil.getQualifiedName(it) }
         }
 
-        // Overloads must produce distinct qualified names (the regression #3 is about).
+        // Overloads must produce distinct qualified names (this guards against a past regression).
         assertEquals(2, fqns.distinct().size)
     }
 

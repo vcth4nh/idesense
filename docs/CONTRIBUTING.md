@@ -164,8 +164,7 @@ a version above the catalog value:
 ```
 
 To see what the plugin ships, list the zip: `unzip -l build/distributions/idesense-<version>.zip`.
-The zip must hold no `kotlinx-coroutines` jar. The build uses no catalog entry
-`kotlinx-coroutines-*`, so a bump of `kotlinxCoroutines` has no effect on the plugin.
+The zip must hold no `kotlinx-coroutines` jar.
 
 ## Tests
 
@@ -374,10 +373,9 @@ rubric:
   behavior is gone.
 - Numbers from before the rebrand to IdeSense refer to older trackers (the archived fork and its
   upstream, see "Acknowledgments" in README.md). This repository started again at #1, so an old
-  number names another issue here. Such numbers are in commits and code comments from before the
-  commit `feat: rebrand fork to standalone IdeSense, release 1.0.0`, and in the older changelog
-  history. For example, `(GH #17)` in `HierarchyTreeWalker.kt` is an old number. Use `git blame`
-  to find the date of a reference.
+  number names another issue here. Such numbers are in the commit messages from before the commit
+  `feat: rebrand fork to standalone IdeSense, release 1.0.0`, and in the older changelog history.
+  The comments in `src/` have no old number: write no number of an older tracker into a comment.
 
 ## Pull requests
 
@@ -465,8 +463,6 @@ features, a major version for a breaking change (an entry with **Breaking**).
   older `[2.0.0]` section. CI runs it in the step Patch Changelog of `release.yml`, and before
   `publishPlugin`, which depends on it. These runs change only the CI checkout, so step 6 is a
   manual edit.
-- **The step Create Pull Request of `release.yml` never runs.** Its `if:` reads
-  `steps.properties.outputs.changelog`, and the job has no step with the id `properties`.
 - **Each push to `main` after the publish creates a new draft with the same name.** Release draft
   reads `pluginVersion`, which still holds the released version. The draft does no harm, and the
   next run replaces it. To remove it, delete it by its release id:
