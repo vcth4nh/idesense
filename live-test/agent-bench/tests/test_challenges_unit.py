@@ -60,13 +60,25 @@ def callers_record():
     return dict(rec, source="calls", depth=2, property=False, plant=False, levels={"1": 2, "2": 1})
 
 
+def dyncallers_record():
+    """A key record of `callkeys dynmake` for the method `App.Run` at a.go:1: one static and one traced caller, one
+    possible caller."""
+    rec = callers_record()
+    sites = [dict(s, proof="static" if s["line"] == 5 else "trace") if s["why"] == "caller" else s
+             for s in rec["sites"]]
+    sites[-1] = {"file": "b/c.go", "line": 3, "col": 6, "class": "dnc", "why": "possible"}
+    return dict(rec, kind="method", container="App", id="go:example.com/m.App.Run", source="calls+trace", depth=1,
+                levels={"1": 2, "2": 0}, dynamic={"static": 1, "trace": 1, "possible": 1, "library": 0}, sites=sites)
+
+
 # One case for each prompt text of amendment A3: (family, lang, kind, container).
 PROMPT_CASES = [("refs", "go", "method", "App"), ("refs", "go", "iface_method", "Runner"), ("refs", "go", "func", ""),
                 ("refs", "go", "type", ""), ("refs", "go", "interface", ""), ("refs", "python", "method", "App"),
                 ("refs", "python", "function", ""), ("refs", "python", "class", ""), ("rename", "go", "method", "App"),
                 ("rename", "python", "method", "App"), ("impls", "go", "interface", ""),
                 ("impls", "python", "class", ""), ("callers", "go", "func", ""), ("callers", "go", "method", "App"),
-                ("callers", "python", "method", "App"), ("callers", "python", "function", "")]
+                ("callers", "python", "method", "App"), ("callers", "python", "function", ""),
+                ("dyncallers", "go", "method", "App")]
 
 
 class MasterTree(unittest.TestCase):
@@ -166,6 +178,15 @@ class ViewTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "source"):
             challenges.view(challenge("callers"), dict(rec, source="go/types"))
 
+    def test_dyncallers_view_is_the_record_itself(self):
+        rec = dyncallers_record()
+        self.assertIs(rec, challenges.view(challenge("dyncallers"), rec))
+        for source in ("calls", "go/types"):
+            with self.assertRaisesRegex(ValueError, f"calls\\+trace.*{source}"):
+                challenges.view(challenge("dyncallers"), dict(rec, source=source))
+        with self.assertRaisesRegex(ValueError, "source"):
+            challenges.view(challenge("callers"), rec)
+
 
 class AnswerTest(MasterTree):
     def test_parse_sites_forms(self):
@@ -234,7 +255,7 @@ class PromptTest(MasterTree):
             self.assertEqual(TAIL, paragraphs[-1])
             self.assertNotIn("\n", paragraphs[1])
             seen.add(case.split()[0])
-        self.assertEqual({"refs", "rename", "impls", "callers"}, seen)
+        self.assertEqual({"refs", "rename", "impls", "callers", "dyncallers"}, seen)
         self.assertEqual("Find each line of this repository that calls or names the method `Run` of the type "
                          "`caddyhttp.App`, which is declared at a.go:1. A line counts when it refers to this method, "
                          "to a method that overrides or implements it, or to a method that it overrides or "
@@ -341,6 +362,22 @@ class PromptTest(MasterTree):
             with self.assertRaisesRegex(ValueError, "no prompt text"):
                 self.task("callers", kind, "", lang=lang)
 
+    def test_dyncallers_prompt_is_the_whole_text(self):
+        """The family `dyncallers` has one text: a Go method."""
+        task = ("Find each function or method of this repository that calls the method `Run` of the type "
+                "`caddyhttp.App`, which is declared at a.go:1. A call counts when it names this method. A call of an "
+                "interface method counts too, when the interface value can hold a value of this type. List only the "
+                "direct callers: do not list the callers of the callers. A call inside a function literal counts for "
+                "the function or method declaration that holds the literal. Test code counts. A file counts also "
+                "when the build for this machine does not compile it. Answer with the line that holds the name of "
+                "each such function or method in its declaration. Do not list `Run` itself.")
+        self.assertEqual(f"{HEAD}\n\n{task}\n\n{TAIL}",
+                         challenges.prompt(challenge("dyncallers"), dyncallers_record(), ROOT))
+        for kind, lang, container in (("func", "go", ""), ("iface_method", "go", "Runner"), ("method", "python", "App"),
+                                      ("function", "python", "")):
+            with self.assertRaisesRegex(ValueError, "no prompt text"):
+                self.task("dyncallers", kind, container, lang=lang)
+
     def test_schema(self):
         self.assertEqual({"type": "object", "properties": {"sites": {"type": "array", "items": {"type": "string"}}},
                           "required": ["sites"], "additionalProperties": False}, challenges.schema(challenge()))
@@ -370,6 +407,8 @@ class TextScanTest(unittest.TestCase):
     def test_text_scan_gives_no_numbers_for_a_callers_challenge(self):
         """No tree is read: the root does not exist."""
         got = challenges.text_scan(challenge("callers"), callers_record(), "/nonexistent/caddy")
+        self.assertEqual({"lines": None, "precision": None, "recall": None}, got)
+        got = challenges.text_scan(challenge("dyncallers"), dyncallers_record(), "/nonexistent/caddy")
         self.assertEqual({"lines": None, "precision": None, "recall": None}, got)
 
 
@@ -1192,6 +1231,103 @@ class CallsSetTest(unittest.TestCase):
         self.assertIn("calls the function `Wide` of the package `m`, which is declared at wide.go:1.", text)
         self.assertIn("calls the method `Apply` of the type `m.B`, which is declared at p1.go:20.", text)
         self.assertIn("reads the property `prop_", text)
+
+
+def dkey(container, name, static=1, trace=1, possible=0, at=None):
+    """A key record of `callkeys dynmake` for the method `<container>.<name>`: `static` and `trace` required caller
+    sites on their own lines of a file of the record (`at`: a given file, so two records can have equal required
+    lines), and `possible` dnc sites."""
+    rid = f"{M}.{container}.{name}"
+    file, dfile = at or f"calls/{container}_{name}.go", f"{name.lower()}.go"
+    sites = [{"file": file, "line": 10 + i, "col": 6, "class": "required", "why": "caller", "level": 1, "lit": False,
+              "plant": False, "configs": list(GO_ALL), "proof": "static" if i < static else "trace"}
+             for i in range(static + trace)]
+    sites += [{"file": file, "line": 100 + i, "col": 6, "class": "dnc", "why": "possible"} for i in range(possible)]
+    sites.append({"file": dfile, "line": 1, "col": 6, "class": "dnc", "why": "decl"})
+    return {"id": rid, "lang": "go", "kind": "method", "name": name, "container": container,
+            "decl": {"file": dfile, "line": 1, "col": 6}, "family": [rid], "implementers": [], "external": [],
+            "source": "calls+trace", "depth": 1, "property": False, "plant": False,
+            "levels": {"1": static + trace, "2": 0},
+            "dynamic": {"static": static, "trace": trace, "possible": possible, "library": 0},
+            "sites": sorted(sites, key=lambda s: (s["file"], s["line"], s["col"]))}
+
+
+DUPS = {f"{M}.X.Dup", f"{M}.Y.Dup"}  # one method name
+SAMES = {f"{M}.A.Same1", f"{M}.B.Same2"}  # one set of required lines
+CALLS2_CANDIDATES = {f"{M}.T.N{i:02d}" for i in range(12)} | DUPS | SAMES | {f"{M}.Z.Edge"}
+
+
+def calls2_fixture(root, reverse=False, drop=()):
+    """A keys root with `caddy/dyncallers.jsonl` (17 candidates and 2 near misses) and a trees root with a package
+    clause in each declaration file."""
+    recs = [dkey("T", f"N{i:02d}", static=i % 3, trace=1 + i % 2, possible=i % 6) for i in range(12)]
+    recs += [dkey("X", "Dup"), dkey("Y", "Dup"), dkey("A", "Same1", at="calls/same.go"),
+             dkey("B", "Same2", at="calls/same.go"),
+             dkey("Z", "Edge", static=0, trace=1, possible=5),  # the limits of a candidate
+             dkey("Z", "NoTrace", static=3, trace=0), dkey("Z", "Many", possible=6)]  # no candidates
+    recs = [r for r in recs if r["id"] not in drop]
+    jsonl(os.path.join(root, "keys", "caddy", "dyncallers.jsonl"), list(reversed(recs)) if reverse else recs)
+    for r in recs:
+        write(os.path.join(root, "trees", "caddy", r["decl"]["file"]), "package m\n")
+    return os.path.join(root, "keys"), os.path.join(root, "trees")
+
+
+class CallsTwoSetTest(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d)
+        self.keys, self.trees = calls2_fixture(os.path.join(self.d, "one"))
+
+    def test_seeded_sample_skips_a_chosen_name_and_a_chosen_set_of_required_lines(self):
+        sets = set()
+        for seed in SEEDS:
+            chs = challenges.calls2_set(seed, self.keys)
+            order = sorted(CALLS2_CANDIDATES)
+            random.Random(seed).shuffle(order)
+            first_dup = next(i for i in order if i in DUPS)
+            first_same = next(i for i in order if i in SAMES)
+            skipped = (DUPS - {first_dup}) | (SAMES - {first_same})
+            self.assertEqual([i for i in order if i not in skipped][:10], [ch["key_id"] for ch in chs])
+            sets.add(tuple(ch["key_id"] for ch in chs))
+        self.assertGreater(len(sets), 1)
+
+    def test_same_seed_and_another_record_order_give_the_same_set(self):
+        again, _ = calls2_fixture(os.path.join(self.d, "two"), reverse=True)
+        for seed in SEEDS:
+            self.assertEqual(challenges.calls2_set(seed, self.keys), challenges.calls2_set(seed, again))
+
+    def test_ids_fields_and_notes(self):
+        for ch in challenges.calls2_set(3, self.keys):
+            rec = challenges.record_of(ch, self.keys)
+            d = rec["dynamic"]
+            self.assertEqual(list(challenges.FIELDS), list(ch))
+            self.assertEqual({"id": f"caddy-dyncallers-{rec['container']}.{rec['name']}", "product": "caddy",
+                              "tree": "caddy", "family": "dyncallers", "keys": "caddy/dyncallers.jsonl",
+                              "key_id": rec["id"], "sample": "hard",
+                              "note": f"dynamic: seeded sample (seed 3) of 10 among 17 candidates; static "
+                                      f"{d['static']}, trace {d['trace']}, possible {d['possible']}"}, ch)
+
+    def test_too_few_records_is_a_lookup_error(self):
+        """10 candidates, but the two names and the two sets of required lines leave 8 records."""
+        keys_root, _ = calls2_fixture(os.path.join(self.d, "few"), drop={f"{M}.T.N{i:02d}" for i in range(7)})
+        with self.assertRaisesRegex(LookupError, r"8 of 10 records for the seeded sample \(seed 1\) among 10 "
+                                                 "candidates"):
+            challenges.calls2_set(1, keys_root)
+
+    def test_cli_calls2_writes_the_set_that_load_and_show_read(self):
+        path = os.path.join(self.d, "calls2.jsonl")
+        with mock.patch.object(challenges, "KEYS", self.keys), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(0, challenges.main(["calls2", "-out", path, "-seed", "2"]))
+        self.assertEqual(sorted(challenges.calls2_set(2, self.keys), key=lambda ch: ch["id"]), challenges.load(path))
+        out = io.StringIO()
+        with mock.patch.object(challenges, "TREES", self.trees), contextlib.redirect_stdout(out):
+            self.assertEqual(0, challenges.main(["show", "-set", path, "-root", self.trees, "-keys", self.keys]))
+        text = out.getvalue()
+        self.assertEqual(10, sum(1 for line in text.splitlines() if line.startswith("== ")))
+        self.assertEqual(10, text.count("text scan: lines -, precision -, recall -"))
+        self.assertEqual(10, text.count("A call of an interface method counts too, when the interface value can hold "
+                                        "a value of this type."))
+        self.assertRegex(text, r"calls the method `N\d\d` of the type `m\.T`, which is declared at n\d\d\.go:1\.")
 
 
 if __name__ == "__main__":

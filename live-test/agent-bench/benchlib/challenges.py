@@ -3,7 +3,8 @@
     python3 -m benchlib.challenges show -set <file> [-root <trees root>] [-slots] [-keys <keys root>]
     python3 -m benchlib.challenges pilot -out <file> [-seed 1]
     python3 -m benchlib.challenges main -out <file> [-seed 1]
-    python3 -m benchlib.challenges calls -out <file> [-seed 1]   (run from live-test/agent-bench)
+    python3 -m benchlib.challenges calls -out <file> [-seed 1]
+    python3 -m benchlib.challenges calls2 -out <file> [-seed 1]   (run from live-test/agent-bench)
 
 A challenge set is a JSONL file with one challenge record for each line:
 
@@ -13,13 +14,16 @@ A challenge set is a JSONL file with one challenge record for each line:
 
 - family: `refs` (the lines that use the symbol), `rename` (the lines that a rename changes), `impls` (the
   declaration lines of the implementers or subclasses), `callers` (the declaration lines of the functions that
-  call the function, and of the functions that call these callers: a key record of `benchlib.callkeys make`).
+  call the function, and of the functions that call these callers: a key record of `benchlib.callkeys make`),
+  `dyncallers` (the declaration lines of the functions that call a Go method, also through an interface value, one
+  level: a key record of `benchlib.callkeys dynmake`).
 - keys: the key file, relative to `BENCH/keys`; key_id: the id of the key record in it.
 - sample: `hard`, `random` or `control`. note: how the record was chosen (not shown to the agent).
 
 The score uses a view of the key record (`view`). In the rename view, a forbidden site on a line with an optional
 use and no required site is `dnc`. The callers view is the key record itself; a key record whose `source` is not
-`calls` is a ValueError there. The answer is the JSON object of `schema`, and
+`calls` is a ValueError there. The dyncallers view is also the key record itself; a key record whose `source` is
+not `calls+trace` is a ValueError there. The answer is the JSON object of `schema`, and
 `parse_sites` reads it. Normalisation of an answer entry: white space at the two ends is removed; the form is
 `path:line` or `path:line:column` (the column is dropped); an absolute path loses the prefix `root + "/"`;
 the path is normalised (`posixpath.normpath`, so a leading `./` goes). Each other entry goes to the `invalid`
@@ -29,15 +33,17 @@ score when its path is no file of the master manifest `TREES/<tree>.manifest`, a
 
 The prompt texts are those of the plan, amendment A3. The texts of the family `callers` come from the plan of the
 call chains (task 3): the head of the kind and the tail of the language in one paragraph, and a Python property
-(`"property": true`) takes the head CALLERS_PY_PROPERTY. The root of a prompt is a parameter: the runner gives the
-slot path of the tree. For Go, the package name comes from the package clause of the declaration file in the
-master tree `TREES/<tree>`.
+(`"property": true`) takes the head CALLERS_PY_PROPERTY. The family `dyncallers` has one text, DYNCALLERS_GO, for a
+Go method (plan of the call chains, task 6). The root of a prompt is a parameter: the runner gives the slot path of
+the tree. For Go, the package name comes from the package clause of the declaration file in the master tree
+`TREES/<tree>`.
 
 `show` prints for each challenge the id, the line counts of the view, the text scan (`text_scan`, `-` for a Go
-`impls` challenge and for a `callers` challenge) and the prompt. The prompt root is `<trees root>/<tree>`, or with
-`-slots` the slot path of the tree. The text scan always reads the master tree. `-keys` sets the folder of the key
-files. `pilot` writes the pilot set of 8 challenges (see `pilot_set`), `main` the main set of 30 challenges (see
-`main_set`), `calls` the set calls1 of 20 `callers` challenges (see `calls_set`).
+`impls` challenge and for a `callers` or `dyncallers` challenge) and the prompt. The prompt root is
+`<trees root>/<tree>`, or with `-slots` the slot path of the tree. The text scan always reads the master tree.
+`-keys` sets the folder of the key files. `pilot` writes the pilot set of 8 challenges (see `pilot_set`), `main` the
+main set of 30 challenges (see `main_set`), `calls` the set calls1 of 20 `callers` challenges (see `calls_set`),
+`calls2` the set calls2 of 10 `dyncallers` challenges (see `calls2_set`).
 """
 import argparse
 import contextlib
@@ -56,7 +62,8 @@ KEYS = os.path.join(BENCH, "keys")
 TREES = os.path.join(BENCH, "trees")
 AUDIT = os.path.join(BENCH, "audit")
 FIELDS = ("id", "product", "tree", "family", "keys", "key_id", "sample", "note")
-FAMILIES = ("refs", "rename", "impls", "callers")
+FAMILIES = ("refs", "rename", "impls", "callers", "dyncallers")
+CALLER_FAMILIES = ("callers", "dyncallers")  # an answer line is a declaration: the text scan measures nothing
 SAMPLES = ("hard", "random", "control")
 REFS_RELS = ("self", "super", "sub")
 # The main set: the id prefixes of test code, and the interface of the pilot that its `structure` rule skips.
@@ -113,6 +120,14 @@ CALLERS_TAIL_PY = (" Find also each function or method that calls one of these c
                    "method that holds it. A read of a property is a call of the property. Test code counts. Answer "
                    "with the line of the `def` statement of each such function or method. Do not list `{name}` "
                    "itself.")
+# The family `dyncallers` (plan of the call chains, task 6): one level, also through an interface value.
+DYNCALLERS_GO = ("Find each function or method of this repository that calls the method `{name}` of {owner}, which "
+                 "is declared at {decl}. A call counts when it names this method. A call of an interface method "
+                 "counts too, when the interface value can hold a value of this type. List only the direct "
+                 "callers: do not list the callers of the callers. A call inside a function literal counts for the "
+                 "function or method declaration that holds the literal. Test code counts.{build} Answer with the "
+                 "line that holds the name of each such function or method in its declaration. Do not list "
+                 "`{name}` itself.")
 # (family, lang, kind) -> text. Another combination has no text.
 TASKS = {("refs", "go", "method"): REFS_METHOD, ("refs", "go", "iface_method"): REFS_METHOD,
          ("refs", "python", "method"): REFS_METHOD, ("refs", "go", "func"): REFS_GO_FUNC,
@@ -124,12 +139,17 @@ TASKS = {("refs", "go", "method"): REFS_METHOD, ("refs", "go", "iface_method"): 
          ("callers", "go", "func"): CALLERS_GO_FUNC + CALLERS_TAIL_GO,
          ("callers", "go", "method"): CALLERS_METHOD + CALLERS_TAIL_GO,
          ("callers", "python", "method"): CALLERS_METHOD + CALLERS_TAIL_PY,
-         ("callers", "python", "function"): CALLERS_PY_FUNC + CALLERS_TAIL_PY}
+         ("callers", "python", "function"): CALLERS_PY_FUNC + CALLERS_TAIL_PY,
+         ("dyncallers", "go", "method"): DYNCALLERS_GO}
 # The set calls1 (`calls_set`).
 CALLS_PRODUCTS = ("caddy", "beets")
 CALLS_PER_PRODUCT = 10
 CALLS_MAX_REQUIRED = 40  # the most required lines of a candidate of the rules `closure` and `random`
 CALLS_RANDOM = 4  # the picks of the rule `random`
+# The set calls2 (`calls2_set`).
+CALLS2_KEYS = "caddy/dyncallers.jsonl"
+CALLS2_COUNT = 10
+CALLS2_MAX_POSSIBLE = 5  # the most `dynamic["possible"]` of a candidate
 
 SITE = re.compile(r"(.+?):([0-9]+)(?::[0-9]+)?")
 # The package clause of a Go file: the first token after white space and comments (Go specification).
@@ -214,6 +234,11 @@ def view(ch: dict, record: dict) -> dict:
     if ch["family"] == "callers":
         if record.get("source") != "calls":
             raise ValueError(f"{record['id']}: a callers key needs the source `calls`, it has {record.get('source')!r}")
+        return record
+    if ch["family"] == "dyncallers":
+        if record.get("source") != "calls+trace":
+            raise ValueError(f"{record['id']}: a dyncallers key needs the source `calls+trace`, it has "
+                             f"{record.get('source')!r}")
         return record
     raise ValueError(f"{ch['id']}: unknown family {ch['family']!r}")
 
@@ -309,9 +334,9 @@ def _manifest_paths(path: str) -> list[str]:
 def text_scan(ch: dict, record: dict, tree_root: str) -> dict:
     """A whole-word scan of the name over the files of the manifest `<tree_root>.manifest`, scored against the
     view: `lines` is the count of the lines that the scan finds; a `dnc` line counts in no ratio. A symbolic link
-    and a file with a NUL byte are not scanned. Lines are counted at `\\n`. A `callers` challenge gets no numbers
-    (None): its answer lines are declarations of other functions, which need not hold the name."""
-    if ch["family"] == "callers":
+    and a file with a NUL byte are not scanned. Lines are counted at `\\n`. A `callers` or `dyncallers` challenge
+    gets no numbers (None): its answer lines are declarations of other functions, which need not hold the name."""
+    if ch["family"] in CALLER_FAMILIES:
         return {"lines": None, "precision": None, "recall": None}
     word = re.compile(r"(?<!\w)" + re.escape(record["name"]) + r"(?!\w)")
     found = set()
@@ -823,6 +848,38 @@ def calls_set(seed: int, keys_root: str = KEYS) -> list[dict]:
     return [ch for product in CALLS_PRODUCTS for ch in product_set(product)]
 
 
+def calls2_set(seed: int, keys_root: str = KEYS) -> list[dict]:
+    """The CALLS2_COUNT challenges of the set calls2 of the family `dyncallers`, for caddy, from the key file
+    CALLS2_KEYS of `callkeys dynmake`. A CANDIDATE has `dynamic["trace"]` 1 or more and `dynamic["possible"]`
+    CALLS2_MAX_POSSIBLE or fewer. The candidates are sorted by id, in the order of `random.Random(seed).shuffle` (as
+    rule 6 of `calls_set`). The walk over this list takes a record when no record so far has its `name` (the method
+    name) or its set of required lines (`_required_set`). LookupError when the list ends before CALLS2_COUNT
+    records. The challenges are in the order of the walk: the id `caddy-dyncallers-<container>.<name>`, the sample
+    `hard`, and the note `dynamic: seeded sample (seed <s>) of <CALLS2_COUNT> among <count of the candidates>
+    candidates; static <a>, trace <b>, possible <c>` with the `dynamic` counts of the record."""
+    pool = [r for r in keys.load_keys(os.path.join(keys_root, CALLS2_KEYS)) if r["id"] != "_meta"
+            and r["dynamic"]["trace"] >= 1 and r["dynamic"]["possible"] <= CALLS2_MAX_POSSIBLE]
+    order = sorted(pool, key=lambda r: r["id"])
+    random.Random(seed).shuffle(order)
+    chosen = []
+    for record in order:
+        if len(chosen) == CALLS2_COUNT:
+            break
+        if not any(record["name"] == c["name"] or _required_set(record) == _required_set(c) for c in chosen):
+            chosen.append(record)
+    if len(chosen) < CALLS2_COUNT:
+        raise LookupError(f"{len(chosen)} of {CALLS2_COUNT} records for the seeded sample (seed {seed}) among "
+                          f"{len(pool)} candidates")
+    out = []
+    for r in chosen:
+        d = r["dynamic"]
+        note = (f"dynamic: seeded sample (seed {seed}) of {CALLS2_COUNT} among {len(pool)} candidates; static "
+                f"{d['static']}, trace {d['trace']}, possible {d['possible']}")
+        out.append(_challenge(f"caddy-dyncallers-{r['container']}.{r['name']}", "caddy", "caddy", "dyncallers",
+                              CALLS2_KEYS, r, "hard", note))
+    return out
+
+
 def _number(value: float | None) -> str:
     return "-" if value is None else f"{value:.3f}"
 
@@ -847,7 +904,7 @@ def _show(args) -> int:
         for cls in keys.line_classes(view(ch, record)).values():
             counts["required" if cls in REQUIRED else cls] += 1
         tree = os.path.join(args.root, ch["tree"])
-        if ch["family"] == "callers" or (ch["family"] == "impls" and record["lang"] == "go"):
+        if ch["family"] in CALLER_FAMILIES or (ch["family"] == "impls" and record["lang"] == "go"):
             # The declaration line of a Go type does not name the interface, and the declaration line of a caller
             # does not name the function that it calls: the scan measures nothing here.
             numbers = "lines -, precision -, recall -"
@@ -885,6 +942,13 @@ def _calls(args) -> int:
     return 0
 
 
+def _calls2(args) -> int:
+    chosen = calls2_set(args.seed, KEYS)
+    keys.save_keys(args.out, chosen)
+    print(f"{len(chosen)} challenges in {args.out}", file=sys.stderr)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python3 -m benchlib.challenges", description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
@@ -903,8 +967,11 @@ def main(argv: list[str] | None = None) -> int:
     calls_cmd = sub.add_parser("calls", help="write the set calls1 of the family callers")
     calls_cmd.add_argument("-out", required=True, help="output file (JSONL)")
     calls_cmd.add_argument("-seed", type=int, default=1)
+    calls2_cmd = sub.add_parser("calls2", help="write the set calls2 of the family dyncallers")
+    calls2_cmd.add_argument("-out", required=True, help="output file (JSONL)")
+    calls2_cmd.add_argument("-seed", type=int, default=1)
     args = parser.parse_args(argv)
-    return {"show": _show, "pilot": _pilot, "main": _main, "calls": _calls}[args.command](args)
+    return {"show": _show, "pilot": _pilot, "main": _main, "calls": _calls, "calls2": _calls2}[args.command](args)
 
 
 if __name__ == "__main__":

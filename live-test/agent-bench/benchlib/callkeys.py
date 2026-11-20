@@ -5,6 +5,8 @@
     python3 -m benchlib.callkeys targets -keys <keys.jsonl> -ids <id,...|@file> -out <targets.json>
     python3 -m benchlib.callkeys tracecheck -keys <keys.jsonl> -calls <calls.jsonl> -trace <trace.jsonl>
         -ids <id,...|@file>
+    python3 -m benchlib.callkeys dynmake -calls <calls.jsonl> -symbols <symbols.jsonl> -targets <targets.json>
+        -trace <trace.jsonl> -root <folder of the copy> -out <keys.jsonl>
 
 (run from live-test/agent-bench). Positions as in `pykeys`: `file` is relative to the tree root with forward
 slashes, `line` is 1-based, `col` is 1-based and counts UTF-16 code units. A `decl` is the position of the name
@@ -93,6 +95,56 @@ runner); else `key` when G is a caller of F; else `outside` (also a line in no f
 each traced function (`decl`, level, the count of each verdict, how many of its callers the `key` sites reached),
 the totals with the count of the trace lines of other ids, then each `outside` site. Exit code 1 when a site is
 `outside`, or when a function with callers has an `external` site; else 0.
+
+dynmake: the caller keys of one level of the Go methods that a caller can reach through an interface value. The
+sources are the static calls, the call sites of the interface methods and a run-time trace. `-calls` must be a Go
+calls file, and `-symbols` is the key file of `gokeys extract` for the same tree. `-targets` is the targets file of
+`gokeys trace`, a list of `{"id", "file", "line"}`. The record of a target is the one record of calls.jsonl whose
+`decl` has this file and line. It is an error when no record or two records have it, or when an id comes two times.
+`-trace` is the trace file of the test run in the copy of `gokeys trace`: lines `{"id", "frames": [{"func", "file",
+"line"}, ...]}`, where `frames[0]` is the caller of the target. A line with the id of no target is counted and not
+used. `-root` is the folder of the copy. A frame is IN THE TREE when its `file` is below `-root`: the two paths as
+given (the root made absolute), or the two paths of `os.path.realpath`. Its tree path is the path relative to the
+root. The FUNCTION of a frame in the tree is the outermost record whose lines `decl.line` to `end` hold the frame
+line in that file. A frame in the tree in no function is counted, and for this command it is not in the tree.
+
+A target T is ELIGIBLE when its open causes are exactly `interface` and its kind is `method`. Each other target is
+counted and gets no record. The sets of an eligible target T:
+
+    STATIC    the functions at the `in` of the uses of T with `call` true
+    POSSIBLE  the functions that hold a site of the symbols record of T with `rel` `super` and `why` `use` (a call
+              or a use of an interface method that T implements); a site in no function is counted
+    DIRECT    the functions of the first frames of the trace lines of T, when the first frame is in the tree
+    LIBRARY   for a trace line whose first frame is not in the tree: the function of the first later frame in the
+              tree; a line with no such frame is counted, and a line with no frame too
+
+THE RULE: each function of DIRECT is in STATIC or in POSSIBLE. The check uses the sets with T itself. A target that
+breaks the rule gets no record. The command prints the `decl` of T and of the function, and its exit code is 1
+after it wrote the other records. Then T goes out of the four sets: a recursion is not asked. REQUIRED is STATIC
+and DIRECT together. A target with no required function is counted and gets no record. For each other eligible
+target, in the order of calls.jsonl, `dynmake` writes one key record:
+
+    {"id", "lang": "go", "kind": "method", "name", "container", "decl", "family": [<id>], "implementers": [],
+     "external": [], "source": "calls+trace", "depth": 1, "property": false, "plant": false,
+     "levels": {"1": <REQUIRED>, "2": 0},
+     "dynamic": {"static": <STATIC>, "trace": <DIRECT, not STATIC>, "possible": <POSSIBLE, not REQUIRED>,
+                 "library": <LIBRARY, not REQUIRED and not POSSIBLE>},
+     "sites": [...]}
+
+`levels` and `dynamic` hold function counts. Each function of the four sets has one site at its `decl`, with the
+first class that fits:
+- REQUIRED: the caller site of `make` at level 1 (with `configs`), and `"proof"`: `static`, `trace` or
+  `static+trace`. `lit` is true when each static use that makes it a caller has `lit` true, and the `func` of each
+  of its first frames ends with `.func<digits>` (a nested literal adds parts `.<digits>`: `.func1.2`).
+- POSSIBLE: `"class": "dnc", "why": "possible"`.
+- LIBRARY: `"class": "dnc", "why": "library"`.
+When the id of a REQUIRED function has two records or more, each of these records gets `"class": "dnc", "why":
+"variant"`, as in `make`. A record that is not required takes the `lit` and the `proof` of the first required record
+with this id. The site at the `decl` of T is `"class": "dnc", "why": "decl"`. The sites are sorted by (file, line,
+col). `keys.load_keys` reads the file, and `keys.score` scores it. The output gives the counts of the targets: not
+eligible, with a record, that break the rule, with no required function. It also gives the sums of `dynamic` over
+the records, the counted cases, the distribution of `dynamic["possible"]` over the records with `dynamic["trace"]` 1
+or more, and one line for each pair that breaks the rule.
 """
 import argparse
 import ast
@@ -124,6 +176,15 @@ INTERFACE, UNPROVEN, VARIANTS, NO_SYMBOLS = "interface", "unproven", "variants",
 CAUSES = {"python": (NO_KEY, VALUE, OUTSIDE, UNKNOWN, NESTED, DECORATOR, GENERATOR, IMPLICIT, UNCALLED),
           "go": (NO_KEY, VALUE, OUTSIDE, INTERFACE, UNPROVEN, VARIANTS, NO_SYMBOLS)}
 VERDICTS = ("key", "external", "outside")
+# dynmake: the `func` of a frame in a function literal (`pkg.F.func1`, `pkg.(*T).M.func1.2`), the sets that the
+# record counts, and the counted cases with their output text.
+LIT_FUNC = re.compile(r"\.func[0-9]+(?:\.[0-9]+)*$")
+DYN_SETS = ("static", "trace", "possible", "library")
+DYN_COUNTED = {"other ids": "trace lines of other ids", "no frame": "trace lines with no frame",
+               "no function": "frames in the tree in no function",
+               "no tree frame": "library lines with no frame in the tree",
+               "site in no function": "possible sites in no function"}
+DYN_COUNTS = ("targets", "not eligible", "records", "rule", "no required") + DYN_SETS + tuple(DYN_COUNTED)
 
 
 class CallKeysError(Exception):
@@ -562,6 +623,189 @@ def tracecheck(records: list[dict], ids: list[str], calls: list[dict], trace: li
     return lines, 1 if failed else 0
 
 
+# ---- dynmake
+
+
+def _spans(calls: list[dict]) -> dict[str, list]:
+    spans = collections.defaultdict(list)
+    for rec in calls:
+        spans[rec["decl"]["file"]].append((rec["decl"]["line"], rec["end"], _key(rec["decl"])))
+    return spans
+
+
+def _holder(spans: dict, file: str, line: int) -> tuple | None:
+    """The decl of the outermost record whose lines `decl.line` to `end` hold the line of the file, or None."""
+    holders = [(start, k) for start, end, k in spans.get(file, ()) if start <= line <= end]
+    return min(holders)[1] if holders else None
+
+
+def _dyn_targets(targets: list[dict], calls: list[dict]) -> dict[str, tuple]:
+    """The decl of the record of each target, by the target id: the one record whose decl has its file and line."""
+    by_line = collections.defaultdict(list)
+    for rec in calls:
+        by_line[(rec["decl"]["file"], rec["decl"]["line"])].append(_key(rec["decl"]))
+    out = {}
+    for t in targets:
+        found = by_line.get((t["file"], t["line"]), [])
+        if t["id"] in out:
+            raise CallKeysError(f"the target id {t['id']} comes two times")
+        if len(found) != 1:
+            raise CallKeysError(f"target {t['id']}: {len(found)} records of the calls file have the decl line "
+                                f"{t['file']}:{t['line']}, expected 1")
+        out[t["id"]] = found[0]
+    return out
+
+
+def _tree_path(file: str, roots: tuple[str, str]) -> str | None:
+    """The path of a frame file relative to the copy: below the root as given, or (both resolved) below the real
+    root. None for a file outside the copy."""
+    given, real = roots
+    if file.startswith(given + os.sep):
+        return file[len(given) + 1:]
+    resolved = os.path.realpath(file)
+    return resolved[len(real) + 1:] if resolved.startswith(real + os.sep) else None
+
+
+def _frame_function(frame: dict, roots: tuple, spans: dict, stats: dict) -> tuple | None:
+    """The decl of the function of a frame in the tree, or None. A frame below the root in no function is counted."""
+    rel = _tree_path(frame["file"], roots)
+    if rel is None:
+        return None
+    k = _holder(spans, rel, frame["line"])
+    if k is None:
+        stats["no function"] += 1
+    return k
+
+
+def _trace_sets(lines: list[dict], roots: tuple, spans: dict, stats: dict) -> tuple[dict, set]:
+    """DIRECT (the function of each first frame in the tree, with the `func` names of these frames) and LIBRARY (the
+    function of the first later frame in the tree, when the first frame is not in the tree) of the trace lines of
+    one target."""
+    direct, library = collections.defaultdict(list), set()
+    for t in lines:
+        frames = t["frames"]
+        if not frames:
+            stats["no frame"] += 1
+            continue
+        first = _frame_function(frames[0], roots, spans, stats)
+        if first is not None:
+            direct[first].append(frames[0]["func"])
+            continue
+        later = next((k for k in (_frame_function(f, roots, spans, stats) for f in frames[1:]) if k is not None), None)
+        if later is None:
+            stats["no tree frame"] += 1
+        else:
+            library.add(later)
+    return direct, library
+
+
+def _possible(sym_records: list[dict], spans: dict, stats: dict) -> set:
+    """The functions that hold a site with `rel` `super` and `why` `use`; a site in no function is counted."""
+    out = set()
+    for s in (site for rec in sym_records for site in rec["sites"]):
+        if s.get("rel") == "super" and s["why"] == "use":
+            k = _holder(spans, s["file"], s["line"])
+            if k is None:
+                stats["site in no function"] += 1
+            else:
+                out.add(k)
+    return out
+
+
+def _dyn_record(x: dict, static: set, direct: dict, possible: set, library: set, by_decl: dict,
+                by_id: dict) -> dict:
+    """The key record of an eligible target X from its four sets (X is in none of them)."""
+    required = static | set(direct)
+    sites = {c: {**by_decl[c]["decl"], "class": "dnc", "why": "library"} for c in library}
+    sites.update({c: {**by_decl[c]["decl"], "class": "dnc", "why": "possible"} for c in possible})
+    for c in required:
+        lit = (all(u["lit"] for u in x["uses"] if u["call"] and u["in"] is not None and _key(u["in"]) == c)
+               and all(LIT_FUNC.search(f) for f in direct.get(c, ())))
+        proof = "static+trace" if c in static and c in direct else "static" if c in static else "trace"
+        sites[c] = {**_caller_site(by_decl[c], 1, lit, "go"), "proof": proof}
+    done = set()
+    for c in sorted(required):
+        variants = by_id.get(by_decl[c]["id"], [])  # by_id has no empty id
+        if len(variants) < 2:
+            continue
+        for rec in variants:
+            k = _key(rec["decl"])
+            if k not in required and k not in done:
+                sites[k] = {**_caller_site(rec, 1, sites[c]["lit"], "go"), "proof": sites[c]["proof"]}
+            done.add(k)
+            sites[k].update({"class": "dnc", "why": "variant"})
+    xk = _key(x["decl"])
+    sites[xk] = {**x["decl"], "class": "dnc", "why": "decl"}
+    dynamic = {"static": len(static), "trace": len(set(direct) - static), "possible": len(possible - required),
+               "library": len(library - required - possible)}
+    return {"id": x["id"], "lang": "go", "kind": "method", "name": x["name"], "container": x["container"],
+            "decl": x["decl"], "family": [x["id"]], "implementers": [], "external": [], "source": "calls+trace",
+            "depth": 1, "property": False, "plant": False, "levels": {"1": len(required), "2": 0},
+            "dynamic": dynamic, "sites": [sites[k] for k in sorted(sites)]}
+
+
+def dyn_keys(calls: list[dict], symbols: list[dict], targets: list[dict], trace: list[dict],
+             root: str) -> tuple[list[dict], dict, list[tuple]]:
+    """The key records of `dynmake` (see the module text) in the order of `calls`, the counts (DYN_COUNTS, and
+    `spread`: the distribution of `dynamic["possible"]` over the records with `dynamic["trace"]` 1 or more), and
+    the pairs (decl of a target, decl of a traced caller) that break the rule."""
+    if sorted({r["lang"] for r in calls}) != ["go"]:
+        raise CallKeysError("dynmake needs a Go calls file (gokeys calls)")
+    _, by_decl, by_id, causes = _context(calls, symbols)
+    spans, roots = _spans(calls), (os.path.abspath(root), os.path.realpath(root))
+    target_of = _dyn_targets(targets, calls)
+    stats = {**{k: 0 for k in DYN_COUNTS}, "targets": len(target_of), "spread": collections.Counter()}
+    lines = collections.defaultdict(list)
+    for t in trace:
+        if t["id"] in target_of:
+            lines[target_of[t["id"]]].append(t)
+        else:
+            stats["other ids"] += 1
+    syms = collections.defaultdict(list)
+    for rec in symbols:
+        syms[rec["id"]].append(rec)
+    chosen = set(target_of.values())
+    records, breaks = [], []
+    for x in calls:
+        xk = _key(x["decl"])
+        if xk not in chosen:
+            continue
+        if causes[xk] != [INTERFACE] or x["kind"] != "method":
+            stats["not eligible"] += 1
+            continue
+        static = {_key(u["in"]) for u in x["uses"] if u["call"] and u["in"] is not None}
+        possible = _possible(syms[x["id"]], spans, stats)
+        direct, library = _trace_sets(lines[xk], roots, spans, stats)
+        broken = sorted(set(direct) - static - possible)
+        if broken:
+            breaks += [(xk, c) for c in broken]
+            stats["rule"] += 1
+            continue
+        direct.pop(xk, None)
+        static.discard(xk)
+        if not static and not direct:
+            stats["no required"] += 1
+            continue
+        rec = _dyn_record(x, static, direct, possible - {xk}, library - {xk}, by_decl, by_id)
+        records.append(rec)
+        stats["records"] += 1
+        for k in DYN_SETS:
+            stats[k] += rec["dynamic"][k]
+        if rec["dynamic"]["trace"] >= 1:
+            stats["spread"][rec["dynamic"]["possible"]] += 1
+    return records, stats, breaks
+
+
+def _dyn_lines(stats: dict, breaks: list[tuple]) -> list[str]:
+    return [f"dynmake: {stats['targets']} targets, {stats['not eligible']} not eligible, {stats['records']} with a "
+            f"record, {stats['rule']} breaking the rule, {stats['no required']} with no required function",
+            "sums over the records: " + ", ".join(f"{k} {stats[k]}" for k in DYN_SETS),
+            "counted: " + ", ".join(f"{text} {stats[k]}" for k, text in DYN_COUNTED.items()),
+            f'dynamic["possible"] of the records with trace 1 or more: {_distribution(stats["spread"])}'] + [
+        f"rule: the target {_where(x)} has the traced caller {_where(c)}, which is no static caller and holds no "
+        "call site of an interface method of the target" for x, c in breaks]
+
+
 # ---- the commands
 
 
@@ -590,6 +834,14 @@ def main(argv: list[str]) -> int:
     tc.add_argument("-calls", required=True, help="the calls file of the keys")
     tc.add_argument("-trace", required=True, help="the trace file of benchlib.trace_plugin")
     tc.add_argument("-ids", required=True, help="comma-separated key ids, or @<file>")
+    dm = commands.add_parser("dynmake", help="the caller keys of Go methods through an interface value, from a "
+                                             "trace of gokeys trace")
+    dm.add_argument("-calls", required=True, help="calls.jsonl of gokeys calls")
+    dm.add_argument("-symbols", required=True, help="the key file of gokeys extract for the same tree")
+    dm.add_argument("-targets", required=True, help="the targets file of gokeys trace")
+    dm.add_argument("-trace", required=True, help="the trace file of the run in the copy (BENCH_TRACE_OUT)")
+    dm.add_argument("-root", required=True, help="the folder of the copy of gokeys trace")
+    dm.add_argument("-out", required=True, help="JSONL key file")
     args = parser.parse_args(argv)
     start = time.monotonic()
     try:
@@ -617,6 +869,14 @@ def main(argv: list[str]) -> int:
                 json.dump(targets, f, indent=1)
                 f.write("\n")
             print(f"targets: {len(targets)} functions in {args.out}")
+        elif args.command == "dynmake":
+            with open(args.targets, encoding="utf-8") as f:
+                targets = json.load(f)
+            records, stats, breaks = dyn_keys(keys.load_keys(args.calls), keys.load_keys(args.symbols), targets,
+                                              keys.load_keys(args.trace), args.root)
+            _write_jsonl(args.out, records)
+            print("\n".join(_dyn_lines(stats, breaks)))
+            return 1 if breaks else 0
         else:
             lines, code = tracecheck(keys.load_keys(args.keys), _ids(args.ids), keys.load_keys(args.calls),
                                      keys.load_keys(args.trace))

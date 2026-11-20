@@ -27,7 +27,8 @@ live-test/agent-bench/
   benchlib/image.py         product images: build context, build, gate
   benchlib/runner.py        one agent run in a container, batch of runs, connection check
   benchlib/triage.py        report of a batch: measures, flags, paired differences, adoption table
-  gokeys/                   Go module: key extractor from go/types, acceptance test
+  gokeys/                   Go module: key extractor from go/types, acceptance test, calls file
+                            (gokeys calls), copy for a run-time trace (gokeys trace)
   ide/bench-ide.sh          start, stop, status of one benchmark IDE instance
   image/Dockerfile          product image: tool chain, Claude Code, the trees with warm caches
   image/entry.sh            entry point of a run container: aid, cleanup, start of the agent
@@ -160,9 +161,51 @@ PYTHONPATH=<worktree>/live-test/agent-bench pytest -p benchlib.trace_plugin --tr
 python3 -B -m benchlib.callkeys tracecheck -keys <keys.jsonl> -calls <calls.jsonl> -trace <trace.jsonl> -ids <id,...|@file>
 ```
 
-The limit of the keys: they hold only chains of calls that are certain. A chain through an
-interface value, a function value or `getattr` has no key. Such a function is open (`interface`,
+The limit of the keys of `make`: they hold only chains of calls that are certain. A chain through
+an interface value, a function value or `getattr` has no key. Such a function is open (`interface`,
 `value` or `uncalled`), so it is no target and no caller at level 1 of a target.
+
+### Keys through an interface value
+
+`callkeys dynmake` gives a key of one level to a Go method whose only open cause is `interface`. A
+caller can reach such a method through an interface value. The key comes from three sources: the
+static calls (`calls.jsonl`), the call sites of the interface methods (`symbols.jsonl`), and a
+run-time trace of the test suite. Three steps make the keys of caddy:
+
+```
+BENCH/scratch/gokeys-bin trace -tree BENCH/trees/caddy -targets <targets.json> -dst <copy> [-depth 6] [-no-check]
+cd <copy>
+BENCH_TRACE_OUT=<trace.jsonl> XDG_CONFIG_HOME=BENCH/scratch/xdg/config XDG_DATA_HOME=BENCH/scratch/xdg/data go test -count=1 -p 1 ./...
+python3 -B -m benchlib.callkeys dynmake -calls BENCH/keys/caddy/calls.jsonl -symbols BENCH/keys/caddy/symbols.jsonl -targets <targets.json> -trace <trace.jsonl> -root <copy> -out BENCH/keys/caddy/dyncallers.jsonl
+```
+
+The targets file lists the methods whose open causes are exactly `interface`
+(`callkeys.open_causes`), as `{"id", "file", "line"}` with the line of the `decl`. `gokeys trace`
+writes a copy of the tree. In the copy, each target calls `benchtrace_.Hit` as its first statement.
+The edits are inserts on existing lines, so a frame of the copy has the line of the tree. The trace
+run is the test command of the product in the copy, with `BENCH_TRACE_OUT` set to the trace file.
+The trace file has one line for each distinct call stack of a target: the id of the target, and the
+frames. The first frame is the caller of the target.
+
+`dynmake` reads the frames below `-root` (also through a symbolic link). The function of a frame is
+the record of `calls.jsonl` whose lines hold the frame line. Each target T has four sets of
+functions:
+
+| Set | The functions |
+|---|---|
+| static | the functions with a call of T that the compiler resolves |
+| possible | the functions with a call site of an interface method that T implements (a site with the `rel` `super` in the symbols record of T) |
+| direct | the functions at the first frame of a trace line of T |
+| library | for a trace line whose first frame is outside the tree (a library or the Go runtime): the function at the first later frame in the tree |
+
+The rule: each direct function is a static function or a possible function. A target that breaks
+the rule gets no record, and the exit code of `dynmake` is 1. The required functions are the static
+and the direct functions. A target with no required function gets no record. The key record of T
+has a required site at the declaration of each required function, with the proof (`static`,
+`trace` or `static+trace`). A possible function or a library function that is not required is
+`dnc`: the answer can list it, and need not list it. Each other function is a false answer line.
+The field `dynamic` of the record has the counts of the sets. The module text of
+`benchlib/callkeys.py` has the record format.
 
 ## Agent runs
 
@@ -170,6 +213,10 @@ A run is one container from a product image. The agent in it (Claude Code in pri
 one challenge about one tree with a JSON list of `path:line` sites. Each module text has its
 commands and its file formats. The family `callers` asks for the callers of a function at two
 levels, and the command `calls` of `benchlib.challenges` writes its set `calls1` of 20 challenges.
+The family `dyncallers` asks for the direct callers of a Go method, also through an interface value.
+Its key comes from `callkeys dynmake`. The command `calls2` writes its set `calls2`: 10 caddy
+challenges, a seeded sample of the keys with 1 or more traced callers and 5 or fewer possible
+callers, each with another method name.
 
 - **Trees and slots.** `BENCH/trees/<tree>` is the pinned master of a tree. The agent and the IDE
   use a copy at a neutral path, the slot: `/home/ubuntu/dev/ws/<slot id>/<product>`
@@ -219,6 +266,7 @@ levels, and the command `calls` of `benchlib.challenges` writes its set `calls1`
 
 ```
 python3 -B -m benchlib.challenges calls -out BENCH/challenges/calls1.jsonl [-seed 1]
+python3 -B -m benchlib.challenges calls2 -out BENCH/challenges/calls2.jsonl [-seed 1]
 python3 -B -m benchlib.image build <caddy|beets>
 python3 -B -m benchlib.image gate <caddy|beets>
 python3 -B -m benchlib.proxy serve -routes BENCH/proxy/routes.json -log-dir BENCH/proxy/log

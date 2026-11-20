@@ -676,6 +676,199 @@ class TraceTest(unittest.TestCase):
         self.assertIn("m.py:30:5 level 1: key 0, external 1, outside 0, callers reached 0 of 1", stdout)
 
 
+# Hand-written files for `dynmake`. The target A.Serve (m.go:10) implements the interface method Server.Serve. Each
+# function starts at its own line and spans 6 lines.
+SERVE = "go:m.A.Serve"
+
+
+def dyn_rec(name, line, container="", uses=(), file="m.go", configs=("linux", "windows")):
+    rid = "go:m." + ".".join(p for p in (container, name) if p)
+    return dict(go(name, line, uses, rid, file, configs), kind="method" if container else "func", container=container)
+
+
+def sym_site(line, rel="super", why="use"):
+    return {"file": "m.go", "line": line, "col": 4, "class": "required", "why": why, "configs": ["linux"], "rel": rel}
+
+
+def dyn_sym(rid, iface=None, sites=(), external=()):
+    return {"id": rid, "lang": "go", "kind": "method", "name": rid.rsplit(".", 1)[-1], "container": "",
+            "decl": pos(1, "m.go", 6), "family": [rid] + ([iface] if iface else []), "sites": list(sites),
+            "implementers": [], "external": list(external), "source": "go/types"}
+
+
+DYN_CALLS = [
+    dyn_rec("Serve", 10, "A", [gouse(21, 20, lit=True), gouse(31, 30, lit=True)]),
+    dyn_rec("Static", 20), dyn_rec("Both", 30), dyn_rec("Dyn", 40), dyn_rec("DynLit", 50),
+    dyn_rec("Variant", 60, configs=("linux",)), dyn_rec("Possible", 70), dyn_rec("Lib", 80), dyn_rec("Other", 90),
+    dyn_rec("Unp", 100, "C"), dyn_rec("Fn", 110), dyn_rec("Idle", 120, "E"), dyn_rec("Bad", 130, "F"),
+    dyn_rec("Variant", 5, file="m_windows.go", configs=("windows",)),
+]
+DYN_SYMBOLS = [
+    # Serve: a self use at the static call of Static; call sites of Server.Serve in Serve (a recursion), Dyn,
+    # DynLit, Variant, Possible and at line 2 (in no function); a `sub` use in Other (no possible caller).
+    dyn_sym(SERVE, "go:m.Server.Serve", [sym_site(21, rel="self"), sym_site(12), sym_site(42), sym_site(52),
+                                         sym_site(62), sym_site(72), sym_site(2), sym_site(92, rel="sub")]),
+    dyn_sym("go:m.C.Unp", "go:m.U.Unp", [sym_site(101, rel="self", why="unproven")]),  # a second cause
+    dyn_sym("go:m.Fn", external=["fmt.Stringer"]),  # a function
+    dyn_sym("go:m.E.Idle", "go:m.Idler.Idle", [sym_site(72)]),  # possible callers only: no required function
+    dyn_sym("go:m.F.Bad", "go:m.Baddie.Bad"),  # a traced caller with no static call and no call site: the rule
+]
+DYN_TARGETS = [{"id": f"m.go:{n}", "file": "m.go", "line": n} for n in (10, 100, 110, 120, 130)]
+LIB = {"func": "net/http.HandlerFunc.ServeHTTP", "file": "/usr/lib/go/src/net/http/server.go", "line": 2220}
+RUNNER = {"func": "testing.tRunner", "file": "/usr/lib/go/src/testing/testing.go", "line": 1792}
+
+
+def dyn_trace(link, real):
+    """The trace lines of a run in the copy at `link` (a symbolic link of the folder `real`)."""
+    def fr(func, line, root=link):
+        return {"func": func, "file": f"{root}/m.go", "line": line}
+
+    def tl(n, *frames):
+        return {"id": f"m.go:{n}", "frames": list(frames)}
+
+    return [
+        tl(10, fr("m.Both", 32), RUNNER),  # a static caller that the trace also proves
+        tl(10, fr("m.Dyn", 41, real)),  # the real path of the copy
+        tl(10, fr("m.Dyn.func1", 43)),  # a frame in a literal: Dyn also has a plain frame, so lit is false
+        tl(10, fr("m.DynLit.func1.2", 53)),  # only frames in a literal: lit is true
+        tl(10, fr("m.Variant", 61)),
+        tl(10, LIB, fr("m.Lib", 81)),  # a caller below a library frame
+        tl(10, LIB, fr("m.Possible", 73)),  # a library caller that is also possible
+        tl(10, fr("m.init", 3), LIB, fr("m.Static", 22)),  # a frame of the tree in no function, then a required one
+        tl(10, LIB, RUNNER),  # no later frame in the tree
+        tl(10, fr("m.(*A).Serve", 13)),  # the target in its own stack
+        tl(10),  # no frame
+        tl(999, fr("m.Static", 21)),  # another id
+        tl(130, fr("m.Static", 21)),  # Static has no call of Bad and no call site of Baddie.Bad
+    ]
+
+
+def dyn_site(line, cls="required", why="caller", lit=False, proof=None, configs=("linux", "windows"), file="m.go"):
+    site = {"file": file, "line": line, "col": 6, "class": cls, "why": why}
+    if proof is None:
+        return site
+    return {**site, "level": 1, "lit": lit, "plant": False, "configs": list(configs), "proof": proof}
+
+
+SERVE_RECORD = {
+    "id": SERVE, "lang": "go", "kind": "method", "name": "Serve", "container": "A", "decl": pos(10, "m.go", 6),
+    "family": [SERVE], "implementers": [], "external": [], "source": "calls+trace", "depth": 1, "property": False,
+    "plant": False, "levels": {"1": 5, "2": 0}, "dynamic": {"static": 2, "trace": 3, "possible": 1, "library": 1},
+    "sites": [
+        dyn_site(10, "dnc", "decl"),
+        dyn_site(20, lit=True, proof="static"),  # only a static use, in a literal
+        dyn_site(30, proof="static+trace"),  # the static use is in a literal, the frame is not
+        dyn_site(40, proof="trace"),
+        dyn_site(50, lit=True, proof="trace"),
+        dyn_site(60, "dnc", "variant", proof="trace", configs=["linux"]),
+        dyn_site(70, "dnc", "possible"),  # also a library caller: possible wins
+        dyn_site(80, "dnc", "library"),
+        dyn_site(5, "dnc", "variant", proof="trace", configs=["windows"], file="m_windows.go"),
+    ]}
+DYN_OUTPUT = [
+    "dynmake: 5 targets, 2 not eligible, 1 with a record, 1 breaking the rule, 1 with no required function",
+    "sums over the records: static 2, trace 3, possible 1, library 1",
+    "counted: trace lines of other ids 1, trace lines with no frame 1, frames in the tree in no function 1, "
+    "library lines with no frame in the tree 1, possible sites in no function 1",
+    'dynamic["possible"] of the records with trace 1 or more: 1: 1',
+    "rule: the target m.go:130:6 has the traced caller m.go:20:6, which is no static caller and holds no call site "
+    "of an interface method of the target",
+]
+
+
+class DynMakeTest(unittest.TestCase):
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d)
+        self.real, self.link = os.path.join(self.d, "real"), os.path.join(self.d, "link")
+        os.mkdir(self.real)
+        os.symlink(self.real, self.link)
+        self.trace = dyn_trace(self.link, self.real)
+
+    def dyn(self, calls=DYN_CALLS, targets=DYN_TARGETS, root=None):
+        return callkeys.dyn_keys(calls, DYN_SYMBOLS, targets, self.trace, root or self.link)
+
+    def test_record_of_an_eligible_target(self):
+        records, stats, breaks = self.dyn()
+        self.assertEqual([SERVE_RECORD], records)
+        self.assertEqual(list(SERVE_RECORD), list(records[0]))
+        self.assertEqual(list(SERVE_RECORD["sites"][1]), list(records[0]["sites"][1]))
+        self.assertEqual([(("m.go", 130, 6), ("m.go", 20, 6))], breaks)
+
+    def test_counts(self):
+        _, stats, _ = self.dyn()
+        self.assertEqual({"targets": 5, "not eligible": 2, "records": 1, "rule": 1, "no required": 1, "static": 2,
+                          "trace": 3, "possible": 1, "library": 1, "other ids": 1, "no frame": 1, "no function": 1,
+                          "no tree frame": 1, "site in no function": 1}, {k: v for k, v in stats.items() if k != "spread"})
+        self.assertEqual({1: 1}, dict(stats["spread"]))
+
+    def test_root_as_the_real_folder_gives_the_same_records(self):
+        """The frames name the copy by the link and by the real path: both forms match each root."""
+        self.assertEqual(self.dyn()[0], self.dyn(root=self.real)[0])
+        self.assertEqual(self.dyn()[0], self.dyn(root=self.link + "/")[0])
+
+    def test_frame_outside_the_root_is_no_caller(self):
+        self.trace = [{"id": "m.go:10", "frames": [{"func": "m.Dyn", "file": self.d + "/other/m.go", "line": 41}]}]
+        [rec] = self.dyn()[0]
+        self.assertEqual({"static": 2, "trace": 0, "possible": 4, "library": 0}, rec["dynamic"])
+
+    def test_errors(self):
+        python = [py("target_func", 10)]
+        cases = [(python, DYN_TARGETS, "Go calls file"),
+                 (DYN_CALLS, DYN_TARGETS + [{"id": "m.go:11", "file": "m.go", "line": 11}], "m.go:11"),
+                 (DYN_CALLS, DYN_TARGETS + [{"id": "m.go:10", "file": "m.go", "line": 20}], "two times")]
+        for calls, targets, message in cases:
+            with self.assertRaisesRegex(callkeys.CallKeysError, message):
+                self.dyn(calls, targets)
+
+    def files(self, trace=None):
+        paths = {n: os.path.join(self.d, n) for n in ("calls.jsonl", "symbols.jsonl", "targets.json", "trace.jsonl")}
+        write_jsonl(paths["calls.jsonl"], DYN_CALLS)
+        write_jsonl(paths["symbols.jsonl"], DYN_SYMBOLS)
+        write_jsonl(paths["trace.jsonl"], self.trace if trace is None else trace)
+        with open(paths["targets.json"], "w", encoding="utf-8") as f:
+            json.dump(DYN_TARGETS, f)
+        return ["dynmake", "-calls", paths["calls.jsonl"], "-symbols", paths["symbols.jsonl"], "-targets",
+                paths["targets.json"], "-trace", paths["trace.jsonl"], "-root", self.link]
+
+    def test_cli_breaks_the_rule_with_exit_code_1_and_writes_the_other_record(self):
+        out = os.path.join(self.d, "keys.jsonl")
+        code, stdout, _ = run_main(self.files() + ["-out", out])
+        self.assertEqual(1, code, stdout)
+        self.assertEqual(DYN_OUTPUT, stdout.splitlines())
+        self.assertEqual([SERVE_RECORD], keys.load_keys(out))
+
+    def test_cli_with_no_break_gives_exit_code_0(self):
+        out = os.path.join(self.d, "keys.jsonl")
+        code, stdout, _ = run_main(self.files(self.trace[:-1]) + ["-out", out])
+        self.assertEqual(0, code, stdout)
+        self.assertIn("dynmake: 5 targets, 2 not eligible, 1 with a record, 0 breaking the rule, 2 with no required "
+                      "function", stdout)
+        self.assertNotIn("rule:", stdout)
+
+    def test_cli_reports_an_error_with_exit_code_2(self):
+        argv = self.files()
+        write_jsonl(argv[2], [py("target_func", 10)])
+        code, _, stderr = run_main(argv + ["-out", os.path.join(self.d, "keys.jsonl")])
+        self.assertEqual(2, code)
+        self.assertIn("Go calls file", stderr)
+
+    def test_score_of_answers(self):
+        out = os.path.join(self.d, "keys.jsonl")
+        run_main(self.files() + ["-out", out])
+        [rec] = keys.load_keys(out)
+        exact = {("m.go", n) for n in (20, 30, 40, 50)}
+
+        def score(answer):
+            s = keys.score(answer, rec)
+            return s["tp"], s["fp"], s["miss"], s["ignored"], s["exact"]
+
+        self.assertEqual((4, 0, 0, 0, True), score(exact))
+        self.assertEqual((4, 0, 0, 1, True), score(exact | {("m.go", 70)}))  # a possible caller: ignored
+        self.assertEqual((4, 1, 0, 0, False), score(exact | {("m.go", 90)}))  # another function: false
+        self.assertEqual((3, 0, 1, 0, False), score(exact - {("m.go", 40)}))
+
+
 class ModuleTest(unittest.TestCase):
     def test_module_runs_as_a_command(self):
         proc = subprocess.run([sys.executable, "-B", "-m", "benchlib.callkeys", "make", "-h"], cwd=BENCHDIR,
