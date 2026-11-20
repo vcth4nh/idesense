@@ -35,6 +35,7 @@ uses a second method.
 | Planted trees | A copy of a tree where 4 methods with unique names, on 4 unrelated types, get one shared name. The key is the state before the rename. | Go: the key equals the compiler key of the planted tree. Python: the test suite gives the result of the base tree, and the call sites that a run-time trace logs are compared with the key. |
 | Go callers | `gokeys calls`: each use of a function declaration, with the declaration that holds it and whether it is a call | `gokeys calls -check`: the static calls of the SSA form of the program (`go/ssa`) must give the same pairs of caller and callee in each configuration. |
 | Python callers | `callkeys pycalls`: the uses of the unique-name keys, with the outermost `def` that holds each use (from the syntax tree) | `callkeys tracecheck`: each call site that a trace of the test suite logs for the target and for its direct callers must be in a function of the key. |
+| Go callers through an interface value | `callkeys dynmake`: the static callers, and the callers that a run-time trace of the test suite logs (`gokeys trace` makes a copy of the tree in which each target logs its call stack; no line of a file moves) | Each traced caller must be a static caller, or it must hold a call site of an interface method that the target implements. A target that breaks this rule gets no key. |
 
 A planted tree exists because a Python method with a common name has no key that a scan can prove.
 The plant makes a common name whose key is known. In such a tree a text search finds the uses of
@@ -61,12 +62,27 @@ callers (level 2). A target gets a key only when each call in the chain is certa
 - none of these functions is used as a value, implements an interface method (Go), or has another
   of the open causes that `README.md` lists.
 
-So a caller key has no chain through an interface value, a function value or a call by a computed
-name. Such a chain needs a key from a run-time trace. That key source is not a part of the
-benchmark yet.
+So such a caller key has no chain through an interface value, a function value or a call by a
+computed name.
 
 A call inside a function literal, a lambda or a nested function counts for the outermost function
 declaration that holds it. The text of the question says so.
+
+### 3.3 Caller keys through an interface value
+
+A Go method that implements an interface method can get a call through an interface value. No
+compiler fact names the callers. The key of such a method has three classes of callers:
+
+- `required`: a function with a call that the compiler resolves to the method, and a function that
+  the run-time trace shows as the direct caller of the method;
+- `dnc`: a function with a call site of an interface method that the method implements, when no
+  trace proves the call, and a function of the tree that reaches the method only through library
+  code;
+- each other function is a false line.
+
+The trace is a lower limit: it proves only the calls that the test suite makes. So the set of
+questions takes methods with few callers that are not decided. The question asks for one level of
+callers.
 
 ## 4. Questions
 
@@ -79,6 +95,7 @@ Each question is a closed list question about one symbol. The agent answers with
 | `impls` | The declaration line of each type that implements the interface, or of each subclass |
 | `rename` | Each line that a rename of the method must change |
 | `callers` | The declaration line of each function that calls the function, and of each function that calls one of these callers |
+| `dyncallers` | The declaration line of each function that calls the method, directly or through an interface value |
 
 A program chooses the questions of a set by fixed rules and a seed (`pilot_set`, `main_set` and
 `calls_set` in `benchlib/challenges.py`). A set has random picks and hard picks. Each hard pick has
@@ -148,4 +165,6 @@ the plugin as a user gets it, and that result depends on whether the agent calls
 - Each run is one closed question in print mode. The benchmark has no bug correction and no long
   task.
 - A Python key covers only a unique name. A common name has a key only in a planted tree.
-- A caller key covers only chains of calls that are certain (section 3.2).
+- A caller key covers only chains of calls that are certain (section 3.2), or one level of calls
+  through an interface value that the tests run (section 3.3). A call through a function value or
+  by a computed name has no key.
