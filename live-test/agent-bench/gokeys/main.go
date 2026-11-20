@@ -18,7 +18,8 @@ const usage = `usage:
   gokeys calls -tree <dir> -configs linux,windows,darwin -out <calls.jsonl> [-check]
   gokeys idents -tree <dir> -name <identifier>
   gokeys accept -tree <dir> -keys <file.jsonl> (-ids <id,...|@file> | -sample <n> [-seed <s>])
-                -configs linux,windows -scratch <dir> [-minimal] [-keep]`
+                -configs linux,windows -scratch <dir> [-minimal] [-keep]
+  gokeys trace -tree <dir> -targets <targets.json> -dst <new folder> [-depth 6] [-no-check]`
 
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
@@ -39,6 +40,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdIdents(args[1:], stdout, stderr)
 	case "accept":
 		return cmdAccept(args[1:], stdout, stderr)
+	case "trace":
+		return cmdTrace(args[1:], stdout, stderr)
 	}
 	fmt.Fprintln(stderr, usage)
 	return 2
