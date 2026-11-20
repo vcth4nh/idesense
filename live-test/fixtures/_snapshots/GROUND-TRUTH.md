@@ -14,6 +14,15 @@ in `<lang>/GROUND-TRUTH.md`.
   `Circle`/`Rectangle`/`Square` constructors as `CONSTRUCTOR` callees, and WebStorm
   surfaces them (in TS) as `CLASS` callees — so both the Java and TS
   `hier-callee-makeDefault` snapshots are non-empty.
+- **`ide_find_definition` at a constructor call differs by language.** Java and Kotlin give
+  the class: `def-Circle-via-new-call` (Java) and `def-Circle-ctor-call`,
+  `def-Coercer-ctor-call` (Kotlin) have the `kind` `CLASS` or `DATA_CLASS`. JavaScript and
+  TypeScript give the constructor: `def-Circle-via-new-call` has the `name` `constructor`,
+  the `kind` `CONSTRUCTOR` and the class name as `qualifiedName`. Python gives `__init__`
+  (`def-Circle-from-constructor-call`). These shapes are blessed on purpose: do not make
+  them equal. The Kotlin result is a map of the plugin from the constructor to its class
+  (`FindDefinitionTool.effectiveDeclarationTarget`), and `ide_find_usages` does not use
+  that map (see "Find Usages" in `docs/ARCHITECTURE.md`).
 - **Enum type hierarchy — `direction:both` returns the *supertypes* view, which the IDE's
   combined Type Hierarchy widget hides.** `hier-type-Direction` (TS numeric enum) blesses
   `supertypes: [Number ×3]`; `hier-type-Severity-enum` (PHP string-backed enum) blesses
