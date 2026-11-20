@@ -165,20 +165,11 @@ The plugin provides **19 MCP tools** — 14 enabled by default, 5 opt-in (toggle
 
 ## Installation
 
-> **Note:** IdeSense isn't on the JetBrains Marketplace yet — for now, use [Manual Installation](#manual-installation) below.
+IdeSense isn't on the JetBrains Marketplace yet. Install it from a release:
 
-### Using the IDE built-in plugin system
-
-<kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "IdeSense"</kbd> > <kbd>Install</kbd>
-
-### Using JetBrains Marketplace
-
-Go to [JetBrains Marketplace](https://plugins.jetbrains.com/) and install it by clicking the <kbd>Install to ...</kbd> button.
-
-### Manual Installation
-
-Download the [latest release](https://github.com/vcth4nh/idesense/releases) and install it manually:
-<kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
+1. Download the plugin ZIP of the [latest release](https://github.com/vcth4nh/idesense/releases).
+2. In the IDE, go to <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd> and select the ZIP.
+3. Restart the IDE.
 
 ## Quick Start
 
