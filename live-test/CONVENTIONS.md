@@ -235,6 +235,20 @@ A bless locks in whatever the live IDE returns as truth. If the IDE has a
 regression, that regression becomes the new baseline. The rule for when a bless
 needs a question to the maintainer is in [AGENTS.md](AGENTS.md) ("Bless").
 
+### Check a bless
+
+`--bless` has no option for one row. It writes each row that `--language`, `--product` and
+`--tool` select, so restrict it with `--tool` to the tool whose rows your change affects.
+Check what a bless changed before the commit:
+
+- A bless that only adds rows: the run before it shows only `PASS` and `MISSING`. After it,
+  `git diff --numstat -- <snapshot folder>/expected/` shows no deleted line. A deleted line
+  means that the bless also pinned a changed or an unstable row: put the file back and
+  examine that row.
+- A bless that changes rows: the ids of the deleted lines (`git diff -U0`) equal the ids that
+  you intended to change.
+- To hold one row back, bless, and then remove the line of that row from its expected file.
+
 ## Path normalization — project vs library
 
 `normalize()` in `run.py` keeps snapshots stable across machines, IDE installs,

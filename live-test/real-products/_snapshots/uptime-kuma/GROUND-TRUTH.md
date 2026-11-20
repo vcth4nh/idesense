@@ -48,3 +48,7 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   WebStorm lists them only with "Show Dynamic Usages" on (#196). `usage-Discord.send` has a
   `notes` entry that names `NotificationProvider.send`, with "0 of the 10 usages have match
   BASE": the search of `Discord.send` itself found the 10 calls first.
+- **uptime-kuma: `explain-sleep-pos` differed one time.** In one run on 2026-11-17 the
+  `signature` of this row differed from the expected row only in a leading word `export`
+  (expected: `function sleep(ms: number): Promise<unknown>`). The cause is not known. Do not
+  bless the other form: run the row again, and add a second observation to this note.
