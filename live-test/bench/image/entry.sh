@@ -1,12 +1,13 @@
 #!/bin/bash
 # Entry point of a product image. It lives in /home/ubuntu/.init/ with the aids (aids/).
-#   BENCH_SLOT  required: the slot id of a tree, the folder /home/ubuntu/dev/ws/<slot id>/<product>
+#   BENCH_SLOT  required: the slot id of a tree, the folder <slots root>/<slot id>/<product>
 #   BENCH_AID   none (default), skill (the skill folder into <tree>/.claude/skills/idesense/)
 #               or rule (rule.txt as <tree>/CLAUDE.md)
 # It installs the aid, removes each other slot folder and its own folder, unsets each variable whose
 # name starts with BENCH, and runs `claude` in the tree with each argument of the container command.
 # An unknown slot or aid exits 2 before any removal, and so does a copy of this script that is not
-# in its init folder. BENCH_SLOTS_ROOT and BENCH_INIT are set only by the unit tests.
+# in its init folder. The image sets BENCH_SLOTS_ROOT, the slots root (default /home/ubuntu/dev/ws);
+# BENCH_INIT is set only by the unit tests.
 # The body is one function, called in the last line: the removal of this file does not break the run.
 
 main() {

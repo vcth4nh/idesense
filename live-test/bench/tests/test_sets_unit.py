@@ -12,7 +12,7 @@ from unittest import mock
 from bench import sets as challenges
 from common import keyrecord as keys
 
-ROOT = "/home/ubuntu/dev/ws/1a2b/caddy"
+ROOT = "/srv/ws/1a2b/caddy"
 HEAD = f"The repository at {ROOT} is a checkout of the project caddy. Work only with this checkout."
 TAIL = 'Answer with JSON only: {"sites": ["<path relative to the repository root>:<line number>", ...]}'
 BUILD = " A file counts also when the build for this machine does not compile it."

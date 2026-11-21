@@ -208,8 +208,8 @@ def build(product: str) -> dict:
     slots = image_slots(product)
     ctx = make_context(product, slots=slots)
     name = image_name(product)
-    subprocess.run(["docker", "build", "--progress=plain", "--build-arg", f"PRODUCT={product}", "-t", name, ctx],
-                   check=True)
+    subprocess.run(["docker", "build", "--progress=plain", "--build-arg", f"PRODUCT={product}",
+                    "--build-arg", f"SLOTS_ROOT={trees.SLOTS_ROOT}", "-t", name, ctx], check=True)
     image_id = subprocess.run(["docker", "image", "inspect", "-f", "{{.Id}}", name], check=True,
                               capture_output=True, text=True).stdout.strip()
 

@@ -3,8 +3,8 @@
 The fake `docker` writes its arguments and the value of ANTHROPIC_API_KEY in its environment to a log file, prints a
 stream-json fixture of tests/fixtures/stream/, and exits. For a route URL in its arguments it reads the route file and
 writes four lines to the proxy log of the route, as the proxy would. No test starts a container, calls an IDE or the
-proxy, or reads the real key file: the paths of the runner point into a temporary folder, `check_ide` and
-`proxy_healthy` are fakes, and the key is a fake value.
+proxy, or reads the real key file: the paths of the runner, the data root of the lock and the secret file point into
+a temporary folder, `check_ide`, `ide_version` and `proxy_healthy` are fakes, and the key is a fake value.
 """
 import contextlib
 import io
@@ -21,10 +21,14 @@ from unittest import mock
 
 from bench import proxy, runner
 from bench import sets as challenges
+from common import lock, mcp, settings, trees
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, "fixtures", "stream")
-ROOT = "/home/ubuntu/dev/ws/0000/beets"
+ROOT = "/srv/ws/0000/beets"  # the slot path of the tree in the stream fixtures
+VERSION = "2.1.1-bench.f4ff0a2"  # the plugin version of the fake IDE
+MACHINE_LEAK_WORDS = runner.LEAK_WORDS  # the words of this machine; each test has the words of a sample machine
+LEAK_WORDS = ("idesense-bench", "-plant-", "BENCH_", "/srv/repo/")
 SERVER = "pycharm-idesense"
 FAKE_KEY = "sk-fake-0123456789abcdef-test-only"
 MODEL = "claude-opus-5-5"
@@ -107,14 +111,15 @@ class RunnerCase(unittest.TestCase):
         os.makedirs(t("proxy", "log"))
         self.routes, self.log_dir, self.docker_log = t("proxy", "routes.json"), t("proxy", "log"), t("docker.log")
         write(t("bin", "docker"), FAKE_DOCKER.replace("{python}", sys.executable)
-              .replace("{version}", runner.PLUGIN_VERSION))
+              .replace("{version}", VERSION))
         os.chmod(t("bin", "docker"), stat.S_IRWXU)
         self.runs = t("runs")
         self.ide = []
         for name, value in (("RUNS", self.runs), ("IMAGES", t("images")), ("ROUTES_FILE", self.routes),
-                            ("PROXY_LOG_DIR", self.log_dir), ("SLOTS_FILE", t("slots.json")), ("KEY_FILE", t("key")),
-                            ("ADDITIONS_FILE", t("additions.json")),
-                            ("check_ide", self.fake_ide), ("proxy_healthy", lambda *a, **k: True)):
+                            ("PROXY_LOG_DIR", self.log_dir), ("SLOTS_FILE", t("slots.json")),
+                            ("ADDITIONS_FILE", t("additions.json")), ("check_ide", self.fake_ide),
+                            ("ide_version", self.fake_version), ("proxy_healthy", lambda *a, **k: True),
+                            ("LEAK_WORDS", LEAK_WORDS)):
             p = mock.patch.object(runner, name, value)
             p.start()
             self.addCleanup(p.stop)
@@ -124,7 +129,8 @@ class RunnerCase(unittest.TestCase):
             self.addCleanup(p.stop)
         env = mock.patch.dict(os.environ, {"PATH": t("bin") + os.pathsep + os.environ.get("PATH", ""),
                                            "FAKE_DOCKER_LOG": self.docker_log, "FAKE_ROUTES": self.routes,
-                                           "FAKE_PROXY_LOG_DIR": self.log_dir})
+                                           "FAKE_PROXY_LOG_DIR": self.log_dir, "BENCH_ROOT": self.tmp,
+                                           "BENCH_SECRET_FILE": t("key")})
         env.start()
         self.addCleanup(env.stop)
         os.environ.pop("ANTHROPIC_API_KEY", None)
@@ -132,7 +138,11 @@ class RunnerCase(unittest.TestCase):
     def fake_ide(self, url, root, timeout):
         self.assertEqual(ROOT, root)
         self.assertEqual(runner.IDE_URLS["beets"], url)
-        return self.ide.pop(0) if self.ide else (runner.PLUGIN_VERSION, None)
+        return self.ide.pop(0) if self.ide else (VERSION, None)
+
+    def fake_version(self, url):
+        self.assertEqual(runner.IDE_URLS["beets"], url)
+        return VERSION
 
     def main(self, *argv):
         out, err = io.StringIO(), io.StringIO()
@@ -318,7 +328,7 @@ class CommandTest(RunnerCase):
 
 class CaddyCase(RunnerCase):
     """A RunnerCase that also makes the run options of a caddy challenge."""
-    GO_ROOT = "/home/ubuntu/dev/ws/0001/caddy"
+    GO_ROOT = "/srv/ws/0001/caddy"
     GO_SERVER = "goland-idesense"
     GO_CHALLENGE = {"id": "caddy-refs-Helper", "product": "caddy", "tree": "caddy", "family": "refs",
                     "keys": "caddy/test.jsonl", "key_id": "go:example.com/demo.Helper", "sample": "hard",
@@ -804,9 +814,8 @@ class RunTest(RunnerCase):
         self.assertEqual({"ToolSearch": 1, find: 2, "Grep": 1, "Read": 1, "StructuredOutput": 1}, rec["tools"])
         self.assertEqual(["ToolSearch", find, "Grep", find, "Read"], rec["first_tools"])
         self.assertEqual(2, rec["mcp_calls"])
-        self.assertEqual({w: 0 for w in runner.LEAK_WORDS}, rec["leak_words"])
-        self.assertEqual((runner.PLUGIN_VERSION, runner.PLUGIN_VERSION),
-                         (rec["plugin_version_start"], rec["plugin_version_end"]))
+        self.assertEqual({w: 0 for w in LEAK_WORDS}, rec["leak_words"])
+        self.assertEqual((VERSION, VERSION), (rec["plugin_version_start"], rec["plugin_version_end"]))
         self.assertEqual("sha256:feed", rec["image_id"])
         self.assertEqual(list(runner.RUN_FIELDS), list(rec))
         folder = self.folder("P")
@@ -891,13 +900,15 @@ class RunTest(RunnerCase):
 
     def test_invalid_when_version_differs(self):
         self.ide = [("2.1.0", None)]
-        code, rec, _, _ = self.start("P")
+        code, rec, _, _ = self.start("P", "-plugin-version", VERSION)
         self.assertEqual((0, "invalid"), (code, rec["outcome"]))
         self.assertIn("2.1.0", rec["reason"])
         self.assertEqual([], self.runs_of_docker(), "no container starts")
         self.assertEqual({}, self.routes_now())
-        cases = (([(runner.PLUGIN_VERSION, "isDumbMode is True")], {}, "not ready"),
-                 ([(runner.PLUGIN_VERSION, None), ("2.1.0", None)], {}, "at the end"),
+        # With no -plugin-version, the version of the IDE at the start is the expected version.
+        cases = (([(VERSION, "isDumbMode is True")], {}, "not ready"),
+                 ([(VERSION, None), ("2.1.0", None)], {}, "at the end"),
+                 ([("2.1.0", None), (VERSION, None)], {}, "at the end"),
                  ([], {"proxy_status": 502}, "no answer from the IDE"),
                  ([], {"proxy_version": "2.1.0"}, "2.1.0"))
         for ide, fake, word in cases:
@@ -919,19 +930,53 @@ class RunTest(RunnerCase):
             code, rec, _, _ = self.start("C", fixture=self.c_ok())
             self.assertEqual((0, "ok"), (code, rec["outcome"]))
 
+    def test_run_refuses_another_version(self):
+        self.ide = [("2.0", None)]
+        code, rec, out, err = self.start("P", "-plugin-version", "1.0")
+        self.assertEqual((0, "invalid"), (code, rec["outcome"]), err)
+        self.assertEqual("plugin version '2.0' at the start, expected 1.0", rec["reason"])
+        self.assertEqual(("2.0", None), (rec["plugin_version_start"], rec["plugin_version_end"]))
+        self.assertIn("2.0", out)
+        self.assertIn("1.0", out)
+        self.assertEqual([], self.runs_of_docker(), "no container command")
+        self.assertEqual({}, self.routes_now())
+
     def test_missing_key_file_starts_nothing(self):
-        os.unlink(runner.KEY_FILE)
+        os.unlink(os.environ["BENCH_SECRET_FILE"])
         code, rec, _, err = self.start("C")
         self.assertEqual(2, code)
         self.assertIn("absent", err)
+        del os.environ["BENCH_SECRET_FILE"]
+        code, rec, _, err = self.start("C")
+        self.assertEqual(2, code)
+        self.assertIn("BENCH_SECRET_FILE", err)
         self.assertEqual([], self.docker_calls())
 
+    def test_busy_lock_starts_nothing(self):
+        with lock.ide_lock("audit.symbols run /x/out"):
+            for argv in (self.run_args("P"), ["batch", "-plan", self.set_file, "-batch", "b1"]):
+                code, out, err = self.main(*argv)
+                self.assertEqual(2, code, argv)
+                self.assertIn("audit.symbols run /x/out", err)
+                self.assertIn(f"pid {os.getpid()}", err)
+                self.assertIn("no run starts", err)
+        self.assertEqual([], self.docker_calls(), "no container")
+        self.assertFalse(os.path.exists(self.routes), "no route")
+        self.assertFalse(os.path.exists(self.runs))
+        # A dry run uses no IDE and takes no lock.
+        with lock.ide_lock("x"):
+            self.dry("P")
+        # Free again: the run takes the lock and runs.
+        code, rec, _, err = self.start("P")
+        self.assertEqual((0, "ok"), (code, rec["outcome"]), err)
+
     def test_leak_words_are_counted(self):
+        self.assertEqual((os.path.basename(trees.BENCH), "-plant-", "BENCH_", settings.repo_root() + "/"),
+                         MACHINE_LEAK_WORDS)
         code, rec, _, _ = self.start("C", fixture=self.c_ok(), extra=json.dumps(
-            {"type": "user", "x": "/home/ubuntu/dev/idesense-bench/trees/caddy-plant-2 BENCH_SLOT"}))
+            {"type": "user", "x": "/srv/idesense-bench/trees/caddy-plant-2 BENCH_SLOT"}))
         self.assertEqual("ok", rec["outcome"])
-        self.assertEqual({"idesense-bench": 1, "-plant-": 1, "BENCH_": 1, "/home/ubuntu/dev/idesense/": 0},
-                         rec["leak_words"])
+        self.assertEqual({"idesense-bench": 1, "-plant-": 1, "BENCH_": 1, "/srv/repo/": 0}, rec["leak_words"])
 
 
 class McpStatusTest(RunnerCase):
@@ -1047,7 +1092,7 @@ class ApiErrorTest(RunnerCase):
         code, rec, _, _ = self.start("C", fixture="auth_error.jsonl", exit=1)
         self.assertEqual((3, "api_error"), (code, rec["outcome"]))
         # The IDE check at the end and the proxy log do not replace it either.
-        self.ide = [(runner.PLUGIN_VERSION, None), ("2.1.0", "isDumbMode is True")]
+        self.ide = [(VERSION, None), ("2.1.0", "isDumbMode is True")]
         code, rec, _, _ = self.start("PF", fixture="auth_error.jsonl", exit=1, proxy_status=502)
         self.assertEqual((3, "api_error", "2.1.0"), (code, rec["outcome"], rec["plugin_version_end"]))
         self.assertEqual(self.REASON, rec["reason"])
@@ -1305,6 +1350,44 @@ class BatchTest(RunnerCase):
         plan = self.plan({"arm": "C", "dry-run": True})
         code, _, err = self.main("batch", "-plan", plan, "-batch", "b1")
         self.assertEqual(2, code)
+        plan = self.plan({"arm": "C", "plugin-version": "1.0"})
+        code, _, err = self.main("batch", "-plan", plan, "-batch", "b1")
+        self.assertEqual(2, code)
+        self.assertIn("plugin-version", err)
+
+    def test_batch_takes_the_version_of_the_ide(self):
+        plan = self.plan({"arm": "C"}, {"arm": "P"}, {"arm": "PF"})
+        runs, reads = [], []
+
+        def run_one(args):
+            runs.append((args.plugin_version, len(reads)))  # the expected version, the reads before the run
+            return self.fake_record(args, 0, "ok", None)
+
+        def version(url):
+            reads.append(url)
+            return "9.9.9-bench.abc1234"
+
+        def no_version(url):
+            raise mcp.McpError("transport", "transport_error: connection refused")
+
+        with mock.patch.object(runner, "run_one", run_one), mock.patch.object(runner, "ide_version", version):
+            code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
+            self.assertEqual(0, code, err)
+            self.assertEqual([("9.9.9-bench.abc1234", 1)] * 3, runs, "each planned run, after one read")
+            self.assertEqual([runner.IDE_URLS["beets"]], reads)
+            self.assertIn("plugin version 9.9.9-bench.abc1234 of the IDE of beets", out)
+            # With the option, the batch reads no version and each run gets the option.
+            runs.clear()
+            reads.clear()
+            code, _, err = self.main("batch", "-plan", plan, "-batch", "b2", "-jobs", "1", "-plugin-version", "1.2.3")
+            self.assertEqual(0, code, err)
+            self.assertEqual(([("1.2.3", 0)] * 3, []), (runs, reads))
+        runs.clear()
+        with mock.patch.object(runner, "run_one", run_one), mock.patch.object(runner, "ide_version", no_version):
+            code, _, err = self.main("batch", "-plan", plan, "-batch", "b3", "-jobs", "1")
+        self.assertEqual(2, code)
+        self.assertIn("gives no plugin version", err)
+        self.assertEqual([], runs, "no run starts")
 
 
 class HandshakeTest(RunnerCase):

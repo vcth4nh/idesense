@@ -8,7 +8,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from common import trees
+from common import settings, trees
 
 TREE_NAMES = ["caddy", "caddy-plant-1", "caddy-plant-2", "caddy-plant-3",
               "beets", "beets-plant-1", "beets-plant-2", "beets-plant-3"]
@@ -117,13 +117,14 @@ class SlotIdTest(unittest.TestCase):
         self.assertEqual("3e9c", trees.slot_id("caddy-plant-2"))
 
     def test_slot_path_has_product_leaf_and_no_tree_name(self):
-        self.assertEqual("/home/ubuntu/dev/ws", trees.SLOTS_ROOT)
-        self.assertEqual("/home/ubuntu/dev/idesense-bench/trees/slots.json", trees.SLOTS_FILE)
+        self.assertEqual(settings.slots_root(), trees.SLOTS_ROOT)
+        self.assertEqual(os.path.join(settings.data_root(), "trees", "slots.json"), trees.SLOTS_FILE)
+        self.assertEqual(os.path.join(trees.SLOTS_ROOT, "3e9c", "caddy"), trees.slot_path("caddy-plant-2"))
         for tree in TREE_NAMES:
             product = tree.split("-", 1)[0]
             self.assertEqual(product, trees.product_of(tree), tree)
-            path = trees.slot_path(tree)
-            self.assertEqual(os.path.join("/home/ubuntu/dev/ws", trees.slot_id(tree), product), path)
+            path = trees.slot_path(tree, root="/srv/ws")
+            self.assertEqual(os.path.join("/srv/ws", trees.slot_id(tree), product), path)
             for word in ("plant", "bench", "idesense"):
                 self.assertNotIn(word, path, tree)
         self.assertEqual("/r/3e9c/caddy", trees.slot_path("caddy-plant-2", root="/r"))

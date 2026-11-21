@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import os
 import random
@@ -11,6 +13,7 @@ from unittest import mock
 
 from audit import symbols as audit
 from common import keyrecord as keys
+from common import lock
 from common.mcp import McpClient
 
 
@@ -645,6 +648,26 @@ class MarksTest(unittest.TestCase):
 
 
 class RunTest(unittest.TestCase):
+    def setUp(self):
+        # The lock of `run` goes below a temporary data root.
+        root = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, root)
+        env = mock.patch.dict(os.environ, {"BENCH_ROOT": root})
+        env.start()
+        self.addCleanup(env.stop)
+
+    def test_run_refuses_a_busy_lock(self):
+        d, path = self.keyfile([record([site("a.go", 3)])])
+        server, _ = fake(self, lambda tool, args: page([]))
+        out = os.path.join(d, "audit")
+        err = io.StringIO()
+        with lock.ide_lock("bench.runner batch b1"), contextlib.redirect_stderr(err):
+            self.assertEqual(2, audit.main(["run", "-keys", path, "-url", server.url, "-project", "/p",
+                                            "-n", "10", "-seed", "1", "-repeats", "1", "-out", out]))
+        self.assertIn("bench.runner batch b1", err.getvalue())
+        self.assertEqual(0, server.requests)
+        self.assertFalse(os.path.exists(out))
+
     def keyfile(self, records):
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d)

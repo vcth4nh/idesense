@@ -55,12 +55,12 @@ import re
 import sys
 
 from common import keyrecord as keys
+from common import trees
 from common.keyrecord import IMPLEMENTER_CLASSES, REQUIRED, RELS, rel_of
 
-BENCH = "/home/ubuntu/dev/idesense-bench"
-KEYS = os.path.join(BENCH, "keys")
-TREES = os.path.join(BENCH, "trees")
-AUDIT = os.path.join(BENCH, "audit")
+KEYS = os.path.join(trees.BENCH, "keys")
+TREES = os.path.join(trees.BENCH, "trees")
+AUDIT = os.path.join(trees.BENCH, "audit")
 FIELDS = ("id", "product", "tree", "family", "keys", "key_id", "sample", "note")
 FAMILIES = ("refs", "rename", "impls", "callers", "dyncallers")
 CALLER_FAMILIES = ("callers", "dyncallers")  # an answer line is a declaration: the text scan measures nothing

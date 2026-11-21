@@ -50,7 +50,7 @@ from common import keyrecord as keys
 from common import trees
 
 RUNS = runner.RUNS
-SET_FILE = os.path.join(runner.BENCH, "challenges", "pilot.jsonl")
+SET_FILE = os.path.join(trees.BENCH, "challenges", "pilot.jsonl")
 SLOTS_FILE = trees.SLOTS_FILE
 
 # The arms whose labels have the base PF too (`paired`), in the order of runner.ARMS.

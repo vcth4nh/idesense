@@ -2,11 +2,13 @@
 # check=skip=InvalidDefaultArgInFrom
 # Product image of the agent benchmark (idesense-bench-<product>:p2).
 # `python3 -m bench.images build <product>` makes the build context (this file, entry.sh, aids/,
-# ws/<slot id>/<product>/) and builds with `--build-arg PRODUCT=<caddy|beets>`. The trees come from their
-# master manifests, with no agent instruction file of the product, no .idea, no .venv and no .git. In the
-# image each tree is at its slot path /home/ubuntu/dev/ws/<slot id>/<product>, as on the host.
+# ws/<slot id>/<product>/) and builds with `--build-arg PRODUCT=<caddy|beets>` and
+# `--build-arg SLOTS_ROOT=<the slots root of the host>`. The trees come from their master manifests, with no
+# agent instruction file of the product, no .idea, no .venv and no .git. In the image each tree is at its slot
+# path SLOTS_ROOT/<slot id>/<product>, as on the host.
 # PRODUCT has no default on purpose (so the check above is off): a build without it fails.
 ARG PRODUCT
+ARG SLOTS_ROOT=/home/ubuntu/dev/ws
 
 FROM ubuntu:24.04 AS base
 ARG DEBIAN_FRONTEND=noninteractive
@@ -32,8 +34,9 @@ RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
  && npm cache clean --force
 ENV DISABLE_AUTOUPDATER=1
 
-RUN mkdir -p /home/ubuntu/dev/ws \
- && chown -R ubuntu:ubuntu /home/ubuntu
+ARG SLOTS_ROOT
+RUN mkdir -p "${SLOTS_ROOT}" \
+ && chown -R ubuntu:ubuntu /home/ubuntu "${SLOTS_ROOT}"
 
 # caddy: Go from the official archive; the SHA-256 is that of https://go.dev/dl/?mode=json&include=all.
 FROM base AS caddy-tools
@@ -57,9 +60,10 @@ RUN curl -fsSLo /tmp/uv.tar.gz "https://github.com/astral-sh/uv/releases/downloa
 
 FROM ${PRODUCT}-tools AS product
 ARG PRODUCT
-COPY --chown=ubuntu:ubuntu ws/ /home/ubuntu/dev/ws/
+ARG SLOTS_ROOT
+COPY --chown=ubuntu:ubuntu ws/ ${SLOTS_ROOT}/
 USER ubuntu
-WORKDIR /home/ubuntu/dev/ws
+WORKDIR ${SLOTS_ROOT}
 
 # Each tree: a new repository with one commit of all its files.
 RUN <<'EOF'
@@ -101,7 +105,9 @@ for t in */*/; do
 done
 EOF
 
-# The entry script and the aids; the entry script removes this folder before it starts claude.
+# The entry script and the aids; the entry script removes this folder before it starts claude. The entry
+# script finds the slots in BENCH_SLOTS_ROOT, and unsets it before it starts claude.
+ENV BENCH_SLOTS_ROOT=${SLOTS_ROOT}
 RUN mkdir /home/ubuntu/.init
 COPY --chown=ubuntu:ubuntu --chmod=0755 entry.sh /home/ubuntu/.init/entry.sh
 COPY --chown=ubuntu:ubuntu aids/ /home/ubuntu/.init/aids/

@@ -11,19 +11,22 @@
 #   prepare does each step of start before the launch (for the tests). dry-run does each check of
 #   start and prints what start would do. It makes no folder, copies nothing and starts nothing.
 # Environment:
-#   BENCH_ROOT        the data root (default /home/ubuntu/dev/idesense-bench). Each project dir must be
+#   BENCH_ROOT        the data root (default $HOME/dev/idesense-bench). Each project dir must be
 #                     below BENCH_ROOT/trees/ or below BENCH_SLOTS/, each folder of the instance below
 #                     BENCH_ROOT/ide/.
-#   BENCH_SLOTS       the slots root (default /home/ubuntu/dev/ws; common.trees slot makes the slots). When
+#   BENCH_SLOTS       the slots root (default $HOME/dev/ws; common.trees slot makes the slots). When
 #                     a project dir is below it, start adds it to the trusted paths of trusted-paths.xml.
-#   BENCH_APPS        the Toolbox apps folder (default /home/ubuntu/.local/share/JetBrains/Toolbox/apps)
+#   BENCH_APPS        the Toolbox apps folder (default $HOME/.local/share/JetBrains/Toolbox/apps)
 #   BENCH_PLUGIN_ZIP  the IdeSense distribution zip that start unpacks into the plugins folder
+#   BENCH_IDE_XMX     the heap of the instance (default 4096m; digits, then m or g): start writes
+#                     -Xmx<value> as the last line of ide.vmoptions. Another value is refused before any change.
 #   BENCH_PORT        for the tests only: each port other than the port of the IDE is refused
 set -euo pipefail
 
-BENCH_ROOT="${BENCH_ROOT:-/home/ubuntu/dev/idesense-bench}"
-BENCH_SLOTS="${BENCH_SLOTS:-/home/ubuntu/dev/ws}"
-BENCH_APPS="${BENCH_APPS:-/home/ubuntu/.local/share/JetBrains/Toolbox/apps}"
+BENCH_ROOT="${BENCH_ROOT:-$HOME/dev/idesense-bench}"
+BENCH_SLOTS="${BENCH_SLOTS:-$HOME/dev/ws}"
+BENCH_APPS="${BENCH_APPS:-$HOME/.local/share/JetBrains/Toolbox/apps}"
+BENCH_IDE_XMX="${BENCH_IDE_XMX:-4096m}"
 KEYS=(config system plugins log)
 
 die() { echo "bench-ide: $*" >&2; exit 1; }
@@ -94,6 +97,7 @@ tree_pids() {  # $1 and its descendants, by the parent links of the process tabl
 
 # --- The options file and the check of the path options (for the file and for the java command line).
 path_lines() { local k; for k in "${KEYS[@]}"; do printf -- '-Didea.%s.path=%s\n' "$k" "${P[$k]}"; done; }
+added_lines() { path_lines; printf -- '-Xmx%s\n' "$BENCH_IDE_XMX"; }  # the heap line is last: the last -Xmx wins
 check_path_args() {
   # stdin: one argument on each line. Each -Didea.<key>.path= occurs one time, with the folder of this instance.
   local text k
@@ -174,6 +178,7 @@ if [ "$cmd" = status ]; then
 fi
 
 # --- start, prepare and dry-run: the checks before the launch
+[[ "$BENCH_IDE_XMX" =~ ^[0-9]+[mg]$ ]] || die "BENCH_IDE_XMX '$BENCH_IDE_XMX' is not a heap size such as 4096m or 6g: refused"
 slots="$(realpath -m -- "$BENCH_SLOTS")"
 [ "$#" -ge 1 ] || die "give one project dir or more, below $root/trees/ or $slots/"
 PROJECTS=()
@@ -220,7 +225,7 @@ if [ -d "${P[config]}" ]; then
   grep -Eq "name=\"serverPort\" value=\"$port\"" "$MCP_XML" 2>/dev/null \
     || die "$MCP_XML does not set serverPort $port: refused"
 fi
-vmo_text() { cat "$BASE_VMO"; [ -z "$(tail -c 1 "$BASE_VMO")" ] || echo; path_lines; }
+vmo_text() { cat "$BASE_VMO"; [ -z "$(tail -c 1 "$BASE_VMO")" ] || echo; added_lines; }
 vmo_text | check_path_args || die "the options text for $VMO does not have the four path options exactly one time: refused"
 
 zip="${BENCH_PLUGIN_ZIP:-}"
@@ -232,7 +237,7 @@ if [ "$cmd" = dry-run ]; then
   echo "variable:       $envvar"
   echo "data folder:    $data"
   echo "vmoptions:      $VMO (a copy of $BASE_VMO and these lines)"
-  path_lines | sed 's/^/  /'
+  added_lines | sed 's/^/  /'
   echo "port:           $port (nothing listens; $URL)"
   echo "pid file:       $PIDF"
   if [ -d "${P[config]}" ]; then

@@ -3,10 +3,12 @@
     python3 -m audit.symbols run -keys <jsonl> -url <mcp url> -project <path> -n 200 -seed 1 -repeats 3 -out <dir>
     python3 -m audit.symbols disagreements -results <dir> -keys <jsonl> [-host-config linux]
 
-`run` refuses a folder that has `results.jsonl` or `results.jsonl.part` (exit code 2, no call to the
-IDE). It waits until the IDE is in smart mode (exit code 4 after `READY_TIMEOUT` seconds, with no
-result file). It reads `serverInfo.version` before the first probe and after the last one. It writes
-`results.jsonl` and `summary.md` into the folder. When the two versions differ, the first line of
+`run` holds the lock of the benchmark IDEs (`common.lock.ide_lock`) while it runs. When another holder
+has the lock, it prints its message and exits 2, with no call to the IDE. `run` refuses a folder that
+has `results.jsonl` or `results.jsonl.part` (exit code 2, no call to the IDE). It waits until the IDE
+is in smart mode (exit code 4 after `READY_TIMEOUT` seconds, with no result file). It reads
+`serverInfo.version` before the first probe and after the last one. It writes `results.jsonl` and
+`summary.md` into the folder. When the two versions differ, the first line of
 `summary.md` says so and the exit code is 3. `disagreements` reads `results.jsonl` and the key file,
 and writes `disagreements.jsonl` and `disagreements.md` (see `disagreements`).
 
@@ -64,6 +66,7 @@ import sys
 
 from common import keyrecord as keys
 from common.keyrecord import IMPLEMENTER_CLASSES, REQUIRED, RELS, rel_of
+from common.lock import Busy, ide_lock
 from common.mcp import READY_POLL, READY_TIMEOUT, McpClient, McpError, wait_ready
 
 USAGES = "ide_find_usages"
@@ -76,6 +79,7 @@ DEFINITION_SITES = 5
 OUTSIDE = (".venv/", "node_modules/", "vendor/", ".git/")
 NOT_READY = "index_not_ready"  # the error code of the plugin in dumb mode (McpExceptions.kt)
 EXIT_OLD_RESULTS = 2
+EXIT_BUSY = 2
 EXIT_VERSION_CHANGED = 3
 EXIT_NOT_READY = 4
 AUTO_CLASSES = ("absent", "config", "decoy", "error", "flake", "marked", "miss")
@@ -699,7 +703,14 @@ def main(argv: list[str] | None = None) -> int:
     dis.add_argument("-keys", required=True, help="the key file of the run (JSONL)")
     dis.add_argument("-host-config", default="linux", help="the build configuration of the IDE host")
     args = parser.parse_args(argv)
-    return _run(args) if args.command == "run" else _disagreements(args)
+    if args.command != "run":
+        return _disagreements(args)
+    try:
+        with ide_lock(f"audit.symbols run {args.out}"):
+            return _run(args)
+    except Busy as e:
+        print(f"{e}. No call to the IDE.", file=sys.stderr)
+        return EXIT_BUSY
 
 
 if __name__ == "__main__":

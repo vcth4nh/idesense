@@ -33,12 +33,14 @@ import shutil
 import subprocess
 import sys
 
+from common import settings
+
 WT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 REAL_PRODUCTS = os.path.join(WT, "live-test", "real-products")
-BENCH = "/home/ubuntu/dev/idesense-bench"
+BENCH = settings.data_root()
 TREES = os.path.join(BENCH, "trees")
 GIT_AUTHOR = ["-c", "user.name=bench", "-c", "user.email=bench@localhost"]
-SLOTS_ROOT = "/home/ubuntu/dev/ws"
+SLOTS_ROOT = settings.slots_root()
 SLOTS_FILE = BENCH + "/trees/slots.json"
 SLOT_AUTHOR = ["-c", "user.name=dev", "-c", "user.email=dev@localhost"]
 

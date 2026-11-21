@@ -2,8 +2,9 @@
 
     python3 -m bench.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL|PFG|PFI|PFS>
         -model <model> -batch <name> [-aid skill|rule] [-variant instructions|no-tool-search|guide]
-        [-stop-after-tools N] [-no-tools] [-env-scrub] [-n <run number>] [-dry-run]  (run from live-test)
-    python3 -m bench.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1]
+        [-stop-after-tools N] [-no-tools] [-env-scrub] [-n <run number>] [-plugin-version <text>] [-dry-run]
+        (run from live-test)
+    python3 -m bench.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1] [-plugin-version <text>]
     python3 -m bench.runner handshake -product <caddy|beets>
 
 Arms: `C` has no MCP server. `P` has the MCP server of the IDE of the product, through a route of the filter
@@ -45,12 +46,18 @@ Run id `<challenge>__<arm>[-<aid>][-<variant>][-no-tools][-stop-<N>][-scrub]__<m
 proxy log lines of the route of the run; empty for arm C) and `run.json` (RUN_FIELDS). `run.json` comes last: a
 folder with `run.json` holds a finished run, and `run` refuses it.
 
+A single `run` (not `-dry-run`) and `batch` hold the lock of the benchmark IDEs (`common.lock.ide_lock`) while they
+run; `batch` takes it one time for all its runs. When another holder has the lock, they print its message and exit 2,
+before any route or container exists.
+
 Guards of each run, in this order:
 - a plugin arm needs an answer from the proxy at HEALTH_URL; with no answer `run` exits 2 and starts nothing;
-- the key file KEY_FILE (`read_key`); a bad key file exits 2;
-- the IDE of the product (direct, not through the proxy): `serverInfo.version` must be PLUGIN_VERSION and
+- the key file `settings.secret_file()` (the variable BENCH_SECRET_FILE; `read_key`); no variable or a bad key file
+  exits 2;
+- the IDE of the product (direct, not through the proxy): `serverInfo.version` must be the expected version and
   `ide_index_status` must say smart mode (`common.mcp.wait_ready`, up to READY_TIMEOUT s); else the outcome is
-  `invalid` and no container starts;
+  `invalid` and no container starts. The expected version is the option `-plugin-version`; with no option, it is
+  the version of the IDE at the start of the run;
 - the wall-clock limit WALL_LIMIT: the runner kills the container (`docker kill`), the outcome is `timeout`;
 - the MCP servers of the init event (`mcp_status`): a plugin arm needs its server with the status CONNECTED, and
   arm C needs an empty list; else the outcome is `invalid` (not for `stopped`, `timeout` and `api_error`). With no
@@ -90,7 +97,10 @@ when no run starts, 9 for a key leak, and
 
 `batch`: each plan line is a JSON object with the options of `run` without the dash, for example
 `{"set": "<file>", "challenge": "caddy-refs-CA", "arm": "PS", "aid": "skill", "model": "claude-opus-5-5", "n": 1}`
-(a flag option has the value true). The runs of one challenge and one model are neighbours, in a random order
+(a flag option has the value true; no `batch`, `dry-run` or `plugin-version`). Each run of the batch gets the option
+`-plugin-version` of the batch. With no option, `batch` reads the version of the IDE of each product one time before
+its first run (`ide_version`), and each run of the product gets it as its expected version; an IDE that gives no
+version exits 2 before the first run. The runs of one challenge and one model are neighbours, in a random order
 (`-seed`); the groups keep the order of their first plan line. A run whose folder has `run.json` is skipped, except
 a record with the outcome `api_error` that a single `run` left: that folder moves to `<run id>.api-error-<k>/`. A run
 with the outcome `invalid` moves to `<run id>.invalid-<k>/` and runs again one time (a second `invalid` run stays). A
@@ -122,18 +132,16 @@ import urllib.parse
 
 from bench import proxy
 from bench import sets as challenges
-from common import mcp, trees
+from common import mcp, settings, trees
+from common.lock import Busy, ide_lock
 
-BENCH = "/home/ubuntu/dev/idesense-bench"
-RUNS = os.path.join(BENCH, "runs")
-IMAGES = os.path.join(BENCH, "images")
-ROUTES_FILE = os.path.join(BENCH, "proxy", "routes.json")
-PROXY_LOG_DIR = os.path.join(BENCH, "proxy", "log")
+RUNS = os.path.join(trees.BENCH, "runs")
+IMAGES = os.path.join(trees.BENCH, "images")
+ROUTES_FILE = os.path.join(trees.BENCH, "proxy", "routes.json")
+PROXY_LOG_DIR = os.path.join(trees.BENCH, "proxy", "log")
 SLOTS_FILE = trees.SLOTS_FILE
-KEY_FILE = "/home/ubuntu/dev/idesense/.local/.api-keys/vcth4nh"
 NOTES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "notes.json")
 
-PLUGIN_VERSION = "2.1.1-bench.f4ff0a2"
 IDE_URLS = {"caddy": "http://127.0.0.1:29374/mcp/streamable-http",
             "beets": "http://127.0.0.1:29372/mcp/streamable-http"}
 LANGS = {"caddy": "go", "beets": "python"}  # the language of a product: its key in NOTES_FILE
@@ -145,7 +153,7 @@ HANDSHAKE_LIMIT = 120
 ARMS = ("C", "P", "PS", "PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS")
 PLUGIN_ARMS = ("P", "PS", "PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS")
 PF_ARMS = ("PF", "PFN", "PFR", "PFL", "PFG", "PFI", "PFS")   # the arms with PF_SENTENCE in the prompt
-ADDITIONS_FILE = os.path.join(BENCH, "additions.json")
+ADDITIONS_FILE = os.path.join(trees.BENCH, "additions.json")
 ADDITION_TOOL = "ide_find_usages"
 ADDITION_FORMS = {"PFR": "rows", "PFL": "field"}
 ADDITION_FIELD = "nameOnlyMatches"
@@ -173,7 +181,7 @@ INSTRUCTIONS = ("This server gives the code analysis of a JetBrains IDE for the 
                 "definition, implementations, type and call hierarchies, symbol and file search. Its results come "
                 "from the IDE index and resolve names by their meaning, not by their text.")
 GUIDE_INSTRUCTIONS = "Use the tools of this server for code navigation in the open project. " + PFG_SENTENCE
-LEAK_WORDS = ("idesense-bench", "-plant-", "BENCH_", "/home/ubuntu/dev/idesense/")
+LEAK_WORDS = (os.path.basename(trees.BENCH), "-plant-", "BENCH_", settings.repo_root() + "/")
 RUN_FIELDS = ("id", "challenge", "arm", "aid", "variant", "no_tools", "stop_after_tools", "env_scrub", "model", "n",
               "image_id", "started", "seconds", "plugin_version_start", "plugin_version_end", "outcome", "reason",
               "exit_code", "cost_usd", "turns", "usage", "model_usage", "tools", "first_tools", "mcp_calls",
@@ -199,6 +207,8 @@ EXIT_CODES_BATCH = """exit codes:
   3: two API errors in one run; no new run starts
   9: a key leak; no new run starts"""
 RUN_FILES = ("transcript.jsonl", "stderr.txt", "proxy.jsonl")
+PLUGIN_VERSION_HELP = ("the expected serverInfo.version of the IDE (default: the version of the IDE at the start of "
+                       "the run; for batch, before the first run)")
 
 
 class SetupError(Exception):
@@ -218,8 +228,9 @@ def claude_flags(prompt: str, model: str, schema: dict) -> list[str]:
 
 
 def read_key(path: str | None = None) -> str:
-    """The API key: the text of the key file without white space at the two ends."""
-    path = path or KEY_FILE
+    """The API key: the text of the key file (default: `settings.secret_file()`) without white space at the two
+    ends."""
+    path = path or settings.secret_file()
     try:
         with open(path, encoding="utf-8") as f:
             text = f.read().strip()
@@ -526,20 +537,25 @@ def check_ide(url: str, root: str, timeout: float) -> tuple[str | None, str | No
     return version, mcp.wait_ready(client, timeout, mcp.READY_POLL)
 
 
-def _ide_problem(version: str | None, reason: str | None, when: str) -> str | None:
-    if version != PLUGIN_VERSION:
-        return f"plugin version {version!r} at the {when}, expected {PLUGIN_VERSION}" + (f" ({reason})" if reason else "")
+def ide_version(url: str) -> str:
+    """`serverInfo.version` of the IDE at the URL (a direct read-only call). McpError when the IDE gives none."""
+    return mcp.McpClient(url, "").server_version()
+
+
+def _ide_problem(version: str | None, reason: str | None, when: str, expected: str | None) -> str | None:
+    if version != expected:
+        return f"plugin version {version!r} at the {when}, expected {expected}" + (f" ({reason})" if reason else "")
     if reason:
         return f"the IDE is not ready at the {when}: {reason}"
     return None
 
 
-def _proxy_log_problem(lines: list[dict]) -> str | None:
+def _proxy_log_problem(lines: list[dict], expected: str) -> str | None:
     """An upstream failure (502) or another plugin version in the proxy log lines of the run, or None."""
     for line in lines:
         if line.get("status") == 502:
             return f"the proxy got no answer from the IDE ({line.get('method')} at {line.get('ts')})"
-        if line.get("server_version") not in (None, PLUGIN_VERSION):
+        if line.get("server_version") not in (None, expected):
             return f"the proxy saw the plugin version {line.get('server_version')!r}"
     return None
 
@@ -670,7 +686,7 @@ def run_one(args) -> tuple[int, dict | None]:
         return 2, None
     try:
         key = read_key()
-    except KeyFileError as e:
+    except (KeyFileError, ValueError) as e:
         print(f"runner: {run_id}: {e}; no run starts", file=sys.stderr)
         return 2, None
 
@@ -683,7 +699,8 @@ def run_one(args) -> tuple[int, dict | None]:
     ide_url, root = IDE_URLS[run["product"]], run["root"]
     version, reason = check_ide(ide_url, root, READY_TIMEOUT)
     rec["plugin_version_start"] = version
-    problem = _ide_problem(version, reason, "start")
+    expected = args.plugin_version or version
+    problem = _ide_problem(version, reason, "start", expected)
     if problem:
         rec.update(outcome="invalid", reason=problem)
         _write_json(os.path.join(folder, "run.json"), rec)
@@ -738,7 +755,7 @@ def run_one(args) -> tuple[int, dict | None]:
 
     version, reason = check_ide(ide_url, root, 0)
     rec["plugin_version_end"] = version
-    problem = _ide_problem(version, reason, "end") or _proxy_log_problem(proxy_lines)
+    problem = _ide_problem(version, reason, "end", expected) or _proxy_log_problem(proxy_lines, expected)
     if problem and rec["outcome"] != "api_error":
         rec.update(outcome="invalid", reason=problem)
     rec["leak_words"] = _leak_words(files["transcript.jsonl"])
@@ -766,8 +783,9 @@ def run_one(args) -> tuple[int, dict | None]:
 
 def plan_args(line: dict, batch: str) -> argparse.Namespace:
     """The `run` options of one plan line. SetupError for a line that is no plan line."""
-    if not isinstance(line, dict) or {"batch", "dry-run"} & set(line):
-        raise SetupError(f"a plan line is a JSON object with the options of run, without batch and dry-run: {line!r}")
+    if not isinstance(line, dict) or {"batch", "dry-run", "plugin-version"} & set(line):
+        raise SetupError("a plan line is a JSON object with the options of run, without batch, dry-run and "
+                         f"plugin-version: {line!r}")
     argv = []
     for name, value in line.items():
         if value is True:
@@ -827,7 +845,17 @@ def _finished(folder: str) -> bool:
     return True
 
 
-def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1) -> int:
+def _product_of(args) -> str | None:
+    """The product of the challenge of a run; None when the set has no single challenge with its id (then `prepare`
+    refuses the run)."""
+    try:
+        found = [ch["product"] for ch in challenges.load(args.set) if ch["id"] == args.challenge]
+    except (OSError, ValueError, TypeError):
+        return None
+    return found[0] if len(found) == 1 else None
+
+
+def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_version: str | None = None) -> int:
     try:
         with open(plan, encoding="utf-8") as f:
             runs = [plan_args(json.loads(line), batch) for line in f if line.strip()]
@@ -840,6 +868,18 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1) -> int:
         return 2
     todo = [a for a in batch_order(runs, seed) if not _finished(os.path.join(RUNS, batch, run_id_of(a)))]
     print(f"batch {batch}: {len(runs)} runs, {len(runs) - len(todo)} finished before, {len(todo)} to run", flush=True)
+    versions = {}  # product -> the version of its IDE before the first run
+    for a in todo:
+        product = None if plugin_version else _product_of(a)
+        if product in IDE_URLS and product not in versions:
+            try:
+                versions[product] = ide_version(IDE_URLS[product])
+            except mcp.McpError as e:
+                print(f"runner: batch {batch}: the IDE of {product} gives no plugin version ({e}); no run starts",
+                      file=sys.stderr)
+                return 2
+            print(f"batch {batch}: plugin version {versions[product]} of the IDE of {product}", flush=True)
+        a.plugin_version = plugin_version or versions.get(product)
     queue, lock, stop, codes, api_reasons = iter(todo), threading.Lock(), threading.Event(), [], []
 
     def worker():
@@ -956,6 +996,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("-env-scrub", action="store_true", dest="env_scrub",
                      help="-e CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 (no credential in the environment of Bash)")
     run.add_argument("-n", type=int, default=1, help="run number (default 1)")
+    run.add_argument("-plugin-version", dest="plugin_version", help=PLUGIN_VERSION_HELP)
     run.add_argument("-dry-run", action="store_true", dest="dry_run")
     batch = sub.add_parser("batch", help="the runs of a plan file", allow_abbrev=False, epilog=EXIT_CODES_BATCH,
                            formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -963,6 +1004,7 @@ def _parser() -> argparse.ArgumentParser:
     batch.add_argument("-batch", required=True)
     batch.add_argument("-jobs", type=int, default=2)
     batch.add_argument("-seed", type=int, default=1)
+    batch.add_argument("-plugin-version", dest="plugin_version", help=PLUGIN_VERSION_HELP)
     hs = sub.add_parser("handshake", help="Claude Code in the product image connects through the proxy",
                         allow_abbrev=False)
     hs.add_argument("-product", required=True, choices=sorted(IDE_URLS))
@@ -971,13 +1013,21 @@ def _parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
-    if args.command == "run":
-        return run_one(args)[0]
-    if args.command == "batch":
-        if not proxy.RUN_ID.fullmatch(args.batch):
-            print(f"runner: batch {args.batch!r}: use only the characters A-Z a-z 0-9 . _ -", file=sys.stderr)
-            return 2
-        return run_batch(args.plan, args.batch, args.jobs, args.seed)
+    try:
+        if args.command == "run":
+            if args.dry_run:
+                return run_one(args)[0]
+            with ide_lock(f"bench.runner run {args.batch}/{run_id_of(args)}"):
+                return run_one(args)[0]
+        if args.command == "batch":
+            if not proxy.RUN_ID.fullmatch(args.batch):
+                print(f"runner: batch {args.batch!r}: use only the characters A-Z a-z 0-9 . _ -", file=sys.stderr)
+                return 2
+            with ide_lock(f"bench.runner batch {args.batch}"):
+                return run_batch(args.plan, args.batch, args.jobs, args.seed, args.plugin_version)
+    except Busy as e:
+        print(f"runner: {e}; no run starts", file=sys.stderr)
+        return 2
     return handshake(args.product)
 
 

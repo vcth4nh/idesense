@@ -38,7 +38,7 @@ class BenchIdeTestCase(unittest.TestCase):
         self.tmp = os.path.realpath(tmp.name)
         self.root = os.path.join(self.tmp, "bench")
         self.apps = os.path.join(self.tmp, "apps")
-        # The data root is below HOME, as /home/ubuntu/dev/idesense-bench is below /home/ubuntu.
+        # The data root is below HOME, as the default $HOME/dev/idesense-bench.
         self.home = self.tmp
         self.marker = os.path.join(self.tmp, "launched")
         app = os.path.join(self.apps, "goland")
@@ -61,6 +61,7 @@ class BenchIdeTestCase(unittest.TestCase):
 
     def run_script(self, *args, **extra_env):
         env = dict(os.environ)
+        env.pop("BENCH_IDE_XMX", None)
         env.update(BENCH_ROOT=self.root, BENCH_APPS=self.apps, HOME=self.home,
                    PATH=self.fake_bin + os.pathsep + env["PATH"],
                    BENCH_PLUGIN_ZIP=os.path.join(self.tmp, "missing.zip"))
@@ -146,6 +147,21 @@ class DryRunTest(BenchIdeTestCase):
         self.assert_not_launched()
         self.assertEqual(all_paths(), before, "dry-run made a folder or a file")
 
+    def test_defaults_are_below_home(self):
+        root = os.path.join(self.home, "dev", "idesense-bench")
+        slot = os.path.join(self.home, "dev", "ws", "3e9c", "caddy")
+        os.makedirs(slot)
+        project = os.path.join(root, "trees", "p")
+        os.makedirs(project)
+        apps = os.path.join(self.home, ".local", "share", "JetBrains", "Toolbox", "apps")
+        os.makedirs(os.path.dirname(apps), exist_ok=True)
+        os.rename(self.apps, apps)
+        r = self.run_script("dry-run", "goland", project, slot, BENCH_ROOT="", BENCH_SLOTS="", BENCH_APPS="")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("-Didea.config.path=%s/ide/goland/config\n" % root, r.stdout)
+        self.assertIn(os.path.join(apps, "goland", "bin", "goland.sh"), r.stdout)
+        self.assertIn("  %s\n  %s\n" % (project, slot), r.stdout)
+
     def test_dry_run_refuses_a_listening_port(self):
         write(os.path.join(self.fake_bin, "ss"),
               "#!/bin/sh\necho 'LISTEN 0 511 127.0.0.1:29374 0.0.0.0:*'\n", 0o755)
@@ -224,6 +240,51 @@ class PrepareTest(BenchIdeTestCase):
         self.assertTrue(all(e.get("value") == "true" for e in entries))
 
 
+class HeapTest(BenchIdeTestCase):
+    """BENCH_IDE_XMX gives the last line -Xmx<value> of the vmoptions file of the instance (default 4096m)."""
+
+    def zip(self):
+        path = os.path.join(self.tmp, "plugin.zip")
+        with zipfile.ZipFile(path, "w") as z:
+            z.writestr("idesense/lib/idesense.jar", "")
+        return path
+
+    def vmoptions(self, **env):
+        r = self.run_script("prepare", "goland", self.project, BENCH_PLUGIN_ZIP=self.zip(), **env)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assert_not_launched()
+        with open(os.path.join(self.ide_dir, "ide.vmoptions"), encoding="utf-8") as f:
+            return f.read().splitlines()
+
+    def test_default_heap_is_the_last_line(self):
+        lines = self.vmoptions()
+        self.assertEqual(["-Xms128m", "-Xmx2048m"], lines[:2], "the copy of the options file of the install")
+        self.assertEqual("-Xmx4096m", lines[-1])
+        r = self.run_script("dry-run", "goland", self.project)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("  -Xmx4096m\n", r.stdout)
+
+    def test_heap_comes_from_the_variable(self):
+        self.assertEqual("-Xmx6g", self.vmoptions(BENCH_IDE_XMX="6g")[-1])
+        r = self.run_script("dry-run", "goland", self.project, BENCH_IDE_XMX="8192m")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("  -Xmx8192m\n", r.stdout)
+        self.assertNotIn("-Xmx4096m", r.stdout)
+
+    def test_bad_heap_value_is_refused_before_any_change(self):
+        zip_path = self.zip()
+        for value in ("4096", "4G", "-Xmx4g", "4g ", "4g\n-Xms1g", "m"):
+            for command in ("start", "prepare", "dry-run"):
+                with self.subTest(value=value, command=command):
+                    r = self.run_script(command, "goland", self.project, BENCH_IDE_XMX=value,
+                                        BENCH_PLUGIN_ZIP=zip_path)
+                    self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                    self.assertIn("BENCH_IDE_XMX", r.stderr)
+                    self.assertIn("refused", r.stderr)
+        self.assert_not_launched()
+        self.assertFalse(os.path.exists(self.ide_dir))
+
+
 class SlotsRootTest(BenchIdeTestCase):
     """A project dir below the slots root (BENCH_SLOTS) is accepted as one below BENCH_ROOT/trees/."""
 
@@ -285,7 +346,7 @@ class SlotsRootTest(BenchIdeTestCase):
             "slots root itself": ([self.slots], self.slots),
             "absent below the slots root": ([os.path.join(self.slots, "absent")], self.slots),
             "one bad of two": ([self.slot, elsewhere], self.slots),
-            # An empty BENCH_SLOTS gives the default /home/ubuntu/dev/ws, and the slot is not below it.
+            # An empty BENCH_SLOTS gives the default $HOME/dev/ws, and the slot is not below it.
             "below another slots root": ([self.slot], ""),
         }
         for name, (projects, slots) in cases.items():

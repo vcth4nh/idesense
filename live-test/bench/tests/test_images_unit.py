@@ -5,6 +5,7 @@ import stat
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from bench import images as image
 from common import trees
@@ -115,6 +116,36 @@ class ContextTest(TmpTestCase):
         self.assertEqual(["Dockerfile", "aids", "entry.sh", "ws"], sorted(os.listdir(ctx)))
         self.assertEqual({tree: {"slot": e["slot"], "path": e["path"]} for tree, e in slots.items()},
                          image.image_slots("caddy", slots))
+
+
+class BuildTest(unittest.TestCase):
+    def test_build_gives_the_slots_root_to_the_image(self):
+        calls = []
+
+        def run(cmd, **kwargs):
+            calls.append(cmd)
+            raise RuntimeError("the test stops after the build command")
+
+        with mock.patch.object(trees, "SLOTS_ROOT", "/srv/ws"), \
+                mock.patch.object(image, "image_slots", lambda product: {}), \
+                mock.patch.object(image, "make_context", lambda product, slots: "/ctx"), \
+                mock.patch.object(image.subprocess, "run", run):
+            with self.assertRaisesRegex(RuntimeError, "the test stops"):
+                image.build("caddy")
+        self.assertEqual([["docker", "build", "--progress=plain", "--build-arg", "PRODUCT=caddy",
+                           "--build-arg", "SLOTS_ROOT=/srv/ws", "-t", "idesense-bench-caddy:p2", "/ctx"]], calls)
+
+    def test_dockerfile_takes_the_slots_root_from_the_build_argument(self):
+        with open(os.path.join(image.IMAGE_SRC, "Dockerfile"), encoding="utf-8") as f:
+            code = [line for line in f.read().splitlines() if not line.startswith("#")]
+        self.assertEqual(["ARG SLOTS_ROOT=/home/ubuntu/dev/ws"], [line for line in code if "/dev/ws" in line])
+        self.assertIn("ENV BENCH_SLOTS_ROOT=${SLOTS_ROOT}", code)
+        # A stage sees a global ARG only when it declares the ARG again.
+        stages = "\n".join(code).split("\nFROM ")[1:]
+        users = [stage for stage in stages if "${SLOTS_ROOT}" in stage]
+        self.assertEqual(2, len(users))
+        for stage in users:
+            self.assertIn("\nARG SLOTS_ROOT\n", stage, stage.splitlines()[0])
 
 
 class EntryTest(TmpTestCase):
