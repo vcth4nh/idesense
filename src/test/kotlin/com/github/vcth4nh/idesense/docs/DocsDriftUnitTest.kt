@@ -191,4 +191,15 @@ class DocsDriftUnitTest : TestCase() {
         }
         assertTrue("tools-reference.md tools missing a Returns block: $missing", missing.isEmpty())
     }
+
+    /**
+     * The changelog plugin merges two sections of one version, and the build takes the change
+     * notes of the plugin from the section of `pluginVersion` (`changeNotes` in build.gradle.kts).
+     * A second heading of a version thus puts its text into the change notes of that version.
+     */
+    fun testChangelogVersionHeadingsAreUnique() {
+        val versions = Regex("""(?m)^## \[(.+?)\]""").findAll(read("CHANGELOG.md")).map { it.groupValues[1] }
+        val duplicates = versions.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
+        assertTrue("CHANGELOG.md has more than one heading for version(s): $duplicates", duplicates.isEmpty())
+    }
 }

@@ -204,6 +204,9 @@ FindUsagesHandlerFactory.EP_NAME.getPoint(project)
   section with "Returns". These two files name no unknown tool.
 - The tool names in the `SKILL.md` front matter: exactly the tools that are on by default.
 
+The test also checks `CHANGELOG.md`: each version heading exists one time (see "Traps" in
+"Release").
+
 The test does not check result field names, enum values, required flags, the language support
 of a tool, or prose. Check these by hand against the classes in `tools/models/` and the schemas.
 
@@ -373,11 +376,13 @@ rubric:
   issue is partly out of date, add a comment `Triage <date> (main @ <sha>)` with the present
   `file:line`. Do not rewrite the issue. Close an issue as stale only with evidence that the
   behavior is gone.
-- Numbers from before the rebrand to IdeSense refer to older trackers (the archived fork and its
-  upstream, see "Acknowledgments" in README.md). This repository started again at #1, so an old
-  number names another issue here. Such numbers are in the commit messages from before the commit
-  `feat: rebrand fork to standalone IdeSense, release 1.0.0`, and in the older changelog history.
-  The comments in `src/` have no old number: write no number of an older tracker into a comment.
+- Numbers from before the rebrand to IdeSense refer to older trackers (the archived fork
+  `vcth4nh/jetbrains-index-mcp-plugin` and its upstream `hechtcarmel/jetbrains-index-mcp-plugin`).
+  This repository started again at #1, so an old number names another issue here. Such numbers
+  are in the commit messages from before the commit
+  `feat: rebrand fork to standalone IdeSense, release 1.0.0`, and in
+  [CHANGELOG-before-rebrand.md](CHANGELOG-before-rebrand.md). The comments in `src/` have no old
+  number: write no number of an older tracker into a comment.
 
 ## Pull requests
 
@@ -460,13 +465,16 @@ features, a major version for a breaking change (an entry with **Breaking**).
 
 ### Traps
 
-- **Do not run `patchChangelog` on this changelog.** Below the comment `Prior 5.x history below
-  is from the pre-fork lineage`, the changelog keeps the history of the older project. Its
-  sections use version numbers that this project also uses (`[1.0.0]`, `[2.0.0]`) or can reach
-  (`[3.0.0]` and higher). For `2.0.0`, `patchChangelog` writes the `[Unreleased]` notes into the
-  older `[2.0.0]` section. CI runs it in the step Patch Changelog of `release.yml`, and before
-  `publishPlugin`, which depends on it. These runs change only the CI checkout, so step 6 is a
-  manual edit.
+- **Each version heading of `CHANGELOG.md` exists one time.** The changelog plugin merges two
+  sections that have the same version, and the build takes the change notes of the plugin from the
+  section of `pluginVersion` (`changeNotes` in `build.gradle.kts`). For this reason the changelog
+  of the older project is in its own file, `docs/CHANGELOG-before-rebrand.md`. `DocsDriftUnitTest`
+  fails when a version has a second heading.
+- **Do not run `patchChangelog` for the roll.** It adds compare links with a `v` prefix (the
+  default of `versionPrefix` in the changelog plugin), and the tags of this repository have no
+  prefix (for example `2.1.0`). It also deletes text that is below the last section. CI runs it in
+  the step Patch Changelog of `release.yml`, and before `publishPlugin`, which depends on it. These
+  runs change only the CI checkout, so step 6 is a manual edit.
 - **Each push to `main` after the publish creates a new draft with the same name.** Release draft
   reads `pluginVersion`, which still holds the released version. The draft does no harm, and the
   next run replaces it. To remove it, delete it by its release id:
