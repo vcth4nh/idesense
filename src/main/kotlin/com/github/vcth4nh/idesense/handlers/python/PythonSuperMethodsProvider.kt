@@ -257,7 +257,7 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
 
     private fun getName(element: PsiElement): String? = runCatching {
         element.javaClass.getMethod("getName").invoke(element) as? String
-    }.getOrNull()
+    }.onFailure(::rethrowIfCancellation).getOrNull()
 
     private fun createUserInitiatedContext(project: Project, origin: PsiFile?): Any? {
         val factory = userInitiatedFactory ?: return null

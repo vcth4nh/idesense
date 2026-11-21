@@ -519,7 +519,7 @@ class PhpSuperMethodsProvider : SuperMethodsProvider {
 
     private fun getName(element: PsiElement): String? = runCatching {
         element.javaClass.getMethod("getName").invoke(element) as? String
-    }.getOrNull()
+    }.onFailure(::rethrowIfCancellation).getOrNull()
 
     private fun getRelativePath(project: Project, file: VirtualFile): String =
         ProjectUtils.getToolFilePath(project, file)

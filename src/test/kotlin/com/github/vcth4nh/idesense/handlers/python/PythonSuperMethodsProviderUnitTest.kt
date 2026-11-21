@@ -48,6 +48,25 @@ class PythonSuperMethodsProviderUnitTest : TestCase() {
         assertCancellation { PythonSuperMethodsProvider().findBaseDeclarations(pyFunction()) }
     }
 
+    // A cancellation in the reflective getName leaves findSuperMethods. `PyFunctionImpl.getName`
+    // reads the stub, and the read of a stub checks for a cancellation. After getName, the
+    // provider needs an application (QualifiedNameUtil), so an exception after it also shows that
+    // the provider went on.
+    fun testACancellationOfGetNameLeavesFindSuperMethods() {
+        val function = mockk<PyFunction> {
+            every { containingFile } returns null
+            every { getName() } throws ProcessCanceledException()
+        }
+
+        try {
+            val result = PythonSuperMethodsProvider().findSuperMethods(function, mockk<Project>())
+            fail("The cancellation must leave the provider, got $result")
+        } catch (_: ProcessCanceledException) {
+        } catch (e: Exception) {
+            fail("The cancellation must leave the provider, but the provider went on and threw $e")
+        }
+    }
+
     /** The query of a search that a write action interrupts. */
     class CancelledQuery {
         fun findAll(): Collection<PsiElement> = throw ProcessCanceledException()

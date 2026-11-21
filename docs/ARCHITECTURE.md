@@ -559,12 +559,11 @@ Each entry gives the contract, the consequence for the code, and the class that 
   `Method.invoke` wraps the exception in `InvocationTargetException`. Rule: never swallow a
   cancellation. `rethrowIfCancellation` (in `HierarchyTreeWalker.kt`) unwraps and rethrows a
   `CancellationException` or a `ControlFlowException` for `HierarchyTreeWalker`,
-  `ImplementationLocations.Collector` and the reflective searches of the `SuperMethodsProvider`
-  implementations (#210). The block can run more than one time, so the state that it
-  fills starts empty in each run (`FindUsagesTool` clears its warnings and notes). Broad catches remain
-  in `BrowserBackedResolver.resolve`, `HierarchyTreeWalker.resolveTarget`, `RustTypeHierarchyImpl`,
-  `ClassResolver`, `QualifiedNameUtil` and the getters (`getName`, the Go `hasSignature`) of the
-  `SuperMethodsProvider` implementations.
+  `ImplementationLocations.Collector` and the reflective searches and getters of the
+  `SuperMethodsProvider` implementations (#210). The block can run more than one time, so the
+  state that it fills starts empty in each run (`FindUsagesTool` clears its warnings and notes).
+  Broad catches remain in `BrowserBackedResolver.resolve`, `HierarchyTreeWalker.resolveTarget`,
+  `RustTypeHierarchyImpl`, `ClassResolver` and `QualifiedNameUtil`.
 - **No exception may leave a search callback inside a stub index processor.** GoLand runs the
   callback of `DefinitionsScopedSearch` inside `StubIndexEx.processElements`, which takes an
   `IndexOutOfBoundsException` for index damage (`FileBasedIndexEx.extractCauseToRebuildIndex`) and
