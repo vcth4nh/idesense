@@ -549,7 +549,7 @@ class ToolsUnitTest : TestCase() {
         val disabledByDefault = McpSettings.State().disabledTools
 
         for (tool in registry.getAllTools()) {
-            if (tool.description.contains("disabled by default")) {
+            if (tool.description.contains("disabled by default", ignoreCase = true)) {
                 assertTrue(
                     "Tool '${tool.name}' says 'disabled by default' but is on by default",
                     tool.name in disabledByDefault
