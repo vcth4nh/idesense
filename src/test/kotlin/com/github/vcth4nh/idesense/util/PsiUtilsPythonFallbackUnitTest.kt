@@ -12,9 +12,11 @@ import io.mockk.every
 import io.mockk.mockk
 import junit.framework.TestCase
 
+// The tests call resolveReferenceTarget, because resolveTargetElement first reads an extension
+// point, which needs the IntelliJ application.
 class PsiUtilsPythonFallbackUnitTest : TestCase() {
 
-    fun testResolveTargetElementPrefersPythonCalleeOverDirectoryTarget() {
+    fun testResolveReferenceTargetPrefersPythonCalleeOverDirectoryTarget() {
         val directoryTarget = mockk<PsiDirectory>(relaxed = true)
         val resolvedFunction = mockk<PyElement>(relaxed = true)
         val genericReference = mockk<PsiPolyVariantReference>(relaxed = true)
@@ -30,12 +32,12 @@ class PsiUtilsPythonFallbackUnitTest : TestCase() {
         every { callExpression.getCallee() } returns qualifiedReference
         every { callExpression.multiResolveCalleeFunction(any()) } returns listOf(resolvedFunction)
 
-        val resolved = PsiUtils.resolveTargetElement(qualifiedReference)
+        val resolved = PsiUtils.resolveReferenceTarget(qualifiedReference)
 
         assertSame("Qualified Python calls should resolve to the callable target", resolvedFunction, resolved)
     }
 
-    fun testResolveTargetElementPrefersQualifiedPythonReferenceOverDirectoryTarget() {
+    fun testResolveReferenceTargetPrefersQualifiedPythonReferenceOverDirectoryTarget() {
         val directoryTarget = mockk<PsiDirectory>(relaxed = true)
         val resolvedFunction = mockk<PyElement>(relaxed = true)
         val genericReference = mockk<PsiPolyVariantReference>(relaxed = true)
@@ -50,12 +52,12 @@ class PsiUtilsPythonFallbackUnitTest : TestCase() {
         every { qualifiedReference.getQualifier() } returns qualifier
         every { qualifiedReference.parent } returns null
 
-        val resolved = PsiUtils.resolveTargetElement(qualifiedReference)
+        val resolved = PsiUtils.resolveReferenceTarget(qualifiedReference)
 
         assertSame("Qualified Python references should prefer the referenced member over a package directory", resolvedFunction, resolved)
     }
 
-    fun testResolveTargetElementKeepsQualifierNavigationWhenCaretIsOnQualifierToken() {
+    fun testResolveReferenceTargetKeepsQualifierNavigationWhenCaretIsOnQualifierToken() {
         val directoryTarget = mockk<PsiDirectory>(relaxed = true)
         val qualifierReference = mockk<PyReferenceExpression>(relaxed = true)
         val qualifiedReference = mockk<PyReferenceExpression>(relaxed = true)
@@ -76,7 +78,7 @@ class PsiUtilsPythonFallbackUnitTest : TestCase() {
         every { callExpression.getCallee() } returns qualifiedReference
         every { callExpression.multiResolveCalleeFunction(any()) } returns emptyList()
 
-        val resolved = PsiUtils.resolveTargetElement(qualifierReference)
+        val resolved = PsiUtils.resolveReferenceTarget(qualifierReference)
 
         assertSame(
             "Caret on the qualifier token should keep qualifier/module navigation semantics",
@@ -85,9 +87,9 @@ class PsiUtilsPythonFallbackUnitTest : TestCase() {
         )
     }
 
-    fun testResolveTargetElementReturnsNullForNonDeclarationIdentifierFallback() {
+    fun testResolveReferenceTargetReturnsNullForNonDeclarationIdentifierFallback() {
         // Regression guard for the precondition gate added in the navigation walk-to-enclosing
-        // fix: resolveTargetElement's findNamedElement fallback now fires only when the caret is
+        // fix: resolveReferenceTarget's findNamedElement fallback now fires only when the caret is
         // actually on a declaration's name identifier (PsiNameIdentifierOwner.nameIdentifier ===
         // element). A raw PsiNamedElement with no parent chain fails the precondition — which
         // reflects real PSI behavior, since production callers always pass leaf tokens from
@@ -99,7 +101,7 @@ class PsiUtilsPythonFallbackUnitTest : TestCase() {
         every { namedElement.parent } returns null
         every { namedElement.name } returns "localName"
 
-        val resolved = PsiUtils.resolveTargetElement(namedElement)
+        val resolved = PsiUtils.resolveReferenceTarget(namedElement)
 
         assertNull(
             "Precondition gate rejects fallback when element has no PsiNameIdentifierOwner parent",
