@@ -1,0 +1,68 @@
+{
+  "question": "beets-plant1-refs-discogsplugin.process_entry",
+  "old_ids": [
+    "beets-plant1-refs-DiscogsPlugin"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets-plant-1",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "plant:python:beets-plant-1:DiscogsPlugin.get_album_info",
+  "name": "process_entry",
+  "answer": {
+    "required": [
+      "beetsplug/discogs/__init__.py:266",
+      "test/plugins/test_discogs.py:126",
+      "test/plugins/test_discogs.py:134",
+      "test/plugins/test_discogs.py:145",
+      "test/plugins/test_discogs.py:156",
+      "test/plugins/test_discogs.py:172",
+      "test/plugins/test_discogs.py:186",
+      "test/plugins/test_discogs.py:213",
+      "test/plugins/test_discogs.py:222",
+      "test/plugins/test_discogs.py:231",
+      "test/plugins/test_discogs.py:241",
+      "test/plugins/test_discogs.py:266",
+      "test/plugins/test_discogs.py:275",
+      "test/plugins/test_discogs.py:290",
+      "test/plugins/test_discogs.py:322",
+      "test/plugins/test_discogs.py:367",
+      "test/plugins/test_discogs.py:474",
+      "test/plugins/test_discogs.py:503",
+      "test/plugins/test_discogs.py:630",
+      "test/plugins/test_discogs.py:737"
+    ],
+    "forbidden": [
+      "beets/ui/__init__.py:1020",
+      "beets/ui/__init__.py:1022",
+      "beetsplug/listenbrainz.py:140",
+      "beetsplug/the.py:21",
+      "test/plugins/test_listenbrainz.py:215",
+      "test/plugins/test_listenbrainz.py:230",
+      "test/plugins/test_listenbrainz.py:262",
+      "test/plugins/test_listenbrainz.py:280",
+      "test/plugins/test_listenbrainz.py:301",
+      "test/plugins/test_the.py:42",
+      "test/plugins/test_the.py:43",
+      "test/plugins/test_the.py:48",
+      "test/plugins/test_the.py:53",
+      "test/plugins/utils/test_playcount.py:19",
+      "test/test_logging.py:326",
+      "test/test_logging.py:331",
+      "test/test_logging.py:338"
+    ],
+    "not_counted": [
+      "beets/logging.py:196",
+      "beetsplug/discogs/__init__.py:372",
+      "beetsplug/listenbrainz.py:308",
+      "beetsplug/the.py:74"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "plant: the most required lines (20) among 4 planted records of beets-plant-1"
+  },
+  "key_file": "beets-plant-1/plant.jsonl",
+  "source": "planted name: the state of the tree before the rename"
+}

@@ -1,0 +1,33 @@
+{
+  "question": "caddy-impls-adminrouter",
+  "old_ids": [
+    "caddy-impls-AdminRouter"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "impls",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.AdminRouter",
+  "name": "AdminRouter",
+  "answer": {
+    "required": [
+      "admin_test.go:413",
+      "admin_test.go:421",
+      "admin_test.go:486",
+      "admin_test.go:497",
+      "caddyconfig/load.go:44",
+      "modules/caddyhttp/reverseproxy/admin.go:33",
+      "modules/caddypki/adminapi.go:34",
+      "modules/metrics/adminmetrics.go:35"
+    ],
+    "forbidden": [],
+    "not_counted": []
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "structure: the fewest required implementers (8) among 4 interfaces (not `caddy.Validator`) with no dnc implementer and 3 or more required implementers with no method of their own"
+  },
+  "key_file": "caddy/symbols.jsonl",
+  "source": "name resolution of the Go compiler library (go/types)"
+}

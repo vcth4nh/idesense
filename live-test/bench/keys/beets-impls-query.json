@@ -1,0 +1,51 @@
+{
+  "question": "beets-impls-query",
+  "old_ids": [
+    "beets-impls-Query"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "impls",
+  "lang": "python",
+  "symbol": "py:beets.dbcore.query.Query",
+  "name": "Query",
+  "answer": {
+    "required": [
+      "beets/dbcore/query.py:120",
+      "beets/dbcore/query.py:178",
+      "beets/dbcore/query.py:191",
+      "beets/dbcore/query.py:207",
+      "beets/dbcore/query.py:232",
+      "beets/dbcore/query.py:250",
+      "beets/dbcore/query.py:269",
+      "beets/dbcore/query.py:367",
+      "beets/dbcore/query.py:403",
+      "beets/dbcore/query.py:419",
+      "beets/dbcore/query.py:492",
+      "beets/dbcore/query.py:519",
+      "beets/dbcore/query.py:577",
+      "beets/dbcore/query.py:591",
+      "beets/dbcore/query.py:601",
+      "beets/dbcore/query.py:611",
+      "beets/dbcore/query.py:645",
+      "beets/dbcore/query.py:655",
+      "beets/dbcore/query.py:845",
+      "beets/dbcore/query.py:892",
+      "beets/dbcore/query.py:920",
+      "beetsplug/bareasc.py:27",
+      "beetsplug/fuzzy.py:16",
+      "beetsplug/playlist.py:25"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beetsplug/limit.py:86"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "structure: seeded choice (seed 1) among 4 classes with 10 or more required subclasses, fewer than 25 % of them with the name in the class line, outside test code"
+  },
+  "key_file": "beets/hierarchy.jsonl",
+  "source": "reflection in the interpreter of the product"
+}

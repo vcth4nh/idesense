@@ -1,0 +1,29 @@
+{
+  "question": "caddy-dyncallers-app.cleanup",
+  "old_ids": [
+    "caddy-dyncallers-App.Cleanup"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "dyncallers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.App.Cleanup",
+  "name": "Cleanup",
+  "answer": {
+    "required": [
+      "context.go:72",
+      "context.go:364"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddyhttp/app.go:899"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "dynamic: seeded sample (seed 1) of 10 among 70 candidates; static 0, trace 2, possible 0"
+  },
+  "key_file": "caddy/dyncallers.jsonl",
+  "source": "run-time trace of the test suite"
+}

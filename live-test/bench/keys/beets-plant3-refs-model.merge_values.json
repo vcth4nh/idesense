@@ -1,0 +1,77 @@
+{
+  "question": "beets-plant3-refs-model.merge_values",
+  "old_ids": [
+    "beets-plant3-refs-Model"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets-plant-3",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "plant:python:beets-plant-3:Model.evaluate_template",
+  "name": "merge_values",
+  "answer": {
+    "required": [
+      "beets/library/models.py:107",
+      "beets/library/models.py:567",
+      "beets/library/models.py:1271",
+      "beets/ui/commands/modify.py:105",
+      "beetsplug/smartplaylist.py:407",
+      "beetsplug/smartplaylist.py:421",
+      "test/plugins/test_inline.py:30",
+      "test/plugins/test_rewrite.py:24",
+      "test/plugins/test_smartplaylist.py:171",
+      "test/plugins/test_smartplaylist.py:206",
+      "test/plugins/test_smartplaylist.py:249",
+      "test/plugins/test_types_plugin.py:143",
+      "test/plugins/test_types_plugin.py:144",
+      "test/plugins/test_types_plugin.py:147",
+      "test/plugins/test_types_plugin.py:148",
+      "test/plugins/test_types_plugin.py:151",
+      "test/plugins/test_types_plugin.py:156",
+      "test/test_library.py:1230",
+      "test/test_library.py:1236"
+    ],
+    "forbidden": [
+      "beets/dbcore/db.py:1058",
+      "beetsplug/lastgenre/__init__.py:363",
+      "beetsplug/lastgenre/__init__.py:396",
+      "beetsplug/lastgenre/__init__.py:510",
+      "beetsplug/spotify.py:547",
+      "test/library/test_migrations.py:114",
+      "test/library/test_migrations.py:115",
+      "test/library/test_migrations.py:168",
+      "test/library/test_migrations.py:247",
+      "test/library/test_migrations.py:269",
+      "test/library/test_migrations.py:375",
+      "test/plugins/test_lastgenre.py:318",
+      "test/plugins/test_lastgenre.py:325",
+      "test/plugins/test_lastgenre.py:331",
+      "test/plugins/test_lastgenre.py:337",
+      "test/plugins/test_lastgenre.py:346",
+      "test/plugins/test_lastgenre.py:355",
+      "test/plugins/test_lastgenre.py:358",
+      "test/plugins/test_lastgenre.py:369",
+      "test/plugins/test_spotify.py:56",
+      "test/plugins/test_spotify.py:78",
+      "test/plugins/test_spotify.py:107",
+      "test/plugins/test_spotify.py:168",
+      "test/plugins/test_spotify.py:206",
+      "test/plugins/test_spotify.py:226"
+    ],
+    "not_counted": [
+      "beets/dbcore/db.py:695",
+      "beets/dbcore/db.py:1389",
+      "beetsplug/lastgenre/__init__.py:360",
+      "beetsplug/lastgenre/__init__.py:399",
+      "beetsplug/spotify.py:609",
+      "test/plugins/test_lastgenre.py:312"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "plant: the most required lines (19) among 4 planted records of beets-plant-3"
+  },
+  "key_file": "beets-plant-3/plant.jsonl",
+  "source": "planted name: the state of the tree before the rename"
+}

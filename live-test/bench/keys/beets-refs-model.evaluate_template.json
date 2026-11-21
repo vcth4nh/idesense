@@ -1,0 +1,46 @@
+{
+  "question": "beets-refs-model.evaluate_template",
+  "old_ids": [
+    "beets-refs-Model.evaluate_template"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "py:beets.dbcore.db.Model.evaluate_template",
+  "name": "evaluate_template",
+  "answer": {
+    "required": [
+      "beets/library/models.py:107",
+      "beets/library/models.py:567",
+      "beets/library/models.py:1271",
+      "beets/ui/commands/modify.py:105",
+      "beetsplug/smartplaylist.py:407",
+      "beetsplug/smartplaylist.py:421",
+      "test/plugins/test_inline.py:30",
+      "test/plugins/test_rewrite.py:24",
+      "test/plugins/test_smartplaylist.py:171",
+      "test/plugins/test_smartplaylist.py:206",
+      "test/plugins/test_smartplaylist.py:249",
+      "test/plugins/test_types_plugin.py:143",
+      "test/plugins/test_types_plugin.py:144",
+      "test/plugins/test_types_plugin.py:147",
+      "test/plugins/test_types_plugin.py:148",
+      "test/plugins/test_types_plugin.py:151",
+      "test/plugins/test_types_plugin.py:156",
+      "test/test_library.py:1230",
+      "test/test_library.py:1236"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beets/dbcore/db.py:695"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "natural name: the IDE list of this method lacks required lines (name-rule probe)"
+  },
+  "key_file": "beets/unique-used.jsonl",
+  "source": "token scan of a unique name, proven by a second scan and a run-time trace"
+}

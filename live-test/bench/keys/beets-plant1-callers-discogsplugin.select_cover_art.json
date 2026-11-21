@@ -1,0 +1,48 @@
+{
+  "question": "beets-plant1-callers-discogsplugin.select_cover_art",
+  "old_ids": [
+    "beets-plant1-callers-DiscogsPlugin.select_cover_art"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets-plant-1",
+  "family": "callers",
+  "lang": "python",
+  "symbol": "py:beetsplug.discogs.DiscogsPlugin.select_cover_art",
+  "name": "select_cover_art",
+  "answer": {
+    "required": [
+      "beetsplug/discogs/__init__.py:241",
+      "beetsplug/discogs/__init__.py:372",
+      "test/plugins/test_discogs.py:119",
+      "test/plugins/test_discogs.py:132",
+      "test/plugins/test_discogs.py:143",
+      "test/plugins/test_discogs.py:154",
+      "test/plugins/test_discogs.py:170",
+      "test/plugins/test_discogs.py:182",
+      "test/plugins/test_discogs.py:203",
+      "test/plugins/test_discogs.py:218",
+      "test/plugins/test_discogs.py:226",
+      "test/plugins/test_discogs.py:235",
+      "test/plugins/test_discogs.py:262",
+      "test/plugins/test_discogs.py:270",
+      "test/plugins/test_discogs.py:283",
+      "test/plugins/test_discogs.py:302",
+      "test/plugins/test_discogs.py:363",
+      "test/plugins/test_discogs.py:470",
+      "test/plugins/test_discogs.py:479",
+      "test/plugins/test_discogs.py:595",
+      "test/plugins/test_discogs.py:715"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beetsplug/discogs/__init__.py:493"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "plant: seeded choice (seed 1) among 4 via targets of beets-plant-1, -2 and -3; levels 1: 1, 2: 20"
+  },
+  "key_file": "beets-plant-1/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

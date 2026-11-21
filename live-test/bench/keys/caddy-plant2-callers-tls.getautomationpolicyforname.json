@@ -1,0 +1,38 @@
+{
+  "question": "caddy-plant2-callers-tls.getautomationpolicyforname",
+  "old_ids": [
+    "caddy-plant2-callers-TLS.getAutomationPolicyForName"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy-plant-2",
+  "family": "callers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddytls.TLS.getAutomationPolicyForName",
+  "name": "getAutomationPolicyForName",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/autohttps.go:869",
+      "modules/caddyhttp/reverseproxy/httptransport.go:798",
+      "modules/caddyhttp/server.go:551",
+      "modules/caddytls/connpolicy.go:269",
+      "modules/caddytls/tls.go:166",
+      "modules/caddytls/tls.go:406",
+      "modules/caddytls/tls.go:522",
+      "modules/caddytls/tls.go:605",
+      "modules/caddytls/tls.go:810",
+      "modules/caddytls/tls.go:897",
+      "modules/caddytls/tls_wildcard_test.go:24"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddytls/tls.go:906"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "plant: seeded choice (seed 1) among 3 via targets of caddy-plant-1, -2 and -3; levels 1: 3, 2: 8"
+  },
+  "key_file": "caddy-plant-2/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

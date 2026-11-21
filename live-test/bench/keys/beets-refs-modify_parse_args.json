@@ -1,0 +1,34 @@
+{
+  "question": "beets-refs-modify_parse_args",
+  "old_ids": [
+    "beets-refs-modify_parse_args"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "py:beets.ui.commands.modify.modify_parse_args",
+  "name": "modify_parse_args",
+  "answer": {
+    "required": [
+      "beets/ui/commands/modify.py:200",
+      "test/ui/commands/test_modify.py:234",
+      "test/ui/commands/test_modify.py:241",
+      "test/ui/commands/test_modify.py:248",
+      "test/ui/commands/test_modify.py:255",
+      "test/ui/commands/test_modify.py:332"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beets/ui/commands/modify.py:171",
+      "test/ui/commands/test_modify.py:9"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded choice (seed 1) among 68 `function` records of beets/unique-used.jsonl with 3 or more required lines"
+  },
+  "key_file": "beets/unique-used.jsonl",
+  "source": "token scan of a unique name, proven by a second scan and a run-time trace"
+}

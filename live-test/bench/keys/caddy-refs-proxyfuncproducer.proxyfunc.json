@@ -1,0 +1,35 @@
+{
+  "question": "caddy-refs-proxyfuncproducer.proxyfunc",
+  "old_ids": [
+    "caddy-refs-ProxyFuncProducer.ProxyFunc"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "refs",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.ProxyFuncProducer.ProxyFunc",
+  "name": "ProxyFunc",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/reverseproxy/httptransport.go:389",
+      "modules/caddytls/acmeissuer.go:274",
+      "modules/internal/network/networkproxy_test.go:87"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules.go:376",
+      "modules/internal/network/networkproxy.go:52",
+      "modules/internal/network/networkproxy.go:53",
+      "modules/internal/network/networkproxy.go:129",
+      "modules/internal/network/networkproxy.go:130",
+      "modules/internal/network/networkproxy_test.go:17"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded choice (seed 1) among 37 `iface_method` records with 3 or more required lines"
+  },
+  "key_file": "caddy/symbols.jsonl",
+  "source": "name resolution of the Go compiler library (go/types)"
+}

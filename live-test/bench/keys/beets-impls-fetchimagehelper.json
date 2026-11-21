@@ -1,0 +1,33 @@
+{
+  "question": "beets-impls-fetchimagehelper",
+  "old_ids": [
+    "beets-impls-FetchImageHelper"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "impls",
+  "lang": "python",
+  "symbol": "py:beets.test.helper.FetchImageHelper",
+  "name": "FetchImageHelper",
+  "answer": {
+    "required": [
+      "test/plugins/test_art.py:217",
+      "test/plugins/test_art.py:340",
+      "test/plugins/test_art.py:435",
+      "test/plugins/test_art.py:475",
+      "test/plugins/test_art.py:619",
+      "test/plugins/test_art.py:666",
+      "test/plugins/test_art.py:731",
+      "test/plugins/test_embedart.py:66"
+    ],
+    "forbidden": [],
+    "not_counted": []
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded choice (seed 1) among 67 classes with 3 or more required subclasses"
+  },
+  "key_file": "beets/hierarchy.jsonl",
+  "source": "reflection in the interpreter of the product"
+}

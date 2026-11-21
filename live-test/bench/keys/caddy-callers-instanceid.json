@@ -1,0 +1,30 @@
+{
+  "question": "caddy-callers-instanceid",
+  "old_ids": [
+    "caddy-callers-InstanceID"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "callers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.InstanceID",
+  "name": "InstanceID",
+  "answer": {
+    "required": [
+      "modules/caddytls/storage_clean_test.go:177",
+      "modules/caddytls/tls.go:953",
+      "modules/caddytls/tls.go:985"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "caddy.go:920"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded sample (seed 1) of 4 among 175 candidates with 2 or more level-2 callers, 40 or fewer required lines and no test declaration; levels 1: 1, 2: 2"
+  },
+  "key_file": "caddy/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

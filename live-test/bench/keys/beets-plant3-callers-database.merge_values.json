@@ -1,0 +1,34 @@
+{
+  "question": "beets-plant3-callers-database.merge_values",
+  "old_ids": [
+    "beets-plant3-callers-Database.merge_values"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets-plant-3",
+  "family": "callers",
+  "lang": "python",
+  "symbol": "plant:python:beets-plant-3:Database.migration_exists",
+  "name": "merge_values",
+  "answer": {
+    "required": [
+      "beets/dbcore/db.py:1053",
+      "beets/dbcore/db.py:1371",
+      "test/library/test_migrations.py:81",
+      "test/library/test_migrations.py:139",
+      "test/library/test_migrations.py:202",
+      "test/library/test_migrations.py:257",
+      "test/library/test_migrations.py:356"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beets/dbcore/db.py:1389"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "plant: most required lines (7); levels 1: 6, 2: 1"
+  },
+  "key_file": "beets-plant-3/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}
