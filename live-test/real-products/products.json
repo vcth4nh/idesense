@@ -11,6 +11,18 @@
     {"folder": "ripgrep", "ide": "rustrover", "repo": "BurntSushi/ripgrep", "pin": "15.0.0",
      "license": "Unlicense OR MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
     {"folder": "uptime-kuma", "ide": "webstorm", "repo": "louislam/uptime-kuma", "pin": "2.5.3",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "exposed", "ide": "intellij", "repo": "JetBrains/Exposed", "pin": "1.5.0",
+     "license": "Apache-2.0", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "django", "ide": "pycharm", "repo": "django/django", "pin": "6.1.2",
+     "license": "BSD-3-Clause", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "mongoose", "ide": "webstorm", "repo": "Automattic/mongoose", "pin": "9.10.0",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "lazygit", "ide": "goland", "repo": "jesseduffield/lazygit", "pin": "v0.64.0",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "lychee", "ide": "phpstorm", "repo": "LycheeOrg/Lychee", "pin": "v7.7.3",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "rolldown", "ide": "rustrover", "repo": "rolldown/rolldown", "pin": "v1.2.4",
      "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
   ]
 }
