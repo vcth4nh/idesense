@@ -16,7 +16,7 @@ be passed back unchanged. Line and column numbers are **1-based**.
 ## Navigation Tools
 
 ### ide_find_usages
-Find semantic references to a symbol (not text search). Anchor by `symbol` (name or qualified name) or by `file`+`line`+`column`; an ambiguous `symbol` returns `{ candidates, message }`. Paginated; `totalCollected` is a collected count (a cursor collects at most 5,000 usages: on the last page, `totalCollected: 5000` with `hasMore: false` does not prove that no more usages exist), not a guaranteed whole-project total — page with `hasMore`/`nextCursor`.
+Find semantic references to a symbol (not text search). Anchor by `symbol` (name or qualified name) or by `file`+`line`+`column`; an ambiguous `symbol` returns `{ candidates, message }`. Paginated; `totalCollected` is a collected count (a cursor stops its collection at 5,000 usages: on the last page, a `totalCollected` of 5,000 or more with `hasMore: false` does not prove that no more usages exist), not a guaranteed whole-project total — page with `hasMore`/`nextCursor`.
 
 **Returns**: `{ usages: [{ file, line, column, preview, usageType, enclosingScope, match? }], truncated, nextCursor?, hasMore, totalCollected, offset, pageSize, stale, warnings?, notes? }` — non-null `warnings` (first page) means that the find-usages code of the IDE for this language failed in a part of the search. The search skipped that part, so the list can be incomplete: check with `ide_search_text`. `notes` (first page, absent when it has no entry) names the base declarations and gives the count of the `BASE` usages. An example: `'area' overrides or implements Shape.area (src/normal.js:16:5). The result also holds the usages of this base declaration, because a call through it can run 'area'. 1 of the 5 usages has match BASE.` After that entry, `notes` names the overriding declarations that the search also covers (for a PHP method), with the count of the `OVERRIDE` usages; each base method that the search does not search (`The base method <qualified name> is not searched: each class is a subclass of object.`, a method of the Python class `object`); and each kind of usage that the result leaves out, with the count (`<n> or more` when the search stopped after 5,000 usages):
 - `<n> composite literal keys that name a struct field with the same name as this type are not in the list.` (Go, for a type: the key refers to the field. A key of an embedded field stays.)
@@ -61,7 +61,7 @@ Search for exact words using IDE's pre-built word index. O(1) lookups, not file 
 **Selection note**: exact-word only (uses word index, not regex). Use `Grep` for regex patterns.
 
 ### ide_find_implementations
-Find flat implementation, inheritor, and override locations for a class/interface/trait/protocol or method — anchored at a declaration or a resolvable reference. `ide_type_hierarchy` with `direction: "subtypes"` gives the subtypes, up to `maxDepth` levels, as a flat list with no parent links. Collected up to 5,000 results for each cursor; `totalCollected` is a collected count.
+Find flat implementation, inheritor, and override locations for a class/interface/trait/protocol or method — anchored at a declaration or a resolvable reference. `ide_type_hierarchy` with `direction: "subtypes"` gives the subtypes, up to `maxDepth` levels, as a flat list with no parent links. A cursor stops its collection at 5,000 results; `totalCollected` is a collected count.
 
 **Returns**: `{ implementations: [{name, qualifiedName?, file, line, column, kind}], nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
 
