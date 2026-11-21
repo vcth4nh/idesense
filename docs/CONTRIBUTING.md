@@ -35,7 +35,7 @@ Each version is in the file that this list names. Do not copy a version into a d
 ./gradlew test --tests "*UnitTest*"          # the unit tests only
 ./gradlew test --tests "McpPluginUnitTest"   # one test class
 ./gradlew compileTestKotlin                  # compile all tests, run none
-./gradlew check                              # all tests and the Kover report (the CI Test job)
+./gradlew check                              # all tests (the CI Test job)
 ./gradlew verifyPlugin                       # plugin structure and the Plugin Verifier
 ```
 
@@ -151,7 +151,7 @@ reason of each rule.
 | The plugin bundles no kotlinx-coroutines, because it must run on the coroutines of the IDE. Each Ktor and mockk dependency excludes the coroutines modules by name. A new dependency that pulls coroutines gets the same excludes. | `.github/dependabot.yml` (comment of the `io.ktor` rule); the excludes in `build.gradle.kts` |
 | Ktor stays below the first version that needs a newer kotlinx-coroutines than the IDEs bundle. Lift the ignore rule when the coroutines of the platform catch up. | `.github/dependabot.yml`, ignore rule `io.ktor:*` |
 | The IntelliJ Platform Gradle Plugin is pinned. Lift the version pin and the Dependabot ignore rule together. | `gradle/libs.versions.toml` (`intelliJPlatform`); `.github/dependabot.yml` |
-| The Kotlin plugins and Kover change together, in the Dependabot group `kotlin`. A manual bump changes `kotlin` and `kotlinSerialization` together, with a Kover version that supports the new Kotlin Gradle plugin. | `.github/dependabot.yml`, group `kotlin` |
+| The Kotlin plugins change together, in the Dependabot group `kotlin`. A manual bump changes `kotlin` and `kotlinSerialization` together. | `.github/dependabot.yml`, group `kotlin` |
 | A Gradle wrapper bump also changes `gradleVersion` in `gradle.properties`. `tasks.wrapper` reads this property, so with the old value the next `./gradlew wrapper` writes the old wrapper again. A Dependabot wrapper pull request does not change the property. | `build.gradle.kts`, `tasks.wrapper` |
 | `verifyPlugin` fails only on compatibility problems (`failureLevel`). The hierarchy tools use internal API on purpose (open as #74). Keep this pin when you lift the pin of the IntelliJ Platform Gradle Plugin. | `build.gradle.kts`, `pluginVerification` |
 
@@ -286,27 +286,26 @@ the newer push tests both commits.
 
 | Job | Runs | Does |
 |---|---|---|
-| Changes | always | On a pull request: sets `code` to `true` when the change touches `src/**`, a Gradle file, `qodana.yml` or `.github/workflows/**`. On a push: `code` is always `true`. |
-| Build | when `code` is `true` | `./gradlew buildPlugin`; uploads the plugin as an artifact. |
-| Test | always | `./gradlew check`: unit tests, platform tests, Kover report; uploads the coverage to Codecov. |
-| Inspect code | on a push to `main` only | Qodana with `qodana.yml`. |
+| Build | always | `./gradlew buildPlugin`; uploads the plugin as an artifact. |
+| Test | always | `./gradlew check`: the unit tests and the platform tests. |
 | Verify plugin | on a push to `main` only | `./gradlew verifyPlugin`. |
-| Release draft | on a push to `main` only, after Build, Test, Inspect code and Verify plugin | Replaces the draft release (see "Release"). |
+| Release draft | on a push to `main` only, after Build, Test and Verify plugin | Replaces the draft release (see "Release"). |
 
-`release.yml` (the workflow **Release**) runs when a release is published. `run-ui-tests.yml`
-runs only on a manual start. The consequences:
+`release.yml` (the workflow **Release**) runs when a release is published. The consequences:
 
-- A pull request that changes only docs or `live-test/` runs Changes and Test. Test runs because
-  a doc edit can make `DocsDriftUnitTest` fail.
-- A pull request that bumps a Gradle plugin gets no Verify plugin job and no Inspect code job.
-  Its green checks do not cover these jobs. Run `./gradlew verifyPlugin` before the merge, and
-  watch the first Build run on `main` after the merge.
-- On a Dependabot pull request, the Codecov upload has no token. The upload fails, and the Test
-  job stays green.
+- A pull request that bumps a Gradle plugin gets no Verify plugin job. Its green checks do not
+  cover this job. Run `./gradlew verifyPlugin` before the merge, and watch the first Build run
+  on `main` after the merge.
 - An infrastructure failure (a download, a runner) needs no commit. Run
   `gh run rerun <run id> --failed`. It runs the failed jobs again, and then the jobs that wait for
   them, for example Release draft. Find the run with `gh run list --workflow Build --branch main`:
   other workflows also run on `main`.
+
+No job has a step that frees disk space, although the Build workflow of the
+[IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
+has one (`jlumbroso/free-disk-space`). In November 2026 a runner had 86 GB of free disk before
+that step, and the job Verify plugin needs about 16 GB for its IDE downloads. If a job fails with
+a disk error, add the step again.
 
 ## Issues
 

@@ -3,7 +3,6 @@
 .idea
 .intellijPlatform
 .kotlin
-.qodana
 build
 bin
 tmp
