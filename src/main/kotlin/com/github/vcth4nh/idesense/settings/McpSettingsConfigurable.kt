@@ -23,7 +23,7 @@ import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.components.panels.HorizontalLayout
-import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.ui.dsl.listCellRenderer.textListCellRenderer
 import com.intellij.util.ui.AsyncProcessIcon
 import com.intellij.util.ui.FormBuilder
 import com.intellij.util.ui.JBUI
@@ -122,13 +122,13 @@ class McpSettingsConfigurable : Configurable {
         }
         availableProjectsModeComboBox = ComboBox(McpSettings.AvailableProjectsMode.values()).apply {
             toolTipText = McpBundle.message("settings.availableProjectsMode.tooltip")
-            renderer = SimpleListCellRenderer.create("") { value ->
+            renderer = textListCellRenderer<McpSettings.AvailableProjectsMode?> { value ->
                 value?.let(::availableProjectsModeLabel).orEmpty()
             }
         }
         responseFormatComboBox = ComboBox(McpSettings.ResponseFormat.values()).apply {
             toolTipText = McpBundle.message("settings.responseFormat.tooltip")
-            renderer = SimpleListCellRenderer.create("") { value ->
+            renderer = textListCellRenderer<McpSettings.ResponseFormat?> { value ->
                 value?.let(::responseFormatLabel).orEmpty()
             }
         }

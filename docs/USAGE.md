@@ -81,7 +81,7 @@ All tools accept an optional `project_path` parameter:
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `project_path` | string | No | Absolute path to the project root. Required when multiple projects are open in the IDE. For workspace projects, use the sub-project path. |
+| `project_path` | string | No | Absolute path to the project root. Required when multiple projects are open in the IDE. For a workspace project (one open project that holds sub-projects as modules with their own content root directories), use the sub-project path. |
 
 ### Position Parameters
 
@@ -89,7 +89,7 @@ Most tools operate on a specific location in code and require these parameters:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `file` | string | For project files, path relative to project root (e.g., `src/main/java/MyClass.java`). `ide_read_file` and read-only position-based navigation tools also accept dependency/library paths returned by the plugin as absolute paths or `jar://` URLs. |
+| `file` | string | For project files, path relative to project root (e.g., `src/main/java/MyClass.java`). `ide_read_file`, `ide_find_definition`, `ide_find_usages`, `ide_find_implementations`, `ide_find_super_methods`, `ide_call_hierarchy` and `ide_explain_symbol` also accept dependency/library paths returned by the plugin as absolute paths or `jar://` URLs. |
 | `line` | integer | 1-based line number |
 | `column` | integer | 1-based column number. For dotted expressions like `json.dumps()` or `os.path.join()`, point to the member token (`dumps`, `join`) when targeting the member definition. |
 
@@ -1035,8 +1035,8 @@ Renames a symbol and updates all references across the project. This tool uses I
 | `line` | integer | No | 1-based line number. Required for symbol rename; omit for file rename. |
 | `column` | integer | No | 1-based column number. Required for symbol rename; omit for file rename. |
 | `newName` | string | Yes | The new name for the symbol or file. For file renames, include the file extension (e.g., `"new_name.webp"`). |
-| `overrideStrategy` | string | No | How to handle overriding methods: `"rename_base"` (default), `"rename_only_current"`, or `"ask"`. `"ask"` shows an IDE dialog for an interactive choice, so a person must answer it at the IDE. |
-| `relatedRenamingStrategy` | string | No | How to handle automatic renaming of related symbols: `"all"` (default), `"none"`, `"accessors_and_tests"`, or `"ask"`. `"ask"` shows an IDE dialog for an interactive choice, so a person must answer it at the IDE. |
+| `overrideStrategy` | string | No | How to handle overriding methods: `"rename_base"` (default), `"rename_only_current"`, or `"ask"`. `"ask"` shows an IDE dialog for an interactive choice, and the call waits until a person answers it at the IDE. |
+| `relatedRenamingStrategy` | string | No | How to handle automatic renaming of related symbols: `"all"` (default), `"none"`, `"accessors_and_tests"`, or `"ask"`. `"ask"` shows an IDE dialog for an interactive choice, and the call waits until a person answers it at the IDE. |
 
 **Example Request (Java):**
 
