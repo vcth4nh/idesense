@@ -66,6 +66,24 @@ class JsonRpcHandlerUnitTest : TestCase() {
         )
     }
 
+    fun testInitializeDescriptionNamesNoSafeDelete() = runBlocking {
+        val request = JsonRpcRequest(
+            id = JsonPrimitive(1),
+            method = JsonRpcMethods.INITIALIZE,
+            params = buildJsonObject { }
+        )
+
+        val responseJson = handler.handleRequest(json.encodeToString(JsonRpcRequest.serializer(), request))
+        val response = json.decodeFromString<JsonRpcResponse>(responseJson!!)
+
+        val description = response.result!!.jsonObject["serverInfo"]!!.jsonObject["description"]
+            ?.jsonPrimitive?.content
+        assertFalse(
+            "No tool does safe delete, so the description must not name it",
+            description?.contains("safe delete", ignoreCase = true) == true
+        )
+    }
+
     fun testInitializeRequestCanOverrideProtocolVersion() = runBlocking {
         val request = JsonRpcRequest(
             id = JsonPrimitive(1),
