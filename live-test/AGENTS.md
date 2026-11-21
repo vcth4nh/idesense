@@ -18,15 +18,17 @@ wrong result becomes the baseline and the suite then protects the defect.
 - Bless with no question when you have evidence that the new result is the result that the IDE
   shows: an observation of the IDE window, a cited source or bytecode fact, or a mechanical
   change (for example a new fixture file in a file list or in a package outline).
-- Ask the maintainer first in each of these cases:
+- Ask the owner of the repository first in each of these cases:
   - The row pins a deviation from the IDE.
   - The behaviour of the IDE is not established.
-  - The bless needs `--bless-errors` for all rows of a language or of a product.
 - Never bless a product that is `MISCONFIGURED` because of its project model. Repair the
   checkout or the IDE first.
+- Never use `--bless-errors` without `--tool`. The flag switches off both error gates for each
+  selected row, and the harness refuses it without `--tool`. Read the new expected file of that
+  tool after the bless (see "Rows that pin an expected error" in CONVENTIONS.md).
 - Never bless a row with the compare mode `exact` when its result differs between two equal
-  runs (see "Compare modes" in CONVENTIONS.md and step 8 "Stability check" of "Add a product"
-  in README.md).
+  runs (see "Compare modes" and "A row that differs between two equal runs" in CONVENTIONS.md,
+  and step 8 "Stability check" of "Add a product" in README.md).
 - In your report, name the rows that you blessed and the evidence for each group of rows.
 
 The gates of `--bless` and the two-step bless of an error row are in CONVENTIONS.md.

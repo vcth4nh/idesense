@@ -232,8 +232,9 @@ object ClientConfigGenerator {
                 Runs installation command in your terminal.
                 Automatically handles reinstall if already installed (port may change).
 
-                • --scope user: Adds globally for all projects
-                • --scope project: Adds to current project only
+                • --scope user: for you, in all projects
+                • --scope project: for each person who has the project (writes .mcp.json in the project root)
+                • --scope local (the default): for you, in the current project only
 
                 To remove manually: claude mcp remove $serverName
             """.trimIndent()

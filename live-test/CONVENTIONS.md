@@ -217,14 +217,14 @@ Hard rules (they keep the pinned snapshots stable):
 `./run.py --bless` is gated. By default it refuses to:
 
 1. Bless rows whose result is `tool_error_text` / `transport_error` /
-   `jsonrpc_error`. Override with `--bless-errors` (rare; usually fix the
-   probe first).
+   `jsonrpc_error`. Override with `--bless-errors` and `--tool` (rare; usually fix
+   the probe first).
 2. Bless rows whose fresh result is a structured `{"error": ...}` payload
    when the previously blessed result was **not** an error (or the row is
    new) — a degraded IDE must not silently poison snapshots. Rows already
    blessed as errors (intentional negative probes) stay re-blessable.
-   Override with `--bless-errors` (e.g. when adding a new negative probe, with `--tool` for
-   the file of that row).
+   Override with `--bless-errors` and `--tool` for the file of that row (e.g. when adding a
+   new negative probe).
 3. Drop orphan expected ids (ids in `expected/` no longer in any
    `inputs/<tool>.jsonl`). Override with `--prune`.
 4. Run with `--tool` filter matching zero rows.
@@ -234,7 +234,7 @@ safe. Don't run parallel `--bless` against the same language.
 
 A bless locks in whatever the live IDE returns as truth. If the IDE has a
 regression, that regression becomes the new baseline. The rule for when a bless
-needs a question to the maintainer is in [AGENTS.md](AGENTS.md) ("Bless").
+needs a question to the owner of the repository is in [AGENTS.md](AGENTS.md) ("Bless").
 
 ### Check a bless
 
@@ -403,6 +403,15 @@ A row that shows an open defect gets `"parked": <issue number>`. The row runs, a
 prints `PARKED (#n)` and counts it apart. The harness does not compare it and does not bless
 it. Remove the key in the change that corrects the defect, and bless the row then.
 
+### A row that differs between two equal runs
+
+- The result is cut: the row is a `shape` row (see "Compare modes").
+- The difference shows a defect, for example a result with a second copy of a part: write an
+  issue and park the row.
+- The difference occurred one time and its cause is not known: keep the expected row, and
+  record the observation in the ground-truth note of the row. At the second observation, write
+  an issue and park the row.
+
 ### Rows that pin an expected error
 
 Some rows pin an error on purpose, for example a scope that a language does not have. The
@@ -414,8 +423,8 @@ in two steps:
 2. `--product <folder> --bless --bless-canary` for all rows. The gates are on in this step,
    and a row that already has an expected error passes them.
 
-Never use `--bless-errors` for all rows of a product: it switches off both gates, and a
-timeout or an IDE failure becomes an expected row.
+The harness refuses `--bless-errors` without `--tool`: the flag switches off both gates for
+each selected row, and a timeout or an IDE failure becomes an expected row.
 
 ### No source text in a snapshot
 

@@ -50,6 +50,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   and `topUsages` do not hold a usage that is left out.
 
 ### Fixed
+- The notification that "Copy Configuration" shows for Claude Code, and the README, gave the
+  scopes of `claude mcp add` wrong. They now say that `--scope project` writes the shared file
+  `.mcp.json`, and that `--scope local`, the default, is the scope for one person in the current
+  project.
 - `ide_type_hierarchy` and `ide_call_hierarchy` dispose the per-call hierarchy browser once the
   tree is converted. Every call constructed a `HierarchyBrowserBaseEx` (a Swing panel whose
   constructor registers a `SingleAlarm` under it in the Disposer tree) and never released it, so

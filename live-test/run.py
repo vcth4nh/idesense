@@ -1198,7 +1198,7 @@ def main() -> int:
         "--bless-errors",
         action="store_true",
         help="Allow blessing rows that returned tool_error_text / transport_error / jsonrpc_error, "
-        "or whose structured {\"error\": ...} result would replace a non-error (or new) expected row.",
+        "or whose structured {\"error\": ...} result would replace a non-error (or new) expected row; needs --tool.",
     )
     parser.add_argument(
         "--bless-canary",
@@ -1272,6 +1272,8 @@ def main() -> int:
     with_fixtures, with_products = suite in ("fixtures", "all"), suite in ("real-products", "all")
     if args.bless_canary and not (args.bless and with_products):
         parser.error("--bless-canary needs --bless and a run of real products")
+    if args.bless_errors and args.tool is None:
+        parser.error("--bless-errors switches off both error gates for each selected row and needs --tool")
 
     prods: list[products.Product] = []
     if with_products:

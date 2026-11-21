@@ -14,8 +14,8 @@ the scope and the design principles are in [docs/PRINCIPLES.md](docs/PRINCIPLES.
   than the code:
   - *The result can be judged only against the IDE.* Establish what the IDE shows: observe the
     running IDE (see "Throwaway IDE" in [live-test/README.md](live-test/README.md)), or ask the
-    maintainer to do it. Do not decide from the code alone, and do not bless a result on a
-    guess.
+    owner of the repository to do it. Do not decide from the code alone, and do not bless a
+    result on a guess.
   - *Mirroring the IDE would withhold information that is more useful to the calling agent.*
     Stop and ask the owner of the repository. Do not decide silently.
 

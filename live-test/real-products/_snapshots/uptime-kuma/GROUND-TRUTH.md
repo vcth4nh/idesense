@@ -65,5 +65,5 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   #195 and #200 have no row.
 - **uptime-kuma: `explain-sleep-pos` differed one time.** In one run on 2026-11-17 the
   `signature` of this row differed from the expected row only in a leading word `export`.
-  The cause is not known. Do not bless the other form: run the row again, and add a second
-  observation to this note.
+  The cause is not known. At a second observation, write an issue and park the row (see "A row
+  that differs between two equal runs" in `live-test/CONVENTIONS.md`).

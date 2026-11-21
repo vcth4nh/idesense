@@ -50,8 +50,8 @@ Facts about the switch:
 - During the first indexing GoLand reports smart mode two times for about 3 seconds before
   the dependencies are indexed. The index status alone is not a safe readiness signal for a
   first open; the canary rows are.
-- `goland.sh serverMode <path>` opens only that one project and restores no other project.
-  A second path argument is ignored. So the harness always starts a bare `serverMode`.
+- A start with a project path: see "Projects" in
+  [live-test/README.md](../../../README.md#start-an-ide-with-no-display).
 
 ## Import check
 
