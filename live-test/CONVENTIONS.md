@@ -30,7 +30,7 @@ Rules, all enforced by `--check-fixtures`:
 - Rows id-sorted within each file; bless mirrors input-file order, so
   expected files are id-sorted too. New rows insert at their sorted position.
 - Every input line must byte-equal its canonical serialization
-  (`serialize_input_row` in `run.py`).
+  (`serialize_input_row` in `suite/cli.py`).
 
 Rows are matched by `id`, not position — reordering/inserting/deleting never
 shifts the rest of the snapshot. The strict loaders (`_load_inputs`,
@@ -258,7 +258,7 @@ Check what a bless changed before the commit:
 
 ## Path normalization — project vs library
 
-`normalize()` in `run.py` keeps snapshots stable across machines, IDE installs,
+`normalize()` in `suite/cli.py` keeps snapshots stable across machines, IDE installs,
 and toolchain versions by classifying every file ref (`_is_library`):
 
 - **Project files** — the plugin returns these relative to the project root

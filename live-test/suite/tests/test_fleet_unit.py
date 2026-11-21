@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest import mock
 
-import fleet
+from suite import fleet
 
 GOLAND = fleet.IDES["goland"]
 CMD = ["/opt/tb/apps/goland/jbr/bin/java", "-classpath", "x.jar", "-Xmx2048m",
@@ -80,7 +80,7 @@ class IdeTableTest(unittest.TestCase):
                           "typescript": 29173, "go": 29174, "php": 29175, "rust": 29178}, fleet.PORT_BY_LANG)
 
     def test_run_uses_the_same_table(self):
-        import run
+        from suite import cli as run
         self.assertIs(fleet.PORT_BY_LANG, run.PORT_BY_LANG)
 
     def test_ide_url(self):

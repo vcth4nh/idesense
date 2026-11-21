@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Unit tests for run.py's offline logic (no IDE calls).
+"""Unit tests for suite/cli.py's offline logic (no IDE calls).
 
-Run: python3 -m unittest test_run_unit -v   (from live-test/)
+Run: python3 -m unittest suite.tests.test_cli_unit -v   (from live-test/)
 
 Covers the bless error gate (#82): structured {"error": ...} tool payloads
 must not silently replace a previously non-error expected row.
@@ -17,11 +17,10 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import fleet
-import products
-import run
-from run import _result_has_error, _result_is_structured_error, _structured_error_bless_refusals
-from run import chained_request, met_dumb_mode, order_rows, row_problems, row_snapshot, serialize_input_row, wait_until
+from suite import cli as run
+from suite import fleet, products
+from suite.cli import _result_has_error, _result_is_structured_error, _structured_error_bless_refusals
+from suite.cli import chained_request, met_dumb_mode, order_rows, row_problems, row_snapshot, serialize_input_row, wait_until
 
 
 def setUpModule():
@@ -887,7 +886,7 @@ class MainSuiteTest(unittest.TestCase):
     def test_fixture_row_runs_against_the_fleet_fixtures_and_keeps_the_snapshots_of_this_checkout(self):
         folder = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, folder)
-        here = Path(run.__file__).resolve().parent
+        here = Path(run.__file__).resolve().parent.parent
         with mock.patch.dict(os.environ, {run.FLEET_FIXTURES_ENV: folder}):
             self.assertEqual(0, self.main("--language", "go"))
         self.assertEqual([(Path(folder) / "go", here / "fixtures" / "_snapshots" / "go")], self.language_paths)
@@ -904,7 +903,7 @@ class MainSuiteTest(unittest.TestCase):
 class MainFleetTest(unittest.TestCase):
     """The two commands of main() that only change the open projects of the fleet."""
     A = RunProductsTest.A
-    HERE = Path(run.__file__).resolve().parent
+    HERE = Path(run.__file__).resolve().parent.parent
 
     def main(self, *argv, state="ok", close_error=None):
         self.closed, self.opened = [], []
@@ -1083,7 +1082,7 @@ class MainOfflineTest(unittest.TestCase):
 
     def test_check_covers_both_suites_by_default(self):
         self.assertEqual(1, self.main("--check-fixtures"))
-        repo = Path(run.__file__).resolve().parent.parent.name
+        repo = Path(run.__file__).resolve().parent.parent.parent.name
         self.assertEqual([("fixtures", ["go"], False, None), ("real-products", ["alpha", "beta"], True, repo)],
                          self.checks)
         self.assertEqual("ALL: 1 issues", self.printed[-1])

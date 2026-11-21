@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import products
+from suite import products
 
 CADDY = {"folder": "caddy", "ide": "goland", "repo": "caddyserver/caddy", "pin": "v2.11.7",
          "license": "Apache-2.0", "tier": "core"}

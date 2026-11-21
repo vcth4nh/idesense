@@ -25,7 +25,7 @@ against a new build").
 The harness has unit tests that need no IDE and no product checkout:
 
 ```bash
-python3 -B -m unittest discover -s live-test -p "test_*_unit.py"
+python3 -B -m unittest discover -s live-test -t live-test -p "test_*_unit.py"
 ```
 
 ## Per-IDE fixture setup
@@ -405,7 +405,7 @@ shutdown writes the old state over it. This sequence works:
    rename over `mcp-plugin.xml` (`os.replace` in Python).
 4. Start the IDE.
 
-`fleet.py` uses this sequence for `recentProjects.xml` and `trusted-paths.xml`. Do not write
+`suite/fleet.py` uses this sequence for `recentProjects.xml` and `trusted-paths.xml`. Do not write
 at a fixed time after `ide_restart`: the new process can read its settings some seconds after
 the old one ends (seen on GoLand 2026.2: the new server started 7 s after the shutdown line).
 
@@ -441,7 +441,7 @@ fleet process, so the harness never restarts it. Run rows against it with `--url
    - Remove `.lock`.
    - Remove `options/recentProjects.xml`, else the throwaway IDE opens the fleet projects.
    - Add the throwaway project to `options/trusted-paths.xml` (the format of
-     `trust_project_paths` in `fleet.py`).
+     `trust_project_paths` in `suite/fleet.py`).
    - Change `serverPort` in `options/mcp-plugin.xml` to a free port, for example 29199. With
      the fleet port the throwaway server cannot bind, and each call goes to the fleet IDE. To
      check the first-run defaults, keep only the `serverPort` option.
