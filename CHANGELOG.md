@@ -195,6 +195,8 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   When RustRover gives no module path, `qualifiedName` is `null`. A file as a result now also goes
   to the qualified-name providers of the other languages. In IntelliJ IDEA, a Gradle build script
   can now get the Gradle path of its project (#187).
+- A PHP class constant gets the `kind` `CONSTANT`, as a PHP constant outside a class. It had the
+  `kind` `CLASS`, because the type name "Class constant" of PhpStorm contains "class" (#180).
 
 ## [2.1.0] - 2026-11-09
 

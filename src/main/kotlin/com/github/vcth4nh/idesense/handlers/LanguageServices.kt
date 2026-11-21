@@ -59,7 +59,8 @@ object LanguageServices {
             lower == "field" -> "FIELD"
             lower == "variable" -> "VARIABLE"
             lower == "property" -> "PROPERTY"
-            lower == "constant" -> "CONSTANT"
+            // PHP gives "Class constant": the substring test for "class" below made it CLASS (#180)
+            lower == "constant" || lower == "class constant" -> "CONSTANT"
             lower == "type alias" || lower == "typealias" -> "TYPE_ALIAS"
             lower == "type" -> "TYPE"
             lower == "record" -> "RECORD"
