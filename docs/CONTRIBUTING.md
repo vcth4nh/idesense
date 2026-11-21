@@ -31,6 +31,7 @@ Each version is in the file that this list names. Do not copy a version into a d
 ```bash
 ./gradlew buildPlugin                        # plugin zip: build/distributions/idesense-<version>.zip
 ./gradlew runIde                             # a sandbox IDE with the plugin
+./gradlew test                               # all tests: the unit tests and the platform tests
 ./gradlew test --tests "*UnitTest*"          # the unit tests only
 ./gradlew test --tests "McpPluginUnitTest"   # one test class
 ./gradlew compileTestKotlin                  # compile all tests, run none
@@ -94,7 +95,7 @@ test classes are in `src/test/kotlin/`.
 | `DocsDriftUnitTest` | The tool count in `testCanonicalCounts`, the instance in `allToolInstances()`, and the default-disabled set. |
 | `ConstantsUnitTest` | The constant, and the list in `testToolNamesAllContainsEveryConstant`. |
 | `ToolsUnitTest` | A schema test and a registration test. |
-| `ToolExecutionIntegrationTest` | The name in `expectedTools` of `testAllToolsRegistered`. This is a platform test, so only CI shows a miss. |
+| `ToolExecutionIntegrationTest` | The name in `expectedTools` of `testAllToolsRegistered`. This is a platform test, so the filter for the unit tests does not run it. |
 | `CHANGELOG.md` | An entry under `## [Unreleased]`. |
 | `live-test/fixtures/_snapshots/<lang>/` | Input rows and expected rows for each language. See "Workflow for adding new probes" in [CONVENTIONS.md](../live-test/CONVENTIONS.md). |
 
@@ -173,9 +174,12 @@ The zip must hold no `kotlinx-coroutines` jar.
 | Unit test | `*UnitTest` | `junit.framework.TestCase` | Serialization, schemas, data classes, registries, pure logic. No platform start. |
 | Platform test | `*Test` | `BasePlatformTestCase` | A `project`, PSI, indexes, tool execution, project services. |
 
-The class name selects the test filter, so a class name must agree with its base class. CI runs
-both kinds (`./gradlew check`), and the platform tests run there. The rule for an agent is in
-[AGENTS.md](../AGENTS.md). A platform test creates its source files in the test
+The class name selects the test filter, so a class name must agree with its base class. A unit
+test starts no IntelliJ application. A test of a function that reads an extension point or gets
+a service needs the application, so it is a platform test, also when it works with mocks. Both
+kinds run on a development machine and in CI (`./gradlew check`). A platform test starts the
+IntelliJ Platform inside the test process. The MCP server does not start in a test
+(`McpServerService.initialize`). A platform test creates its source files in the test
 (`myFixture.addFileToProject`).
 
 **The light fixture has an in-memory VFS.** A platform test cannot assert a tool-level result
@@ -224,18 +228,11 @@ Read the result in `build/test-results/test/TEST-*DocsDriftUnitTest.xml`
 After an edit of a tool description, run all unit tests. `ToolsUnitTest` asserts words of some
 descriptions.
 
-### Make CI show the first failure of a platform test
+### See a new test fail first
 
-A new platform test must fail on the old code first. To see that failure without a local
-platform run:
-
-1. Commit the test alone. It must compile against the old code: run `./gradlew compileTestKotlin`.
-2. Push, and open a draft pull request for the branch if it has none. The Build workflow runs
-   only for a pull request and for a push to `main` (see "CI"). The Test job of the pull request
-   fails.
-3. Read the failure with `gh run view --job <job id> --log-failed`. Make sure that the failed
-   line is the intended assertion.
-4. Push the correction. The Test job passes.
+A new test must fail on the old code first. Write the test before the correction, and run its
+class (`./gradlew test --tests "<TestClass>"`). Make sure that the failed line is the intended
+assertion. Then make the correction, and run the class again.
 
 ### A CI Test job that hangs
 
@@ -488,8 +485,8 @@ The label descriptions are the rubric:
 4. **Tests.** Add tests for the new behavior.
 5. **Docs.** Update the doc of each reader that the change touches (see "Doc ownership").
    After an edit of a pinned doc, run the drift test (see "Editing docs").
-6. **Unit tests.** Run `./gradlew test --tests "*UnitTest*"`. CI runs `./gradlew check`, which
-   includes the platform tests.
+6. **Run the tests.** Run `./gradlew test --tests "*UnitTest*"` and each platform test class
+   that your change touches, or all tests with `./gradlew test`. CI runs `./gradlew check`.
 7. **Live tests.** For a change of tool behavior, run both suites (see "Live tests"). Bless under
    the bless rule of [live-test/AGENTS.md](../live-test/AGENTS.md). Commit the changed snapshots
    in the same pull request.

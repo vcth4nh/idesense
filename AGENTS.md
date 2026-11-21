@@ -25,8 +25,10 @@ the scope and the design principles are in [docs/PRINCIPLES.md](docs/PRINCIPLES.
   needs its evidence: the source or the bytecode (class, jar, build number), or an observation
   of the running IDE. Where an item shows in the IDE UI is a question for the running IDE, not
   for `plugin.xml`. Check the report of a subagent against the source before you use it.
-- **Never run platform tests yourself** (`*Test` extending `BasePlatformTestCase`) — CI runs
-  them. Unit tests (`*UnitTest`) are fine.
+- **Run the tests of your change.** Unit tests (`*UnitTest`) and platform tests (`*Test`
+  extending `BasePlatformTestCase`) both run on your machine. Run each test class that your
+  change touches, and make a new test fail on the old code first. CI runs all tests
+  ([CONTRIBUTING.md](docs/CONTRIBUTING.md), "Tests").
 - **Dev builds.** Only the version tells one build from another, so each build that goes into
   an IDE needs a new version. Give it on the command line, never in `gradle.properties`:
   `./gradlew buildPlugin -PpluginVersion=<version>-dev.NN`. No `-dev.NN` value lands on `main`.
