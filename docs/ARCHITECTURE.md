@@ -446,9 +446,9 @@ Provider hooks (`SuperMethodsProvider`; a hook that throws changes nothing, a ca
 | `usageMark` | the mark of a usage that is not dynamic | PHP (from the declarations that the reference resolves to) |
 | `droppedUsageKind` | a usage to leave out (`UsageDrop`) | Go (`GO_FIELD_KEY`), PHP (`PHP_SELF_REFERENCE`) |
 
-Related issues: #214 (a PHP field with an accessor), #215 (`usageCount` of `ide_explain_symbol` on the
-Go path), #216 (the reason text of the base note), #220 (PyCharm: a receiver type that does not
-declare the method), #221 (Go: a file that the build constraints exclude).
+Related issues: #214 (a PHP field with an accessor), #216 (the reason text of the base note), #220
+(PyCharm: a receiver type that does not declare the method), #221 (Go: a file that the build
+constraints exclude).
 
 ## Pagination
 
