@@ -162,6 +162,12 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   count (#179).
 - `ide_find_usages` no longer shows a `warnings` or a `notes` entry two times when the IDE started
   the search again after a write action.
+- `ide_find_usages` and `ide_explain_symbol` name the class in the `warnings` entry of a
+  find-usages handler or handler factory that throws, also when the class is anonymous. The entry
+  had two spaces and no name, for example
+  `Find-usages handler  threw on findReferencesToHighlight` for the handler of PyCharm for a class.
+  The name of an anonymous class is now the class name without the package, for example
+  `PyFindUsagesHandlerFactory$1`. The entry for a named class does not change (#206).
 - The companion skill (`SKILL.md`, `tools-reference.md`) had wrong or absent facts about the
   tools. It now says that the `subtypes` of `ide_type_hierarchy` is a flat list, that a fresh
   `ide_find_usages` search takes the `symbol` anchor or a position, and that `ide_find_file` and

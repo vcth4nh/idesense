@@ -129,6 +129,11 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             "Warning should name the failed stage and consequence: $warnings",
             warnings.any { it.contains("primaryElements") && it.contains("usages may be incomplete") }
         )
+        // #206: the handler is an anonymous class, which has an empty simple name.
+        assertTrue(
+            "Warning should name the anonymous handler class without the package: $warnings",
+            warnings.any { it.startsWith("Find-usages handler ToolExecutionIntegrationTest\$") }
+        )
     }
 
     fun testFindUsagesSurfacesFactoryFailureAsWarning() {
@@ -174,6 +179,11 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         assertTrue(
             "Warning should name the failure and its consequence: $warnings",
             warnings[0].contains("threw while creating the handler") && warnings[0].contains("usages may be incomplete")
+        )
+        // #206: the factory is an anonymous class, which has an empty simple name.
+        assertTrue(
+            "Warning should name the anonymous factory class without the package: $warnings",
+            warnings[0].startsWith("Find-usages handler factory ToolExecutionIntegrationTest\$")
         )
         val callOffset = ReadAction.compute<Int, Throwable> { psiFile.text.indexOf("target();") }
         assertEquals("The plain search should give the one usage of target(): ${hits.map { it.offset }}", 1, hits.size)
