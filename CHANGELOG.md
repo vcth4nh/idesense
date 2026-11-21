@@ -49,6 +49,11 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `ide_explain_symbol` has the new optional field `notes` with the same entries; its `usageCount`
   and `topUsages` do not hold a usage that is left out.
 
+### Removed
+- The default server name and port for JetBrains Aqua (`aqua-idesense`, port 29180). JetBrains
+  discontinued Aqua. An IDE with the product code `QA` now gets the defaults of an IDE with no
+  entry: `jetbrains-idesense` and port 29199. The ports of the other IDEs do not change (#241).
+
 ### Fixed
 - The notification that "Copy Configuration" shows for Claude Code, and the README, gave the
   scopes of `claude mcp add` wrong. They now say that `--scope project` writes the shared file

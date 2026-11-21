@@ -289,7 +289,6 @@ Each JetBrains IDE has a unique default port and server name to allow running mu
 | CLion | `clion-idesense` | 29177 |
 | RustRover | `rustrover-idesense` | 29178 |
 | DataGrip | `datagrip-idesense` | 29179 |
-| Aqua | `aqua-idesense` | 29180 |
 | DataSpell | `dataspell-idesense` | 29181 |
 | Other IntelliJ-based IDE | `jetbrains-idesense` | 29199 |
 
