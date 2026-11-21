@@ -41,7 +41,7 @@ Each version is in the file that this list names. Do not copy a version into a d
 The run configurations in `.run/` start the same tasks: **Run Plugin** (`runIde`), **Run Tests**
 (`check`, so also the platform tests) and **Run Verifications** (`verifyPlugin`).
 `gradle.properties` turns on the build cache and the configuration cache, so a task can report
-`UP-TO-DATE` or `FROM-CACHE` with an old result (see "Build-cache traps").
+`UP-TO-DATE` or `FROM-CACHE` with an old result (see "Editing docs").
 
 ## Dev builds
 
@@ -218,25 +218,11 @@ an edit of a doc only, a plain `./gradlew test` reports `UP-TO-DATE`, and `clean
 ./gradlew --no-build-cache cleanTest test --tests "*DocsDriftUnitTest*"
 ```
 
-`--rerun-tasks` also forces a run, but it compiles all code again. Then add
-`-Pkotlin.daemon.jvmargs="-Xmx4g"`. Read the result in
+`--rerun-tasks` also forces a run, but it compiles all code again. Read the result in
 `build/test-results/test/TEST-*DocsDriftUnitTest.xml` (`failures="0" errors="0"`).
 
 After an edit of a tool description, run all unit tests. `ToolsUnitTest` asserts words of some
 descriptions.
-
-### Build-cache traps
-
-- **A `const val` inlined into a test.** Kotlin copies a `const val` of the main code into each
-  test class that reads it. After a change of the value, `compileTestKotlin` can stay
-  `UP-TO-DATE`, and the test runs with the old value. Compile the tests again:
-  `./gradlew compileTestKotlin --rerun-tasks -x compileKotlin`.
-- **Old test bytecode after a change of a constructor.** A new field in a data class (for
-  example `McpSettings.State`) changes its constructor. The build cache can restore test classes
-  that were compiled against the old constructor, also after `clean`. Then the tests fail with
-  `NoSuchMethodError` on `<init>`. Run `./gradlew clean --no-build-cache`, and then
-  `./gradlew test --tests "*UnitTest*" --no-build-cache`. Do not use `--rerun-tasks` for this
-  case: it can break the classpath of the test compilation.
 
 ### Make CI show the first failure of a platform test
 
