@@ -125,7 +125,7 @@ class McpServerIntegrationTest : BasePlatformTestCase() {
         val tools = response.result!!.jsonObject["tools"]?.jsonArray
         val toolNames = tools?.map { it.jsonObject["name"]?.jsonPrimitive?.content }
 
-        // Note: ide_find_symbol and ide_file_structure are disabled by default, so not included here
+        // Note: ide_find_symbol and ide_file_structure are on by default but are not in this list
         val expectedNavigationTools = listOf(
             ToolNames.FIND_USAGES,
             ToolNames.FIND_DEFINITION,

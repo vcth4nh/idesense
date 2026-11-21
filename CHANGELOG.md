@@ -185,6 +185,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   change notes of the 2.0.0 plugin from the section `[2.0.0]` of the older project, and it merged
   the two sections `[1.0.0]`. The changelog of the older project is now in
   `docs/CHANGELOG-before-rebrand.md`.
+- The description of the server no longer names "safe delete" as a capability. No tool does safe
+  delete (#169).
+- The descriptions of `ide_file_structure` and `ide_find_symbol` no longer say "disabled by
+  default". Both tools are on by default (#168).
 
 ## [2.1.0] - 2026-11-09
 
