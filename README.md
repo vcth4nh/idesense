@@ -150,21 +150,23 @@ The plugin provides **20 MCP tools** — 15 enabled by default, 5 opt-in (toggle
 
 ### Supported IDEs
 
-**Fully Tested:**
-- IntelliJ IDEA (Community/Ultimate)
-- Android Studio
-- PyCharm (Community/Professional)
+**Tested** (the live-test suites run on these IDEs):
+- IntelliJ IDEA
+- PyCharm
 - WebStorm
 - GoLand
-- RustRover
 - PhpStorm
+- RustRover
 
-**May Work (Untested):**
+**Not tested:**
+- Android Studio
 - RubyMine
 - CLion
 - DataGrip
+- Aqua
+- DataSpell
 
-> The plugin uses standard IntelliJ Platform APIs and should work on any IntelliJ-based IDE, but has only been tested on the IDEs listed above.
+> The plugin uses standard IntelliJ Platform APIs and should work on each IntelliJ-based IDE except Rider (see the note in [IDE-Specific Defaults](#ide-specific-defaults)), but the live-test suites run only on the tested IDEs above.
 
 ## Installation
 
@@ -215,8 +217,9 @@ claude mcp add --transport http webstorm-idesense http://127.0.0.1:29173/mcp/str
 ```
 
 Options:
-- `--scope user` - Adds globally for all projects
-- `--scope project` - Adds to current project only
+- `--scope user` - for you, in all projects
+- `--scope project` - for each person who has the project (writes `.mcp.json` in the project root)
+- `--scope local` (the default) - for you, in the current project only
 
 To remove: `claude mcp remove <server-name>` (e.g., `claude mcp remove intellij-idesense`)
 
@@ -237,6 +240,20 @@ codex mcp add webstorm-idesense --url http://127.0.0.1:29173/mcp/streamable-http
 
 To remove: `codex mcp remove <server-name>` (e.g., `codex mcp remove intellij-idesense`)
 
+### Gemini CLI
+
+Add to `~/.gemini/settings.json` (adjust name and port for your IDE):
+
+```json
+{
+  "mcpServers": {
+    "intellij-idesense": {
+      "httpUrl": "http://127.0.0.1:29170/mcp/streamable-http"
+    }
+  }
+}
+```
+
 ### Cursor
 
 Add to `.cursor/mcp.json` in your project root or `~/.cursor/mcp.json` globally (adjust name and port for your IDE):
@@ -251,31 +268,9 @@ Add to `.cursor/mcp.json` in your project root or `~/.cursor/mcp.json` globally 
 }
 ```
 
-### Windsurf
+### Other clients
 
-Add to `~/.codeium/windsurf/mcp_config.json` (adjust name and port for your IDE):
-
-```json
-{
-  "mcpServers": {
-    "intellij-idesense": {
-      "serverUrl": "http://127.0.0.1:29170/mcp/streamable-http"
-    }
-  }
-}
-```
-
-### VS Code (Generic MCP)
-
-```json
-{
-  "mcp.servers": {
-    "intellij-idesense": {
-      "url": "http://127.0.0.1:29170/mcp/streamable-http"
-    }
-  }
-}
-```
+The popup section "Generic MCP Config" copies a Streamable HTTP config or a Legacy SSE config. The documents of the client say which file and which key take it.
 
 > **Note**: Replace the server name and port with your IDE's defaults. See [IDE-Specific Defaults](#ide-specific-defaults) below.
 

@@ -7,9 +7,6 @@ a probe to "fix" one. The notes that cover more than one language are in
 - **Python `impls-Drawable.draw`**: returns empty. `Drawable` is a
   `typing.Protocol`, so PyCharm has no nominal implementer set to enumerate
   (`usage-Drawable-protocol` is likewise empty).
-- **Python `find-definition` on builtins inside lambda / dict bodies**: some
-  positions can return `tool_error_text: No named element at position` — but the
-  suite currently has no probe capturing this, so it's an observation, not a blessed row.
 - **Python builtins carry the `builtins.` qualifier** (PyCharm 2026.2+):
   `qualifiedName` reads `builtins.object`, `builtins.int.__new__`,
   `builtins.super.__init__`. PyCharm's `QualifiedNameFinder` now always prefixes

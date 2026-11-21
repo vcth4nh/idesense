@@ -873,6 +873,16 @@ class MainSuiteTest(unittest.TestCase):
             self.assertEqual(2, stop.exception.code)
             self.assertEqual(([], []), (self.languages, self.product_calls))
 
+    def test_bless_errors_needs_tool(self):
+        for argv in (["--bless", "--bless-errors"], ["--product", "alpha", "--bless", "--bless-errors"],
+                     ["--suite", "all", "--bless", "--bless-canary", "--bless-errors"]):
+            with self.assertRaises(SystemExit) as stop:
+                self.main(*argv)
+            self.assertEqual(2, stop.exception.code)
+            self.assertEqual(([], []), (self.languages, self.product_calls))
+            self.assertIn("--bless-errors switches off both error gates for each selected row and needs --tool",
+                          self.errors)
+
     def test_fixture_row_runs_against_the_fleet_fixtures_and_keeps_the_snapshots_of_this_checkout(self):
         folder = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, folder)

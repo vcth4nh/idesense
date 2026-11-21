@@ -4,10 +4,10 @@ Snapshot-based regression suite for the IdeSense plugin. Drives real
 HTTP POST requests against running JetBrains IDEs and diffs the responses
 against committed `fixtures/_snapshots/<lang>/expected/<tool>.jsonl` files.
 
-Run it after each change of tool behavior and before a release (see "Run the suites against
-a new build").
-
 A second suite runs the same tools on pinned real products. See "Real products" below.
+
+Run both suites after each change of tool behavior and before a release (see "Run the suites
+against a new build").
 
 > Maintaining or extending this suite? See [CONVENTIONS.md](CONVENTIONS.md) for the
 > conventions (id naming, snapshot format, bless safety, fixture-edit safety). A result that
@@ -213,14 +213,15 @@ The measured times of each product are in `_setup/<folder>/notes.md`.
 7. **Sweep.** Draft the probe rows, run them, and give each row a class: OK, EMPTY, ERROR or
    SUSPECT. Check each EMPTY row and each SUSPECT row against the source or the IDE.
 8. **Stability check.** Run the rows three times, and one more time after a project switch.
-   A row that differs between two runs becomes a `shape` row or goes out. No row may resolve
-   into a `.phar` file or count a result in one (see the phpunit
+   A row that differs between two runs becomes a `shape` row or goes out. If the difference
+   shows a defect, see "A row that differs between two equal runs" in CONVENTIONS.md. No row
+   may resolve into a `.phar` file or count a result in one (see the phpunit
    [GROUND-TRUTH.md](real-products/_snapshots/phpunit/GROUND-TRUTH.md)).
 9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug,
    with only `Read` and the read-only tools. The prompt, the MCP config, the runner and the
    transcript analysis are local files that this repository does not track.
-10. **Triage.** One outcome for each finding: an issue, a decision of the maintainer, a
-    setup correction, or a ground-truth note.
+10. **Triage.** One outcome for each finding: an issue, a decision of the owner of the
+    repository, a setup correction, or a ground-truth note.
 11. **Bless, under the bless rule of `AGENTS.md`.** Park the rows that show an open defect. Then
     run these commands with `--product <folder>`: `--bless --bless-canary`, `--write-anchors`,
     `--check-fixtures`, and two verify runs. For a row that pins an expected error, see "Rows
@@ -353,9 +354,11 @@ of the process before: `setsid --fork <ide launcher> serverMode`. `<ide launcher
 - **Projects.** A bare `serverMode` start opens each project that has `opened="true"` in
   `<config dir>/options/recentProjects.xml`. To change the set, stop the IDE, change the
   marks, and start it. `--open-product` and `--close-products` do this for a product. At a
-  start with no instance up, a project path after `serverMode` also opens that project. A
-  `serverMode` IDE checks the trust of a project: the harness writes a trust entry for each
-  product to `<config dir>/options/trusted-paths.xml` while the IDE is down.
+  start with no instance up, a project path after `serverMode` opens only that project and
+  restores no other project, and a second path is ignored (seen with GoLand in the setup of
+  caddy). For this reason the harness always starts a bare `serverMode`. A `serverMode` IDE
+  checks the trust of a project: the harness writes a trust entry for each product to
+  `<config dir>/options/trusted-paths.xml` while the IDE is down.
 - **The fleet process** of an IDE is the JVM (`<app>/jbr/bin/java`) whose command line has
   `-Didea.paths.selector=<Product><version>` and `serverMode`, and no `-Didea.config.path=`.
   Find it with a pattern that does not match your own shell, for example
@@ -500,8 +503,8 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   window start can load other features than a `serverMode` start (seen on PyCharm 2026.2:
   `Disabled plugins: JetBrains Ultimate` in `idea.log` of the window start). For a case that
   the fixtures do not have, add probe files to the fixture copy: no fixture change, no bless.
-- **Dialogs.** A license, agreement or trial dialog is for the maintainer to answer. Do not
-  click it: stop the throwaway IDE, and ask the maintainer.
+- **Dialogs.** A license, agreement or trial dialog is for the owner to answer. Do not
+  click it: stop the throwaway IDE, and ask the owner.
 
 ## Run the suites against a new build
 
@@ -521,8 +524,9 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
    The product part restarts the IDE of each product. A product with no checkout is
    `SKIPPED`.
 
-   For a release, follow "Release" in [CONTRIBUTING.md](../docs/CONTRIBUTING.md#release). It
-   runs the suites two times, and each row must pass.
+   A run passes when its last line is `ALL: <n> passed, 0 failed` and its line `real-products:`
+   has `0 skipped`. A `PARKED` row is no failure: it shows an open issue. A release has the
+   same pass rule (see "Release" in [CONTRIBUTING.md](../docs/CONTRIBUTING.md#release)).
 
 4. If failures appear:
    - Read each diff carefully. Is the change intentional (it matches the CHANGELOG entry of
@@ -533,6 +537,9 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
      CONVENTIONS.md), and commit the changed snapshots with the change. When the change also
      alters a canary row, see `MISCONFIGURED` in "Troubleshooting".
    - Regression: file an issue or revert the change.
+5. After a bless, run both suites two times. These runs look for a row whose result differs
+   between two equal runs (see "A row that differs between two equal runs" in
+   [CONVENTIONS.md](CONVENTIONS.md)).
 
 ## Troubleshooting
 

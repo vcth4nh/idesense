@@ -263,10 +263,10 @@ no pull request starts no Build run.
 ### Live tests
 
 The live-test harness runs the tools against running IDEs and compares the results with blessed
-snapshots. CI does not run it. For a change of tool behavior, run the fixture suite
-(`./live-test/run.py`); it needs no product checkout. A release runs both suites
-(`./live-test/run.py --suite all`). The commands, the deploy and the bless rules are in
-[live-test/README.md](../live-test/README.md) and [live-test/AGENTS.md](../live-test/AGENTS.md).
+snapshots. CI does not run it. For a change of tool behavior and for a release, run both suites
+(`./live-test/run.py --suite all`): see "Run the suites against a new build" in
+[live-test/README.md](../live-test/README.md). The commands, the deploy and the bless rules are
+in that file and in [live-test/AGENTS.md](../live-test/AGENTS.md).
 
 After a live run, read `idea.log` of each IDE (see "A defect that no row shows" in
 [live-test/README.md](../live-test/README.md#troubleshooting)).
@@ -401,9 +401,10 @@ rubric:
    After an edit of a pinned doc, force a real run of the drift test (see "Editing docs").
 6. **Unit tests.** Run `./gradlew test --tests "*UnitTest*"`. CI runs `./gradlew check`, which
    includes the platform tests.
-7. **Live tests.** For a change of tool behavior, run the fixture suite (`./live-test/run.py`).
-   Bless under the bless rule of [live-test/AGENTS.md](../live-test/AGENTS.md). Commit the
-   changed snapshots in the same pull request.
+7. **Live tests.** For a change of tool behavior, run both suites
+   (`./live-test/run.py --suite all`), two times after a bless. Bless under the bless rule of
+   [live-test/AGENTS.md](../live-test/AGENTS.md). Commit the changed snapshots in the same pull
+   request.
 8. **IDE parity.** A result that differs from the IDE on purpose needs the sign-off of the
    owner of the repository (see "Mimic the IDE" in [PRINCIPLES.md](PRINCIPLES.md)) and an entry
    in "Where a tool differs from the IDE on purpose" in [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -451,8 +452,9 @@ features, a major version for a breaking change (an entry with **Breaking**).
    (`getChangelog --unreleased`). For an infrastructure failure, see "CI".
 3. **Validate.** Build the release zip at the bump commit with `./gradlew buildPlugin`, with no
    `-PpluginVersion`. Deploy it to all IDEs (see "Deploy a build to the IDEs" in
-   [live-test/README.md](../live-test/README.md)). Run `./live-test/run.py --suite all` two times.
-   Each row must pass.
+   [live-test/README.md](../live-test/README.md)). Run `./live-test/run.py --suite all` two times,
+   with the checkout of each product. Each run must pass: the pass rule is in "Run the suites
+   against a new build" of that file.
 4. **Publish.** Read the draft notes. Then publish the draft:
    `gh release edit <version> --draft=false --latest`. Publish while the bump commit is the head
    of `main`: the draft targets `main`, and GitHub creates the tag at the publish.
@@ -462,6 +464,11 @@ features, a major version for a breaking change (an entry with **Breaking**).
    signing secrets. Without the secret, the workflow skips that step and still succeeds.
 6. **Roll the changelog.** Add `## [<version>] - <YYYY-MM-DD>` directly below `## [Unreleased]`
    (two lines). Commit it as `docs(changelog): roll Unreleased into <version>`, and push.
+
+**If the validation fails,** do not publish. Correct the defect with a pull request. Then start
+again at step 1 with the next patch version, because only the version tells one build from
+another. The Build run of the new bump commit replaces the draft, and the version that failed
+gets no tag.
 
 ### Traps
 

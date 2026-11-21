@@ -28,11 +28,11 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   `impls-BeetsPlugin`, `hier-sub-BeetsPlugin` and `hier-sub-FieldQuery` are parked with #176:
   a local class gets the qualified name of its function, and a class attribute the name of its
   class. `def-_.map-first-of-many` (`_.map` in `beetsplug/web/static/beets.js`) is parked with
-  #178: the tool gives the first of the declarations that "Choose Declaration" lists. No row has
-  `jquery.js` for `ide_file_structure` (#177): the tool gives no answer for
+  #178: the tool gives the first of the declarations that "Choose Declaration" lists.
+  `file-structure-backbone.js` is parked with #177 (see the next note). No row has `jquery.js`
+  for `ide_file_structure` (#177): the tool gives no answer for
   `beetsplug/web/static/jquery.js` and leaves the walk at work in the IDE.
-- **beets: `file-structure-backbone.js` is not stable.** In 2 of 13 runs on 2026-11-17
-  (PyCharm 2026.2.0.1) the outline had 311 lines and not the usual 166: the node at line 648
-  was `[method]()`, and it held a second copy of the tree of the file. The two observations
-  are in the comments of #177. The expected row holds the tree with 166 lines. Do not bless
-  the tree with 311 lines: run the row again.
+- **beets: `file-structure-backbone.js` differs between equal runs.** In 2 of 13 runs on
+  2026-11-17 (PyCharm 2026.2.0.1) the outline had 311 lines and not the usual 166: the node at
+  line 648 was `[method]()`, and it held a second copy of the tree of the file. The two
+  observations are in the comments of #177. The expected row holds the tree with 166 lines.
