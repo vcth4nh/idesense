@@ -518,18 +518,18 @@ tool/method, disabled tool). `AbstractMcpTool.createErrorResult(message)` wraps 
 `index_out_of_sync` at WARN when `McpErrors.isIndexMismatch(e)`, else `internal_error` at ERROR.
 A cancellation (a `CancellationException` or a `ControlFlowException`) has two cases in the catch
 blocks of `JsonRpcHandler` (`cancellationInActiveCall`, #127). When the coroutine of the call is
-cancelled, for example because the server stops, the cancellation leaves the block with no log
-entry, no history update and no answer. When the coroutine is still active, the client still
-waits: the block gives its usual answer and history update, and it logs one line with no
-throwable. Two examples extend `ProcessCanceledException`: `ServiceNotReadyException`, which
+cancelled, the cancellation leaves the block with no log entry, no history update and no answer.
+This occurs, for example, when the server stops. When the coroutine is still active, the client
+still waits. Then the block gives its usual answer and history update, and it logs one line with
+no throwable. Two examples extend `ProcessCanceledException`: `ServiceNotReadyException`, which
 `FileBasedIndexImpl.ensureUpToDate` throws while the index is not ready (`lib/app-client.jar`),
 and `AlreadyDisposedException` (`lib/util-8.jar`). `handleRequest` answers each cancellation in an
 active call, so the request handlers of `KtorMcpServer` rethrow each cancellation
-(`rethrowIfCancellation`). Their other source of a cancellation is the write of the answer, and
-then the output channel of the call is cancelled (`CloseToken.wrapCause`, ktor-io 3.4.3), so no
-answer can reach the client. The log gets no throwable, because the platform logger replaces a
-`ControlFlowException` with the text "Control-flow exceptions ... should never be logged", and
-also a `CancellationException` while `idea.log.rethrow.ce` is `true`, the default
+(`rethrowIfCancellation`). Their other source of a cancellation is the write of the answer. Then
+the output channel of the call is cancelled (`CloseToken.wrapCause`, ktor-io 3.4.3), so no answer
+can reach the client. The log gets no throwable, because the platform logger replaces a
+`ControlFlowException` with the text "Control-flow exceptions ... should never be logged". It
+also replaces a `CancellationException` while `idea.log.rethrow.ce` is `true`, the default
 (`Logger.ensureNotControlFlow`, `lib/util-8.jar`). A `ProcessCanceledException` is a
 `CancellationException`. The jars are those of ideaIC-2025.1.3.
 
