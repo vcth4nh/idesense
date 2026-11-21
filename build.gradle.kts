@@ -151,6 +151,8 @@ intellijPlatform {
             // CI must use a published IDE release version, not a raw build number.
             // 2026.1 resolves correctly in JetBrains repositories and still keeps 261 as the baseline.
             create("IU", "2026.1")
+            // This list is fixed and does not follow the JetBrains releases. Add each new
+            // IntelliJ IDEA version here when JetBrains releases it.
             create("IU", "2026.2")
             create("IU", "2026.3")
         }
