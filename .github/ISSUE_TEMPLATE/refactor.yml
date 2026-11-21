@@ -8,7 +8,7 @@ body:
       value: |
         #### Thank you for suggesting a refactor!
 
-        A refactor changes the structure of the plugin code and keeps the behavior of each tool. For a change of behavior, open a feature request or a bug report instead.
+        A refactor changes the structure of the plugin code and keeps the behavior of each tool. For a change of behavior, open a feature request or a bug report instead. A move to another API of the platform is maintenance, so open a feature request for it.
 
         Before opening a request, please check:
         - [Existing refactor requests](https://github.com/vcth4nh/idesense/issues?q=is%3Aissue+label%3Arefactor)

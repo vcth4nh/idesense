@@ -25,7 +25,7 @@ body:
     id: evidence
     attributes:
       label: Evidence
-      description: How you know that the IDE has it. Give the steps in the IDE and what the IDE shows, or the class, the jar and the build number.
+      description: How you know that the IDE has it. Give the steps in the IDE and what the IDE shows, or the class, the jar and the build number. Name the IDE version (Help > About).
       placeholder: |
         In GoLand 2026.2.0.1 (build 262.8665.336, `intellij.go.impl.jar`), `GoCallHierarchyBrowser.prependActions` adds the toggle action `GoCallHierarchyBrowser$WithInterfaceCallsAction`.
 
@@ -36,7 +36,7 @@ body:
     id: current
     attributes:
       label: What the tools do today
-      description: The nearest tool call and its result. Say why no parameter and no parameter value can ask for the action or the option.
+      description: The nearest tool call and its result. Say why no parameter and no parameter value can ask for the action or the option. Name the plugin version (Settings > Plugins > IdeSense).
       placeholder: |
         `ide_call_hierarchy` with `direction: "callers"` returns only the callers that name the method. The tool has no parameter for the toggle.
     validations:
