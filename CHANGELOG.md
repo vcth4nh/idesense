@@ -188,6 +188,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   failure, so the IDE did not run the search again. `ide_find_usages` and `ide_explain_symbol` take
   their base declarations from the same search. The search now starts again, in Go, JavaScript,
   Kotlin, PHP, Python, Rust and TypeScript (#210).
+- The toolbar actions Clear History, Export History and Refresh of the IdeSense tool window update
+  on a background thread. They updated on the EDT, so each update of the toolbar waited for the
+  EDT, and the IDE logged `to grab EDT for` lines for them (#128).
 
 ## [2.1.0] - 2026-11-09
 
