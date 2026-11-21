@@ -1,8 +1,9 @@
 # Contributing
 
 How to build, test, change and release the IdeSense plugin. This file is for each maintainer,
-human or agent. The design and the platform contracts are in [ARCHITECTURE.md](ARCHITECTURE.md).
-The rules for an agent are in [AGENTS.md](../AGENTS.md).
+human or agent. The goal, the scope and the design principles are in
+[PRINCIPLES.md](PRINCIPLES.md). The mechanisms and the platform contracts are in
+[ARCHITECTURE.md](ARCHITECTURE.md). The rules for an agent are in [AGENTS.md](../AGENTS.md).
 
 ## Doc ownership (where each topic lives)
 
@@ -70,8 +71,9 @@ edit → ./gradlew buildPlugin -PpluginVersion=<version>-dev.NN → install → 
 ## Add a tool
 
 A tool class extends `AbstractMcpTool` and implements `doExecute()`, not `execute()`. The package
-map and the backing mechanisms are in [ARCHITECTURE.md](ARCHITECTURE.md). The rule for the text
-of `notes`, `warnings` and errors is in [AGENTS.md](../AGENTS.md), "Text for the calling agent".
+map and the backing mechanisms are in [ARCHITECTURE.md](ARCHITECTURE.md). A new tool must be in
+the scope, and its result follows the design principles ([PRINCIPLES.md](PRINCIPLES.md)). The
+principle "Text for the calling agent" is the rule for the text of `notes`, `warnings` and errors.
 
 ### Files that change together
 
@@ -398,8 +400,8 @@ rubric:
    Bless under the bless rule of [live-test/AGENTS.md](../live-test/AGENTS.md). Commit the
    changed snapshots in the same pull request.
 8. **IDE parity.** A result that differs from the IDE on purpose needs the sign-off of the
-   owner of the repository (see "Core Design Principle: Mimic the IDE" in
-   [ARCHITECTURE.md](ARCHITECTURE.md)).
+   owner of the repository (see "Mimic the IDE" in [PRINCIPLES.md](PRINCIPLES.md)) and an entry
+   in "Where a tool differs from the IDE on purpose" in [ARCHITECTURE.md](ARCHITECTURE.md).
 9. **Body.** Write `Closes #N` for each issue that the pull request corrects.
 
 ### Merge
