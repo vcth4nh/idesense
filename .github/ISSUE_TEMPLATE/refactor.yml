@@ -1,0 +1,56 @@
+name: Refactor
+description: A change of the structure of the plugin code with no change of behavior
+title: "[REFACTOR] "
+labels: ["refactor"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        #### Thank you for suggesting a refactor!
+
+        A refactor changes the structure of the plugin code and keeps the behavior of each tool. For a change of behavior, open a feature request or a bug report instead.
+
+        Before opening a request, please check:
+        - [Existing refactor requests](https://github.com/vcth4nh/idesense/issues?q=is%3Aissue+label%3Arefactor)
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: Which structure of the code is a problem, and what does it cost? Name the files if possible.
+      placeholder: |
+        The tools `ide_foo` and `ide_bar` each hold a copy of the same code for ...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the new structure. Say which tests show that the behavior stays the same.
+      placeholder: |
+        Move the code to one shared class. The tests of `ide_foo` and `ide_bar` pass before and after the change.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you've considered.
+    validations:
+      required: false
+  - type: input
+    id: ide-language
+    attributes:
+      label: IDE / language context
+      description: Which IDE or programming language is this relevant to? Leave blank if universal.
+      placeholder: "e.g. RustRover / Rust, or All IDEs"
+    validations:
+      required: false
+  - type: checkboxes
+    id: required-checks
+    attributes:
+      label: Please confirm the following
+      options:
+        - label: I have searched for relevant existing issues before opening this request.
+          required: true
+        - label: I have updated the title field above with a concise description.
+          required: true

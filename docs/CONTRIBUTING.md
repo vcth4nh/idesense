@@ -312,18 +312,20 @@ runs only on a manual start. The consequences:
 
 ### Issue forms
 
-The repository has two issue forms, and blank issues are off
+The repository has one issue form for each type, and blank issues are off
 (`.github/ISSUE_TEMPLATE/config.yml`).
 
 | Form | Title prefix | Label | Body headings, in this order |
 |---|---|---|---|
 | `bug-report.yml` | `[BUG] ` | `bug` | Description; Steps to reproduce; Expected vs actual behavior; IDE and version; Plugin version; IDE type; Relevant logs; Please confirm the following |
 | `feature-request.yml` | `[FEATURE] ` | `enhancement` | Problem or motivation; Proposed solution; Alternatives considered; IDE / language context; Please confirm the following |
+| `gap-report.yml` | `[GAP] ` | `gap` | IDE action or option; Evidence; What the tools do today; Proposed solution; Alternatives considered; IDE / language context; Please confirm the following |
+| `performance.yml` | `[PERF] ` | `performance` | Description; Steps to reproduce; Expected vs actual behavior; IDE and version; Plugin version; IDE type; Relevant logs; Please confirm the following |
+| `refactor.yml` | `[REFACTOR] ` | `refactor` | Problem or motivation; Proposed solution; Alternatives considered; IDE / language context; Please confirm the following |
 
 From the command line, write the body with the `###` headings of the form. Put logs in a `bash`
-code fence. The types `gap`, `refactor` and `performance` have no form. An issue of these types
-uses the headings of `feature-request.yml`, with the title prefix and the label of its type (see
-"Type").
+code fence. The command gives the type label, the `severity:` label and the `component:` labels
+(see "Labels").
 
 ```bash
 gh issue create --title "[BUG] <summary>" --label bug --label "severity: <level>" \
@@ -403,6 +405,10 @@ so is a field or a mark on a row that the IDE does not show. Two kinds of issue 
   tool differs from the IDE on purpose" in
   [ARCHITECTURE.md](ARCHITECTURE.md#where-a-tool-differs-from-the-ide-on-purpose) approves. Add the
   mark and a link to the entry, and close the issue as "not planned".
+
+The body of a request ends with the section `### Decision for the owner`, after the sections of
+its form. The section is a few lines long. It states what the IDE shows, what the tool returns or
+the request asks for instead, and the choices of the owner.
 
 These cases get no mark:
 

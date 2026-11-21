@@ -1,0 +1,98 @@
+name: Performance problem
+description: A tool call is slow, or it does more work than its result needs
+title: "[PERF] "
+labels: ["performance"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        #### Thank you for taking the time to report a performance problem!
+
+        Before opening an issue, please check:
+        - [Existing performance issues](https://github.com/vcth4nh/idesense/issues?q=is%3Aissue+label%3Aperformance)
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is slow, or which work is not necessary. Give numbers if you have them (time, size of the response, number of calls).
+      placeholder: |
+        A call of the tool `ide_find_usages` takes more than 30 seconds when...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Steps to reproduce the behavior. Include the size of the project and the MCP tool calls if possible.
+      placeholder: |
+        1. Open a project with about 5,000 source files.
+        2. Call the MCP tool:
+           ```bash
+           fastmcp call --server-spec http://127.0.0.1:29170/mcp/streamable-http --target ide_find_usages file=Example.java line=1 column=14
+           ```
+        3. Measure the time until the response
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual behavior
+      description: What did you expect, and what did you measure?
+      placeholder: |
+        Expected: a response in less than 5 seconds
+        Actual: a response after 30 seconds
+    validations:
+      required: true
+  - type: input
+    id: ide-version
+    attributes:
+      label: IDE and version
+      description: Which JetBrains IDE and its version number (Help > About)
+      placeholder: "e.g. IntelliJ IDEA 2025.1.2"
+    validations:
+      required: true
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Plugin version
+      description: Check Settings > Plugins > IdeSense for the version
+      placeholder: "e.g. 5.4.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: ide-type
+    attributes:
+      label: IDE type
+      options:
+        - IntelliJ IDEA
+        - PyCharm
+        - WebStorm
+        - GoLand
+        - PhpStorm
+        - RustRover
+        - CLion
+        - Android Studio
+        - Rider
+        - RubyMine
+        - DataGrip
+        - All IDEs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste any relevant IDE logs (Help > Show Log in Explorer) or MCP server error output.
+      render: bash
+    validations:
+      required: false
+  - type: checkboxes
+    id: required-checks
+    attributes:
+      label: Please confirm the following
+      options:
+        - label: I have searched for relevant existing issues before opening this report.
+          required: true
+        - label: I have updated the title field above with a concise description.
+          required: true
