@@ -23,13 +23,10 @@ A challenge set is a JSONL file with one challenge record for each line:
 The score uses a view of the key record (`view`). In the rename view, a forbidden site on a line with an optional
 use and no required site is `dnc`. The callers view is the key record itself; a key record whose `source` is not
 `calls` is a ValueError there. The dyncallers view is also the key record itself; a key record whose `source` is
-not `calls+trace` is a ValueError there. The answer is the JSON object of `schema`, and
-`parse_sites` reads it. Normalisation of an answer entry: white space at the two ends is removed; the form is
-`path:line` or `path:line:column` (the column is dropped); an absolute path loses the prefix `root + "/"`;
-the path is normalised (`posixpath.normpath`, so a leading `./` goes). Each other entry goes to the `invalid`
-list: no line, a line range, a line below 1, a path outside the root (an absolute path not below the root, or
-a relative path that leaves it), an entry that is not a string. `score_answer` takes an answer line out of the
-score when its path is no file of the master manifest `TREES/<tree>.manifest`, and counts it in `outside`.
+not `calls+trace` is a ValueError there. `answer` gives the lines of the view by class, in the form of the
+`answer` of a tracked key (`bench.score`). The answer is the JSON object of `schema`, and `parse_sites`
+(`bench.score.parse_sites`) reads it. `score_answer` is `bench.score.score` with the tree files of the master
+manifest `TREES/<tree>.manifest`: an answer line whose path is no file of it counts in `outside`.
 
 The prompt texts are those of the plan, amendment A3. The texts of the family `callers` come from the plan of the
 call chains (task 3): the head of the kind and the tail of the language in one paragraph, and a Python property
@@ -49,11 +46,11 @@ import argparse
 import contextlib
 import json
 import os
-import posixpath
 import random
 import re
 import sys
 
+from bench import score
 from common import keyrecord as keys
 from common import trees
 from common.keyrecord import IMPLEMENTER_CLASSES, REQUIRED, RELS, rel_of
@@ -151,7 +148,6 @@ CALLS2_KEYS = "caddy/dyncallers.jsonl"
 CALLS2_COUNT = 10
 CALLS2_MAX_POSSIBLE = 5  # the most `dynamic["possible"]` of a candidate
 
-SITE = re.compile(r"(.+?):([0-9]+)(?::[0-9]+)?")
 # The package clause of a Go file: the first token after white space and comments (Go specification).
 GO_PACKAGE = re.compile(r"﻿?(?:\s+|//[^\n]*|/\*.*?\*/)*package\s+(\w+)", re.S)
 
@@ -243,6 +239,15 @@ def view(ch: dict, record: dict) -> dict:
     raise ValueError(f"{ch['id']}: unknown family {ch['family']!r}")
 
 
+def answer(ch: dict, record: dict) -> dict:
+    """The lines `<path>:<line>` of the view by class, each list sorted by path and line: `required` (also a line
+    with a decoy, `required+decoy`), `forbidden` and `not_counted` (`dnc`)."""
+    out = {"required": [], "forbidden": [], "not_counted": []}
+    for (path, line), cls in sorted(keys.line_classes(view(ch, record)).items()):
+        out["required" if cls in REQUIRED else "not_counted" if cls == "dnc" else "forbidden"].append(f"{path}:{line}")
+    return out
+
+
 def go_package(path: str) -> str:
     """The name in the package clause of a Go file. ValueError when the file has no package clause."""
     with open(path, encoding="utf-8", errors="replace") as f:
@@ -279,50 +284,17 @@ def schema(ch: dict) -> dict:
             "required": ["sites"], "additionalProperties": False}
 
 
-def _site(entry, prefix: str) -> tuple[str, int] | None:
-    if not isinstance(entry, str):
-        return None
-    m = SITE.fullmatch(entry.strip())
-    if not m or int(m.group(2)) < 1:
-        return None
-    path = m.group(1)
-    if path.startswith("/"):
-        if not path.startswith(prefix):
-            return None
-        path = path[len(prefix):]
-    path = posixpath.normpath(path)
-    if path in (".", "..") or path.startswith(("../", "/")):
-        return None
-    return path, int(m.group(2))
-
-
 def parse_sites(obj, root: str) -> tuple[set[tuple[str, int]], list[str]]:
-    """The answer lines `(path relative to the root, line)` of `obj["sites"]`, and the entries that cannot be read
-    (a non-string entry as its JSON text). ValueError when `obj` is no object with a list `sites`."""
-    if not isinstance(obj, dict) or not isinstance(obj.get("sites"), list):
-        raise ValueError("the answer is no JSON object with a list `sites`")
-    prefix = root.rstrip("/") + "/"
-    sites, invalid = set(), []
-    for entry in obj["sites"]:
-        site = _site(entry, prefix)
-        if site is None:
-            invalid.append(entry if isinstance(entry, str) else json.dumps(entry))
-        else:
-            sites.add(site)
-    return sites, invalid
+    """`bench.score.parse_sites`."""
+    return score.parse_sites(obj, root)
 
 
 def score_answer(ch: dict, record: dict, sites: set[tuple[str, int]], invalid: list[str]) -> dict:
-    """`keys.score` against the view for the answer lines in a file of the manifest `TREES/<tree>.manifest`.
+    """`bench.score.score` against the answer of the view, for the files of the manifest `TREES/<tree>.manifest`.
     `outside` counts the other answer lines (for example below `.venv/`, or in a file that the agent made); they
     are not in the score. `invalid` counts the entries that cannot be read, `listed` the scored answer lines."""
     files = set(_manifest_paths(os.path.join(TREES, ch["tree"] + ".manifest")))
-    inside = {site for site in sites if site[0] in files}
-    out = keys.score(inside, view(ch, record))
-    out["invalid"] = len(invalid)
-    out["outside"] = len(sites) - len(inside)
-    out["listed"] = len(inside)
-    return out
+    return score.score({"answer": answer(ch, record)}, sites, files, invalid)
 
 
 def _manifest_paths(path: str) -> list[str]:

@@ -44,7 +44,7 @@ import random
 import re
 import sys
 
-from bench import runner
+from bench import runner, score
 from bench import sets as challenges
 from common import keyrecord as keys
 from common import trees
@@ -235,10 +235,10 @@ def ide_results(lines) -> list[dict]:
 # ---------------------------------------------------------------- flags
 
 def _site_of(site: tuple[str, int], prefix: str | None) -> tuple[str, int]:
-    """The site relative to the root (`challenges._site`, as parse_sites reads an answer entry), or as it is."""
+    """The site relative to the root (`score._site`, as parse_sites reads an answer entry), or as it is."""
     if prefix is None:
         return site
-    return challenges._site(f"{site[0]}:{site[1]}", prefix) or site
+    return score._site(f"{site[0]}:{site[1]}", prefix) or site
 
 
 def _answer(rec: dict) -> set[tuple[str, int]]:

@@ -198,6 +198,13 @@ class AnswerTest(MasterTree):
             with self.assertRaises(ValueError):
                 challenges.parse_sites(obj, ROOT)
 
+    def test_answer_gives_the_lines_of_the_view_by_class(self):
+        """A line with a decoy is only required; a dnc line is not counted; each list is sorted by path and line."""
+        rec = record([site(10, rel="self"), site(9, rel="self"), site(9, "forbidden", "decoy", col=9),
+                      site(5, rel="sibling"), site(6, "forbidden", "decoy"), site(2, "dnc", "comment", file="b/c.go")])
+        self.assertEqual({"required": ["a.go:9", "a.go:10"], "forbidden": ["a.go:6"],
+                          "not_counted": ["a.go:5", "b/c.go:2"]}, challenges.answer(challenge("refs"), rec))
+
     def test_score_answer_counts_invalid(self):
         rec = record([site(3, rel="self"), site(4, rel="self"), site(5, rel="sibling"), site(6, "forbidden", "decoy")])
         sites, invalid = challenges.parse_sites(
