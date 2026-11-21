@@ -611,6 +611,28 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   ```
 
   Seen on IntelliJ IDEA 2026.2: the IDE used the jars again about 20 s later, with no restart.
+- **Kotlin rows fail after an IDE restart with empty results (`"classes": []`,
+  `"qualifiedName": null`), and `idea.log` has `Initial load of project-level (project=kotlin)
+  libraries. There are 0 libraries to load.`** — the Kotlin fixture lost its Gradle model. The
+  IDE keeps the modules of a Gradle sync in
+  `<system dir>/projects/kotlin.<hash>/external_build_system/modules/`. It writes these files
+  at its next save, not at the sync. Seen on IntelliJ IDEA 2026.3 after the update from 2026.2:
+  the first start with the new system folder ran the sync, and the harness stopped the IDE four
+  minutes later, before these files existed. The log of the next start has the model of the
+  cache (`There are 2 libraries to load`) and then `Apply JPS storage (iml files)`. Each later
+  start has `There are 0 libraries to load` and no new sync, and 74 of the 119 Kotlin rows
+  failed. To repair:
+
+  1. Stop the IDE. Move `external_build_system`, `project-model-cache` and `cache-state.xml`
+     out of `<system dir>/projects/kotlin.<hash>/`, and start the IDE. It runs the sync again:
+     `idea.log` has `Gradle (kotlin): Execution RESOLVE_PROJECT:<n> is finished`.
+  2. Before the next stop, check that the folder `external_build_system/modules/` exists. Seen:
+     the IDE wrote it 2 seconds after one sync and 5 minutes after another one. If it does not
+     exist, restart the IDE one time with `ide_restart`: seen two times, the module files of a
+     project had the time of that restart.
+
+  The same holds for a product that the IDE imports with Gradle, and after each move to a new
+  version of the IDE, because the new version has a new system folder.
 - **Java or Kotlin rows differ after an edit of fixture files from outside the IDE** — the
   IDE has not seen the change (seen on IntelliJ IDEA). Before the run, call `ide_sync_files`
   with only `project_path` for each project, `java` and `kotlin`.
