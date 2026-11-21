@@ -76,8 +76,9 @@ class McpServerService(
         LOG.info("Initializing MCP Server Service (Protocol: ${McpConstants.MCP_PROTOCOL_VERSION})")
         jsonRpcHandler = JsonRpcHandler(toolRegistry)
         // Self-initialize asynchronously so the server starts even if postStartupActivity
-        // doesn't fire. initialize() is idempotent (@Synchronized + isInitialized
-        // guard), so the redundant call from McpServerStartupActivity is a safe no-op.
+        // doesn't fire (except in unit test mode, where initialize() starts no server).
+        // initialize() is idempotent (@Synchronized + isInitialized guard), so the redundant
+        // call from McpServerStartupActivity is a safe no-op.
         coroutineScope.launch { initialize() }
     }
 
@@ -93,6 +94,14 @@ class McpServerService(
         val port = settings.serverPort
         val host = settings.serverHost
         isInitialized = true
+
+        // A platform test must not open the server port of the IDE product. The startup
+        // activity has the same check. A test can still call startServer on a port of its choice.
+        if (ApplicationManager.getApplication().isUnitTestMode) {
+            LOG.info("MCP Server Service initialized without a server (unit test mode)")
+            return
+        }
+
         startServer(host, port)
 
         LOG.info("MCP Server Service initialized with Ktor CIO server")
