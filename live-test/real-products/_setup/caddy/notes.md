@@ -34,6 +34,8 @@ the switch time has that resolution.
 | Resident memory of GoLand, fixture plus `caddy`, directly after the open | 2160 MB |
 | Resident memory after the import check | 2421 MB |
 | Used heap after a full collection | 218 MB after the open, 281 MB after the import check |
+| Run of the 69 rows of 2026-11-11, product open before | 11 to 20 s |
+| Run of the 69 rows of 2026-11-11, with the switch | 38 s |
 
 The used heap stays far below 1200 MB (60% of the limit), so GoLand keeps `-Xmx2048m`.
 

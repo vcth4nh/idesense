@@ -10,12 +10,12 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   omit the scope. The call hierarchy scope `production` gives no caller
   (`hier-caller-wasSuccessful-production-scope`), and the PHP type hierarchy ignores the scope
   (`hier-sub-Exception-production-scope` equals `hier-sub-Exception`).
-- **phpunit: the nested composer root comes after smart mode.** PhpStorm attaches the root
-  `build/scripts/phar-set-timestamps` some seconds after it reports smart mode. After a start
-  of PhpStorm, the definition at `build/scripts/phar-set-timestamps/run.php:52:13` gave
-  "Could not resolve symbol definition" at 16.9 s, while the IDE was smart, and the file
-  `Timestamps.php` of that root from 22.3 s on. So the row that resolves into it is a canary
-  row (`canary-def-Timestamps-into-vendored`), and the gate waits for it.
+- **phpunit: the nested composer root comes after smart mode.** The canary row
+  `canary-def-Timestamps-into-vendored` resolves into the root
+  `build/scripts/phar-set-timestamps`, so the gate waits for it (see
+  [notes.md](../../_setup/phpunit/notes.md)). After a start of PhpStorm, the definition at
+  `build/scripts/phar-set-timestamps/run.php:52:13` gave "Could not resolve symbol definition"
+  at 16.9 s, while the IDE was smart, and the file `Timestamps.php` of that root from 22.3 s on.
 - **phpunit: phar files.** PhpStorm indexes the content of each `.phar` file as a library, at
   a path that is not on the disk (for example
   `tools/.phpstan/vendor/phpstan/phpstan/phpstan.phar/src/...`). After a restart this content
@@ -42,15 +42,13 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   (`DeferringDispatcher.php:40:21`) gives the same 115 usages from the side of one
   implementation: 6 with no `match` (calls on a `DeferringDispatcher` value) and 109 with
   `BASE`. Its `notes` entry names `Dispatcher::dispatch`. No row has a `warnings` entry:
-  `explain-DeferringDispatcher.dispatch-pos` has `usageCount` 115 (before the change: 103 and
-  the entry "Find-usages handler factory PhpFindUsagesHandlerFactory threw"). #182 and #183 are
-  closed, and the rows are blessed with the corrected result.
+  `explain-DeferringDispatcher.dispatch-pos` has `usageCount` 115.
 - **phpunit: a class row has no `$this`, `self` or `static` reference (#179).**
   `usage-DeferringDispatcher` (`DeferringDispatcher.php:17:13`) gives 13 usages, and the
   `notes` entry says that 18 references through `$this`, `self` or `static` inside the class
   are not in the list. Find Usages of PhpStorm shows "Usages in Project Files 13 results".
   The class `ShellExitCodeCalculator` (no row) gives 4 usages and the count 16; PhpStorm shows
-  4 results. #179 is closed, and the row is blessed with the corrected result.
+  4 results.
 - **phpunit: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
   `live-test/CONVENTIONS.md`).
 

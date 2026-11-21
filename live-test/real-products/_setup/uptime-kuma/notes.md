@@ -4,8 +4,8 @@
 - Pin: tag `2.5.3`, commit `1f0755fb044fe08e99fccde6722062fb2bf6c8f4`, committed 2026-08-22
 - License: MIT
 - IDE: WebStorm (port 29173), fixture languages JavaScript and TypeScript
-- Node.js: `engines.node` is `>= 20.4.0` in `package.json`. The fleet host has Node.js 24.16.0
-  and npm 11.13.0.
+- Node.js: `engines.node` is `>= 20.4.0` in `package.json`. The expected rows were blessed with
+  Node.js 24.16.0 and npm 11.13.0.
 - Languages: the server is CommonJS JavaScript (`server/`), the frontend is Vue 3 single-file
   components (`src/`), and `src/util.ts` is the shared TypeScript module. `src/util.js` is the
   compiled copy of `src/util.ts`, and it is in the repository. `extra/` holds four small

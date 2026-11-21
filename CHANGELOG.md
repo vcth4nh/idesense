@@ -155,6 +155,13 @@
   count (#179).
 - `ide_find_usages` no longer shows a `warnings` or a `notes` entry two times when the IDE started
   the search again after a write action.
+- The companion skill (`SKILL.md`, `tools-reference.md`) had wrong or absent facts about the
+  tools. It now says that the `subtypes` of `ide_type_hierarchy` is a flat list, that a fresh
+  `ide_find_usages` search takes the `symbol` anchor or a position, and that `ide_find_file` and
+  `ide_search_text` return the pagination fields. It also gives the limit of 100 `problems` of
+  `ide_diagnostics` (with no truncation flag), the stop of a cursor at 5,000 results, one
+  `ide_search_text` match for each line, and the project-only file paths of `ide_type_hierarchy`
+  (file mode) and `ide_file_structure`.
 
 ## [2.1.0] - 2026-11-09
 

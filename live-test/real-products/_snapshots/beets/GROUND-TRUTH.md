@@ -21,9 +21,9 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   same 92 subtypes as a call with no scope. `PySubTypesHierarchyTreeStructure.buildChildren`
   calls `PyClassInheritorsSearch.search(PyClass, boolean)`, which takes no scope (bytecode of
   `intellij.python.community.impl.jar`, build 262.8665).
-- **beets: test modules have no `test.` prefix.** The project model marks `test` as a test
-  root, so a qualified name in a test module starts at the module, for example
-  `test_plugins.TestListeners`. The canary scope pair needs this test root.
+- **beets: test modules have no `test.` prefix.** A qualified name in a test module starts at
+  the module, for example `test_plugins.TestListeners`. The cause is the test root `test` of the
+  project model (see "Setup" in [notes.md](../../_setup/beets/notes.md)).
 - **beets: parked rows.** `find-class-DummyPlugin`, `find-symbol-template-lang-python`,
   `impls-BeetsPlugin`, `hier-sub-BeetsPlugin` and `hier-sub-FieldQuery` are parked with #176:
   a local class gets the qualified name of its function, and a class attribute the name of its

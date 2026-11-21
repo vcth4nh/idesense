@@ -44,26 +44,31 @@ The fixture projects are in `live-test/fixtures/`.
 Each fixture is a real IDE-openable project. Open it, wait for indexing,
 then run the harness.
 
+**Python: mark `test/` as a test root.** PyCharm 2026.2 re-imports the fixture from
+`pyproject.toml` as `.idea/live-test-python.iml` (and rewrites the tracked `modules.xml`) with
+`test/` as a plain source root. Then `hier-caller-target-production` gains the test caller and
+`hier-caller-target-test` loses it. Stop PyCharm, set `isTestSource="true"` on the `test`
+source folder in that `.iml`, and restart. The `.iml` is gitignored, so a fresh checkout needs
+the same edit. Issue #228 tracks the untracked module file.
+
 In this document, **the fleet** is the set of these IDEs: each one runs on its default port
 and has its fixture projects open. **The fleet checkout** is the checkout of this repository
 whose fixture folders the fleet has open.
 
 Snapshots (`inputs/`, `expected/`, `output.jsonl`) live under
-`live-test/fixtures/_snapshots/<lang>/`, deliberately **outside** the fixture
-project roots: snapshot text mentions every fixture symbol, and past
-IntelliJ's 10-file text-occurrence threshold the unused-symbol inspection
-silently stops reporting — which would change diagnostics snapshots.
+`live-test/fixtures/_snapshots/<lang>/`, outside the fixture project roots (the reason is in
+"Snapshot file format" in [CONVENTIONS.md](CONVENTIONS.md)).
 
 ## Quick start
 
 ```bash
 ./run.py                                 # runs every language, fails on diff
 ./run.py --bless                         # rewrite fixtures/_snapshots/<lang>/expected/<tool>.jsonl from server output
-./run.py --bless --bless-errors          # allow blessing tool errors / non-error→error transitions (rare)
+./run.py --language <lang> --tool <tool> --bless --bless-errors   # bless the error rows of one tool file (see "Bless safety" in CONVENTIONS.md)
 ./run.py --bless --prune                 # allow bless to drop orphan expected ids
 ./run.py --language python               # one language only
 ./run.py --tool ide_find_definition      # one tool across all languages
-./run.py --url http://127.0.0.1:29170/mcp/streamable-http   # override URL
+./run.py --language java --url http://127.0.0.1:29170/mcp/streamable-http   # override URL
 ./run.py --check-fixtures                # validate input/expected files offline (no IDE calls)
 ```
 
@@ -71,9 +76,8 @@ Each run writes `live-test/fixtures/_snapshots/<lang>/output.jsonl` (gitignored)
 normalized response per entry. Useful for inspecting current responses
 without re-blessing.
 
-Per-language anchor maps live at `fixtures/_snapshots/<lang>/ANCHORS.md` — a generated
-index mapping every probe id to the fixture line it anchors (regenerate with
-`./run.py --write-anchors`; `--check-fixtures` fails while the map is stale).
+Each language has an anchor map, `fixtures/_snapshots/<lang>/ANCHORS.md`, that
+`./run.py --write-anchors` generates (see "Fixture comment standard" in CONVENTIONS.md).
 
 ## Real products
 
@@ -167,15 +171,7 @@ check for an active run before a product run. The switch has these safety rules:
 - **An interrupt closes the product.** After Ctrl+C in a product run the harness still
   closes the product that this run opened.
 
-Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-10):
-
-| Step | Time |
-|---|---|
-| Project switch (stop, mark, start, both projects listed) | 11 s |
-| Ready after a switch, product indexed before | 0 to 5 s |
-| First indexing (16,329 files with the dependencies) | 34 s |
-| 69 rows, product open before | 11 to 20 s |
-| 69 rows with the switch | 38 s |
+The measured times of each product are in `_setup/<folder>/notes.md`.
 
 ### Add a product
 
@@ -212,45 +208,51 @@ Measured for `caddy` (GoLand 2026.2, 2026-11-11; the first indexing on 2026-11-1
    product and no install script of a package.
 5. **Import check.** `--open-product <folder>`, then compare some tool calls with the IDE
    itself. Record the times and the memory in `_setup/<folder>/notes.md`.
-6. **Canary rows.** 2 to 4 rows with the id prefix `canary-` that pin the project model.
+6. **Canary rows.** Add the rows with the id prefix `canary-` that pin the project model (see
+   "Canary rows" in CONVENTIONS.md).
 7. **Sweep.** Draft the probe rows, run them, and give each row a class: OK, EMPTY, ERROR or
    SUSPECT. Check each EMPTY row and each SUSPECT row against the source or the IDE.
 8. **Stability check.** Run the rows three times, and one more time after a project switch.
-   A row that differs between two runs becomes a `shape` row or goes out. PhpStorm indexes
-   the content of a `.phar` file, and after a restart this content can be absent: no row may
-   resolve into a phar or count a result in one.
+   A row that differs between two runs becomes a `shape` row or goes out. No row may resolve
+   into a `.phar` file or count a result in one (see the phpunit
+   [GROUND-TRUTH.md](real-products/_snapshots/phpunit/GROUND-TRUTH.md)).
 9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug,
    with only `Read` and the read-only tools. The prompt, the MCP config, the runner and the
    transcript analysis are local files that this repository does not track.
 10. **Triage.** One outcome for each finding: an issue, a decision of the maintainer, a
     setup correction, or a ground-truth note.
 11. **Bless, under the bless rule of `AGENTS.md`.** Park the rows that show an open defect. Then
-    `--bless --bless-canary`, `--write-anchors`, `--check-fixtures`, and two verify runs.
-    A row that pins an expected error stops this bless: the error gates refuse a new error
-    row. Bless the file of that tool first, with
-    `--tool <tool> --bless --bless-canary --bless-errors`, and read the new expected file.
-    Then bless all rows with no `--bless-errors`. Never use `--bless-errors` for all rows:
-    it switches off both error gates, and a timeout becomes an expected row.
+    run these commands with `--product <folder>`: `--bless --bless-canary`, `--write-anchors`,
+    `--check-fixtures`, and two verify runs. For a row that pins an expected error, see "Rows
+    that pin an expected error" in CONVENTIONS.md.
 12. **Notes.** Complete `notes.md` and the ground-truth notes in
     `_snapshots/<folder>/GROUND-TRUTH.md`.
 
 ### Change a pin
 
-1. Check out the new commit in the submodule and stage the submodule entry.
-2. Run the `bootstrap.sh` of the product again.
-3. `./run.py --product <folder>`. Read each difference.
-4. Re-bless under the bless rule of `AGENTS.md`. Then `--write-anchors` and `--check-fixtures`.
+1. Fetch the new tag by name (a shallow clone has no tags), check it out in the submodule, and
+   stage the submodule entry:
+
+   ```bash
+   P=live-test/real-products/<folder>
+   git -C $P fetch --depth 1 origin tag <tag>
+   git -C $P checkout --detach <tag>
+   git add $P
+   ```
+2. Change `pin` in `products.json` and the "Pin" line of `_setup/<folder>/notes.md`.
+3. Run the `bootstrap.sh` of the product again.
+4. `./run.py --product <folder>`. Read each difference.
+5. Check the canary results by hand. Then re-bless under the bless rule of `AGENTS.md` with
+   `./run.py --product <folder> --bless --bless-canary`. A plain `--bless` does not rewrite the
+   canary rows. Then run `--write-anchors` and `--check-fixtures`.
 
 ### Rules
 
-- Never initialize the submodules of a product.
 - No file or folder below `_setup/` or `_snapshots/` may have the name `build`, `bin`, `tmp`,
   `cache`, `logs` or `.idea`, or end in `.log` or `.iml`. The root `.gitignore` and
   `live-test/.gitignore` ignore these names.
-- A product row uses a read-only tool. No row calls `ide_refactor_rename`, `ide_move_file`,
-  `ide_install_plugin`, `ide_restart` or `ide_sync_files` on a product.
-- A product checkout is test data. Change no tracked file in it, and never copy a plugin zip
-  into it. Use a fixture project for `ide_install_plugin`.
+- The rules for product rows and product checkouts are in [AGENTS.md](AGENTS.md), sections
+  "Shared IDEs" and "Product checkouts".
 
 ## Operate the IDEs
 
@@ -294,9 +296,9 @@ curl -s http://127.0.0.1:<port>/mcp/streamable-http -H 'Content-Type: applicatio
 This procedure installs a build in each IDE through its MCP port, with no window.
 
 1. **Build** with a new version on the command line:
-   `./gradlew buildPlugin -PpluginVersion=<version>-dev.NN`. The reason is in
-   [CONTRIBUTING.md](../docs/CONTRIBUTING.md#dev-builds), "Dev builds". Take a number above
-   each build that an IDE has or that is on the disk (see "Prove which build runs").
+   `./gradlew buildPlugin -PpluginVersion=<version>-dev.NN`. The reason and the rules for
+   `<version>` and `NN` are in [CONTRIBUTING.md](../docs/CONTRIBUTING.md#dev-builds), "Dev
+   builds".
 2. **Check the tools.** `tools/list` of each IDE must give `ide_install_plugin` and
    `ide_restart`, which are off by default. To turn them on, see "Change a plugin setting".
 3. **Copy the zip** (`build/distributions/idesense-<version>-dev.NN.zip`) into one fixture
@@ -519,34 +521,38 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
    The product part restarts the IDE of each product. A product with no checkout is
    `SKIPPED`.
 
+   For a release, follow "Release" in [CONTRIBUTING.md](../docs/CONTRIBUTING.md#release). It
+   runs the suites two times, and each row must pass.
+
 4. If failures appear:
    - Read each diff carefully. Is the change intentional (it matches the CHANGELOG entry of
      the change) or a regression?
    - Intentional: bless under the bless rule of [AGENTS.md](AGENTS.md)
-     (`./live-test/run.py --bless`; for a product: `./live-test/run.py --product <folder> --bless`),
-     and commit the changed snapshots with the change. When the change also alters a canary
-     row, see `MISCONFIGURED` in "Troubleshooting".
+     (`./live-test/run.py --language <lang> --tool <tool> --bless`; for a product:
+     `./live-test/run.py --product <folder> --tool <tool> --bless`; see "Check a bless" in
+     CONVENTIONS.md), and commit the changed snapshots with the change. When the change also
+     alters a canary row, see `MISCONFIGURED` in "Troubleshooting".
    - Regression: file an issue or revert the change.
 
 ## Troubleshooting
 
 - **`PRECHECK: cannot reach …`** — the IDE's MCP server isn't running on
   the expected port. Check that the dev plugin is installed and enabled,
-  and that the IDE is open. Override the port with `--url` if you've
+  and that the IDE is open. Override the port with `--url` and `--language` if you've
   configured a non-default value in Settings → Tools → IdeSense.
 - **`PRECHECK: project is in dumb mode`** — wait for indexing to finish
   in the IDE, then retry.
 - **`MISSING (no expected entry for this id)`** — the tool's
   `expected/<tool>.jsonl` doesn't have an entry for this input id. Likely
-  you added a new input row and haven't blessed yet. Run `--bless` to add it.
+  you added a new input row and haven't blessed yet. Run `--bless` with `--language` (or
+  `--product`) and `--tool` to add it.
 - **`ORPHAN expected id …`** — an expected entry whose id is no longer in
   any `inputs/<tool>.jsonl`. Either restore the input row or run
   `--bless --prune` to drop the orphan.
 - **`[<product>] MISCONFIGURED: canary row … differs`** — a canary row differs from its
-  expected row, and the other rows of the product did not run. The first try prints the
-  difference. After a project switch the harness tries again for the readiness time of the
-  product, because the build tool can still be at work. With no switch it tries for
-  60 seconds. Two causes are possible, and the printed difference shows which one:
+  expected row, and the other rows of the product did not run. The gate and its retry times
+  are in "Canary rows" in CONVENTIONS.md. Two causes are possible, and the printed difference
+  shows which one:
   - The project model is wrong (dependencies not resolved, another SDK, index not
     complete). Run the `bootstrap.sh` of the product, look at the IDE, and run again.
     Never bless in this state.
@@ -605,9 +611,11 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   current folder of the shell, so `./run.py` fails with exit code 127 outside `live-test/`.
 - **A defect that no row shows** — some defects show only in `idea.log`. After a live run,
   read `idea.log` of each IDE for `WARN` and `SEVERE` entries with a stack frame of the
-  package `com.github.vcth4nh.idesense` or the text `Plugin to blame`. An entry continues up
-  to the next time stamp. Group the entries by message and by the first plugin frame. The
-  plugin writes no log line for each tool call, so match an entry to a call by its time.
+  package `com.github.vcth4nh.idesense` or the text `Plugin to blame`. Each such entry is a
+  defect of the plugin. This is also true when the tool result is correct. Write an issue for
+  it. An entry continues up to the next time stamp. Group the entries by message and by the
+  first plugin frame. The plugin writes no log line for each tool call, so match an entry to a
+  call by its time.
 - **An old commit in the checkout whose fixtures the IDEs have open** — never check out a
   commit from before the move of the fixtures to `live-test/fixtures/` (#138) there. Git
   moves only the tracked files back; the files of the IDEs and tools (`.idea/`, `.venv`,
@@ -622,4 +630,4 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
 The harness POSTs to live IDE-hosted servers, so it requires running
 IDEs. CI runners don't carry a desktop IDE. Headless IDE execution
 (`./gradlew runIde`) plus a fixture-loading script could enable this in
-the future; deferred for v1.
+the future.

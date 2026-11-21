@@ -4,8 +4,8 @@
 - Pin: tag `15.0.0`, commit `3a612f88b805e14aef45bfa43e25a54abc6297fc`, committed 2025-10-15
 - License: Unlicense OR MIT
 - IDE: RustRover (port 29178)
-- Rust: `rust-version = "1.85"` in `Cargo.toml`. The fleet toolchain is 1.96.0 with the
-  component `rust-src`. The product has no `rust-toolchain` file.
+- Rust: `rust-version = "1.85"` in `Cargo.toml`. The expected rows were blessed with the
+  toolchain 1.96.0 and the component `rust-src`. The product has no `rust-toolchain` file.
 - Workspace: 10 packages. The root package `ripgrep` has its targets in `crates/core`
   (`crates/core/main.rs`); the other 9 are `crates/{cli,globset,grep,ignore,matcher,pcre2,
   printer,regex,searcher}`. `Cargo.lock` has 61 packages: 10 of the workspace and 51 from
@@ -57,7 +57,7 @@ A file outside the checkout keeps only its base name and its qualified name.
 | Row | File | Decided by |
 |---|---|---|
 | `canary-def-ByteSlice-into-dependency` | `ext_slice.rs` (`bstr::ext_slice::ByteSlice`) | `Cargo.lock`: bstr 1.12.0 |
-| `def-Vec-into-stdlib` | `mod.rs` (`alloc::vec::Vec`) | `rust-src` of the toolchain that rustup selects (1.96.0 on the fleet). RustRover reads a copy of it in its system folder. |
+| `def-Vec-into-stdlib` | `mod.rs` (`alloc::vec::Vec`) | `rust-src` of the toolchain that rustup selects (1.96.0 for the expected rows). RustRover reads a copy of it in its system folder. |
 | `hier-sub-Sink` | `boxed.rs` (`alloc::boxed::Box`) | the same toolchain |
 | `hier-callee-add_parents-d1`, `hier-callee-search-d1` | 16 files of `core`, `alloc` and `std` | the same toolchain |
 

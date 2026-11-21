@@ -4,8 +4,6 @@ These results of the PHP fixture look wrong, but the IDE returns the same. Do no
 a probe to "fix" one. The notes that cover more than one language are in
 [../GROUND-TRUTH.md](../GROUND-TRUTH.md).
 
-- **PHP `hier-callee-makeDefault`**: empty callees — constructor invocations don't
-  surface (same as Kotlin; unlike Java/TS).
 - **PHP `find_usages` takes the search of Find Usages of PhpStorm (#179, #182, #183).** The
   search facts come from the bytecode of `php.jar` (build 262.8665). The window observations
   are the one of #182 below and the notes in

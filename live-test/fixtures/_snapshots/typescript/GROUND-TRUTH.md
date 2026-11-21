@@ -9,6 +9,5 @@ a probe to "fix" one. The notes that cover more than one language are in
 - **TS `super-ConstChild.KIND-const`**: a `static readonly` field anchor returns
   its overridden field (`ConstBase.KIND`, `kind: READONLY_FIELD`), mirroring the
   IDE's overriding-gutter / Ctrl+U and matching PHP/Rust/Kotlin const/property
-  supers. Resolved in #24 (was previously a `tool_error` from the method-only
-  gate). (TS *static methods* also resolve — see `super-Child.factory-static` →
+  supers. (TS *static methods* also resolve — see `super-Child.factory-static` →
   `StaticBase.factory`.)

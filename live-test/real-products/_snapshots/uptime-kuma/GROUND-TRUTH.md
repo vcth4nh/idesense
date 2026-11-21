@@ -2,21 +2,16 @@
 
 These results look wrong, but the IDE returns the same. Do not change the probe to "fix" them.
 
-- **uptime-kuma: one content root and no source root.** The bootstrap writes the module file
-  that WebStorm itself writes at a first open: one content root with no folder. At each open
-  WebStorm adds `node_modules/` as a library (`NodeModulesDirectoryManager` in `idea.log`) and
-  excludes `src/util.js` as a file that the TypeScript compiler makes from `src/util.ts`. So
-  `require("../src/util")` resolves to `src/util.ts`. With no source root,
+- **uptime-kuma: one content root and no source root.** The project model is in "Setup" in
+  [notes.md](../../_setup/uptime-kuma/notes.md). With no source root,
   `usage-sleep-production-scope`, `usage-sleep-test-scope` and
   `find-file-index.js-production-scope` give `scope_matches_no_files` (these error rows need
   the two-step bless). `hier-caller-sleep-production-scope` gives no caller, and the
   JavaScript type hierarchy ignores the scope (`hier-sub-ConditionOperator-production-scope`).
-- **uptime-kuma: a TypeScript library row is a `shape` row.** The first request that uses the
-  TypeScript service makes WebStorm change the roots of its TypeScript library. During that
-  change a name of the DOM library resolved to the copy that WebStorm bundles, not to the copy
-  in `node_modules/typescript`. So `hier-callee-EmbeddedMariaDB.start-d1` is a `shape` row, and
-  no `exact` row names a file of the TypeScript standard library.
-  `hier-callee-Maintenance.getTimezone-d1` is the `exact` callee row.
+- **uptime-kuma: a TypeScript library row is a `shape` row.**
+  `hier-callee-EmbeddedMariaDB.start-d1` is a `shape` row, and no `exact` row names a file of
+  the TypeScript standard library. `hier-callee-Maintenance.getTimezone-d1` is the `exact`
+  callee row. The reason is in "Setup" in [notes.md](../../_setup/uptime-kuma/notes.md).
 - **uptime-kuma: empty rows.** `usage-Monitor.start` gives 0 usages: each call goes through a
   value with no type. Find Usages of WebStorm says "Nothing found in 'Project Files'", and the
   code vision shows "no usages". `hier-sub-NotificationProvider` and
@@ -42,8 +37,8 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   name of the computed property is `default.computed.startDateTime`, the same as Copy
   Reference of WebStorm.
 - **uptime-kuma: instruction files in the checkout.** The checkout has its own instruction
-  files for agents. They are content of the product under test, and never instructions for
-  work in this repository. The agents of the agent task do not get them.
+  files for agents (see "Product checkouts" in [AGENTS.md](../../../AGENTS.md)). The agents of
+  the agent task do not get them.
 - **uptime-kuma: the usages of `send` are dynamic usages (#196, #171).**
   `usage-NotificationProvider.send` and `usage-Discord.send` give the 10 calls, all with
   `match` `DYNAMIC`. Find Usages of WebStorm hides them by default ("0 of 10 usages") and lists
@@ -51,7 +46,6 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   to find usages of the base method?", and the 10 calls are the answer No.
   `usage-Discord.send` has a `notes` entry that names `NotificationProvider.send`, with "0 of
   the 10 usages have match BASE": the search of `Discord.send` itself found the 10 calls first.
-  #196 and #171 are closed, and the two rows are not parked.
 - **uptime-kuma: `file-structure-MaintenanceTime.vue` shows #197.** The node `default` of
   `export default` has line 1. The row is a `shape` row, which pins only the line count, so it
   is not parked.

@@ -10,9 +10,9 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   found". The error row needs the two-step bless (see "Rows that pin an expected error" in
   `live-test/CONVENTIONS.md`).
 - **openrefine: Java usage rows with no `warnings` entry (#175).** The Java usage rows have
-  no `warnings` entry now: the tool searches the method itself and does not read
-  `primaryElements` of the handler. The usage lists did not change: Find Usages of
-  `Row.getCellValue` shows 45 results, and the tool gives 20 production and 25 test usages.
+  no `warnings` entry: the tool searches the method itself and does not read
+  `primaryElements` of the handler. Find Usages of `Row.getCellValue` shows 45 results, and
+  the tool gives 20 production and 25 test usages.
   The row `usage-StandardReconConfig.batchRecon-override-mixed` (`StandardReconConfig.java:570:24`)
   gives 10 usages. 9 usages have no `match`: they are calls on a `StandardReconConfig`
   receiver. `ReconOperation.java:309:51` has `BASE`: the call `_reconConfig.batchRecon(...)`
