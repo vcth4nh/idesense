@@ -539,7 +539,8 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
    - Regression: file an issue or revert the change.
 5. After a bless, run both suites two times. These runs look for a row whose result differs
    between two equal runs. For such a product row, see "A row that differs between two equal
-   runs" in [CONVENTIONS.md](CONVENTIONS.md).
+   runs" in [CONVENTIONS.md](CONVENTIONS.md). For such a fixture row, see "Bless safety" in that
+   file.
 
 ## Troubleshooting
 

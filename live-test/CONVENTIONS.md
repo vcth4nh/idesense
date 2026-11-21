@@ -236,6 +236,11 @@ A bless locks in whatever the live IDE returns as truth. If the IDE has a
 regression, that regression becomes the new baseline. The rule for when a bless
 needs a question to the owner of the repository is in [AGENTS.md](AGENTS.md) ("Bless").
 
+A fixture row whose result differs between two equal runs shows a defect. Write an issue, and do
+not bless the row. A fixture row has no compare mode and cannot be parked (see "Row keys"), so the
+row fails until the correction. For a product row, see "A row that differs between two equal
+runs".
+
 ### Check a bless
 
 `--bless` has no option for one row. It writes each row that `--language`, `--product` and

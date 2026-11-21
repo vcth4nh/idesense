@@ -28,7 +28,8 @@ wrong result becomes the baseline and the suite then protects the defect.
   CONVENTIONS.md).
 - Never bless a row with the compare mode `exact` when its result differs between two equal
   runs. For a product row, see "Compare modes" and "A row that differs between two equal runs"
-  in CONVENTIONS.md, and step 8 "Stability check" of "Add a product" in README.md.
+  in CONVENTIONS.md, and step 8 "Stability check" of "Add a product" in README.md. For a fixture
+  row, see "Bless safety" in CONVENTIONS.md.
 - In your report, name the rows that you blessed and the evidence for each group of rows.
 
 The gates of `--bless` and the two-step bless of an error row are in CONVENTIONS.md.

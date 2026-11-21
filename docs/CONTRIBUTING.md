@@ -40,9 +40,7 @@ Each version is in the file that this list names. Do not copy a version into a d
 
 The run configurations in `.run/` start the same tasks: **Run Plugin** (`runIde`), **Run Tests**
 (`check`, so also the platform tests) and **Run Verifications** (`verifyPlugin`).
-`gradle.properties` turns on the build cache and the configuration cache. A task that reads a file
-that is not one of its declared inputs can report `UP-TO-DATE`, or `FROM-CACHE` from the build
-cache, with an old result (see "Editing docs").
+`gradle.properties` turns on the build cache and the configuration cache.
 
 ## Dev builds
 
@@ -206,21 +204,22 @@ FindUsagesHandlerFactory.EP_NAME.getPoint(project)
 - The tool names in the `SKILL.md` front matter: exactly the tools that are on by default.
 
 The test also checks `CHANGELOG.md`: each version heading exists one time (see "Traps" in
-"Release"). After a change of a version heading, force a run of the test (the command is below).
+"Release").
 
 The test does not check result field names, enum values, required flags, the language support
 of a tool, or prose. Check these by hand against the classes in `tools/models/` and the schemas.
 
-The test reads the `.md` files at run time, and Gradle does not know them as task inputs. After
-an edit of a doc only, a plain `./gradlew test` reports `UP-TO-DATE`, and `cleanTest` can report
-`FROM-CACHE`. Both are a stale pass. Force a real run:
+The test reads the documents at run time. The build declares the four documents outside
+`src/` (`README.md`, `CHANGELOG.md`, `docs/USAGE.md` and `docs/ARCHITECTURE.md`) as inputs of the
+`test` task (`pinnedDocs` in `build.gradle.kts`), and the skill files are inputs as resources. So
+an edit of one of these documents runs the test again:
 
 ```bash
-./gradlew --no-build-cache cleanTest test --tests "*DocsDriftUnitTest*"
+./gradlew test --tests "*DocsDriftUnitTest*"
 ```
 
-`--rerun-tasks` also forces a run, but it compiles all code again. Read the result in
-`build/test-results/test/TEST-*DocsDriftUnitTest.xml` (`failures="0" errors="0"`).
+Read the result in `build/test-results/test/TEST-*DocsDriftUnitTest.xml`
+(`failures="0" errors="0"`).
 
 After an edit of a tool description, run all unit tests. `ToolsUnitTest` asserts words of some
 descriptions.
@@ -475,7 +474,7 @@ The label descriptions are the rubric:
    `SchemaBuilder`, and a new tool changes all files of "Add a tool".
 4. **Tests.** Add tests for the new behavior.
 5. **Docs.** Update the doc of each reader that the change touches (see "Doc ownership").
-   After an edit of a pinned doc, force a real run of the drift test (see "Editing docs").
+   After an edit of a pinned doc, run the drift test (see "Editing docs").
 6. **Unit tests.** Run `./gradlew test --tests "*UnitTest*"`. CI runs `./gradlew check`, which
    includes the platform tests.
 7. **Live tests.** For a change of tool behavior, run both suites (see "Live tests"). Bless under

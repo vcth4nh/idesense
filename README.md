@@ -2,7 +2,7 @@
 
 ![Build](https://github.com/vcth4nh/idesense/workflows/Build/badge.svg)
 
-A JetBrains IDE plugin that exposes an **MCP (Model Context Protocol) server**, giving AI coding assistants like Claude, Codex, Cursor, and Windsurf the IDE's code-analysis engines — indexing, navigation, and diagnostics — with no human interaction with the IDE required.
+A JetBrains IDE plugin that exposes an **MCP (Model Context Protocol) server**, giving AI coding assistants like Claude Code, Codex CLI, Gemini CLI and Cursor, and each other MCP client, the IDE's code-analysis engines — indexing, navigation, and diagnostics — with no human interaction with the IDE required.
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/vcth4nh)
 

@@ -178,6 +178,14 @@ tasks {
         gradleVersion = providers.gradleProperty("gradleVersion").get()
     }
 
+    // DocsDriftUnitTest reads these documents by path. They are inputs, so an edit of one of them
+    // runs the test task again.
+    test {
+        inputs.files("README.md", "CHANGELOG.md", "docs/USAGE.md", "docs/ARCHITECTURE.md")
+            .withPropertyName("pinnedDocs")
+            .withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+
     publishPlugin {
         dependsOn(patchChangelog)
     }
