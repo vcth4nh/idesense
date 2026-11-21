@@ -81,6 +81,7 @@ body:
         - Rider
         - RubyMine
         - DataGrip
+        - All IDEs
         - Other
     validations:
       required: true
