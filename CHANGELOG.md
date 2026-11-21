@@ -178,6 +178,11 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   delete (#169).
 - The descriptions of `ide_file_structure` and `ide_find_symbol` no longer say "disabled by
   default". Both tools are on by default (#168).
+- A tool call that the IDE cancels no longer writes error entries to the IDE log. When the IDE
+  stopped the MCP server during a call, the server logged the cancellation as an error, and the
+  platform added the entry "Control-flow exceptions ... should never be logged". The server then
+  updated the command history on the disposed project, which gave a second entry. The cancellation
+  now stops the call, with no log entry and no history update (#127).
 
 ## [2.1.0] - 2026-11-09
 

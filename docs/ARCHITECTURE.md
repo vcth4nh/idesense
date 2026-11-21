@@ -516,6 +516,12 @@ tool/method, disabled tool). `AbstractMcpTool.createErrorResult(message)` wraps 
 `processToolCall`'s catch is split: `catch (McpException)` → `McpErrors.fromException(e)` using
 `e.errorType`, logged at INFO (client-caused, e.g. dumb mode); `catch (Exception)` →
 `index_out_of_sync` at WARN when `McpErrors.isIndexMismatch(e)`, else `internal_error` at ERROR.
+A cancellation (`rethrowIfCancellation`) leaves `processToolCall`, `JsonRpcHandler.handleRequest`
+and the request handlers of `KtorMcpServer` with no log entry and no history update. The platform
+logger replaces a `ControlFlowException` with the text "Control-flow exceptions ... should never be
+logged", and also a `CancellationException` while `idea.log.rethrow.ce` is `true`, the default
+(`Logger.ensureNotControlFlow`, `lib/util-8.jar`, ideaIC-2025.1.3). A `ProcessCanceledException`
+is a `CancellationException` in this build (#127).
 
 **`error` code vocabulary** (the class that makes each code; the list for a user is in
 "Error Handling" of [USAGE.md](USAGE.md#error-handling)): `invalid_arguments`

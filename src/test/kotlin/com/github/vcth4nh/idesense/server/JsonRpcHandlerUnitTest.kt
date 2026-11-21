@@ -7,8 +7,10 @@ import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.server.models.JsonRpcErrorCodes
 import com.github.vcth4nh.idesense.server.models.JsonRpcRequest
 import com.github.vcth4nh.idesense.server.models.JsonRpcResponse
+import com.github.vcth4nh.idesense.testutil.LogRecorder
 import com.github.vcth4nh.idesense.tools.ToolRegistry
 import junit.framework.TestCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
@@ -293,6 +295,37 @@ class JsonRpcHandlerUnitTest : TestCase() {
             "Enabled tool must not be rejected as disabled, got: ${response.error?.message}",
             response.error?.message?.contains("disabled", ignoreCase = true) != true
         )
+    }
+
+    // A cancellation leaves handleRequest and gets no log entry (#127). The cancellation comes
+    // from the tool gate, because a unit test has no project for the call of a tool.
+    fun testACancellationLeavesHandleRequestWithNoLog() {
+        val cancelled = JsonRpcHandler(
+            toolRegistry,
+            isToolEnabled = { throw CancellationException("cancelled") }
+        )
+        val request = JsonRpcRequest(
+            id = JsonPrimitive(11),
+            method = JsonRpcMethods.TOOLS_CALL,
+            params = buildJsonObject {
+                put(ParamNames.NAME, ToolNames.INDEX_STATUS)
+                put(ParamNames.ARGUMENTS, buildJsonObject { })
+            }
+        )
+
+        val log = LogRecorder()
+        var response: String? = null
+        var thrown: Throwable? = null
+        log.record {
+            try {
+                response = runBlocking { cancelled.handleRequest(json.encodeToString(JsonRpcRequest.serializer(), request)) }
+            } catch (e: CancellationException) {
+                thrown = e
+            }
+        }
+
+        assertNotNull("The cancellation must leave handleRequest, got the response $response", thrown)
+        assertEquals(emptyList<String>(), log.entries)
     }
 
     fun testInitializeFallsBackForUnsupportedRequestedVersion() = runBlocking {

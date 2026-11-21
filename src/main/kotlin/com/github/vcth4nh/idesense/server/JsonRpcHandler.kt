@@ -12,6 +12,7 @@ import com.github.vcth4nh.idesense.server.models.*
 import com.github.vcth4nh.idesense.settings.McpSettings
 import com.github.vcth4nh.idesense.tools.AllProjectsTool
 import com.github.vcth4nh.idesense.tools.ToolRegistry
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.github.vcth4nh.idesense.tools.schema.ArgumentValidator
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
@@ -65,6 +66,7 @@ class JsonRpcHandler @JvmOverloads constructor(
         val response = try {
             routeRequest(request, protocolVersion)
         } catch (e: Exception) {
+            rethrowIfCancellation(e)
             LOG.error("Error processing request: ${request.method}", e)
             createErrorResponse(request.id, JsonRpcErrorCodes.INTERNAL_ERROR, e.message ?: "Unknown error")
         }
@@ -219,6 +221,8 @@ class JsonRpcHandler @JvmOverloads constructor(
 
             structuredToolError(request.id, McpErrors.fromException(e))
         } catch (e: Exception) {
+            // A cancellation stops the call: no log entry and no history update (#127).
+            rethrowIfCancellation(e)
             val duration = System.currentTimeMillis() - startTime
             val indexMismatch = McpErrors.isIndexMismatch(e)
             if (indexMismatch) {
@@ -248,6 +252,7 @@ class JsonRpcHandler @JvmOverloads constructor(
         try {
             recordHistory(project, commandEntry)
         } catch (e: Exception) {
+            rethrowIfCancellation(e)
             LOG.warn("Failed to record command history for ${commandEntry.toolName}", e)
         }
     }
@@ -262,6 +267,7 @@ class JsonRpcHandler @JvmOverloads constructor(
         try {
             updateHistory(project, commandEntry.id, status, result, duration)
         } catch (e: Exception) {
+            rethrowIfCancellation(e)
             LOG.warn("Failed to update command history for ${commandEntry.toolName}", e)
         }
     }
