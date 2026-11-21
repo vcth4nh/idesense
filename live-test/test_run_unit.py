@@ -875,7 +875,8 @@ class MainSuiteTest(unittest.TestCase):
 
     def test_bless_errors_needs_tool(self):
         for argv in (["--bless", "--bless-errors"], ["--product", "alpha", "--bless", "--bless-errors"],
-                     ["--suite", "all", "--bless", "--bless-canary", "--bless-errors"]):
+                     ["--suite", "all", "--bless", "--bless-canary", "--bless-errors"],
+                     ["--bless", "--bless-errors", "--tool", ""]):
             with self.assertRaises(SystemExit) as stop:
                 self.main(*argv)
             self.assertEqual(2, stop.exception.code)

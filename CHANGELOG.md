@@ -169,9 +169,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `ide_diagnostics` (with no truncation flag), the stop of a cursor at 5,000 results, one
   `ide_search_text` match for each line, and the project-only file paths of `ide_type_hierarchy`
   (file mode) and `ide_file_structure`.
-- The change notes of the plugin take no text of the older project. `CHANGELOG.md` had two sections
-  for each of the versions 1.0.0 and 2.0.0, and the build merged them: the change notes of the
-  2.0.0 plugin are notes of the older project. The changelog of the older project is now in
+- The change notes of the plugin take no text of the older project. `CHANGELOG.md` also held the
+  changelog of the older project, and IdeSense uses its version numbers again. The build took the
+  change notes of the 2.0.0 plugin from the section `[2.0.0]` of the older project, and it merged
+  the two sections `[1.0.0]`. The changelog of the older project is now in
   `docs/CHANGELOG-before-rebrand.md`.
 
 ## [2.1.0] - 2026-11-09

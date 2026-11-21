@@ -198,7 +198,8 @@ class DocsDriftUnitTest : TestCase() {
      * A second heading of a version thus puts its text into the change notes of that version.
      */
     fun testChangelogVersionHeadingsAreUnique() {
-        val versions = Regex("""(?m)^## \[(.+?)\]""").findAll(read("CHANGELOG.md")).map { it.groupValues[1] }
+        val versions = Regex("""(?m)^## \[(.+?)\]""").findAll(read("CHANGELOG.md")).map { it.groupValues[1] }.toList()
+        assertTrue("CHANGELOG.md has no heading '## [Unreleased]'", "Unreleased" in versions)
         val duplicates = versions.groupingBy { it }.eachCount().filterValues { it > 1 }.keys
         assertTrue("CHANGELOG.md has more than one heading for version(s): $duplicates", duplicates.isEmpty())
     }

@@ -40,8 +40,9 @@ Each version is in the file that this list names. Do not copy a version into a d
 
 The run configurations in `.run/` start the same tasks: **Run Plugin** (`runIde`), **Run Tests**
 (`check`, so also the platform tests) and **Run Verifications** (`verifyPlugin`).
-`gradle.properties` turns on the build cache and the configuration cache, so a task can report
-`UP-TO-DATE` or `FROM-CACHE` with an old result (see "Editing docs").
+`gradle.properties` turns on the build cache and the configuration cache. A task that reads a file
+that is not one of its declared inputs can report `UP-TO-DATE`, or `FROM-CACHE` from the build
+cache, with an old result (see "Editing docs").
 
 ## Dev builds
 
@@ -205,7 +206,7 @@ FindUsagesHandlerFactory.EP_NAME.getPoint(project)
 - The tool names in the `SKILL.md` front matter: exactly the tools that are on by default.
 
 The test also checks `CHANGELOG.md`: each version heading exists one time (see "Traps" in
-"Release").
+"Release"). After a change of a version heading, force a run of the test (the command is below).
 
 The test does not check result field names, enum values, required flags, the language support
 of a tool, or prose. Check these by hand against the classes in `tools/models/` and the schemas.
@@ -477,10 +478,9 @@ The label descriptions are the rubric:
    After an edit of a pinned doc, force a real run of the drift test (see "Editing docs").
 6. **Unit tests.** Run `./gradlew test --tests "*UnitTest*"`. CI runs `./gradlew check`, which
    includes the platform tests.
-7. **Live tests.** For a change of tool behavior, run both suites
-   (`./live-test/run.py --suite all`), two times after a bless. Bless under the bless rule of
-   [live-test/AGENTS.md](../live-test/AGENTS.md). Commit the changed snapshots in the same pull
-   request.
+7. **Live tests.** For a change of tool behavior, run both suites (see "Live tests"). Bless under
+   the bless rule of [live-test/AGENTS.md](../live-test/AGENTS.md). Commit the changed snapshots
+   in the same pull request.
 8. **IDE parity.** A result that differs from the IDE on purpose needs the sign-off of the
    owner of the repository (see "Mimic the IDE" in [PRINCIPLES.md](PRINCIPLES.md)) and an entry
    in "Where a tool differs from the IDE on purpose" in [ARCHITECTURE.md](ARCHITECTURE.md).

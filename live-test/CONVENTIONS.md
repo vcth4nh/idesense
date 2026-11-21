@@ -331,8 +331,9 @@ redundant with `file`.
 
 A row can pin a result that looks wrong but that the IDE also returns. Each such result has
 a note with its evidence: an observation of the IDE window, or a citation of the source or
-of the bytecode. A note starts with a bold title that names the language, the product or
-the row. Each note is in one file only:
+of the bytecode. A note can also record a result that differed between two equal runs (see "A
+row that differs between two equal runs"). A note starts with a bold title that names the
+language, the product or the row. Each note is in one file only:
 
 - `fixtures/_snapshots/GROUND-TRUTH.md`: a note that covers more than one language.
 - `fixtures/_snapshots/<lang>/GROUND-TRUTH.md`: a note of one fixture language.
@@ -408,9 +409,9 @@ it. Remove the key in the change that corrects the defect, and bless the row the
 - The result is cut: the row is a `shape` row (see "Compare modes").
 - The difference shows a defect, for example a result with a second copy of a part: write an
   issue and park the row.
-- The difference occurred one time and its cause is not known: keep the expected row, and
-  record the observation in the ground-truth note of the row. At the second observation, write
-  an issue and park the row.
+- The difference occurred one time and its cause is not known: keep the expected row, and add
+  a note with the observation to the `GROUND-TRUTH.md` of the product. At the second
+  observation, write an issue and park the row.
 
 ### Rows that pin an expected error
 

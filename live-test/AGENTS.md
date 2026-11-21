@@ -23,12 +23,12 @@ wrong result becomes the baseline and the suite then protects the defect.
   - The behaviour of the IDE is not established.
 - Never bless a product that is `MISCONFIGURED` because of its project model. Repair the
   checkout or the IDE first.
-- Never use `--bless-errors` without `--tool`. The flag switches off both error gates for each
-  selected row, and the harness refuses it without `--tool`. Read the new expected file of that
-  tool after the bless (see "Rows that pin an expected error" in CONVENTIONS.md).
+- Never use `--bless-errors` without `--tool`: the harness refuses it. After a bless with this
+  flag, read the new expected file of that tool (see "Rows that pin an expected error" in
+  CONVENTIONS.md).
 - Never bless a row with the compare mode `exact` when its result differs between two equal
-  runs (see "Compare modes" and "A row that differs between two equal runs" in CONVENTIONS.md,
-  and step 8 "Stability check" of "Add a product" in README.md).
+  runs. For a product row, see "Compare modes" and "A row that differs between two equal runs"
+  in CONVENTIONS.md, and step 8 "Stability check" of "Add a product" in README.md.
 - In your report, name the rows that you blessed and the evidence for each group of rows.
 
 The gates of `--bless` and the two-step bless of an error row are in CONVENTIONS.md.

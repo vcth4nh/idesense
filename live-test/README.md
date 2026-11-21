@@ -213,10 +213,10 @@ The measured times of each product are in `_setup/<folder>/notes.md`.
 7. **Sweep.** Draft the probe rows, run them, and give each row a class: OK, EMPTY, ERROR or
    SUSPECT. Check each EMPTY row and each SUSPECT row against the source or the IDE.
 8. **Stability check.** Run the rows three times, and one more time after a project switch.
-   A row that differs between two runs becomes a `shape` row or goes out. If the difference
-   shows a defect, see "A row that differs between two equal runs" in CONVENTIONS.md. No row
-   may resolve into a `.phar` file or count a result in one (see the phpunit
-   [GROUND-TRUTH.md](real-products/_snapshots/phpunit/GROUND-TRUTH.md)).
+   A row that differs between two runs goes out, or becomes a `shape` row when its result is
+   cut. If the difference shows a defect, see "A row that differs between two equal runs" in
+   CONVENTIONS.md. No row may resolve into a `.phar` file or count a result in one (see the
+   phpunit [GROUND-TRUTH.md](real-products/_snapshots/phpunit/GROUND-TRUTH.md)).
 9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug,
    with only `Read` and the read-only tools. The prompt, the MCP config, the runner and the
    transcript analysis are local files that this repository does not track.
@@ -538,8 +538,8 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
      alters a canary row, see `MISCONFIGURED` in "Troubleshooting".
    - Regression: file an issue or revert the change.
 5. After a bless, run both suites two times. These runs look for a row whose result differs
-   between two equal runs (see "A row that differs between two equal runs" in
-   [CONVENTIONS.md](CONVENTIONS.md)).
+   between two equal runs. For such a product row, see "A row that differs between two equal
+   runs" in [CONVENTIONS.md](CONVENTIONS.md).
 
 ## Troubleshooting
 
