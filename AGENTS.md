@@ -34,7 +34,7 @@ the scope and the design principles are in [docs/PRINCIPLES.md](docs/PRINCIPLES.
 - **Live tests use shared IDEs.** Read [live-test/AGENTS.md](live-test/AGENTS.md) before a live
   run, a bless, or a change of a row or of a fixture file.
 - **Docs are pinned to the code.** After an edit of `README.md`, `docs/USAGE.md`,
-  `docs/ARCHITECTURE.md` or the skill files, force a real run of the docs drift test
+  `docs/ARCHITECTURE.md` or the skill files, run the docs drift test
   ([CONTRIBUTING.md](docs/CONTRIBUTING.md), "Editing docs").
 
 ## Where things live
