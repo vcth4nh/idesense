@@ -294,9 +294,9 @@ the newer push tests both commits.
 
 `release.yml` (the workflow **Release**) runs when a release is published. The consequences:
 
-- A pull request that bumps a Gradle plugin gets no Verify plugin job. Its green checks do not
-  cover this job. Run `./gradlew verifyPlugin` before the merge, and watch the first Build run
-  on `main` after the merge.
+- A pull request that bumps a Gradle plugin or changes the IDE list of the Plugin Verifier gets
+  no Verify plugin job. Its green checks do not cover this job. Run `./gradlew verifyPlugin`
+  before the merge, and watch the first Build run on `main` after the merge.
 - An infrastructure failure (a download, a runner) needs no commit. Run
   `gh run rerun <run id> --failed`. It runs the failed jobs again, and then the jobs that wait for
   them, for example Release draft. Find the run with `gh run list --workflow Build --branch main`:
