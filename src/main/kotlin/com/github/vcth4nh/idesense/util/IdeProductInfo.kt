@@ -31,7 +31,6 @@ object IdeProductInfo {
      * - RR = RustRover
      * - DB = DataGrip
      * - AI = Android Studio
-     * - QA = Aqua
      * - DS = DataSpell
      * - RD = Rider
      */
@@ -51,7 +50,6 @@ object IdeProductInfo {
         CLION(setOf("CL"), "clion-idesense", 29177, "CLion"),
         RUSTROVER(setOf("RR"), "rustrover-idesense", 29178, "RustRover"),
         DATAGRIP(setOf("DB"), "datagrip-idesense", 29179, "DataGrip"),
-        AQUA(setOf("QA"), "aqua-idesense", 29180, "Aqua"),
         DATASPELL(setOf("DS"), "dataspell-idesense", 29181, "DataSpell"),
         RIDER(setOf("RD"), "rider-idesense", 29182, "Rider"),
         UNKNOWN(emptySet(), "jetbrains-idesense", 29199, "JetBrains IDE");

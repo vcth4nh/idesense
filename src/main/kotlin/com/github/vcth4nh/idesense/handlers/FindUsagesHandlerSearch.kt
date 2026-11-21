@@ -453,7 +453,7 @@ internal object FindUsagesHandlerSearch {
             if (failure != null && choice.factory != null) {
                 LOG.warn("FindUsagesHandlerFactory ${choice.factory.javaClass.name} threw while creating handler", failure)
                 if (warnings != null) {
-                    val message = "Find-usages handler factory ${choice.factory.javaClass.simpleName} threw while creating the handler; " +
+                    val message = "Find-usages handler factory ${warningClassName(choice.factory.javaClass)} threw while creating the handler; " +
                         "searched the references to the anchor element only — usages may be incomplete."
                     if (message !in warnings) warnings.add(message)
                 }
@@ -614,9 +614,17 @@ internal object FindUsagesHandlerSearch {
     ) {
         if (warnings == null) return
         val message =
-            "Find-usages handler ${handler.javaClass.simpleName} threw on $stage; $consequence — usages may be incomplete."
+            "Find-usages handler ${warningClassName(handler.javaClass)} threw on $stage; $consequence — usages may be incomplete."
         if (message !in warnings) warnings.add(message)
     }
+
+    /**
+     * The name of [type] in a warning: its simple name. An anonymous class has an empty simple
+     * name, so it gives its name without the package, for example `PyFindUsagesHandlerFactory$1`
+     * (#206).
+     */
+    internal fun warningClassName(type: Class<*>): String =
+        type.simpleName.ifEmpty { type.name.substringAfterLast('.') }
 
     private fun safeCanFindUsages(factory: FindUsagesHandlerFactory, element: PsiElement): Boolean =
         try {
