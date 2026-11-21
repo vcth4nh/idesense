@@ -44,7 +44,7 @@ Each fact has one home: the file of its reader.
 | Reader | File | Content |
 |---|---|---|
 | User of the plugin | [README.md](README.md), [docs/USAGE.md](docs/USAGE.md) | Install, configuration, tool reference |
-| User of the plugin | [CHANGELOG.md](CHANGELOG.md) | The changes of each release |
+| User of the plugin | [CHANGELOG.md](CHANGELOG.md), [docs/CHANGELOG-before-rebrand.md](docs/CHANGELOG-before-rebrand.md) | The changes of each release; the changelog of the older project |
 | Agent that uses the tools | [SKILL.md](src/main/resources/skill/idesense/SKILL.md), [tools-reference.md](src/main/resources/skill/idesense/references/tools-reference.md) | Tool selection and return shapes; shipped with the plugin |
 | Agent that works on this repository | this file, [live-test/AGENTS.md](live-test/AGENTS.md) | The rules that an agent needs in each session |
 | Maintainer | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Build, test, dev loop, dependencies, CI, issues, pull requests, release |
