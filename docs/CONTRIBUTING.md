@@ -321,10 +321,13 @@ The repository has two issue forms, and blank issues are off
 | `feature-request.yml` | `[FEATURE] ` | `enhancement` | Problem or motivation; Proposed solution; Alternatives considered; IDE / language context; Please confirm the following |
 
 From the command line, write the body with the `###` headings of the form. Put logs in a `bash`
-code fence.
+code fence. The types `gap`, `refactor` and `performance` have no form. An issue of these types
+uses the headings of `feature-request.yml`, with the title prefix and the label of its type (see
+"Type").
 
 ```bash
-gh issue create --title "[BUG] <summary>" --label bug --label "severity: <level>" --body-file <file>
+gh issue create --title "[BUG] <summary>" --label bug --label "severity: <level>" \
+  --label "component: <part>" --body-file <file>
 ```
 
 ### One issue for each defect
@@ -342,10 +345,97 @@ gh issue create --title "[BUG] <summary>" --label bug --label "severity: <level>
   A `GET` of the same path lists the sub-issues.
 - Unrelated parts get separate issues.
 
+### Labels
+
+Each issue has exactly one type label, exactly one `severity:` label and one or more `component:`
+labels. An issue can also have the mark `deviation`. The sections below define the labels. The
+description of a label on GitHub is the short form of its definition. Give the labels by the facts
+of the tool and of the IDE, because the text of an issue can be wrong about them.
+
+The labels give these filters for the issue list:
+
+| Question | Filter |
+|---|---|
+| What is the next work? | `is:open label:bug`, then `label:gap`, then the other types |
+| Which actions and options of the IDE can no tool call reach? | `is:open label:gap` |
+| Which requests for a deviation from the IDE wait for the owner? | `is:open label:deviation` |
+| Which issues are about one part of the repository? | `is:open label:"component: live-test"` |
+
+### Type
+
+| Label | Title prefix | Use for |
+|---|---|---|
+| `bug` | `[BUG] ` | A part that exists is wrong. A tool is wrong when a call that it accepts gives a result that differs from the IDE or from the documented result, when the call fails, or when the plugin causes an error or a warning in the log of the IDE. A test, the live-test harness, the build or a text can also be wrong. A text is wrong when it states a thing that is false, or when the reader cannot follow an instruction in it. |
+| `gap` | `[GAP] ` | The IDE has an action or an option that no tool call can ask for. The correction adds a tool, a parameter or a parameter value. |
+| `performance` | `[PERF] ` | A performance problem or an optimization. |
+| `refactor` | `[REFACTOR] ` | A change of the structure of the plugin code with no change of behavior. A move to another API of the platform is maintenance, not a refactor. |
+| `enhancement` | `[FEATURE] ` | A change that is none of the types above. Examples are the structure of a result, the guidance for the agent, test coverage, a document that lacks a part, and maintenance such as a move to a new API of the platform. |
+
+When the request of an issue fits two types, the issue gets the type that is higher in the table.
+
+To separate a `bug` from a `gap`, look at the call:
+
+- When a call exists and its result differs from what the IDE shows for the same input, the issue
+  is a `bug`. The result lacks an item or a signal that the IDE shows, or it holds a wrong value.
+- When no call can ask for the action or the option of the IDE, the issue is a `gap`. An example is
+  a toggle of an IDE tool window that no parameter of the tool sets.
+
+A result that differs from the IDE on purpose is no bug, also when the owner did not approve the
+difference yet. An issue that is only about such a result is an `enhancement` with the mark
+`deviation`, also when its correction adds a parameter. But a tool that leaves out rows that the
+IDE shows, with no signal in the result, has a `bug`, also when the cut is on purpose (see "No
+silent drop" in [PRINCIPLES.md](PRINCIPLES.md)).
+
+### Deviation
+
+The mark `deviation` says that the issue, or a part of its request, is about a result that differs
+from the IDE on purpose. A difference is on purpose when the code or a document says that it is
+intended. Here a result is what a call returns for an input: the rows, the values of their fields,
+an empty result or an error. A limit that cuts rows that the IDE shows is such a difference, and
+so is a field or a mark on a row that the IDE does not show. Two kinds of issue get the mark:
+
+- **A request.** The issue asks for a result that differs from the IDE on purpose. Or a tool has
+  such a difference on purpose today, the list of the approved deviations has no entry for it, and
+  the issue asks the owner to approve it or to remove it. Such a result needs the sign-off of the
+  owner of the repository (see "Deviations" in [PRINCIPLES.md](PRINCIPLES.md)). Do not build the
+  request before the owner decides. The decision is a comment on the issue, and the mark stays.
+- **A report of an approved deviation.** The issue reports as a defect a difference that "Where a
+  tool differs from the IDE on purpose" in
+  [ARCHITECTURE.md](ARCHITECTURE.md#where-a-tool-differs-from-the-ide-on-purpose) approves. Add the
+  mark and a link to the entry, and close the issue as "not planned".
+
+These cases get no mark:
+
+- The issue reports a defect that is not on purpose, and a result that differs from the IDE is
+  only one of the possible corrections, next to a correction with the result of the IDE. The
+  correction with the result of the IDE is the default.
+- The issue asks for a choice between two views, two options or two default states of the IDE. Each
+  one is a result of the IDE.
+- The issue is about a defect inside an approved deviation, for example a wrong value of a mark or
+  a wrong note. Such an issue is a `bug`, also when the entry of the approved deviation cites it.
+- The issue asks for a `notes` entry, a `warnings` entry or a flag for the whole result such as
+  `truncated`, or for another form of a text field, for example a longer preview.
+- An issue gets no mark as a record of a decision. The record of the approved deviations is that
+  section of ARCHITECTURE.md.
+
+### Component
+
+A `component:` label names the part of the repository that the issue is about. It does not name
+each part that the correction changes. A new parameter also needs documents and test rows, and its
+issue has only `component: source`. An issue about two parts gets one label for each part.
+
+| Label | Part |
+|---|---|
+| `component: source` | The plugin code in `src/main/`, without the skill folder: tools, MCP server, settings, tool window. The tool descriptions are in this code. |
+| `component: skill` | The agent skill in `src/main/resources/skill/`. |
+| `component: docs` | `README.md`, `AGENTS.md`, `CHANGELOG.md` and `docs/`. |
+| `component: test` | The unit tests and the platform tests in `src/test/`. |
+| `component: live-test` | All of `live-test/`: the harness, the fixture suite, the real-product suite and its documents. |
+| `component: build` | The Gradle build, the GitHub workflows, the dependencies and the release. |
+
 ### Severity
 
-Each issue has its type label and exactly one `severity:` label. The label descriptions are the
-rubric:
+The label descriptions are the rubric:
 
 | Label | Use for |
 |---|---|
