@@ -1,5 +1,9 @@
 # Architecture
 
+This file describes how the code works: the mechanism behind each tool, the code map and the
+platform contracts. The goal, the scope and the design principles are in
+[PRINCIPLES.md](PRINCIPLES.md). The process is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Tool → backing mechanism
 
 Each tool delegates to a platform API. This is **not** uniformly an extension point —
@@ -29,93 +33,19 @@ The "verified against" column cites the exact call site so a future reader can r
 | `ide_refactor_rename` | `RenameProcessor` + `RenamePsiElementProcessor` EP + `AutomaticRenamerFactory` EP iteration | `RenameSymbolTool.kt` |
 | `ide_move_file` | `MoveFilesOrDirectoriesProcessor` (delegates to `MoveFileHandler` EP per language; PHP class files route through PhpStorm's class-move processor) | `MoveFileTool.kt` |
 
-## Core Design Principle: Mimic the IDE
-
-Every tool should return what the IDE's own action or tool window would show for the
-same input. Delegate to the platform's extension points and presentation APIs rather
-than re-deriving behavior per language:
-
-- Hierarchies → `LanguageCallHierarchy` / `LanguageTypeHierarchy` (drive the IDE's own
-  `HierarchyProvider` browser headlessly), not hand-rolled per-language traversal
-- Qualified names → `QualifiedNameProvider` extension point (same API as "Copy Reference")
-- Display names → the element's own `ItemPresentation` / `ClassPresentationUtil`
-- Find Usages → `FindUsagesHandlerFactory` (the Alt+F7 equivalence class)
-- Search scope → map to the scope string the IDE selects by default for that action
-
-Per-language reflection is a **last resort**, used only where the platform exposes no
-universal API (most notably element `kind` — there is no `PsiElement.getKind()`, so
-class/interface/struct/trait classification is unavoidably language-specific). When the
-IDE's behavior changes between versions, faithfully mirroring it is correct — re-bless
-snapshots rather than re-deriving.
-
-**Escalate, don't decide silently.** Two situations need more than the code; do not choose
-unilaterally:
-
-1. **Verification needs the IDE.** When a result can be judged only against what the IDE
-   shows, establish what the IDE shows. Observe the running IDE (for example a throwaway
-   instance, see [live-test/README.md](../live-test/README.md), section "Throwaway IDE"), or
-   ask the maintainer to do it. Never decide from the code alone, and never bless a snapshot
-   on a guess.
-2. **Mimic-vs-useful tension.** When faithfully mirroring the IDE (and staying
-   language-agnostic) would withhold information that is genuinely more useful to the
-   calling agent, do not quietly pick one. Present the tradeoff and let the owner of
-   the repository decide. "Mimic the IDE" is the default, not an absolute — usefulness can override
-   it, but only with explicit sign-off.
-
-**Text for the calling agent.** A `notes` entry, a `warnings` entry or an error message is read by
-an agent that has no IDE window, so it speaks in terms of the code and names nothing of the IDE
-window. The rule is in [AGENTS.md](../AGENTS.md). Example: for a symbol with one base declaration,
-`BaseDeclarationsNote.build` writes this note.
-
-```text
-'<symbol>' overrides or implements <base> (<path>:<line>:<column>). The result also holds the usages of this base declaration, because a call through it can run '<symbol>'. <n> of the <m> usages have match BASE.
-```
-
-A text such as "the tool answers Yes to the IDE question" names a question that the agent never sees.
-
-**Approved deviation: a marked false positive is better than a false negative.** Where
-the IDE asks its user a question before a search ("search the base method too?") or hides
-a class of results by default (dynamic usages), a tool has no user to ask. The owner's
-rule: the tool takes the wider result and marks each row that is not a sure
-match (`match: BASE`, `match: OVERRIDE`, `match: DYNAMIC`), and the response names what was
-added, in terms of the code. A tool never drops such rows silently and never returns them
-without a mark. `ide_find_usages` is the first tool that applies this rule (#171, #196). For a
-PHP method, PhpStorm asks "find usages of base method?" and then searches the selected methods
-and the methods that override them, with no mark. The tool asks no question
-(`PhpSuperMethodsProvider.findDirectReferences`, #182): it searches the method, its base methods
-with the other methods that override them (`FindUsagesHandlerSearch.basePassTargets`), and its
-overriding methods (#183). So the result holds each usage of both answers. The tool decides the
-mark of each usage from the declarations that its reference resolves to
-(`PhpSuperMethodsProvider.usageMark`).
-
-**No silent drop.** The owner's rule: when a tool leaves out rows that the IDE's
-search returned, the first page has a `notes` entry with the kind of the rows, their count and
-the reason, in terms of the code. `ide_explain_symbol` counts in the same way and has the same
-entry. The language provider gives the kind of a row to leave out
-(`SuperMethodsProvider.droppedUsageKind`, a `UsageDrop` value); `FindUsagesHandlerSearch` keeps
-the row from the caller and counts each position one time. Two kinds exist:
-
-- `GO_FIELD_KEY`: a key of a Go composite literal that names a struct field with the same name
-  as the type of the query (`certmagic.ACMEIssuer{CA: iss.CA}` for the type `CA`). Find Usages
-  of GoLand lists the key as a usage of the type, but the key refers to the field. This is an
-  approved deviation from GoLand. A key of an embedded field names the type and stays.
-- `PHP_SELF_REFERENCE`: a reference to a PHP class through `$this`, `self` or `static` inside
-  that class (#179). Find Usages of PhpStorm hides these rows by default
-  (`PhpThisOrSelfFilteringRule`, `plugins/php-impl/lib/php.jar`), so the drop mirrors the IDE.
-
-A base declaration that the search does not search on purpose
-(`SuperMethodsProvider.skippedBaseDeclarations`, today a method of the Python class `object`)
-also has a `notes` entry.
-
 ## Where a tool differs from the IDE on purpose
 
-Each entry gives the difference, its reason and the code. A new deviation needs the sign-off of
-case 2 above, and an entry here.
+Each entry gives the difference, its reason and the code. "Mimic the IDE" is the default (see
+[PRINCIPLES.md](PRINCIPLES.md)). A new deviation needs the sign-off of the owner of the
+repository, and an entry here.
 
-- **Find usages: base declarations and marks.** See "Approved deviation" above and
-  [Find Usages](#find-usages) (`FindUsagesHandlerSearch`, `UsageMatch`).
+- **Find usages: base declarations and marks.** The tool searches the base declarations and the
+  overriding declarations too, and it marks each usage that is not a sure match (`BASE`,
+  `OVERRIDE`, `DYNAMIC`). The rule is "Marked false positives" in [PRINCIPLES.md](PRINCIPLES.md).
+  The detail is in [Find Usages](#find-usages) (`FindUsagesHandlerSearch`, `UsageMatch`).
 - **Find usages: Go literal keys of a same-named field.** The search leaves them out and counts
-  them in a note. See "No silent drop" above (`GoFindUsages.isFieldKeyOfType`).
+  them in a note. See the item "Left-out usages" of [Find Usages](#find-usages)
+  (`GoFindUsages.isFieldKeyOfType`).
 - **Find usages: no search of the Python class `object`.** Each class is a subclass of `object`, so
   these usages give almost no information. The PyCharm factory asks no question when the nearest
   super method is in `object`. A note names each skipped method
@@ -266,7 +196,7 @@ with Rider (`incompatible-with`).
 ## Multi-Language Architecture
 
 Three mechanisms — pick by whether the platform exposes a usable extension point
-(see "Core Design Principle: Mimic the IDE"):
+(see "Delegate to the platform" in [PRINCIPLES.md](PRINCIPLES.md)):
 
 **1. IDE extension-point delegation (preferred).** `ide_call_hierarchy` /
 `ide_type_hierarchy` drive the IDE's own machinery — no per-language handlers. See
@@ -473,6 +403,25 @@ Its KDoc has the detail and the bytecode citations. The summary:
   `BacktickUsageViewElementsListener` (`MarkdownFindUsages`) exist. For a new IDE version, examine the
   plugin descriptors for this extension point again and mirror each new listener. Then the provider
   can change the mark (`usageMark`).
+- **PHP.** For a PHP method, PhpStorm asks "find usages of base method?" and then searches the
+  selected methods and the methods that override them, with no mark. The tool asks no question
+  (`PhpSuperMethodsProvider.findDirectReferences`, #182). It searches the method, its base methods
+  with the other methods that override them (`FindUsagesHandlerSearch.basePassTargets`), and its
+  overriding methods (#183). So the result holds each usage of both answers. The tool decides the
+  mark of each usage from the declarations that its reference resolves to
+  (`PhpSuperMethodsProvider.usageMark`).
+- **Left-out usages** (`UsageDrop`). The general rule is "No silent drop" in
+  [PRINCIPLES.md](PRINCIPLES.md). The language provider gives the kind of a usage to leave out
+  (`SuperMethodsProvider.droppedUsageKind`, a `UsageDrop` value). `FindUsagesHandlerSearch` does
+  not give that row to the caller, and it counts each position one time. `ide_explain_symbol`
+  counts the left-out usages in the same way. Two kinds exist:
+  - `GO_FIELD_KEY`: a key of a Go composite literal that names a struct field with the same name
+    as the type of the query (`certmagic.ACMEIssuer{CA: iss.CA}` for the type `CA`). Find Usages
+    of GoLand lists the key as a usage of the type, but the key refers to the field. This is an
+    approved deviation from GoLand. A key of an embedded field names the type and stays.
+  - `PHP_SELF_REFERENCE`: a reference to a PHP class through `$this`, `self` or `static` inside
+    that class (#179). Find Usages of PhpStorm hides these rows by default
+    (`PhpThisOrSelfFilteringRule`, `plugins/php-impl/lib/php.jar`), so the drop mirrors the IDE.
 - **Notes and warnings.** The first page of `ide_find_usages` has `notes` from
   `BaseDeclarationsNote`, `OverridingDeclarationsNote` (both name at most 3 declarations and count
   the marked usages), `SkippedBasesNote` and `DroppedUsagesNote` ("or more" when the search stopped

@@ -61,7 +61,8 @@ Perfect for AI-assisted development workflows where accuracy and safety matter.
 
 - **[USAGE.md](docs/USAGE.md)** — full per-tool reference (parameters, examples, return shapes)
 - **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** — build, dev-loop, testing, PR checklist
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — design, backing-mechanism model, internals
+- **[PRINCIPLES.md](docs/PRINCIPLES.md)** — goal, scope and design principles
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — backing mechanisms, deviations from the IDE, platform contracts
 - **[CHANGELOG.md](CHANGELOG.md)** — release notes and version history
 - **[Agent skill](src/main/resources/skill/idesense/SKILL.md)** — runtime guidance for AI agents on tool selection and conventions
 - **[Live-test harness](live-test/README.md)** — snapshot regression suite for verifying tool behavior against real IDEs
