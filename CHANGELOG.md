@@ -189,6 +189,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   delete (#169).
 - The descriptions of `ide_file_structure` and `ide_find_symbol` no longer say "disabled by
   default". Both tools are on by default (#168).
+- `ide_explain_symbol` gives `usageCount: 200` and `usagesTruncated: true` for a symbol with more
+  than 200 usages. For a Go symbol, the count was 200, 201 or 202, and equal calls gave different
+  values. The search of the IDE gives usages from more than one thread, and some usages arrive
+  after the tool stops the search. The tool counted these usages too (#215).
 
 ## [2.1.0] - 2026-11-09
 
