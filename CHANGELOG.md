@@ -189,6 +189,12 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   delete (#169).
 - The descriptions of `ide_file_structure` and `ide_find_symbol` no longer say "disabled by
   default". Both tools are on by default (#168).
+- A Rust module file as a result gets the module path of RustRover as its `qualifiedName`, and the
+  `kind` `MODULE`. For example, `ide_find_definition` at `mod pathutil;` gave `crate::pathutil.rs`
+  and `SYMBOL`. It now gives `globset::pathutil` and `MODULE`, the name that Copy Reference gives.
+  When RustRover gives no module path, `qualifiedName` is `null`. A file as a result now also goes
+  to the qualified-name providers of the other languages. In IntelliJ IDEA, a Gradle build script
+  can now get the Gradle path of its project (#187).
 
 ## [2.1.0] - 2026-11-09
 
