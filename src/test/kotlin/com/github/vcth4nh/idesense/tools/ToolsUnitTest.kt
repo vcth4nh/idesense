@@ -24,6 +24,7 @@ import com.github.vcth4nh.idesense.tools.project.SyncFilesTool
 import com.github.vcth4nh.idesense.tools.refactoring.MoveFileTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
 import com.github.vcth4nh.idesense.handlers.isExcludedPath
+import com.github.vcth4nh.idesense.settings.McpSettings
 import junit.framework.TestCase
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -539,6 +540,21 @@ class ToolsUnitTest : TestCase() {
                 "Registered tool '${tool.name}' should be listed in ToolNames.ALL",
                 ToolNames.ALL.contains(tool.name)
             )
+        }
+    }
+
+    fun testOnlyToolsOffByDefaultSayDisabledByDefault() {
+        val registry = ToolRegistry()
+        registry.registerBuiltInTools()
+        val disabledByDefault = McpSettings.State().disabledTools
+
+        for (tool in registry.getAllTools()) {
+            if (tool.description.contains("disabled by default")) {
+                assertTrue(
+                    "Tool '${tool.name}' says 'disabled by default' but is on by default",
+                    tool.name in disabledByDefault
+                )
+            }
         }
     }
 

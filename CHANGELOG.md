@@ -176,6 +176,8 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `docs/CHANGELOG-before-rebrand.md`.
 - The description of the server no longer names "safe delete" as a capability. No tool does safe
   delete (#169).
+- The descriptions of `ide_file_structure` and `ide_find_symbol` no longer say "disabled by
+  default". Both tools are on by default (#168).
 
 ## [2.1.0] - 2026-11-09
 
