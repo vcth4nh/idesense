@@ -24,6 +24,15 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 - **beets: test modules have no `test.` prefix.** A qualified name in a test module starts at
   the module, for example `test_plugins.TestListeners`. The cause is the test root `test` of the
   project model (see "Setup" in [notes.md](../../_setup/beets/notes.md)).
+- **beets: 15 callees of `split_into_lines` on PyCharm 2026.3.** `hier-callee-split_into_lines-d1`
+  counts one callee for each overload of a type stub that a call resolves to. The Hierarchy
+  window of PyCharm 2026.3.0.1 (PY-263.7307.329, callee view) shows the same 15 rows as the
+  tool: one row for `str.split` (the overload at `builtins.pyi:619`; the overload for
+  `LiteralString` at line 617 is absent), two for `Pattern.finditer` (`re.pyi:181` and `:187`;
+  the overload for `Pattern[bytes]` at line 183 is absent), three for `Match.group`, two for
+  `str.join` and two for `range.__new__`. The line numbers are those of the stubs that this
+  PyCharm build bundles. With PyCharm 2026.2 the tool gave 17 callees; the list of that version
+  is not recorded.
 - **beets: parked rows.** `find-class-DummyPlugin`, `find-symbol-template-lang-python`,
   `impls-BeetsPlugin`, `hier-sub-BeetsPlugin` and `hier-sub-FieldQuery` are parked with #176:
   a local class gets the qualified name of its function, and a class attribute the name of its
