@@ -30,7 +30,7 @@ These tools work in every supported JetBrains IDE:
 
 ### Extended Tools (Language-Aware)
 
-These tools activate based on available language plugins:
+These tools give results for the languages in the table. The plugin always lists them, except `ide_find_super_methods`, which is listed only when the IDE has a plugin for one of its languages.
 
 | Tool | Description | Languages |
 |------|-------------|-----------|
@@ -45,6 +45,8 @@ These tools activate based on available language plugins:
 ## Table of Contents
 
 - [Common Parameters](#common-parameters)
+  - [Position Parameters](#position-parameters)
+  - [Name Anchors](#name-anchors)
   - [Pagination and Result Size](#pagination-and-result-size)
 - [Universal Tools](#universal-tools)
   - [ide_find_usages](#ide_find_usages)
@@ -52,16 +54,16 @@ These tools activate based on available language plugins:
   - [ide_find_class](#ide_find_class)
   - [ide_find_file](#ide_find_file)
   - [ide_search_text](#ide_search_text)
-  - [ide_find_symbol](#ide_find_symbol)
   - [ide_diagnostics](#ide_diagnostics)
   - [ide_explain_symbol](#ide_explain_symbol)
   - [ide_index_status](#ide_index_status)
   - [ide_sync_files](#ide_sync_files)
+  - [ide_read_file](#ide_read_file)
+  - [ide_find_symbol](#ide_find_symbol)
   - [ide_install_plugin](#ide_install_plugin)
   - [ide_restart](#ide_restart)
-  - [ide_read_file](#ide_read_file)
 - [Refactoring Tools](#refactoring-tools)
-  - [ide_refactor_rename](#ide_refactor_rename)
+  - [ide_refactor_rename](#ide_refactor_rename-universal---all-languages)
   - [ide_move_file](#ide_move_file)
 - [Extended Tools (Language-Aware)](#extended-tools-language-aware)
   - [ide_type_hierarchy](#ide_type_hierarchy)
@@ -103,11 +105,15 @@ When `ide_find_usages`, `ide_call_hierarchy` or `ide_find_implementations` finds
 
 ### Pagination and Result Size
 
-Paginated tools (`ide_find_usages`, `ide_find_class`, `ide_find_file`, `ide_search_text`, `ide_find_implementations`, `ide_find_symbol`) return `nextCursor`, `hasMore`, `offset`, `pageSize` and `totalCollected`:
+Paginated tools (`ide_find_usages`, `ide_find_class`, `ide_find_file`, `ide_search_text`, `ide_find_implementations`, `ide_find_symbol`) return `nextCursor`, `hasMore`, `offset`, `pageSize`, `totalCollected` and `stale`:
 
 - `pageSize` is the page size of the call (the requested value, or the value stored in the cursor). An empty page reports it too.
 - `totalCollected` counts the results collected so far for this cursor. While `hasMore` is `true`, more results can exist, so the value is not a total.
 - A cursor stops the collection at 5,000 results. After them `hasMore` is `false`, also when more results exist.
+- `stale` is `true` when the PSI of the project (the IDE's code model) changed after the cursor was made. Search again for current results.
+- A cursor expires 10 minutes after its last use. The server keeps at most 20 cursors. A new cursor then removes the cursor that was used least recently.
+- An expired cursor returns `tool_error` with the message `Cursor expired. Please re-search.` An unknown or removed cursor returns `tool_error` with the message `Cursor not found. Please re-search.`
+- `ide_find_usages` also returns `truncated`. Its value always equals `hasMore`.
 
 Fields that quote a source line (`preview`, and `context` in `ide_search_text` matches) hold at most 200 characters of the line. A longer line, for example in a minified file, is cut to a 200-character window around the match, and `…` marks each cut end. Thus `pageSize` also bounds the size of a page.
 
@@ -205,31 +211,60 @@ of the IDE's Find Usages window. An example is `Shape` in the PHP doc comment
 `/** @var Shape[] */`. `line` and `column` point at the word in the comment, not at the start of
 the comment.
 
-**Base declarations:** a Go, JavaScript, TypeScript, Python or Rust member can override or
-implement a base declaration. Then the result is the union of the usages of the member and the
-usages of each base declaration. An example is a Go method that implements an interface method.
-A call through an interface value refers to the interface method, but it can run the method. The
-search collects the usages of the member itself before the usages of the base declarations.
-Where the IDE asks its user whether to search the base member or hides dynamic usages by
-default, the tool includes and marks both. An absent call site costs an agent more than a marked
-extra row. For a Go method, GoLand also shows its notification "Looking for usages of the
-interface methods" in the IDE window, as it does for Find Usages. The notification stops when
-the user selects "Don't show again".
+**Base declarations:** a Go, Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member can
+override or implement a base declaration. Then the result is the union of the usages of the
+member and the usages of each base declaration. An example is a Go method that implements an
+interface method. A call through an interface value refers to the interface method, but it can
+run the method. The search collects the usages of the member itself before the usages of the
+base declarations. Where the IDE asks its user whether to search the base member or hides
+dynamic usages by default, the tool includes and marks both. An absent call site costs an agent
+more than a marked extra row. For a Go method, GoLand also shows its notification "Looking for
+usages of the interface methods" in the IDE window, as it does for Find Usages. The notification
+stops when the user selects "Don't show again". For a PHP method, the search of each base method
+also covers the other methods that override or implement that base method, as the answer "Base
+Method" of PhpStorm does. An example is a method of a class that implements an interface method:
+the result also holds the calls on a value of another class that implements the interface method.
+
+**Overriding declarations:** for a PHP method, the result also holds the usages of each method
+that overrides or implements it, as Find Usages of PhpStorm lists them. An example is an interface
+method: a call on a value whose type is an implementing class refers to the method of that class.
+The search collects these usages after the usages of the base declarations. The declarations of
+the overriding methods are not in the result; `ide_find_implementations` lists them.
 
 **Match:** a usage that is not a sure usage of the symbol has the field `match`:
 - No `match` key - the usage refers to the symbol itself.
-- `BASE` - the usage refers to a base declaration. The call can run this symbol or another
-  implementation.
+- `BASE` - the usage refers to a base declaration, or to another declaration that overrides or
+  implements a base declaration. It is a call on a value of the base type, which can run this
+  symbol or another implementation, or a call on a value of another type that implements the
+  base declaration.
+- `OVERRIDE` - the usage refers to a PHP method that overrides or implements the symbol. It is a
+  call on a value whose type has that overriding method.
 - `DYNAMIC` - only the name matches, and the type of the receiver is not known. In all
   languages, a reference that does not resolve to a declaration has this mark. In JavaScript and
   TypeScript, a usage that WebStorm counts as a dynamic usage also has it. An example is a call
   `x.send()` on a value with no known type. A symbol name in a code span of a Markdown file also
   has it: only the name matches there.
 
-**Notes:** `notes` is on the first page of a fresh search when the symbol overrides or implements
-base declarations. The entry names the base declarations and gives the count of the collected
-usages that have `match: BASE`. An example for the JavaScript method `area` that overrides
-`Shape.area`:
+**Notes:** `notes` is on the first page of a fresh search. It has these entries, in this order:
+
+1. When the symbol overrides or implements base declarations: the entry names the base
+   declarations and gives the count of the collected usages that have `match: BASE`.
+2. When the search also covers the declarations that override or implement the symbol (a PHP
+   method): the entry names them and gives the count of the collected usages that have
+   `match: OVERRIDE`.
+3. When the search does not search a base method on purpose (a method of the Python class
+   `object`): `The base method <qualified name> is not searched: each class is a subclass of
+   object.`, one sentence for each base method.
+4. One entry for each kind of usage that the result leaves out, with the count. When the search
+   stopped at its limit, the count is `<n> or more`.
+   - Go, for a type: `<n> composite literal keys that name a struct field with the same name as
+     this type are not in the list.` Such a key refers to the field, not to the type. A key of an
+     embedded field stays in the list.
+   - PHP, for a class: `<n> references to this class through $this, self or static inside the
+     class are not in the list.` The Find Usages window of PhpStorm also hides these references
+     by default.
+
+An example for the JavaScript method `area` that overrides `Shape.area`:
 
 ```json
 "notes": [
@@ -237,7 +272,7 @@ usages that have `match: BASE`. An example for the JavaScript method `area` that
 ]
 ```
 
-The key is absent when the symbol has no base declaration.
+The key is absent when it has no entry.
 
 **Degraded searches:** if the language's find-usages handler throws mid-expansion (e.g.
 broken library roots), the search continues on the remaining targets and `warnings` lists
@@ -246,9 +281,8 @@ each failed stage (`primaryElements` / `secondaryElements` / `findReferencesToHi
 result. If the handler factory of the language throws while it creates the handler, the tool
 searches only the references to the anchor element, and `warnings` has the entry `Find-usages
 handler factory <Name> threw while creating the handler; searched the references to the anchor
-element only — usages may be incomplete.` An example is a PHP method with a base method in
-PhpStorm. `warnings` is `null` when the search ran complete; it is reported on the first page of
-a fresh search.
+element only — usages may be incomplete.` `warnings` is `null` when the search ran complete; it
+is reported on the first page of a fresh search.
 
 ---
 
@@ -293,13 +327,11 @@ Finds the definition/declaration location of a symbol at a given source location
   "column": 17,
   "name": "findUser",
   "kind": "METHOD",
-  "preview": "14:     \n15:     public User findUser(String id) {\n16:         return userRepository.findById(id);\n17:     }",
+  "preview": "public User findUser(String id) {",
   "qualifiedName": "com.example.UserService.findUser",
-  "enclosingScope": ["UserService"]
+  "enclosingScope": null
 }
 ```
-
-**Path note:** Project results use relative paths. Dependency/library results may use absolute paths or `jar://` URLs.
 
 ---
 
@@ -312,16 +344,17 @@ Searches for classes and interfaces by name using the IDE's class index.
 - Discovering all classes matching a pattern
 
 **Matching modes:**
-- Substring: `"Service"` matches `"UserService"`, `"OrderService"`
-- CamelCase: `"USvc"` matches `"UserService"`
-- Wildcard: `"User*Impl"` matches `"UserServiceImpl"`
-- Exact: case-sensitive exact match
+- Exact (default): an exact name match without case (`"userservice"` matches `"UserService"`)
+- With `fuzzySearch: true`:
+  - Substring: `"Service"` matches `"UserService"`, `"OrderService"`
+  - CamelCase: `"USvc"` matches `"UserService"`
+  - Wildcard: `"User*Impl"` matches `"UserServiceImpl"`
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `query` | string | Yes | Search pattern |
+| `query` | string | Yes* | Search pattern. Required for a fresh search; ignored when `cursor` is provided. |
 | `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files`. The last two follow the project's non-test and test source roots; in a project without such roots the tool returns a `scope_matches_no_files` error instead of an empty result. |
 | `language` | string | No | Filter by language (e.g., `"Kotlin"`, `"Java"`, `"Python"`). Case-insensitive |
 | `fuzzySearch` | boolean | No | `false` (default) = exact, case-insensitive name match; `true` = IDE camelCase/substring matching (`USvc` → `UserService`) |
@@ -364,8 +397,6 @@ Searches for classes and interfaces by name using the IDE's class index.
 }
 ```
 
-**Path note:** Project results use relative paths. Dependency/library results may use absolute paths or `jar://` URLs.
-
 ---
 
 ### ide_find_file
@@ -382,7 +413,7 @@ Searches for files by name using the IDE's file index.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `query` | string | Yes | File name pattern |
+| `query` | string | Yes* | File name pattern. Required for a fresh search; ignored when `cursor` is provided. |
 | `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files`. The last two follow the project's non-test and test source roots; in a project without such roots the tool returns a `scope_matches_no_files` error instead of an empty result. |
 | `limit` | integer | No | Deprecated alias for `pageSize` (default: 25, max: 500) |
 | `cursor` | string | No | Pagination cursor from a previous response |
@@ -419,8 +450,6 @@ Searches for files by name using the IDE's file index.
   "warnings": null
 }
 ```
-
-**Path note:** Project results use relative paths. Dependency/library results may use absolute paths or `jar://` URLs.
 
 **Degraded searches:** if a file contributor throws mid-search, the remaining contributors
 still run and `warnings` names the failed contributor, so partial coverage is visible
@@ -489,8 +518,6 @@ Searches for text using the IDE's pre-built word index. Significantly faster tha
 ---
 
 ### ide_diagnostics
-
-> **Availability**: Universal Tool - works in all JetBrains IDEs
 
 Analyzes code diagnostics from three sources:
 - fresh per-file IDE analysis for problems (errors, warnings),
@@ -564,6 +591,7 @@ File problems are collected through explicit daemon analysis, so they do not dep
 **Response Notes:**
 - `analysisFresh = true` means the file problems came from a fresh explicit IDE analysis pass instead of cached editor highlights. It covers the analysis of the current file text only: right after the IDE starts, background SDK setup (for example Python interpreter skeletons) can still cause transient unresolved-import problems.
 - `analysisTimedOut = true` means the file analysis budget was exceeded. `problems` and `problemCount` are then `null`, because the file is not known to be clean. Build/test sections may still be returned.
+- `problems` holds at most 100 entries, and no field shows that the list was cut. `problemCount` counts the returned entries.
 - `analysisMessage` explains degraded cases such as timeouts or missing live editor context for intentions.
 - `line` and `column` affect intention lookup only; file problems are collected for the whole file, then filtered by `startLine` / `endLine` if provided.
 
@@ -571,13 +599,10 @@ File problems are collected through explicit daemon analysis, so they do not dep
 - `ERROR` - Compilation error
 - `WARNING` - Potential problem
 - `WEAK_WARNING` - Minor issue
-- `INFO` - Informational
 
 ---
 
 ### ide_explain_symbol
-
-> **Availability**: Universal Tool - works in all JetBrains IDEs
 
 Explains a symbol in one round-trip by fusing the IDE's navigation and documentation engines:
 declaration location, signature, quick documentation, supers, implementations, and a usage
@@ -640,15 +665,14 @@ ambiguous name returns a `candidates` list instead of guessing.
 - Facets are capped summaries: `implementations` up to 10 (`implementationsTruncated`), `usageCount` counted up to 200 (`usagesTruncated`), `topUsages` up to 5, `documentation` up to 4000 characters (`documentationTruncated`). Page through the dedicated tools for full sets.
 - A `null` facet means not applicable, not requested, or degraded (degradations are named in `warnings`); an empty list means searched-and-empty — the same convention as `ide_diagnostics`.
 - Usage counting and implementation search run over project files; library usages are not counted.
-- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, JavaScript, TypeScript, Python or Rust member with base declarations, `usageCount` counts the same union as `ide_find_usages`. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`), as in `ide_find_usages`.
+- `usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member with base declarations, `usageCount` counts the same union as `ide_find_usages`. For a PHP method, `usageCount` also counts the usages of the methods that override or implement it. `usageCount` includes the `COMMENT` usages. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `OVERRIDE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE`, `OVERRIDE` or `DYNAMIC`), as in `ide_find_usages`.
+- `usageCount` and `topUsages` do not hold a usage that `ide_find_usages` leaves out. `notes` (absent when it has no entry) has the same entries as the notes of `ide_find_usages` for the base methods that the search does not search and for each kind of usage that it leaves out.
 - On an ambiguous `symbol`, only `candidates` and `message` are populated — re-call with a qualified name or position from the list.
 - `problems` is only populated with `includeDiagnostics: true` and covers problems overlapping the declaration's line range.
 
 ---
 
 ### ide_index_status
-
-> **Availability**: Universal Tool - works in all JetBrains IDEs
 
 Checks if the IDE is in dumb mode (indexing) or smart mode.
 
@@ -730,9 +754,11 @@ Force the IDE to synchronize its virtual file system and PSI cache with external
 {
   "syncedPaths": ["src/main/java/com/example/NewFile.java"],
   "syncedAll": false,
-  "message": "Synced 1 path(s)"
+  "message": "Synchronized 1 path(s)."
 }
 ```
+
+A requested path that the tool does not find is not in `syncedPaths`, and `message` names it after `Not found:`.
 
 If a requested path is excluded from the project and is not part of a library, `message` names it: the IDE refreshes it, but it does not index or analyze it.
 
@@ -755,8 +781,8 @@ Read file content by file path or fully qualified class name.
 |-----------|------|----------|-------------|
 | `file` | string | No* | File path (relative, absolute, or jar path with `!/` or `jar://`) |
 | `qualifiedName` | string | No* | Fully qualified class name (e.g., `java.util.ArrayList`) |
-| `startLine` | integer | No | Starting line (1-based, inclusive) |
-| `endLine` | integer | No | Ending line (1-based, inclusive) |
+| `startLine` | integer | No | Starting line (1-based, inclusive). Without `endLine`, the tool returns only this line. |
+| `endLine` | integer | No | Ending line (1-based, inclusive). Requires `startLine`. |
 
 *Either `file` or `qualifiedName` must be provided.
 
@@ -803,8 +829,10 @@ Searches for code symbols (classes, interfaces, methods, fields, and functions) 
 - Navigating to code when you know the symbol name but not the file location
 
 **Supports Go to Symbol matching:**
-- Substring: "Service" matches "UserService", "OrderService"
-- CamelCase: "USvc" matches "UserService", "US" matches "UserService"
+- Exact (default): an exact name match without case
+- With `fuzzySearch: true`:
+  - Substring: "Service" matches "UserService", "OrderService"
+  - CamelCase: "USvc" matches "UserService", "US" matches "UserService"
 - Qualified queries: "BasicSolver.run" matches a method in its containing class or module
 
 **Parameters:**
@@ -849,7 +877,7 @@ Searches for code symbols (classes, interfaces, methods, fields, and functions) 
 }
 ```
 
-**Example Response:**
+**Example Response** (camelCase request):
 
 ```json
 {
@@ -869,22 +897,12 @@ Searches for code symbols (classes, interfaces, methods, fields, and functions) 
       "file": "src/main/java/com/example/service/UserServiceImpl.java",
       "line": 15,
       "column": 14
-    },
-    {
-      "name": "findUser",
-      "qualifiedName": "com.example.service.UserService.findUser",
-      "kind": "METHOD",
-      "file": "src/main/java/com/example/service/UserService.java",
-      "line": 18,
-      "column": 10
     }
   ],
-  "totalCollected": 3,
-  "query": "UserService"
+  "totalCollected": 2,
+  "query": "USvc"
 }
 ```
-
-**Path note:** Project results use relative paths. Dependency/library results may use absolute paths or `jar://` URLs.
 
 **Kind Values:**
 - `CLASS` - Concrete class
@@ -897,6 +915,13 @@ Searches for code symbols (classes, interfaces, methods, fields, and functions) 
 - `FIELD` - Field or constant
 - `FUNCTION` - Function
 - `SYMBOL` - Generic symbol when the IDE contributor does not expose a more specific kind
+- `DATA_CLASS`, `SEALED_CLASS`, `OBJECT` - Kotlin data class, sealed class, object
+- `STRUCT` - Go or Rust struct
+- `TRAIT` - PHP or Rust trait
+- `ENUM_VARIANT`, `IMPL`, `MACRO`, `MODULE` - Rust enum variant, impl block, macro, module
+- `PROPERTY`, `VARIABLE`, `CONSTANT`, `TYPE_ALIAS`, `TYPE`, `PARAMETER`, `CONSTRUCTOR`, `PACKAGE`, `LABEL` - Other declarations
+
+The list is open, and other values can occur. When the plugin does not map the IDE's name for an element type, `kind` is that name in upper case, with `_` for each space.
 
 For Markdown heading outlines, use `ide_file_structure`.
 
@@ -937,8 +962,6 @@ copy the zip into that project first.
 
 **Returns**: `{ "installed": true, "source": "/abs/path/plugin.zip", "pluginDir": "/abs/path/plugins/myplugin", "pluginId": "com.example.plugin", "pluginVersion": "1.0.0", "restartRequired": true, "message": "…" }`
 
-> **Disabled by default.** Enable in Settings > Tools > IdeSense.
-
 ---
 
 ### ide_restart
@@ -974,8 +997,6 @@ The restart is scheduled after this tool's response is flushed (default 2 s dela
 
 **Returns**: `{ "restarting": true, "delaySeconds": 5, "message": "IDE will restart in 5s. …" }`
 
-> **Disabled by default.** Enable in Settings > Tools > IdeSense.
-
 ---
 
 ## Refactoring Tools
@@ -992,7 +1013,7 @@ Renames a symbol and updates all references across the project. This tool uses I
 
 **Features:**
 - Language-specific name validation (identifier rules, keyword detection)
-- **Fully headless/autonomous operation** (no popups or dialogs)
+- **Headless with the default strategies** (no popups or dialogs)
 - **Automatic related element renaming** - getters/setters, overriding methods, test classes are renamed automatically
 - Conflict detection before rename execution (returns error instead of showing dialog)
 - Single atomic operation - all renames (primary + related) can be undone with one Ctrl/Cmd+Z
@@ -1014,8 +1035,8 @@ Renames a symbol and updates all references across the project. This tool uses I
 | `line` | integer | No | 1-based line number. Required for symbol rename; omit for file rename. |
 | `column` | integer | No | 1-based column number. Required for symbol rename; omit for file rename. |
 | `newName` | string | Yes | The new name for the symbol or file. For file renames, include the file extension (e.g., `"new_name.webp"`). |
-| `overrideStrategy` | string | No | How to handle overriding methods: `"rename_base"` (default), `"rename_only_current"`, or `"ask"` |
-| `relatedRenamingStrategy` | string | No | How to handle automatic renaming of related symbols: `"all"` (default), `"none"`, `"accessors_and_tests"`, or `"ask"` |
+| `overrideStrategy` | string | No | How to handle overriding methods: `"rename_base"` (default), `"rename_only_current"`, or `"ask"`. `"ask"` shows an IDE dialog for an interactive choice, so a person must answer it at the IDE. |
+| `relatedRenamingStrategy` | string | No | How to handle automatic renaming of related symbols: `"all"` (default), `"none"`, `"accessors_and_tests"`, or `"ask"`. `"ask"` shows an IDE dialog for an interactive choice, so a person must answer it at the IDE. |
 
 **Example Request (Java):**
 
@@ -1100,7 +1121,7 @@ Renames a symbol and updates all references across the project. This tool uses I
 
 **Automatic Related Renames:**
 
-Related elements are automatically renamed without any prompts or dialogs:
+With the default strategies, related elements are renamed without any prompts or dialogs:
 
 | Language | What Gets Auto-Renamed |
 |----------|------------------------|
@@ -1187,7 +1208,7 @@ Move a file to a new directory using the IDE's refactoring engine. Applies langu
 
 ## Extended Tools (Language-Aware)
 
-These tools activate based on available language plugins:
+These tools give results for a language when the IDE has its plugin:
 - **Java/Kotlin** - IntelliJ IDEA, Android Studio
 - **Python** - PyCharm (all editions), IntelliJ with Python plugin
 - **JavaScript/TypeScript** - WebStorm, IntelliJ Ultimate, PhpStorm
@@ -1196,7 +1217,7 @@ These tools activate based on available language plugins:
 - **Rust** - RustRover, IntelliJ Ultimate with Rust plugin, CLion
 - **Markdown** - heading outlines in file structure for IDEs with the bundled Markdown plugin
 
-Navigation tools appear according to installed language plugins. Markdown file structure can appear even in IDEs without a code-language handler when the bundled Markdown plugin is enabled.
+The plugin always lists these tools, except `ide_find_super_methods`, which is listed only when the IDE has a plugin for one of its languages. Markdown file structure can appear even in IDEs without a code-language handler when the bundled Markdown plugin is enabled.
 
 ### ide_type_hierarchy
 
@@ -1302,6 +1323,11 @@ Retrieves a depth-limited type hierarchy (supertypes and subtypes) for a class o
 }
 ```
 
+**Response Notes:**
+- `supertypes` is a tree. Each entry has its own `supertypes` list, down to `maxDepth` levels. The list is `null` when the entry has none.
+- `subtypes` is one flat list of the subtypes, up to `maxDepth` levels. Its entries have no `supertypes` and no link to their parent.
+- Each entry also has `line`, `column` and `enclosingScope`. `enclosingScope` is `null` when `qualifiedName` has a value.
+
 **Kind Values:**
 - `CLASS` - Concrete class
 - `ABSTRACT_CLASS` - Abstract class
@@ -1309,6 +1335,11 @@ Retrieves a depth-limited type hierarchy (supertypes and subtypes) for a class o
 - `ENUM` - Enum type
 - `ANNOTATION` - Annotation type
 - `RECORD` - Record class (Java 16+)
+- `DATA_CLASS`, `SEALED_CLASS`, `OBJECT` - Kotlin data class, sealed class, object
+- `STRUCT` - Go or Rust struct
+- `TRAIT` - PHP or Rust trait
+
+The list is open, and other values can occur (see the kind values of [ide_find_symbol](#ide_find_symbol)).
 
 ---
 
@@ -1388,6 +1419,7 @@ Analyzes method call relationships to find callers or callees.
 ```
 
 **Response Notes:**
+- Each entry of `calls` holds the next level of the tree in `children` (its callers, or its callees). `children` is `null` when the entry has no next level.
 - The tree holds at most 200 nodes, filled depth-first. When the walk reaches this limit, `truncated` is `true`, and the nodes after that point show no children, even if they have some. Then lower `maxDepth`, start from one caller, or use `ide_find_usages` (paginated) for the full flat list of direct callers.
 
 ---
@@ -1407,12 +1439,14 @@ Finds implementation, inheritor, and override locations for a class/interface/tr
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `file` | string | Yes | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
-| `line` | integer | Yes | 1-based line number. |
-| `column` | integer | Yes | 1-based column number. |
+| `file` | string | Yes* | Project-relative file path, or a dependency/library absolute path or `jar://` URL previously returned by the plugin. |
+| `line` | integer | Yes* | 1-based line number. |
+| `column` | integer | Yes* | 1-based column number. |
 | `scope` | string | No | Built-in search scope. One of `project_files` (default), `project_and_libraries`, `project_production_files`, `project_test_files`. The last two follow the project's non-test and test source roots; in a project without such roots the tool returns a `scope_matches_no_files` error instead of an empty result. |
 | `cursor` | string | No | Pagination cursor from a previous response |
 | `pageSize` | integer | No | Number of results per page (default: 100, max: 500) |
+
+*Required for a fresh search; a `cursor` call needs none of them.
 
 **Example Request:**
 
@@ -1467,7 +1501,7 @@ Finds implementation, inheritor, and override locations for a class/interface/tr
 
 Finds IDE Go-to-Super targets for a code element — methods that override/implement a member, the direct supertypes of a class/interface/struct/trait, the SAM a lambda implements, or an overridden field/property/constant.
 
-**Languages:** Java, Kotlin, Python, JS/TS, PHP, Go (returns interface method(s) a struct method satisfies via `GoSuperMethodSearch`), Rust (returns trait fn/const/type alias the impl satisfies via `RsGotoSuperHandlerKt.gotoSuperTargets`).
+**Languages:** Java, Kotlin, Python, JS/TS, PHP, Go (returns interface method(s) a struct method satisfies), Rust (returns trait fn/const/type alias the impl satisfies).
 
 **Go interface methods:** A method that a Go interface declares has no super method, so the result is that method with an empty hierarchy. At that position Go to Super of GoLand shows the interfaces that the enclosing type satisfies. A position on the type name returns them.
 
@@ -1542,6 +1576,10 @@ Finds IDE Go-to-Super targets for a code element — methods that override/imple
 - `METHOD` - Regular method
 - `FUNCTION` - Function (dynamic languages)
 - `FIELD` - Field or property override
+- `CLASS`, `ABSTRACT_CLASS`, `INTERFACE`, `STRUCT` and the other class kinds of [ide_find_symbol](#ide_find_symbol) - A class-like anchor and its direct supertypes
+- `CONSTANT`, `TYPE_ALIAS` - Rust trait constant or type alias
+
+The list is open, and other values can occur.
 
 ---
 
@@ -1584,9 +1622,13 @@ Get the hierarchical structure of a source file, similar to the IDE's Structure 
 {
   "file": "src/main/kotlin/com/example/UserService.kt",
   "language": "Kotlin",
-  "structure": "interface UserService :15\n  fun findUser(id: String): User :16\n  fun deleteUser(id: String) :17\n\nclass UserServiceImpl :20\n  val repository: UserRepository :21\n  override fun findUser(id: String): User :23\n  override fun deleteUser(id: String) :30\n  private fun validate(id: String) :37"
+  "structure": "UserService.kt\n\ninterface UserService (line 15)\n  fun findUser(id: String): User (line 16)\n  fun deleteUser(id: String) (line 17)\nclass UserServiceImpl (line 20)\n  val repository: UserRepository (line 21)\n  override fun findUser(id: String): User (line 23)\n  override fun deleteUser(id: String) (line 30)\n  private fun validate(id: String) (line 37)"
 }
 ```
+
+**Response Notes:**
+- `structure` starts with the file name and an empty line. Each node is `<modifiers> <name> [<signature>] (line N)`, indented two spaces for each level.
+- A file with no structure returns plain text that starts with `File is empty or has no parseable structure.`, with no JSON.
 
 ---
 
@@ -1598,8 +1640,8 @@ Get the hierarchical structure of a source file, similar to the IDE's Structure 
 |------|------|----------------|
 | -32700 | Parse Error | Invalid JSON in request |
 | -32600 | Invalid Request | Missing required JSON-RPC fields |
-| -32601 | Method Not Found | Unknown tool or method name |
-| -32602 | Invalid Params | Missing or invalid parameters |
+| -32601 | Method Not Found | Unknown method or tool, or the tool is disabled in Settings (message: `Tool disabled by user settings: <name>. …`) |
+| -32602 | Invalid Params | `params` or the tool `name` is absent (bad tool arguments return `invalid_arguments`) |
 | -32603 | Internal Error | Unexpected server error |
 
 ### Tool Errors (resolved tool failures)
@@ -1618,15 +1660,14 @@ Common `error` codes:
 | When It Occurs | Code |
 |----------------|------|
 | IDE is indexing (dumb mode) | `index_not_ready` |
-| Specified file doesn't exist | `file_not_found` |
-| No symbol at the specified position | `symbol_not_found` |
-| Refactoring cannot be completed | `refactoring_conflict` |
-| Parameter validation failed (includes a `violations` array) | `invalid_arguments` |
+| Parameter validation failed (a schema failure includes a `violations` array; a bad `symbol` or `file`/`line`/`column` anchor, for example both or neither, has only `message`) | `invalid_arguments` |
 | The `scope` matches no files: the project has no production (or test) source roots | `scope_matches_no_files` |
 | The IDE's index does not match a file (temporary, the IDE rebuilds it; retry later) | `index_out_of_sync` |
 | Generic tool failure | `tool_error` |
 | Unexpected server error | `internal_error` |
 | Project resolution errors | `no_project_open` / `project_not_found` / `multiple_projects_open` |
+
+A missing file, a symbol that is not found and a rename conflict return `tool_error`. The `message` names the cause.
 
 ### Example Tool Error Response
 
@@ -1639,12 +1680,12 @@ Common `error` codes:
     "content": [
       {
         "type": "text",
-        "text": "{\"error\":\"index_not_ready\",\"message\":\"IDE is in dumb mode, indexes not available. Please wait for indexing to complete.\"}"
+        "text": "{\"error\":\"index_not_ready\",\"message\":\"IDE is in dumb mode, indexes not available\"}"
       }
     ],
     "structuredContent": {
       "error": "index_not_ready",
-      "message": "IDE is in dumb mode, indexes not available. Please wait for indexing to complete."
+      "message": "IDE is in dumb mode, indexes not available"
     }
   }
 }

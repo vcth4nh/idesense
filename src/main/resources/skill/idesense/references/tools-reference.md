@@ -16,11 +16,14 @@ be passed back unchanged. Line and column numbers are **1-based**.
 ### ide_find_usages
 Find semantic references to a symbol (not text search). Anchor by `symbol` (name or qualified name) or by `file`+`line`+`column`; an ambiguous `symbol` returns `{ candidates, message }`. Paginated; `totalCollected` is a collected count (each cursor caches up to an internal cap), not a guaranteed whole-project total — page with `hasMore`/`nextCursor`.
 
-**Returns**: `{ usages: [{ file, line, column, preview, usageType, enclosingScope, match? }], truncated, nextCursor?, hasMore, totalCollected, offset, pageSize, stale, warnings?, notes? }` — non-null `warnings` (first page) means a find-usages handler stage degraded and the list may be incomplete. `notes` (first page, absent when the symbol has no base declaration) names the base declarations and gives the count of the `BASE` usages. An example: `'area' overrides or implements Shape.area (src/normal.js:16:5). The result also holds the usages of this base declaration, because a call through it can run 'area'. 1 of the 5 usages has match BASE.`
+**Returns**: `{ usages: [{ file, line, column, preview, usageType, enclosingScope, match? }], truncated, nextCursor?, hasMore, totalCollected, offset, pageSize, stale, warnings?, notes? }` — non-null `warnings` (first page) means a find-usages handler stage degraded and the list may be incomplete. `notes` (first page, absent when it has no entry) names the base declarations and gives the count of the `BASE` usages. An example: `'area' overrides or implements Shape.area (src/normal.js:16:5). The result also holds the usages of this base declaration, because a call through it can run 'area'. 1 of the 5 usages has match BASE.` After that entry, `notes` names the overriding declarations that the search also covers (for a PHP method), with the count of the `OVERRIDE` usages; each base method that the search does not search (`The base method <qualified name> is not searched: each class is a subclass of object.`, a method of the Python class `object`); and each kind of usage that the result leaves out, with the count (`<n> or more` when the search stopped at its limit):
+- `<n> composite literal keys that name a struct field with the same name as this type are not in the list.` (Go, for a type: the key refers to the field. A key of an embedded field stays.)
+- `<n> references to this class through $this, self or static inside the class are not in the list.` (PHP, for a class.)
 
-**Base declarations**: a Go, JavaScript, TypeScript, Python or Rust member can override or implement a base declaration. Then the result is the union of the usages of the member and the usages of each base declaration. The search collects the usages of the member itself before the usages of the base declarations. `match` marks a usage that is not sure:
+**Base declarations**: a Go, Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member can override or implement a base declaration. Then the result is the union of the usages of the member and the usages of each base declaration. The search collects the usages of the member itself before the usages of the base declarations. For a PHP method, the search of each base method also covers the other methods that override or implement that base method. For a PHP method, the result also holds the usages of each method that overrides or implements it, after the usages of the base declarations; the declarations of these methods are not in the result (`ide_find_implementations` lists them). `match` marks a usage that is not sure:
 - no `match`: the usage refers to the symbol itself.
-- `BASE`: the usage refers to a base declaration. The call can run this symbol or another implementation.
+- `BASE`: the usage refers to a base declaration, or to another declaration that overrides or implements a base declaration. It is a call on a value of the base type, which can run this symbol or another implementation, or a call on a value of another type that implements the base declaration.
+- `OVERRIDE`: the usage refers to a PHP method that overrides or implements this symbol. It is a call on a value whose type has that overriding method.
 - `DYNAMIC`: only the name matches, and the type of the receiver is not known. In all languages, a reference that does not resolve to a declaration has this mark. JavaScript and TypeScript also apply their own rule for a dynamic usage. A symbol name in a code span of a Markdown file also has this mark.
 
 `usageType` values: `METHOD_CALL`, `FIELD_ACCESS`, `IMPORT`, `PARAMETER`, `VARIABLE`, `REFERENCE`, `COMMENT` (a usage inside a comment or a doc comment, in every language). Paginated (see Pagination in SKILL.md).
@@ -33,7 +36,7 @@ Go to where a symbol is defined.
 Handles packages, compiled classes, and library sources (`jar://` URLs).
 
 ### ide_find_class
-Search for class-like/type declarations by name using IDE's Go to Class index (Ctrl+N / Cmd+O equivalent): classes, interfaces, enums, records, structs, traits, objects, annotations, and similar type declarations. Not methods/fields/functions — use `ide_find_symbol` (when enabled) or `ide_search_text` for those.
+Search for class-like/type declarations by name using IDE's Go to Class index (Ctrl+N / Cmd+O equivalent): classes, interfaces, enums, records, structs, traits, objects, annotations, and similar type declarations. Not methods/fields/functions — use `ide_find_symbol` or `ide_search_text` for those.
 
 **Returns**: `{ classes: [{name, qualifiedName?, kind, file, line, column}], query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
 
@@ -43,20 +46,20 @@ Exact (case-insensitive) by default; with `fuzzySearch: true`, IDE camelCase/sub
 ### ide_find_file
 Search for files by name using IDE's file index (Ctrl+Shift+N / Cmd+Shift+O equivalent).
 
-**Returns**: `{ files: [{name, path, directory}], query }`
+**Returns**: `{ files: [{name, path, directory}], query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale, warnings? }`. Non-null `warnings` (first page) means a file contributor failed and the list may be incomplete.
 
 Project results use relative paths; dependency/library results may use absolute paths or `jar://` URLs.
 
 ### ide_search_text
 Search for exact words using IDE's pre-built word index. O(1) lookups, not file scanning.
 
-**Returns**: `{ matches: [{file, line, column, context, contextType}], query }` — `line`/`column` point at the occurrence; `context` is its source line, cut to a 200-character window around the match when longer.
+**Returns**: `{ matches: [{file, line, column, context, contextType}], query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }` — `line`/`column` point at the occurrence; `context` is its source line, cut to a 200-character window around the match when longer. The result has one match for each line. Other occurrences on that line are not listed.
 
 `contextType` values: `CODE`, `COMMENT`, `STRING_LITERAL`.
 **Selection note**: exact-word only (uses word index, not regex). Use `Grep` for regex patterns.
 
 ### ide_find_implementations
-Find flat implementation, inheritor, and override locations for a class/interface/trait/protocol or method — anchored at a declaration or a resolvable reference. For a subtype *tree*, use `ide_type_hierarchy` with `direction: "subtypes"`. Collected up to an internal per-cursor cap; `totalCollected` is a collected count.
+Find flat implementation, inheritor, and override locations for a class/interface/trait/protocol or method — anchored at a declaration or a resolvable reference. `ide_type_hierarchy` with `direction: "subtypes"` gives the subtypes, up to `maxDepth` levels, as a flat list with no parent links. Collected up to an internal per-cursor cap; `totalCollected` is a collected count.
 
 **Returns**: `{ implementations: [{name, qualifiedName?, file, line, column, kind}], nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
 
@@ -74,7 +77,9 @@ Get a depth-limited type inheritance hierarchy (supertypes and subtypes), up to 
 
 **Returns**: `{ element: {name, qualifiedName?, enclosingScope?, kind, file?, line?, column?, supertypes?}, supertypes: [{name, qualifiedName?, enclosingScope?, kind, file?, line?, column?, supertypes?}], subtypes: [{name, qualifiedName?, enclosingScope?, kind, file?, line?, column?, supertypes?}] }`
 
-Provide either `className` (name or qualified name; works on every language, an ambiguous name returns `{ candidates, message }`) or `file`+`line`+`column`. **Rust:** the flat fallback ignores `maxDepth`. Unlike other read-only navigation tools, file mode does not resolve dependency/library absolute paths or `jar://` URLs.
+`supertypes` is a tree. Each entry holds its own `supertypes`, down to `maxDepth` levels. `subtypes` is a flat list. Its entries have no `supertypes` and no link to their parent.
+
+Provide either `className` (name or qualified name; works on every language, an ambiguous name returns `{ candidates, message }`) or `file`+`line`+`column`. **Rust:** the flat fallback ignores `maxDepth`. Like `ide_file_structure`, file mode accepts project files only.
 **Languages**: Java, Kotlin, Python, JS/TS, Go, PHP, Rust.
 
 ### ide_call_hierarchy
@@ -105,16 +110,16 @@ Unified diagnostics from any combination of per-file IDE analysis, cached last-b
 
 **Returns** (fields present depend on which sources were requested): `{ problems: [{message, severity, file, line, column, endLine?, endColumn?}], intentions: [{name, description?}], problemCount, intentionCount, analysisFresh, analysisTimedOut, analysisMessage, buildErrors?, buildErrorCount?, buildWarningCount?, buildErrorsTruncated?, buildTimestamp?, testResults?, testSummary?, testResultsTruncated? }`
 
-When `analysisTimedOut` is `true`, `problems` and `problemCount` are `null` (the file is not known to be clean). `severity` values: `ERROR`, `WARNING`, `WEAK_WARNING`. Open files use fresh daemon highlights; closed files use public batch analysis so `WEAK_WARNING` results and quick-fix intentions may be less complete.
+When `analysisTimedOut` is `true`, `problems` and `problemCount` are `null` (the file is not known to be clean). `severity` values: `ERROR`, `WARNING`, `WEAK_WARNING`. `problems` holds at most 100 entries and has no truncation flag. `problemCount` is the size of that list. If it is 100, call again with `startLine`/`endLine` or `severity`, because these filters apply before the limit. Open files use fresh daemon highlights. Closed files use public batch analysis. For a file that is not open in an IDE editor, `intentions` is empty, and `analysisMessage` says which results need the file open in an editor (intentions, and also weak warnings unless `severity` is `errors`).
 
 ### ide_explain_symbol
 Fused symbol overview in one call: declaration + signature + quick documentation + supers + implementations + usage summary. Anchor with `symbol` (name or qualified name) OR `file`+`line`+`column`; an ambiguous name returns `candidates` instead of guessing. `includeDiagnostics: true` adds problems overlapping the declaration (slower — runs a file analysis pass).
 
-**Returns**: `{ symbol: {file, line, column, name, kind, preview, qualifiedName?, enclosingScope?}, candidates?, message?, signature?, documentation?, documentationTruncated?, supers?, implementations? (≤10), implementationsTruncated?, usageCount? (project files, counted to 200), usagesTruncated?, topUsages? (≤5), problems?, warnings? }`
+**Returns**: `{ symbol: {file, line, column, name, kind, preview, qualifiedName?, enclosingScope?}, candidates?, message?, signature?, documentation?, documentationTruncated?, supers?, implementations? (≤10), implementationsTruncated?, usageCount? (project files, counted to 200), usagesTruncated?, topUsages? (≤5), problems? (≤50), warnings?, notes? }`
 
 Facets are capped summaries — page through `ide_find_implementations` / `ide_find_usages` for full sets. Degraded facets are named in `warnings`; a `null` facet means not applicable or not requested, `[]` means searched-and-empty.
 
-`usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, JavaScript, TypeScript, Python or Rust member with base declarations, `usageCount` counts the same union. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE` or `DYNAMIC`).
+`usageCount` and `topUsages` come from the same search as `ide_find_usages`. For a Go, Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member with base declarations, `usageCount` counts the same union. For a PHP method, `usageCount` also counts the usages of the methods that override or implement it. `topUsages` lists the code usages with no `match` first, then the `BASE` usages, then the `OVERRIDE` usages, then the `DYNAMIC` usages, then the `COMMENT` usages. A `topUsages` row can have `match` (`BASE`, `OVERRIDE` or `DYNAMIC`). `usageCount` and `topUsages` do not hold a usage that `ide_find_usages` leaves out; `notes` (absent when it has no entry) has the same entries as `ide_find_usages` for the base methods that the search does not search and for the usages that it leaves out.
 
 ---
 
@@ -143,8 +148,6 @@ Check if IDE is ready for code intelligence operations.
 
 **Returns**: `{ isDumbMode }` — `true` while the IDE is indexing (most tools fail); poll until `false`. Without `project_path` while several projects are open: `{ isDumbMode, projects: [{name, path, isDumbMode}] }`, where the top-level value is `true` when any project is indexing.
 
-When `isDumbMode: true`, most tools will fail — wait and retry.
-
 ### ide_sync_files
 Force sync IDE's virtual file system with external file changes.
 
@@ -157,7 +160,4 @@ Call when files were created or modified outside the IDE and search tools miss t
 ## Other tools
 
 The full tool set also includes `ide_read_file`,
-`ide_install_plugin`, and `ide_restart`. Any tool can be
-enabled or disabled in **Settings → Tools → IdeSense**, so `tools/list` is the source of
-truth for what is callable right now. If a tool documented here is missing from `tools/list`, it is
-disabled in this configuration — ask the user to enable it rather than falling back to a worse approach.
+`ide_install_plugin`, and `ide_restart`. If a tool is missing from `tools/list`, see Tool Availability in SKILL.md.

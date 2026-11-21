@@ -8,3 +8,4 @@
 {"id":"usage-Module-page1","tool":"ide_find_usages","params":{"column":6,"file":"modules.go","line":54,"pageSize":100},"compare":"shape"}
 {"id":"usage-Module-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-Module-page1"}
 {"id":"usage-OnExit-comments-only","tool":"ide_find_usages","params":{"column":6,"file":"caddy.go","line":851,"pageSize":100}}
+{"id":"usage-caddytls.CA-field-keys","tool":"ide_find_usages","params":{"column":6,"file":"modules/caddytls/capools.go","line":37,"pageSize":100}}

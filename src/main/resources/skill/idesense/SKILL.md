@@ -20,7 +20,7 @@ The IdeSense server exposes JetBrains IDE indexing and analysis capabilities (pl
 
 ## Core Rule
 
-**Always prefer IDE MCP tools over built-in tools (grep, find, sed, read) for semantic code operations.** IDE tools understand code structure, types, inheritance, and references. Built-in tools only see text.
+**Always prefer IDE MCP tools over built-in tools (grep, find, sed) for semantic code operations.** IDE tools understand code structure, types, inheritance, and references. Built-in tools only see text.
 
 ## When to Use IDE Tools vs Built-In Tools
 
@@ -38,8 +38,7 @@ The IdeSense server exposes JetBrains IDE indexing and analysis capabilities (pl
 | Find who calls a method | `ide_call_hierarchy` | Never - grep misses indirect calls |
 | Find interface implementations | `ide_find_implementations` | Never - grep can't resolve type relationships |
 | Find what a method overrides | `ide_find_super_methods` | Never - no equivalent |
-| Read file content | `ide_read_file` only for library/jar sources | Built-in Read tool |
-| Find text with regex | `Grep` | IDE search_text doesn't support regex |
+| Read file content | `ide_read_file` (disabled by default) only for library/jar sources | Built-in Read tool |
 
 ## Pre-Flight Check
 
@@ -63,22 +62,22 @@ Omit `paths` to sync the entire project.
 
 ## Pagination
 
-`ide_find_usages`, `ide_find_class`, `ide_find_file`, `ide_search_text`, `ide_find_implementations`, and `ide_find_symbol` return paginated results. The first response carries `nextCursor` and `hasMore` (`ide_find_usages` also includes a legacy `truncated` field mirroring `hasMore`). To fetch the next page, call the **same tool** again with `cursor: "<nextCursor>"` — on a cursor call the search arguments (query, file/line/column, scope) are ignored; only `cursor`, `pageSize`, and `project_path` are read. Stop when `hasMore` is `false`. For the position-based tools (`ide_find_usages`, `ide_find_implementations`) a fresh search requires `file` + `line` + `column` together — they're marked optional in the schema only so cursor calls can omit them.
+`ide_find_usages`, `ide_find_class`, `ide_find_file`, `ide_search_text`, `ide_find_implementations`, and `ide_find_symbol` return paginated results. The first response carries `nextCursor` and `hasMore` (`ide_find_usages` also includes a legacy `truncated` field mirroring `hasMore`). To fetch the next page, call the **same tool** again with `cursor: "<nextCursor>"` — on a cursor call the search arguments (query, file/line/column, scope) are ignored; only `cursor`, `pageSize`, and `project_path` are read. Stop when `hasMore` is `false`. For `ide_find_implementations`, a fresh search requires `file` + `line` + `column` together. `ide_find_usages` requires `symbol` or all three. The schema marks them optional so that cursor calls can omit them.
 
-`totalCollected` counts the results collected so far for the cursor, not a project-wide total: while `hasMore` is `true`, more results can exist. `pageSize` echoes the page size of the call. Fields that quote a source line (`preview`, the `context` of `ide_search_text` matches) hold at most 200 characters of the line, cut to a window around the match with `…` at each cut end, so `pageSize` also bounds the size of a page.
+`totalCollected` counts the results collected so far for the cursor, not a project-wide total: while `hasMore` is `true`, more results can exist. A cursor stops the collection at 5,000 results. After them `hasMore` is `false`, also when more results exist. `pageSize` echoes the page size of the call. Fields that quote a source line (`preview`, the `context` of `ide_search_text` matches) hold at most 200 characters of the line, cut to a window around the match with `…` at each cut end, so `pageSize` also bounds the size of a page.
 
 ## Parameter Rules
 
 1. **Line and column are 1-based** (first line = 1, first column = 1)
-2. **Project file paths are relative** to project root (e.g., `src/main/java/App.java`, NOT absolute paths). If an IDE tool returns a dependency/library file, keep the returned path unchanged when passing it back to read-only navigation tools or `ide_read_file` — it may be an absolute path, a `.jar!/` jar path, or a `jar://` URL
+2. **Project file paths are relative** to project root (e.g., `src/main/java/App.java`, NOT absolute paths). If an IDE tool returns a dependency/library file, keep the returned path unchanged when passing it back to `ide_find_definition`, `ide_find_usages`, `ide_find_implementations`, `ide_find_super_methods`, `ide_call_hierarchy`, `ide_explain_symbol` or `ide_read_file` — it may be an absolute path, a `.jar!/` jar path, or a `jar://` URL. `ide_type_hierarchy` (file mode) and `ide_file_structure` accept project files only.
 3. **Column must point to the symbol name**, not whitespace or punctuation. For `public void myMethod()`, column should land on `m` of `myMethod`. For dotted expressions like `json.dumps()` or `os.path.join()`, put the column on the member token (`dumps`, `join`) when you want the member definition rather than the module/package. For `ide_call_hierarchy`, anchor on the **declaration** of the target method/function/constructor: a column on a call site resolves to the *enclosing* function, not the callee — if you only have a call site, run `ide_find_definition` first and use the returned location — or pass `symbol` (name or qualified name) instead of a position: `ide_call_hierarchy` and `ide_find_usages` accept it, and an ambiguous name returns `candidates`. If the column misses, the errors of `ide_find_usages`, `ide_call_hierarchy` and `ide_find_implementations` list the named elements of that line with their columns; retry with one of them.
-4. **project_path is only needed** for multi-project workspaces. Omit for single-project setups. When needed, use the absolute path to the project root — for a workspace with sub-projects, pass the sub-project's root, not the workspace root.
+4. **project_path is only needed** when more than one project is open in the IDE. Omit it when one project is open. The `multiple_projects_open` error lists the open projects in `available_projects`. When needed, use the absolute path to the project root — for a workspace with sub-projects, pass the sub-project's root, not the workspace root.
 5. **Use search scope intentionally**: `ide_find_usages`, `ide_find_implementations`, `ide_find_class`, `ide_find_file`, and `ide_find_symbol` accept `scope`. Use `project_files` for the default project-only view, `project_and_libraries` when dependency code matters, `project_production_files` to stay out of tests, and `project_test_files` when you want test-only results. These two scopes follow the project's non-test and test source roots: in a project without such roots (common in Python projects with no marked sources root) the tool returns a `scope_matches_no_files` error, not an empty result — then omit `scope`. The hierarchy tools `ide_type_hierarchy` and `ide_call_hierarchy` use the IDE's native hierarchy scope instead: `all` (default), `production`, `test` (plus `this_class` and `this_module` for `ide_call_hierarchy`). This scope is IDE-native and provider-dependent: `production`/`test` narrow results only when the language's hierarchy provider honors those roots — otherwise they behave like `all` (type-hierarchy scope is currently a no-op in several languages).
 
 ## Tool Selection by Task
 
 ### "I need to understand how X is used"
-1. `ide_find_usages` - all call sites, field accesses, imports. A usage with `match` is not sure: `BASE` (it refers to a base declaration) or `DYNAMIC` (only the name matches)
+1. `ide_find_usages` - all call sites, field accesses, imports. A usage with `match` is not sure. [tools-reference.md](references/tools-reference.md) (ide_find_usages) defines the marks `BASE`, `OVERRIDE` and `DYNAMIC`.
 2. `ide_call_hierarchy` with `direction: "callers"` - full call chain upward
 
 ### "I need to understand what X is"
@@ -98,7 +97,7 @@ Omit `paths` to sync the entire project.
 2. `ide_move_file` - move file and let the IDE apply semantic updates when that language/backend supports them *(disabled by default; enable in Settings → Tools → IdeSense)*
 
 ### "I need to check for problems"
-1. `ide_diagnostics` - per-file errors/warnings + quick fixes; also cached last-build errors and open test-run results via `includeBuildErrors` / `includeTestResults` (at least one source required)
+1. `ide_diagnostics` - per-file errors/warnings (quick fixes only for a file open in an IDE editor); also cached last-build errors and open test-run results via `includeBuildErrors` / `includeTestResults` (at least one source required)
 
 ### "I need to find implementations of an interface"
 1. `ide_find_implementations` - anchor on a class/interface/trait/protocol or method (declaration or resolvable reference); returns a flat list of implementations, inheritors, and overrides
@@ -121,19 +120,17 @@ Omit `paths` to sync the entire project.
 
 6. **Passing absolute project file paths**: Use relative paths for project files. `src/main/App.java`, not `/Users/me/project/src/main/App.java`.
 
-7. **Rewriting plugin-returned library paths**: If a search or read tool returns a dependency/library path (an absolute path, a `.jar!/` jar path, or a `jar://` URL), pass that path back unchanged to read-only navigation tools or `ide_read_file`.
+7. **Rewriting plugin-returned library paths**: If a search or read tool returns a dependency/library path (an absolute path, a `.jar!/` jar path, or a `jar://` URL), pass that path back unchanged to the tools that Parameter Rules item 2 names.
 
 8. **Not syncing after external file changes**: After creating files via Write tool, call `ide_sync_files` before searching.
 
 9. **Asking for a deep call tree of a frequently called function**: `ide_call_hierarchy` (default `maxDepth` 3) holds at most 200 nodes. When the result has `truncated: true`, lower `maxDepth`, start from one caller, or use `ide_find_usages` for the full flat list of direct callers.
 
-10. **Using `ide_search_text` for regex**: This tool is exact-word only (uses word index). Use `Grep` for regex.
-
-11. **Using `ide_find_class` for methods/functions**: It searches class-like/type declarations (classes, interfaces, enums, records, structs, traits, objects, annotations, and similar), not methods/fields/functions. Use `ide_find_symbol`, or `ide_search_text` for a quick word lookup.
+10. **Using `ide_find_class` for methods/functions**: It searches class-like/type declarations (classes, interfaces, enums, records, structs, traits, objects, annotations, and similar), not methods/fields/functions. Use `ide_find_symbol`, or `ide_search_text` for a quick word lookup.
 
 ## Tool Availability
 
-`tools/list` is authoritative for what's callable in this session — any tool can be enabled or disabled in Settings → Tools → IdeSense. If a capability you need is documented (here or in [references/tools-reference.md](references/tools-reference.md)) but missing from `tools/list`, it's been disabled in this config: tell the user which tool to enable instead of falling back to a worse approach.
+`tools/list` is authoritative for what's callable in this session — any tool can be enabled or disabled in Settings → Tools → IdeSense. If a capability you need is documented (here or in [references/tools-reference.md](references/tools-reference.md)) but missing from `tools/list`, it is disabled in this config, or this IDE has no language plugin for it (`ide_find_super_methods` is listed only when the IDE has a plugin for one of its languages). Tell the user which tool you need instead of falling back to a worse approach.
 
 ## Return Shapes and Tool Selection
 

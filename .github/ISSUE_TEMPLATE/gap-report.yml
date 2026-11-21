@@ -1,0 +1,74 @@
+name: Gap
+description: The IDE has an action or an option that no tool call can ask for
+title: "[GAP] "
+labels: ["gap"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        #### Thank you for taking the time to report a gap!
+
+        A gap is an action or an option of the IDE that no tool call can ask for. If a tool call exists and its result differs from the IDE, open a bug report instead.
+
+        Before opening an issue, please check:
+        - [Existing gaps](https://github.com/vcth4nh/idesense/issues?q=is%3Aissue+label%3Agap)
+  - type: textarea
+    id: ide-feature
+    attributes:
+      label: IDE action or option
+      description: The action, the option or the toggle of the IDE, and where it is in the IDE (menu, dialog or tool window).
+      placeholder: |
+        The Call Hierarchy tool window of GoLand has the toggle "Respecting Interface Calls".
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: How you know that the IDE has it. Give the steps in the IDE and what the IDE shows, or the class, the jar and the build number. Name the IDE version (Help > About).
+      placeholder: |
+        In GoLand 2026.2.0.1 (build 262.8665.336, `intellij.go.impl.jar`), `GoCallHierarchyBrowser.prependActions` adds the toggle action `GoCallHierarchyBrowser$WithInterfaceCallsAction`.
+
+        [Screenshot if applicable]
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: What the tools do today
+      description: The nearest tool call and its result. Say why no parameter and no parameter value can ask for the action or the option. Name the plugin version (Settings > Plugins > IdeSense).
+      placeholder: |
+        `ide_call_hierarchy` with `direction: "callers"` returns only the callers that name the method. The tool has no parameter for the toggle.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: The tool, the parameter or the parameter value that you would add. Include example inputs/outputs if applicable.
+    validations:
+      required: false
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you've considered.
+    validations:
+      required: false
+  - type: input
+    id: ide-language
+    attributes:
+      label: IDE / language context
+      description: Which IDE and programming language have the action or the option? Write "All IDEs" if each IDE has it.
+      placeholder: "e.g. GoLand / Go, or All IDEs"
+    validations:
+      required: true
+  - type: checkboxes
+    id: required-checks
+    attributes:
+      label: Please confirm the following
+      options:
+        - label: I have searched for relevant existing issues before opening this report.
+          required: true
+        - label: I have updated the title field above with a concise description.
+          required: true

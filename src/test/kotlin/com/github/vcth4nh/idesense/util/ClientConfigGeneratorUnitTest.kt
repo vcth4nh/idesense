@@ -105,6 +105,7 @@ class ClientConfigGeneratorUnitTest : TestCase() {
         assertTrue("Should mention terminal", hint.contains("terminal"))
         assertTrue("Should mention scope user", hint.contains("--scope user"))
         assertTrue("Should mention scope project", hint.contains("--scope project"))
+        assertTrue("Should mention scope local", hint.contains("--scope local"))
         assertTrue("Should mention remove command", hint.contains("mcp remove"))
         assertTrue("Should mention automatic reinstall", hint.contains("reinstall") || hint.contains("Automatically"))
     }

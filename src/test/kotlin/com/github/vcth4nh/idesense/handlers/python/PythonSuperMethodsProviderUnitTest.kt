@@ -12,4 +12,8 @@ class PythonSuperMethodsProviderUnitTest : TestCase() {
     fun testNoBaseDeclarationsWhenThePythonPluginIsAbsent() {
         assertTrue(PythonSuperMethodsProvider().findBaseDeclarations(mockk<PsiElement>()).isEmpty())
     }
+
+    fun testNoSkippedBaseDeclarationsWhenThePythonPluginIsAbsent() {
+        assertTrue(PythonSuperMethodsProvider().skippedBaseDeclarations(mockk<PsiElement>()).isEmpty())
+    }
 }

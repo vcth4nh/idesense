@@ -7,13 +7,21 @@ import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
+import com.intellij.find.findUsages.FindUsagesHandler
+import com.intellij.find.findUsages.FindUsagesHandlerFactory
+import com.intellij.find.findUsages.FindUsagesHandlerFactory.OperationMode
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiReference
 import com.intellij.psi.SmartPsiElementPointer
+import com.intellij.psi.search.SearchScope
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.usageView.UsageInfo
+import com.intellij.util.Processor
+import java.util.Collections
 
 /**
  * Kotlin super-methods provider. Delegates to
@@ -98,12 +106,78 @@ class KotlinSuperMethodsProvider : SuperMethodsProvider {
         return nearestCallable
     }
 
-    private fun buildHierarchy(
-        project: Project,
+    /**
+     * The declarations that [element] overrides or implements, when [element] itself is a
+     * `KtCallableDeclaration` (a function, a property, a parameter or a constructor): the
+     * declarations of [walkSuperDeclarations], all levels, in the same order as the hierarchy of
+     * [findSuperMethods]. Empty for any other element, also for an element inside a declaration:
+     * this method does not walk up as [resolveKtDeclaration] does (#175).
+     */
+    override fun findBaseDeclarations(element: PsiElement): List<PsiElement> {
+        if (ktCallableDeclarationClass?.isInstance(element) != true) return emptyList()
+        return walkSuperDeclarations(element)
+    }
+
+    /**
+     * The references to [element] itself, when [element] is a `KtCallableDeclaration` with a super
+     * declaration: the references of the usages that `processElementUsages` of the Kotlin
+     * find-usages handler gives for [element], each one time, in the order of arrival. The handler
+     * comes from the first factory that can find the usages of [element], in the mode
+     * [OperationMode.HIGHLIGHT_USAGES], which asks no question. The options are a clone of the
+     * options of the handler, with [scope] and with no text occurrences. Null for any other element
+     * and for a declaration with no super declaration: the search then takes the find-usages
+     * handler, as before. Null also when no factory or no handler is available.
+     *
+     * The search does not take `primaryElements` and `findReferencesToHighlight` of the Kotlin
+     * handler for an override (#175). Both send the search to the super declarations, and
+     * `primaryElements` throws off the EDT. `processElementUsages` searches the given declaration
+     * itself.
+     */
+    override fun findDirectReferences(element: PsiElement, scope: SearchScope): Collection<PsiReference>? {
+        if (ktCallableDeclarationClass?.isInstance(element) != true) return null
+        if (walkSuperDeclarations(element, recurse = false).isEmpty()) return null
+        val factory = FindUsagesHandlerFactory.EP_NAME.getExtensions(element.project)
+            .firstOrNull { it.canFindUsages(element) } ?: return null
+        val handler = factory.createFindUsagesHandler(element, OperationMode.HIGHLIGHT_USAGES)
+        if (handler == null || handler === FindUsagesHandler.NULL_HANDLER) return null
+        // Never mutate the options object of the handler: the factory shares it.
+        val options = handler.findUsagesOptions.clone()
+        options.searchScope = scope
+        options.isSearchForTextOccurrences = false
+        val references = Collections.synchronizedSet(LinkedHashSet<PsiReference>())
+        handler.processElementUsages(element, Processor<UsageInfo> { info ->
+            info.reference?.let(references::add)
+            true
+        }, options)
+        return synchronized(references) { references.toList() }
+    }
+
+    private fun buildHierarchy(project: Project, declaration: PsiElement, recurse: Boolean): List<SuperMethodData> =
+        walkSuperDeclarations(declaration, recurse = recurse).map { superPsi ->
+            val file = superPsi.containingFile?.virtualFile
+            SuperMethodData(
+                name = (superPsi as? com.intellij.psi.PsiNamedElement)?.name ?: "unknown",
+                qualifiedName = QualifiedNameUtil.getQualifiedName(superPsi),
+                kind = LanguageServices.getKind(superPsi),
+                file = file?.let { getRelativePath(project, it) },
+                line = getLineNumber(project, superPsi),
+                column = getColumnNumber(project, superPsi),
+            )
+        }
+
+    /**
+     * The walk of [buildHierarchy], [findBaseDeclarations] and [findDirectReferences]: the super
+     * declarations of [declaration] from `SuperDeclarationProvider.findSuperDeclarations`, in the
+     * order of the call. When [recurse] is true, the super declarations of each super declaration
+     * follow it (all levels, depth first); else the walk gives the first level only. A super
+     * declaration with the key of an earlier one (its qualified name, else its class and identity)
+     * is skipped, together with its super declarations.
+     */
+    private fun walkSuperDeclarations(
         declaration: PsiElement,
         visited: MutableSet<String> = mutableSetOf(),
         recurse: Boolean = true,
-    ): List<SuperMethodData> {
+    ): List<PsiElement> {
         val invoker = findMethod ?: return emptyList()
         val instance = providerObject ?: return emptyList()
 
@@ -115,25 +189,16 @@ class KotlinSuperMethodsProvider : SuperMethodsProvider {
             return emptyList()
         }
 
-        val out = mutableListOf<SuperMethodData>()
+        val out = mutableListOf<PsiElement>()
         for (superDecl in rawSupers) {
             val superPsi = extractPsiFromSuperDeclaration(superDecl) ?: continue
             val key = QualifiedNameUtil.getQualifiedName(superPsi)
                 ?: "${superPsi.javaClass.simpleName}@${System.identityHashCode(superPsi)}"
             if (!visited.add(key)) continue
-
-            val file = superPsi.containingFile?.virtualFile
-            out.add(SuperMethodData(
-                name = (superPsi as? com.intellij.psi.PsiNamedElement)?.name ?: "unknown",
-                qualifiedName = QualifiedNameUtil.getQualifiedName(superPsi),
-                kind = LanguageServices.getKind(superPsi),
-                file = file?.let { getRelativePath(project, it) },
-                line = getLineNumber(project, superPsi),
-                column = getColumnNumber(project, superPsi),
-            ))
+            out.add(superPsi)
             // Recurse to walk transitive chain (analogous to Java's findSuperMethods recursion).
             // Disabled for class anchors — direct supertypes only (one level up).
-            if (recurse) out.addAll(buildHierarchy(project, superPsi, visited))
+            if (recurse) out.addAll(walkSuperDeclarations(superPsi, visited))
         }
         return out
     }

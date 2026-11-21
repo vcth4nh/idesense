@@ -1,5 +1,7 @@
 package com.github.vcth4nh.idesense.handlers.php
 
+import com.github.vcth4nh.idesense.constants.UsageDrop
+import com.github.vcth4nh.idesense.constants.UsageMatch
 import com.github.vcth4nh.idesense.handlers.LanguageServices
 import com.github.vcth4nh.idesense.handlers.MethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodData
@@ -8,12 +10,23 @@ import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiPolyVariantReference
+import com.intellij.psi.PsiReference
+import com.intellij.psi.search.SearchScope
+import com.intellij.psi.search.searches.ReferencesSearch
+import com.intellij.psi.util.CachedValue
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
 import java.lang.reflect.InvocationHandler
+import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 
 /**
@@ -34,12 +47,81 @@ import java.lang.reflect.Proxy
  * Covers (gain over previous walker): trait sources, `insteadof` conflict
  * resolution, `@mixin`, constant overrides, field overrides, correct
  * private-method handling.
+ *
+ * Find usages (#179, #182, #183). The PHP classes below are in `plugins/php-impl/lib/php.jar`
+ * and `plugins/php-impl/lib/php-openapi.jar` of PhpStorm (build 262.8665), read with `javap`:
+ * - `PhpFindUsagesHandlerFactory.createFindUsagesHandler(PsiElement, OperationMode)` (php.jar):
+ *   for a `Method` in each mode except `HIGHLIGHT_USAGES`, it calls the private
+ *   `checkSuperMethods(Method, String)`. That method collects the super methods with
+ *   `PhpClassHierarchyUtils.processSuperMethods(Method, HierarchyMethodProcessor)`. With a super
+ *   method, it calls `isFindUsagesOfBaseMethod(Project, String, String)`, which shows
+ *   `Messages.showYesNoCancelDialog` (the question "find usages of base method?") unless the
+ *   stored answer of `PhpSmartKeysConfiguration` applies. Off the EDT the dialog throws (#182).
+ *   [findDirectReferences] gives the references of each PHP method, thus the search asks the
+ *   factory for no method, and the question cannot occur.
+ * - `PhpFindUsagesHandler.processElementUsages(PsiElement, Processor, FindUsagesOptions)`
+ *   (php.jar), the search of the Find Usages action: for a `Method`, it runs
+ *   `ReferencesSearch.search(m, options.searchScope, false)` for the method and for each method of
+ *   the private `checkImplementedMethods(PsiElement)`, which collects the overriding methods with
+ *   `PhpClassHierarchyUtils.processOverridingMethods(Method, TypedHierarchyMemberProcessor)` (#183).
+ *   It gives the declaration of an overriding method only when `PhpFindUsagesOptions.isIncludeChildMethods`
+ *   is on; the tool never gives these declarations ([findOverridingDeclarations]).
+ * - `PhpThisOrSelfFilteringRule.isVisible(Usage, UsageTarget[])` (php.jar): the rule that the
+ *   Usage View applies by default (#179); see [droppedUsageKind].
+ * - `PhpClassHierarchyUtils` and its processor interfaces are in php-openapi.jar.
+ *   `PhpLangUtil` is in php.jar.
+ *
+ * The tool searches a PHP method in up to three passes: the method itself; each base method
+ * ([findBaseDeclarations]) and the other overriding methods of each base method (mark `BASE`);
+ * each overriding method of the method ([findOverridingDeclarations], mark `OVERRIDE`). For a
+ * method with a base method, this is the approved deviation of a marked false positive: PhpStorm
+ * searches either the base methods and their overriding methods (the answer Base Method) or the
+ * method and its overriding methods (the answer Current Method), with no mark. The result of the
+ * tool holds each usage of both answers.
+ * [usageMark] decides the mark of each usage from the declarations that its reference resolves
+ * to, not from its pass. For a call on a value of an abstract class or an interface,
+ * `multiResolve` gives the base method and each implementation, and `isReferenceTo` is true for
+ * each of them, so the search of an overriding method also finds the calls through its base
+ * method (see [usageMark] for the bytecode). In PhpStorm 2026.2, both answers at `Circle::area`
+ * of the PHP fixture list the same 4 calls on a value of the type `Shape`.
  */
 class PhpSuperMethodsProvider : SuperMethodsProvider {
 
     companion object {
         private val LOG = logger<PhpSuperMethodsProvider>()
+
+        /** The base methods and the overriding methods of a PHP method, kept until the next PSI change. */
+        private val MARK_CONTEXT = Key.create<CachedValue<MarkContext>>("idesense.php.usageMarkContext")
+
+        /**
+         * The mark of a usage of the method [anchor] (the rule of [usageMark]). [targets] are the
+         * declarations that the reference of the usage resolves to, [bases] the base methods of
+         * [anchor] (all levels), [overrides] its overriding methods, [passMark] the mark of the pass,
+         * and [same] the PSI equivalence. In this order: `BASE` when a target is a base method (a call
+         * through a base type: its targets can also hold [anchor]); no mark when a target is
+         * [anchor]; `OVERRIDE` when a target is an overriding method; [passMark] when there is no
+         * target or when [passMark] is not null; else `BASE` when [anchor] has a base method, else
+         * `DYNAMIC`.
+         */
+        internal fun usageMarkOf(
+            targets: List<PsiElement>,
+            anchor: PsiElement,
+            bases: List<PsiElement>,
+            overrides: List<PsiElement>,
+            passMark: String?,
+            same: (PsiElement, PsiElement) -> Boolean,
+        ): String? = when {
+            targets.any { target -> bases.any { same(it, target) } } -> UsageMatch.BASE
+            targets.any { same(it, anchor) } -> null
+            targets.any { target -> overrides.any { same(it, target) } } -> UsageMatch.OVERRIDE
+            targets.isEmpty() || passMark != null -> passMark
+            bases.isNotEmpty() -> UsageMatch.BASE
+            else -> UsageMatch.DYNAMIC
+        }
     }
+
+    /** See [MARK_CONTEXT]. */
+    private class MarkContext(val bases: List<PsiElement>, val overrides: List<PsiElement>)
 
     private val phpClassMemberClass: Class<*>? by lazy {
         try { Class.forName("com.jetbrains.php.lang.psi.elements.PhpClassMember") } catch (_: ClassNotFoundException) { null }
@@ -49,12 +131,68 @@ class PhpSuperMethodsProvider : SuperMethodsProvider {
         try { Class.forName("com.jetbrains.php.lang.psi.elements.PhpClass") } catch (_: ClassNotFoundException) { null }
     }
 
+    private val methodClass: Class<*>? by lazy {
+        try { Class.forName("com.jetbrains.php.lang.psi.elements.Method") } catch (_: ClassNotFoundException) { null }
+    }
+
+    private val classReferenceClass: Class<*>? by lazy {
+        try { Class.forName("com.jetbrains.php.lang.psi.elements.ClassReference") } catch (_: ClassNotFoundException) { null }
+    }
+
     private val hierarchyUtilsClass: Class<*>? by lazy {
         try { Class.forName("com.jetbrains.php.PhpClassHierarchyUtils") } catch (_: ClassNotFoundException) { null }
     }
 
     private val hierarchyClassMemberProcessorClass: Class<*>? by lazy {
         try { Class.forName("com.jetbrains.php.PhpClassHierarchyUtils\$HierarchyClassMemberProcessor") } catch (_: ClassNotFoundException) { null }
+    }
+
+    private val hierarchyMethodProcessorClass: Class<*>? by lazy {
+        try { Class.forName("com.jetbrains.php.PhpClassHierarchyUtils\$HierarchyMethodProcessor") } catch (_: ClassNotFoundException) { null }
+    }
+
+    private val typedHierarchyMemberProcessorClass: Class<*>? by lazy {
+        try { Class.forName("com.jetbrains.php.PhpClassHierarchyUtils\$TypedHierarchyMemberProcessor") } catch (_: ClassNotFoundException) { null }
+    }
+
+    private val phpLangUtilClass: Class<*>? by lazy {
+        try { Class.forName("com.jetbrains.php.lang.PhpLangUtil") } catch (_: ClassNotFoundException) { null }
+    }
+
+    /** `PhpClassHierarchyUtils.processSuperMethods(Method, HierarchyMethodProcessor)`. */
+    private val processSuperMethodsMethod: java.lang.reflect.Method? by lazy {
+        try {
+            val util = hierarchyUtilsClass ?: return@lazy null
+            util.getMethod("processSuperMethods", methodClass ?: return@lazy null, hierarchyMethodProcessorClass ?: return@lazy null)
+        } catch (_: Throwable) { null }
+    }
+
+    /** `PhpClassHierarchyUtils.processOverridingMethods(Method, TypedHierarchyMemberProcessor)`. */
+    private val processOverridingMethodsMethod: java.lang.reflect.Method? by lazy {
+        try {
+            val util = hierarchyUtilsClass ?: return@lazy null
+            util.getMethod("processOverridingMethods", methodClass ?: return@lazy null, typedHierarchyMemberProcessorClass ?: return@lazy null)
+        } catch (_: Throwable) { null }
+    }
+
+    /** `PhpLangUtil.isThisReference(PsiElement)`. */
+    private val isThisReferenceMethod: java.lang.reflect.Method? by lazy {
+        try { phpLangUtilClass?.getMethod("isThisReference", PsiElement::class.java) } catch (_: Throwable) { null }
+    }
+
+    /** `PhpLangUtil.isSelfReference(ClassReference)`. */
+    private val isSelfReferenceMethod: java.lang.reflect.Method? by lazy {
+        try { phpLangUtilClass?.getMethod("isSelfReference", classReferenceClass ?: return@lazy null) } catch (_: Throwable) { null }
+    }
+
+    /** `PhpLangUtil.isStaticReference(PsiElement)`. */
+    private val isStaticReferenceMethod: java.lang.reflect.Method? by lazy {
+        try { phpLangUtilClass?.getMethod("isStaticReference", PsiElement::class.java) } catch (_: Throwable) { null }
+    }
+
+    /** `PhpLangUtil.isObject(PhpClass)`. */
+    private val isObjectMethod: java.lang.reflect.Method? by lazy {
+        try { phpLangUtilClass?.getMethod("isObject", phpClassClass ?: return@lazy null) } catch (_: Throwable) { null }
     }
 
     private val processSuperMembersMethod: java.lang.reflect.Method? by lazy {
@@ -102,6 +240,179 @@ class PhpSuperMethodsProvider : SuperMethodsProvider {
             column = getColumnNumber(project, phpClass) ?: 0,
         )
         return SuperMethodsData(method = classData, hierarchy = buildClassHierarchy(project, phpClass))
+    }
+
+    /**
+     * The super methods of [element], when [element] itself is a PHP `Method`: all levels, the
+     * nearest first. This is the list of `PhpFindUsagesHandlerFactory.checkSuperMethods`, the list
+     * that the answer Base Method searches: `PhpClassHierarchyUtils.processSuperMethods` (a walk
+     * of the parents, breadth first, in `processSuperMembersInternal`) with the processor of that
+     * method (`lambda$checkSuperMethods$0`), which stops the walk without the method when the class
+     * of the walk is the helper class `object` (`PhpLangUtil.isObject`). Empty for another element.
+     */
+    override fun findBaseDeclarations(element: PsiElement): List<PsiElement> {
+        if (methodClass?.isInstance(element) != true) return emptyList()
+        return walkMethods(processSuperMethodsMethod, hierarchyMethodProcessorClass, element) { subClass ->
+            subClass == null || invokeCheck(isObjectMethod, subClass) != true
+        }
+    }
+
+    /**
+     * The references to [element] itself, when [element] is a PHP `Method`:
+     * `ReferencesSearch.search(element, scope, false)`, the search that
+     * `PhpFindUsagesHandler.processElementUsages` runs for each method. Null for another element:
+     * the search then takes the handler, as before. Thus the search asks
+     * `PhpFindUsagesHandlerFactory` for no method, and its question about the base method (#182)
+     * cannot occur. The handler of a method has the method as its only primary element and no
+     * secondary element (`PhpFindUsagesHandler(PsiElement, PhpFindUsagesHandlerFactory)`).
+     */
+    override fun findDirectReferences(element: PsiElement, scope: SearchScope): Collection<PsiReference>? {
+        if (methodClass?.isInstance(element) != true) return null
+        return ReferencesSearch.search(element, scope, false).findAll()
+    }
+
+    /**
+     * The methods that override or implement [element], when [element] is a PHP `Method`: the
+     * methods that `PhpClassHierarchyUtils.processOverridingMethods` gives, as
+     * `PhpFindUsagesHandler.checkImplementedMethods` collects them (#183). The walk covers all
+     * subclasses (`PhpIndex.processAllSubclasses`), the classes that use a trait and the traits of
+     * the subclasses; a final class, a final method and a private method have none
+     * (`methodCanHaveOverride`). A trait method that a class uses is an overriding method only when
+     * this walk gives it. The list is kept until the next PSI change ([MARK_CONTEXT]).
+     */
+    override fun findOverridingDeclarations(element: PsiElement): List<PsiElement> {
+        if (methodClass?.isInstance(element) != true) return emptyList()
+        return markContext(element).overrides
+    }
+
+    /**
+     * The mark of a usage of a PHP method [anchor] ([usageMarkOf]): the targets are the
+     * declarations that [reference] resolves to (each result of `multiResolve(false)` for a
+     * [PsiPolyVariantReference], else `resolve()`). The base methods and the overriding methods
+     * come one time for each anchor ([MARK_CONTEXT]). [passMark] for another anchor, and when the
+     * resolve throws.
+     *
+     * Why the targets and not the pass decide (bytecode of php.jar, build 262.8665):
+     * - `PhpBaseMemberReference.isReferenceTo(PsiElement)`: for a `PhpClassMember`, true when an
+     *   element of `multiResolve(false)` (each valid result) equals it. So `ReferencesSearch` of a
+     *   method finds each reference whose `multiResolve` holds that method.
+     * - `PhpBaseMemberReference.resolveGlobalDescriptors(Function)`: the results of
+     *   `MemberReferenceImpl.resolveInHierarchy`; when the class reference is no `ConstantReference`
+     *   and `resolveInSubclasses(Set)` is true, also the members of `MemberReferenceImpl.lookInSubclasses`
+     *   (as a `PhpMemberResolveResult` with `isFromSubclass()` true).
+     * - `MethodReferenceImpl.resolveInSubclasses(Set, PhpExpression)`: true when the set is empty;
+     *   or when the class reference is no `self` or `parent` reference and each result is a method
+     *   whose containing class `isAbstract()` (`isAbstractMemberReference`); or when
+     *   `PhpLangUtil.canBeResolvedInSubclasses(classReference)` and each result is a method of a
+     *   trait (`isInsideTrait`). `PhpClassImpl.isAbstract()` is also true for an interface (the AST
+     *   check `isInterface()`, and the stub flag that `PhpClassStubImpl.packFlags` takes from
+     *   `isAbstract()`).
+     * - `MethodReferenceImpl.resolve(PhpReference)` gives one element of these results
+     *   (`findBaseMethodInHierarchy`).
+     *
+     * So the targets of a call on a value of an abstract class or an interface hold the base
+     * method and each implementation, and the anchor is one of them. The base methods come first
+     * in the rule: such a call is a call through a base type.
+     */
+    override fun usageMark(reference: PsiReference, anchor: PsiElement, passMark: String?): String? {
+        if (methodClass?.isInstance(anchor) != true) return passMark
+        val targets = try {
+            if (reference is PsiPolyVariantReference) reference.multiResolve(false).mapNotNull { it.element }
+            else listOfNotNull(reference.resolve())
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: LinkageError) {
+            throw e
+        } catch (e: Throwable) {
+            LOG.debug("The resolve of a PHP reference threw; the usage keeps the mark of its pass", e)
+            return passMark
+        }
+        val context = markContext(anchor)
+        val manager = anchor.manager
+        return usageMarkOf(targets, anchor, context.bases, context.overrides, passMark) { a, b -> manager.areElementsEquivalent(a, b) }
+    }
+
+    /**
+     * [UsageDrop.PHP_SELF_REFERENCE] when [anchor] is a `PhpClass` (also an interface, a trait or an
+     * enum) and [usageElement] is a row that Find Usages of PhpStorm hides by default (#179), else
+     * null. The rule copies `PhpThisOrSelfFilteringRule.isVisible`: when each target is a `PhpClass`,
+     * the rule hides a usage whose element is a `$this` reference (`PhpLangUtil.isThisReference`),
+     * or a `ClassReference` that is `self` (`PhpLangUtil.isSelfReference(ClassReference)`) or
+     * `static` (`PhpLangUtil.isStaticReference`). The element of the rule is the element of the
+     * `UsageInfo` of the reference, the element of the reference. The setting
+     * `PhpThisOrSelfImportFilteringUsageSetting.SHOW_THIS_OR_SELF_REFERENCES` is false by default,
+     * so the rule is on. A usage of a method or a field keeps `$this->area()`.
+     */
+    override fun droppedUsageKind(usageElement: PsiElement, anchor: PsiElement): String? {
+        if (phpClassClass?.isInstance(anchor) != true) return null
+        val hidden = invokeCheck(isThisReferenceMethod, usageElement) == true ||
+            (classReferenceClass?.isInstance(usageElement) == true &&
+                (invokeCheck(isSelfReferenceMethod, usageElement) == true || invokeCheck(isStaticReferenceMethod, usageElement) == true))
+        return if (hidden) UsageDrop.PHP_SELF_REFERENCE else null
+    }
+
+    /** The base methods and the overriding methods of [method], computed one time until the next PSI change. */
+    private fun markContext(method: PsiElement): MarkContext =
+        CachedValuesManager.getCachedValue(method, MARK_CONTEXT) {
+            val overrides = walkMethods(processOverridingMethodsMethod, typedHierarchyMemberProcessorClass, method) { true }
+            CachedValueProvider.Result.create(
+                MarkContext(findBaseDeclarations(method).filter { it != method }, overrides),
+                PsiModificationTracker.MODIFICATION_COUNT,
+            )
+        }
+
+    /**
+     * Calls the static [walk] of `PhpClassHierarchyUtils` with [method] and a processor of
+     * [processorIface], and gives the methods of the calls `process(member, subClass, baseClass)`
+     * for which [accept] of `subClass` is true, each one time. The processor returns the result of
+     * [accept], so false stops the walk. Empty when the PHP plugin is absent or when the walk throws;
+     * a cancellation passes through.
+     */
+    private fun walkMethods(
+        walk: java.lang.reflect.Method?,
+        processorIface: Class<*>?,
+        method: PsiElement,
+        accept: (subClass: PsiElement?) -> Boolean,
+    ): List<PsiElement> {
+        if (walk == null || processorIface == null) return emptyList()
+        val collected = LinkedHashSet<PsiElement>()
+        val handler = InvocationHandler { _, m, args ->
+            when {
+                m.name == "process" && args != null && args.size == 3 -> {
+                    val keep = accept(args[1] as? PsiElement)
+                    if (keep) (args[0] as? PsiElement)?.let(collected::add)
+                    keep
+                }
+                m.name == "equals" && args?.size == 1 -> false
+                m.name == "hashCode" -> 0
+                m.name == "toString" -> "${processorIface.simpleName}\$Proxy"
+                m.returnType == java.lang.Boolean.TYPE -> true
+                else -> null
+            }
+        }
+        val proxy = Proxy.newProxyInstance(processorIface.classLoader, arrayOf(processorIface), handler)
+        try {
+            walk.invoke(null, method, proxy)
+        } catch (t: Throwable) {
+            val cause = (t as? InvocationTargetException)?.targetException ?: t
+            if (cause is ProcessCanceledException) throw cause
+            LOG.debug("PhpClassHierarchyUtils.${walk.name} invocation failed", cause)
+            return emptyList()
+        }
+        return collected.toList()
+    }
+
+    /** Calls the static boolean check [check] of `PhpLangUtil` with [element]. Null when it is absent or throws; a cancellation passes through. */
+    private fun invokeCheck(check: java.lang.reflect.Method?, element: PsiElement): Boolean? {
+        if (check == null) return null
+        return try {
+            check.invoke(null, element) as? Boolean
+        } catch (t: Throwable) {
+            val cause = (t as? InvocationTargetException)?.targetException ?: t
+            if (cause is ProcessCanceledException) throw cause
+            LOG.debug("PhpLangUtil.${check.name} invocation failed", cause)
+            null
+        }
     }
 
     private fun buildHierarchy(project: Project, member: PsiElement): List<SuperMethodData> {

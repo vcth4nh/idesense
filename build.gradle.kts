@@ -9,7 +9,6 @@ plugins {
     alias(libs.plugins.kotlinSerialization) // Kotlin Serialization Plugin
     alias(libs.plugins.intelliJPlatform) // IntelliJ Platform Gradle Plugin
     alias(libs.plugins.changelog) // Gradle Changelog Plugin
-    alias(libs.plugins.kover) // Gradle Kover Plugin
     id("idea") // IDE project model
 }
 
@@ -51,11 +50,6 @@ dependencies {
         exclude(group = "org.slf4j")
     }
     implementation(libs.ktor.server.cio) {
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
-        exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
-        exclude(group = "org.slf4j")
-    }
-    implementation(libs.ktor.server.cors) {
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core")
         exclude(group = "org.jetbrains.kotlinx", module = "kotlinx-coroutines-core-jvm")
         exclude(group = "org.slf4j")
@@ -167,20 +161,17 @@ changelog {
     repositoryUrl = providers.gradleProperty("pluginRepositoryUrl")
 }
 
-// Configure Gradle Kover Plugin - read more: https://github.com/Kotlin/kotlinx-kover#configuration
-kover {
-    reports {
-        total {
-            xml {
-                onCheck = true
-            }
-        }
-    }
-}
-
 tasks {
     wrapper {
         gradleVersion = providers.gradleProperty("gradleVersion").get()
+    }
+
+    // DocsDriftUnitTest reads these documents by path. They are inputs, so an edit of one of them
+    // runs the test task again.
+    test {
+        inputs.files("README.md", "CHANGELOG.md", "docs/USAGE.md", "docs/ARCHITECTURE.md")
+            .withPropertyName("pinnedDocs")
+            .withPathSensitivity(PathSensitivity.RELATIVE)
     }
 
     publishPlugin {
@@ -192,25 +183,4 @@ tasks {
 //    }
 
 
-}
-
-intellijPlatformTesting {
-    runIde {
-        register("runIdeForUiTests") {
-            task {
-                jvmArgumentProviders += CommandLineArgumentProvider {
-                    listOf(
-                        "-Drobot-server.port=8082",
-                        "-Dide.mac.message.dialogs.as.sheets=false",
-                        "-Djb.privacy.policy.text=<!--999.999-->",
-                        "-Djb.consents.confirmation.enabled=false",
-                    )
-                }
-            }
-
-            plugins {
-                robotServerPlugin()
-            }
-        }
-    }
 }

@@ -1,3 +1,4 @@
+{"id":"usage-Circle.area-override","tool":"ide_find_usages","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":20}}
 {"id":"usage-Circle.radius","tool":"ide_find_usages","params":{"column":18,"file":"src/main/kotlin/demo/Normal.kt","line":19}}
 {"id":"usage-CompParent-companion","tool":"ide_find_usages","params":{"column":16,"file":"src/main/kotlin/demo/CompanionSuper.kt","line":17}}
 {"id":"usage-Drawable-interface","tool":"ide_find_usages","params":{"column":11,"file":"src/main/kotlin/demo/Normal.kt","line":8}}

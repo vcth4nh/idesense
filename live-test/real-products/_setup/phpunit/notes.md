@@ -4,8 +4,8 @@
 - Pin: tag `13.3.1`, commit `fc024931d6ad047404e9d86536735923fe63a06b`, committed 2026-08-13
 - License: BSD-3-Clause
 - IDE: PhpStorm (port 29175)
-- PHP: `composer.json` needs PHP 8.4.1 or later and six extensions. The machine has PHP 8.2.
-  PhpStorm needs no PHP interpreter to index the product.
+- PHP: `composer.json` needs PHP 8.4.1 or later and six extensions. The expected rows were
+  blessed with PHP 8.2. PhpStorm needs no PHP interpreter to index the product.
 - Autoload: `classmap` of `src/` and `tests/_files`, not PSR-4.
 
 ## Setup
@@ -91,10 +91,6 @@ with no `.idea` folder, so that PhpStorm made the project model by itself:
 
 Project model facts that the probe rows rely on:
 
-- No folder is a source root or a test root. The usage scopes `project_production_files` and
-  `project_test_files` give `scope_matches_no_files`, also for `ide_find_file`, and the
-  hierarchy scope `production` gives no caller. The rows pin these results. The bootstrap marks
-  no root: it keeps the model that PhpStorm makes by itself.
 - `vendor/` itself is no excluded folder: only its package folders and `vendor/composer` are.
 - Canary rows: 4. `canary-def-Differ-into-dependency` pins the include path of the root
   composer packages, `canary-find-class-TestFinishedSubscriber` the project index, and
@@ -102,31 +98,9 @@ Project model facts that the probe rows rely on:
   project scope). `canary-def-Timestamps-into-vendored` pins the nested composer root
   `build/scripts/phar-set-timestamps`: PhpStorm attaches it about 5 s after it reports smart
   mode, so the gate waits for it.
-- PhpStorm indexes the content of each `.phar` file as a library. A path in a phar has the form
-  `tools/.phpstan/vendor/phpstan/phpstan/phpstan.phar/src/...`, a path that is not on the disk.
-  After a restart, the content of this phar can be present or absent in the index: `idea.log`
-  shows "Updating PHARs" two times at the first open and one time after a restart. On
-  2026-11-12, `ide_find_class` for a class of the phpstan phar found it after one restart and
-  not after the next one.
-- Rule: no row resolves into a phar, and no row counts a result in a phar. The rows that did
-  were replaced. Two more close and open cycles, one with the phar content present and one with
-  it absent, gave the same result for all 66 rows.
 - The PHP outline shows the default values of properties and parameters, the values of
   constants and of enum cases, and no attribute. Only the structure row of a file with no such
   value is an `exact` row.
 
-## Issues
-
-These rows are parked. Each one changes with the fix of its issue only.
-
-| Row | Issue |
-|---|---|
-| `usage-DeferringDispatcher` | #179: the `$this`, `self` and `static` references in the class, which Find Usages hides |
-| `find-symbol-SHORT_OPTIONS`, `def-SHORT_OPTIONS-const` | #180: a class constant gets the kind `CLASS` (sub-issue of #27) |
-| `search-text-unordered-code` | #181: `context: "code"` returns comment lines and string lines |
-| `usage-Dispatcher.dispatch` | #183: the usages of the overriding methods are absent (104 of 115) |
-| `search-text-wget` | #184: a match in an injected fragment (a Markdown code block) comes two times |
-| `search-text-updateTimestamps-build` | #146: the files under `build/` are absent |
-
-`explain-DeferringDispatcher.dispatch-pos` is blessed with its `warnings` entry: its count
-equals Current Method of Find Usages (103). #182 tracks the warning.
+The notes on the results of the rows, the phar files and the parked rows are in
+[../../_snapshots/phpunit/GROUND-TRUTH.md](../../_snapshots/phpunit/GROUND-TRUTH.md).

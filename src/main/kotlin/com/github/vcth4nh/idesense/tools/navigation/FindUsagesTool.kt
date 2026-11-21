@@ -74,6 +74,10 @@ class FindUsagesTool : AbstractMcpTool() {
                 else -> UsageTypes.REFERENCE
             }
         }
+
+        /** The printed name of a declaration in a note: its qualified name, else its name. Shared with ide_explain_symbol. */
+        internal fun declarationName(declaration: PsiElement): String =
+            QualifiedNameUtil.getQualifiedName(declaration) ?: (declaration as? PsiNamedElement)?.name ?: "unknown"
     }
 
     override val name = ToolNames.FIND_USAGES
@@ -86,7 +90,7 @@ class FindUsagesTool : AbstractMcpTool() {
 
         Returns: file paths, 1-based positions, context snippets, and reference kinds
         (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE, COMMENT). Paginated (each cursor collects up to an internal cap; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
-        For a Go, JavaScript, TypeScript, Python or Rust member that overrides or implements a base declaration, the result also holds the usages of that base declaration, and a notes list on the first page names it. A usage can have match: BASE (it refers to a base declaration; the call can run this symbol or another implementation) or match: DYNAMIC (only the name matches; the type of the receiver is not known). A usage with no match refers to the symbol itself.
+        For a Go, Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member that overrides or implements a base declaration, the result also holds the usages of that base declaration, and a notes list on the first page names it. For a PHP method, the result also holds the usages of each method that overrides or implements it, and the notes list names these methods. A usage can have match: BASE (it refers to a base declaration, or to another declaration that overrides or implements it: a call on a value of the base type, which can run this symbol or another implementation, or on a value of another type that implements the base declaration), match: OVERRIDE (it refers to a PHP method that overrides or implements this symbol; it is a call on a value whose type has that method) or match: DYNAMIC (only the name matches; the type of the receiver is not known). A usage with no match refers to the symbol itself. The notes list also names each kind of usage that the result leaves out, with the count (for example a Go composite literal key that names a struct field with the same name as the type, or a reference to a PHP class through ${'$'}this, self or static inside the class), and each base method that the search does not search (a method of the Python class object).
 
         Gotchas: requires smart mode (not indexing). If the language's find-usages handler degrades
         mid-search, a warnings list on the first page flags the partial coverage. For a quick literal
@@ -146,10 +150,15 @@ class FindUsagesTool : AbstractMcpTool() {
         // FindUsagesHandler stage threw and the search degraded (#81) — surfaced on
         // the first page of a fresh search.
         val handlerWarnings = mutableListOf<String>()
-        // Filled the same way: the note about the base declarations that the search also
-        // covers (#171), first page only.
+        // Filled the same way: the notes about the base and overriding declarations that the
+        // search also covers (#171), the base methods that it does not search and the usages
+        // that it leaves out, first page only.
         val handlerNotes = mutableListOf<String>()
         val cursorToken = suspendingReadAction {
+            // The platform runs this block again after it cancels an attempt for a write action,
+            // so each attempt starts with empty lists.
+            handlerWarnings.clear()
+            handlerNotes.clear()
             val targetElement = when (anchor) {
                 is SymbolAnchor.BySymbol -> when (val resolution = SymbolAnchorResolver.resolve(project, anchor.symbol)) {
                     is SymbolResolution.Resolved -> resolution.element
@@ -231,6 +240,9 @@ class FindUsagesTool : AbstractMcpTool() {
             }
 
             val baseDeclarations = mutableListOf<PsiElement>()
+            val overridingDeclarations = mutableListOf<PsiElement>()
+            val skippedBases = mutableListOf<PsiElement>()
+            val dropped = LinkedHashMap<String, Int>()
             try {
                 FindUsagesHandlerSearch.processReferences(
                     project = project,
@@ -238,7 +250,10 @@ class FindUsagesTool : AbstractMcpTool() {
                     scope = searchScope,
                     processor = Processor { hit -> collectRef(hit) },
                     warnings = handlerWarnings,
-                    baseDeclarations = baseDeclarations
+                    baseDeclarations = baseDeclarations,
+                    overridingDeclarations = overridingDeclarations,
+                    skippedBases = skippedBases,
+                    dropped = dropped
                 )
             } catch (e: LinkageError) {
                 LOG.warn("Reference search failed for ${targetElement.javaClass.name}", e)
@@ -248,15 +263,27 @@ class FindUsagesTool : AbstractMcpTool() {
             val usagesList = usages.toList()
                 .distinctBy { "${it.file}:${it.line}:${it.column}" }
 
+            val symbolName = (targetElement as? PsiNamedElement)?.name ?: "the symbol"
+            val cut = totalFound.get() > usagesList.size
             if (baseDeclarations.isNotEmpty()) {
                 handlerNotes.add(BaseDeclarationsNote.build(
-                    symbolName = (targetElement as? PsiNamedElement)?.name ?: "the symbol",
+                    symbolName = symbolName,
                     bases = baseDeclarations.map { baseDeclarationRef(project, it) },
                     baseUsages = usagesList.count { it.match == UsageMatch.BASE },
                     collected = usagesList.size,
-                    cut = totalFound.get() > usagesList.size
+                    cut = cut
                 ))
             }
+            OverridingDeclarationsNote.build(
+                symbolName = symbolName,
+                overrides = overridingDeclarations.map { baseDeclarationRef(project, it) },
+                overrideUsages = usagesList.count { it.match == UsageMatch.OVERRIDE },
+                collected = usagesList.size,
+                cut = cut
+            )?.let(handlerNotes::add)
+            SkippedBasesNote.build(skippedBases.map(::declarationName))?.let(handlerNotes::add)
+            // The search stops when the collector returns false: at totalCountLimit usages.
+            handlerNotes.addAll(DroppedUsagesNote.build(dropped, cut = totalFound.get() >= totalCountLimit))
 
             val smartPointer = SmartPointerManager.getInstance(project).createSmartPsiElementPointer(targetElement)
 
@@ -308,11 +335,12 @@ class FindUsagesTool : AbstractMcpTool() {
     }
 
     /**
-     * The name and the place of [base] for [BaseDeclarationsNote]: `path:line:column` in a project
-     * file, `file name, library` in another file, no place when [base] has no file.
+     * The name and the place of [base] for [BaseDeclarationsNote] and [OverridingDeclarationsNote]:
+     * `path:line:column` in a project file, `file name, library` in another file, no place when
+     * [base] has no file.
      */
     private fun baseDeclarationRef(project: Project, base: PsiElement): BaseDeclarationRef {
-        val name = QualifiedNameUtil.getQualifiedName(base) ?: (base as? PsiNamedElement)?.name ?: "unknown"
+        val name = declarationName(base)
         val psiFile = base.containingFile
         val file = psiFile?.virtualFile ?: return BaseDeclarationRef(name, null)
         if (!ProjectUtils.isProjectFile(project, file)) return BaseDeclarationRef(name, "${file.name}, library")

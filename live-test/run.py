@@ -875,7 +875,7 @@ def run_language(
                 print(f"    {eid}: {fresh_results[eid]}")
             if len(error_ids) > 5:
                 print(f"    ... and {len(error_ids) - 5} more")
-            print(f"  Use --bless-errors to override.")
+            print("  Use --bless-errors with --tool to override.")
             return passed - len(error_ids), len(error_ids)
         # A structured {"error": ...} payload is a valid tool result, so the
         # ERROR_KEYS gate above never sees it — but blessing one over a row
@@ -889,7 +889,7 @@ def run_language(
                 print(f"    {eid}: {fresh_results[eid]}")
             if len(transition_ids) > 5:
                 print(f"    ... and {len(transition_ids) - 5} more")
-            print(f"  Use --bless-errors to override.")
+            print("  Use --bless-errors with --tool to override.")
             return passed - len(transition_ids), len(transition_ids)
         # Merge fresh results into existing expected, then write per-tool
         # files mirroring input-file order.
@@ -1198,7 +1198,7 @@ def main() -> int:
         "--bless-errors",
         action="store_true",
         help="Allow blessing rows that returned tool_error_text / transport_error / jsonrpc_error, "
-        "or whose structured {\"error\": ...} result would replace a non-error (or new) expected row.",
+        "or whose structured {\"error\": ...} result would replace a non-error (or new) expected row; needs --tool.",
     )
     parser.add_argument(
         "--bless-canary",
@@ -1272,6 +1272,8 @@ def main() -> int:
     with_fixtures, with_products = suite in ("fixtures", "all"), suite in ("real-products", "all")
     if args.bless_canary and not (args.bless and with_products):
         parser.error("--bless-canary needs --bless and a run of real products")
+    if args.bless_errors and not args.tool:
+        parser.error("--bless-errors switches off both error gates for each selected row and needs --tool")
 
     prods: list[products.Product] = []
     if with_products:

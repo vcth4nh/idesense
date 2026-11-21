@@ -7,6 +7,7 @@ import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
+import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.LambdaUtil
@@ -16,7 +17,10 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFunctionalExpression
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiNamedElement
+import com.intellij.psi.PsiReference
 import com.intellij.psi.impl.FindSuperElementsHelper
+import com.intellij.psi.search.SearchScope
+import com.intellij.psi.search.searches.MethodReferencesSearch
 import com.intellij.psi.util.PsiTreeUtil
 
 /**
@@ -82,26 +86,74 @@ class JavaSuperMethodsProvider : SuperMethodsProvider {
         )
     }
 
-    private fun buildHierarchy(
-        project: Project,
-        method: PsiMethod,
-        visited: MutableSet<String> = mutableSetOf(),
-    ): List<SuperMethodData> {
-        val out = mutableListOf<SuperMethodData>()
-        for (superMethod in method.findSuperMethods()) {
-            val key = QualifiedNameUtil.getQualifiedName(superMethod)
-                ?: "${superMethod.containingClass?.qualifiedName}.${superMethod.name}"
-            if (!visited.add(key)) continue
+    /**
+     * The methods that [element] overrides or implements, when [element] itself is a [PsiMethod]:
+     * the methods of [walkSuperMethods], in the same order as the hierarchy of [findSuperMethods].
+     * A method of `java.lang.Object` stays in the list, because IntelliJ IDEA searches it too.
+     * Empty for any other element, also for an element inside a method (#175).
+     *
+     * A super method of another language gives its real declaration ([baseDeclarationOf]), so the
+     * search of that declaration takes the provider and the handler of its own language. The Java
+     * handler of a light method reads `primaryElements`, which throws off the EDT (#175).
+     */
+    override fun findBaseDeclarations(element: PsiElement): List<PsiElement> {
+        if (element !is PsiMethod) return emptyList()
+        return walkSuperMethods(element).map(::baseDeclarationOf)
+    }
+
+    /**
+     * The declaration that the base pass searches for [superMethod]: [superMethod] itself when its
+     * language is the Java language (also a method of a compiled class), else its navigation
+     * element. For a Kotlin light method, the navigation element is the Kotlin declaration.
+     */
+    internal fun baseDeclarationOf(superMethod: PsiMethod): PsiElement =
+        if (superMethod.language is JavaLanguage) superMethod else superMethod.navigationElement
+
+    /**
+     * The references to [element] itself, when [element] is a [PsiMethod] (a method or a
+     * constructor, with or without a super method): `MethodReferencesSearch.search(element, scope,
+     * true)`, the search that `JavaFindUsagesHandler.findReferencesToHighlight` runs for one target.
+     * The result also holds a reference that resolves to an override of [element] in a subclass,
+     * but not a reference that resolves to a super method. Null for any other element: the search
+     * then takes the find-usages handler.
+     *
+     * The search does not take `JavaFindUsagesHandler` for a method (#175). Its `getPrimaryElements`
+     * calls `SuperMethodWarningUtil.getTargetMethodCandidates`, which asserts the EDT, so it throws
+     * off the EDT for each method and constructor. Its `findReferencesToHighlight` searches the
+     * deepest super methods of a method, not the method itself.
+     */
+    override fun findDirectReferences(element: PsiElement, scope: SearchScope): Collection<PsiReference>? {
+        if (element !is PsiMethod) return null
+        return MethodReferencesSearch.search(element, scope, true).findAll()
+    }
+
+    private fun buildHierarchy(project: Project, method: PsiMethod): List<SuperMethodData> =
+        walkSuperMethods(method).map { superMethod ->
             val file = superMethod.containingFile?.virtualFile
-            out.add(SuperMethodData(
+            SuperMethodData(
                 name = superMethod.name,
                 qualifiedName = QualifiedNameUtil.getQualifiedName(superMethod),
                 kind = LanguageServices.getKind(superMethod),
                 file = file?.let { getRelativePath(project, it) },
                 line = getLineNumber(project, superMethod),
                 column = getColumnNumber(project, superMethod),
-            ))
-            out.addAll(buildHierarchy(project, superMethod, visited))
+            )
+        }
+
+    /**
+     * The walk of [buildHierarchy] and [findBaseDeclarations]: the super methods of [method], all
+     * levels, depth first (a super method, then its super methods). A super method with the key of
+     * an earlier method (its qualified name, else its class and its name) is skipped, together with
+     * its super methods.
+     */
+    private fun walkSuperMethods(method: PsiMethod, visited: MutableSet<String> = mutableSetOf()): List<PsiMethod> {
+        val out = mutableListOf<PsiMethod>()
+        for (superMethod in method.findSuperMethods()) {
+            val key = QualifiedNameUtil.getQualifiedName(superMethod)
+                ?: "${superMethod.containingClass?.qualifiedName}.${superMethod.name}"
+            if (!visited.add(key)) continue
+            out.add(superMethod)
+            out.addAll(walkSuperMethods(superMethod, visited))
         }
         return out
     }

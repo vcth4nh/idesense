@@ -87,7 +87,9 @@ fails when this file is stale.
 | 28:5 | hier-caller-Circle-ctor | call_hierarchy | `Circle(double radius) {` |
 | 28:5 | usage-Circle-ctor | find_usages | `Circle(double radius) {` |
 | 33:12 | def-Circle.area-decl | find_definition | `double area() {` |
+| 33:12 | explain-Circle.area-override-pos | explain_symbol | `double area() {` |
 | 33:12 | super-Circle.area | find_super_methods | `double area() {` |
+| 33:12 | usage-Circle.area-override | find_usages | `double area() {` |
 | 38:19 | super-Circle.draw | find_super_methods | `public String draw() {` |
 | 43:7 | hier-type-Rectangle | type_hierarchy | `class Rectangle extends Shape implements Drawable {` |
 | 43:7 | usage-Rectangle-class | find_usages | `class Rectangle extends Shape implements Drawable {` |

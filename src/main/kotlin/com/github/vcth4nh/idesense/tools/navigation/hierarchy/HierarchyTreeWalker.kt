@@ -57,13 +57,13 @@ internal fun rethrowIfCancellation(t: Throwable) {
 
 /**
  * Classifies the outcome of reflectively invoking
- * `HierarchyProvider.createHierarchyBrowser(PsiElement)` (#30).
+ * `HierarchyProvider.createHierarchyBrowser(PsiElement)`.
  *
  * - **Cooperative cancellation** — a cold-start [com.intellij.openapi.application.ReadAction.CannotReadException]
  *   / [com.intellij.openapi.progress.ProcessCanceledException], wrapped by reflection in
  *   [InvocationTargetException] — is **rethrown** via [rethrowIfCancellation] so the enclosing
  *   coroutine `readAction { }` performs its write-pending restart instead of surfacing a spurious
- *   hard failure. This is the sibling of the tree-build retry sites fixed in #141: the one
+ *   hard failure. This is the sibling of the tree-build retry sites: the one
  *   construction site that previously swallowed the signal to `null`, mislabeling a retryable
  *   cold-start race as "createHierarchyBrowser returned non-HierarchyBrowserBaseEx".
  * - A **genuine ctor failure** is surfaced as a [Result.failure] with the real cause attached, so
@@ -186,7 +186,7 @@ internal object IdentityElementResolver : LogicalElementResolver {
  * `LanguageCallHierarchy` / `LanguageTypeHierarchy` extension points,
  * uses `provider.getTarget()` for language-specific pre-coercion (e.g.
  * Kotlin K1 light-class conversion), constructs the language's
- * `HierarchyBrowserBaseEx` headlessly on EDT, and reflectively invokes
+ * `HierarchyBrowserBaseEx` headlessly on the calling thread, and reflectively invokes
  * the `protected createHierarchyTreeStructure(typeName, element)` to
  * obtain a walkable `HierarchyTreeStructure`. The walk is depth-limited
  * with cycle dedupe via PSI element identity. Type strings are sourced
@@ -216,7 +216,7 @@ internal object HierarchyTreeWalker {
         maxDepth: Int,
         maxNodes: Int = Int.MAX_VALUE
     ): Result<HierarchyWalkResult> {
-        // Pin the whole walk to the IDE GUI's client session (GH #17). The platform
+        // Pin the whole walk to the IDE GUI's client session. The platform
         // hierarchy browser ctor (reached via createBrowserHeadless) force-inits the
         // `HierarchyBrowserManager` project service, which is registered client="all"
         // (one instance PER client session) and whose ctor registers the global
@@ -302,7 +302,7 @@ internal object HierarchyTreeWalker {
 
         // createBrowserHeadless rethrows a cold-start read cancellation (caught by walk()'s
         // runCatching and re-rethrown there for the readAction retry); a genuine failure is
-        // surfaced here with its real cause attached (#30).
+        // surfaced here with its real cause attached.
         val browser = createBrowserHeadless(provider, target)
             .getOrElse { return Result.failure(it) }
 
@@ -402,7 +402,7 @@ internal object HierarchyTreeWalker {
         // The reflective `createHierarchyTreeStructure` call later is read-action-safe.
         //
         // [classifyBrowserConstruction] rethrows a cold-start read cancellation (so the
-        // readAction{} retries — #30) and surfaces a genuine failure's real cause.
+        // readAction{} retries) and surfaces a genuine failure's real cause.
         val createBrowser = runCatching {
             provider.javaClass.getMethod("createHierarchyBrowser", PsiElement::class.java)
         }.getOrElse {

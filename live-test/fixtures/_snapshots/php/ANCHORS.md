@@ -83,6 +83,7 @@ fails when this file is stale.
 | 19:7 | hier-type-Circle | type_hierarchy | `class Circle extends Shape implements Drawable {` |
 | 22:21 | def-Circle.area | find_definition | `public function area(): float {` |
 | 22:21 | super-Circle.area | find_super_methods | `public function area(): float {` |
+| 22:21 | usage-Circle.area-override | find_usages | `public function area(): float {` |
 | 26:21 | super-Circle.draw | find_super_methods | `public function draw(): string {` |
 | 31:7 | hier-type-Rectangle | type_hierarchy | `class Rectangle extends Shape implements Drawable {` |
 | 31:7 | usage-Rectangle-class | find_usages | `class Rectangle extends Shape implements Drawable {` |

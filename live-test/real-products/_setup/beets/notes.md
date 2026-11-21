@@ -116,9 +116,6 @@ Project model facts that the probe rows rely on:
   and `--python 3.12` decide the file.
 - The Python outline shows the parameter lists with their default values and the base lists
   of the classes. Only the structure rows of files with no default value are `exact` rows.
-- `ide_file_structure` on `beetsplug/web/static/jquery.js` gives no answer and leaves the walk
-  at work in the IDE. No row has this file (#177).
-- A local class gets the qualified name of the function that contains it, and a class
-  attribute gets the name of its class (#176). The 5 rows that show it are parked.
-- `ide_find_definition` on `_.map` in `beetsplug/web/static/beets.js` gives only the first of
-  the declarations that "Choose Declaration" lists (#178). Its row is parked.
+
+The notes on the results of the rows and the parked rows are in
+[../../_snapshots/beets/GROUND-TRUTH.md](../../_snapshots/beets/GROUND-TRUTH.md).

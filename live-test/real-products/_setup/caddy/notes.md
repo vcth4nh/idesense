@@ -34,6 +34,8 @@ the switch time has that resolution.
 | Resident memory of GoLand, fixture plus `caddy`, directly after the open | 2160 MB |
 | Resident memory after the import check | 2421 MB |
 | Used heap after a full collection | 218 MB after the open, 281 MB after the import check |
+| Run of the 69 rows of 2026-11-11, product open before | 11 to 20 s |
+| Run of the 69 rows of 2026-11-11, with the switch | 38 s |
 
 The used heap stays far below 1200 MB (60% of the limit), so GoLand keeps `-Xmx2048m`.
 
@@ -48,8 +50,8 @@ Facts about the switch:
 - During the first indexing GoLand reports smart mode two times for about 3 seconds before
   the dependencies are indexed. The index status alone is not a safe readiness signal for a
   first open; the canary rows are.
-- `goland.sh serverMode <path>` opens only that one project and restores no other project.
-  A second path argument is ignored. So the harness always starts a bare `serverMode`.
+- A start with a project path: see "Projects" in
+  [live-test/README.md](../../../README.md#start-an-ide-with-no-display).
 
 ## Import check
 
@@ -77,10 +79,5 @@ had no IDE files, so that GoLand made the project model by itself:
   The option "Text occurrences" was off. This is a finding about the tool, not about the
   import.
 
-Project model facts that the probe rows rely on:
-
-- A Go project has no source roots in GoLand. `project_production_files` and
-  `project_test_files` give the error `scope_matches_no_files`, and the Find Usages dialog
-  of GoLand offers no production scope and no test scope. The Go fixture pins the same.
-- The hierarchy scope `test` is different: it follows the Go test file names. On `Module`
-  it gives 8 subtypes, and the scope `production` gives none.
+The notes on the results of the rows, with the scope rows of a Go project, are in
+[../../_snapshots/caddy/GROUND-TRUTH.md](../../_snapshots/caddy/GROUND-TRUTH.md).

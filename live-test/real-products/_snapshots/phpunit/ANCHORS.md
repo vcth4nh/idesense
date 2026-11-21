@@ -18,6 +18,7 @@ file is stale.
 | 17:13 | usage-DeferringDispatcher | find_usages | `DeferringDispatcher` |
 | 40:21 | explain-DeferringDispatcher.dispatch-pos | explain_symbol | `dispatch` |
 | 40:21 | hier-callee-DeferringDispatcher.dispatch-d1 | call_hierarchy | `dispatch` |
+| 40:21 | usage-DeferringDispatcher.dispatch-override | find_usages | `dispatch` |
 | 85:21 | explain-DeferringDispatcher.flush-pos | explain_symbol | `flush` |
 
 ## src/Event/Dispatcher/Dispatcher.php

@@ -80,7 +80,7 @@ object QualifiedNameUtil {
             goFallback(element)?.let { return it }
         }
 
-        // Fallback 3: Rust (no upstream provider exists in IntelliJ Rust)
+        // Fallback 3: Rust (the provider of the Rust plugin returns null for some elements)
         if (element.language.id == "Rust") {
             rustFallback(element)?.let { return it }
         }
@@ -129,7 +129,7 @@ object QualifiedNameUtil {
             }
             // Interface method specs (GoMethodSpec) have no receiver; qualify them by the enclosing
             // interface (GoTypeSpec) so they read `package.Interface.method` instead of `package.method`
-            // (otherwise indistinguishable from a top-level function). See #20.
+            // (otherwise indistinguishable from a top-level function).
             val interfaceName = run {
                 val spec = goMethodSpecClass ?: return@run null
                 if (!spec.isInstance(element)) return@run null

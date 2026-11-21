@@ -2,10 +2,7 @@
 
 ![Build](https://github.com/vcth4nh/idesense/workflows/Build/badge.svg)
 
-A JetBrains IDE plugin that exposes an **MCP (Model Context Protocol) server**, giving AI coding assistants like Claude, Codex, Cursor, and Windsurf the IDE's code-analysis engines — indexing, navigation, and diagnostics — with no human interaction with the IDE required.
-
-**Fully tested**: IntelliJ IDEA, PyCharm, WebStorm, GoLand, RustRover, Android Studio, PhpStorm
-**May work** (untested): RubyMine, CLion, DataGrip
+A JetBrains IDE plugin that exposes an **MCP (Model Context Protocol) server**, giving AI coding assistants like Claude Code, Codex CLI, Gemini CLI and Cursor, and each other MCP client, the IDE's code-analysis engines — indexing, navigation, and diagnostics — with no human interaction with the IDE required.
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/vcth4nh)
 
@@ -28,8 +25,9 @@ Advanced tools work across multiple languages based on available plugins:
 - **Find References** - Locate all usages of any symbol across the project
 - **Go to Definition** - Navigate to symbol declarations
 - **Code Diagnostics** - Access errors, warnings, and quick fixes
+- **Explain Symbol** - Declaration, signature, documentation, supers, implementations and a usage summary in one call
 - **Index Status** - Check if code intelligence is ready
-- **Sync Files** - Force sync VFS/PSI cache after external file changes
+- **Sync Files** - Make the IDE pick up files that were created, modified, or deleted outside it (e.g., by coding agents)
 - **Find Class** - Fast class/interface search by name (exact by default; opt into camelCase/substring matching with `fuzzySearch`)
 - **Find File** - Fast file search by name using IDE's file index
 - **Symbol Search** - Find code symbols by name with IntelliJ Go to Symbol matching
@@ -37,7 +35,7 @@ Advanced tools work across multiple languages based on available plugins:
 - **Read File** - Read file content by path or qualified name, including library sources (disabled by default)
 
 **Extended Tools (Language-Aware)**
-These tools activate based on installed language plugins:
+These tools give results for each language whose plugin is installed. Find Super Methods is listed only when the IDE has a plugin for one of its languages.
 - **Type Hierarchy** - Explore class inheritance chains
 - **Call Hierarchy** - Trace method/function call relationships
 - **Find Implementations** - Discover interface/abstract implementations
@@ -45,8 +43,8 @@ These tools activate based on installed language plugins:
 - **File Structure** - View hierarchical file structure like IDE's Structure view, including Markdown heading outlines
 
 **Refactoring Tools**
-- **Rename Refactoring** - Safe renaming with automatic related element renaming (getters/setters, overriding methods) - works across ALL languages, fully headless (disabled by default)
-- **Move File** - Move a file to a new directory with language-aware reference, import, and package/namespace updates when the IDE provides a semantic move backend (disabled by default)
+- **Rename Refactoring** - Safe renaming with automatic related element renaming (getters/setters, overriding methods) - works across ALL languages, headless with the default strategies (disabled by default)
+- **Move File** - Move a file to a new directory; the IDE also updates references, imports, and the package/namespace when its language plugin supports that for the file type (disabled by default)
 
 ### Why Use This Plugin?
 
@@ -63,13 +61,15 @@ Perfect for AI-assisted development workflows where accuracy and safety matter.
 
 - **[USAGE.md](docs/USAGE.md)** — full per-tool reference (parameters, examples, return shapes)
 - **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** — build, dev-loop, testing, PR checklist
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — design, backing-mechanism model, internals
+- **[PRINCIPLES.md](docs/PRINCIPLES.md)** — goal, scope and design principles
+- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** — backing mechanisms, deviations from the IDE, platform contracts
 - **[CHANGELOG.md](CHANGELOG.md)** — release notes and version history
 - **[Agent skill](src/main/resources/skill/idesense/SKILL.md)** — runtime guidance for AI agents on tool selection and conventions
 - **[Live-test harness](live-test/README.md)** — snapshot regression suite for verifying tool behavior against real IDEs
 
 ## Table of Contents
 
+- [Documentation](#documentation)
 - [Available Tools](#available-tools)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -78,12 +78,15 @@ Perfect for AI-assisted development workflows where accuracy and safety matter.
 - [Multi-Project Support](#multi-project-support)
 - [Tool Window](#tool-window)
 - [Error Codes](#error-codes)
+- [Settings](#settings)
 - [Community Integrations](#community-integrations)
 - [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ## Available Tools
 
-The plugin provides **19 MCP tools** — 14 enabled by default, 5 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](docs/USAGE.md)**.
+The plugin provides **20 MCP tools** — 15 enabled by default, 5 opt-in (toggle any tool in <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</kbd>). The matrix below shows per-language support and test status; for parameters, examples, and return shapes, see **[USAGE.md](docs/USAGE.md)**.
 
 **Legend:**
 - **✅** supported & tested
@@ -143,42 +146,34 @@ The plugin provides **19 MCP tools** — 14 enabled by default, 5 opt-in (toggle
 
 - **JetBrains IDE** 2025.3 or later (any IDE based on IntelliJ Platform)
 - **JVM** 21 or later
-- **MCP Protocol** 2025-11-25 (primary Streamable HTTP, negotiated; 2025-03-26 / 2024-11-05 also supported)
+- **MCP Protocol** 2025-11-25 (primary Streamable HTTP, negotiated; 2025-03-26 / 2024-11-05 also supported). Legacy SSE clients (2024-11-05) use `http://127.0.0.1:<port>/mcp/sse`.
 
 ### Supported IDEs
 
-**Fully Tested:**
-- IntelliJ IDEA (Community/Ultimate)
-- Android Studio
-- PyCharm (Community/Professional)
+**Tested** (the live-test suites run on these IDEs):
+- IntelliJ IDEA
+- PyCharm
 - WebStorm
 - GoLand
-- RustRover
 - PhpStorm
+- RustRover
 
-**May Work (Untested):**
+**Not tested:**
+- Android Studio
 - RubyMine
 - CLion
 - DataGrip
+- DataSpell
 
-> The plugin uses standard IntelliJ Platform APIs and should work on any IntelliJ-based IDE, but has only been tested on the IDEs listed above.
+> The plugin uses standard IntelliJ Platform APIs and should work on each IntelliJ-based IDE except Rider (see the note in [IDE-Specific Defaults](#ide-specific-defaults)), but the live-test suites run only on the tested IDEs above.
 
 ## Installation
 
-> **Note:** IdeSense isn't on the JetBrains Marketplace yet — for now, use [Manual Installation](#manual-installation) below.
+IdeSense isn't on the JetBrains Marketplace yet. Install it from a release:
 
-### Using the IDE built-in plugin system
-
-<kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>Marketplace</kbd> > <kbd>Search for "IdeSense"</kbd> > <kbd>Install</kbd>
-
-### Using JetBrains Marketplace
-
-Go to [JetBrains Marketplace](https://plugins.jetbrains.com/) and install it by clicking the <kbd>Install to ...</kbd> button.
-
-### Manual Installation
-
-Download the [latest release](https://github.com/vcth4nh/idesense/releases) and install it manually:
-<kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd>
+1. Download the plugin ZIP of the [latest release](https://github.com/vcth4nh/idesense/releases).
+2. In the IDE, go to <kbd>Settings/Preferences</kbd> > <kbd>Plugins</kbd> > <kbd>⚙️</kbd> > <kbd>Install plugin from disk...</kbd> and select the ZIP.
+3. Restart the IDE.
 
 ## Quick Start
 
@@ -197,10 +192,11 @@ Download the [latest release](https://github.com/vcth4nh/idesense/releases) and 
 The easiest way to configure your AI assistant:
 1. Open the "IdeSense" tool window (bottom panel)
 2. Click the prominent **"Install on Coding Agents"** button on the right side of the toolbar
-3. A popup appears with two sections:
+3. A popup appears with three sections:
    - **Install Now** - For Claude Code CLI and Codex CLI: Runs the installation command automatically
-   - **Copy Configuration** - For other clients: Copies the JSON config to your clipboard
-4. For "Copy Configuration" clients, paste the config into the appropriate config file
+   - **Copy Configuration** - For Claude Code, Codex CLI, Gemini CLI and Cursor: Copies the command or config of that client to your clipboard
+   - **Generic MCP Config** - For other clients: Copies a Streamable HTTP config or a Legacy SSE config to your clipboard
+4. For "Copy Configuration" and "Generic MCP Config", paste the config into the appropriate config file
 
 ## Client Configuration
 
@@ -220,8 +216,9 @@ claude mcp add --transport http webstorm-idesense http://127.0.0.1:29173/mcp/str
 ```
 
 Options:
-- `--scope user` - Adds globally for all projects
-- `--scope project` - Adds to current project only
+- `--scope user` - for you, in all projects
+- `--scope project` - for each person who has the project (writes `.mcp.json` in the project root)
+- `--scope local` (the default) - for you, in the current project only
 
 To remove: `claude mcp remove <server-name>` (e.g., `claude mcp remove intellij-idesense`)
 
@@ -242,6 +239,20 @@ codex mcp add webstorm-idesense --url http://127.0.0.1:29173/mcp/streamable-http
 
 To remove: `codex mcp remove <server-name>` (e.g., `codex mcp remove intellij-idesense`)
 
+### Gemini CLI
+
+Add to `~/.gemini/settings.json` (adjust name and port for your IDE):
+
+```json
+{
+  "mcpServers": {
+    "intellij-idesense": {
+      "httpUrl": "http://127.0.0.1:29170/mcp/streamable-http"
+    }
+  }
+}
+```
+
 ### Cursor
 
 Add to `.cursor/mcp.json` in your project root or `~/.cursor/mcp.json` globally (adjust name and port for your IDE):
@@ -256,31 +267,9 @@ Add to `.cursor/mcp.json` in your project root or `~/.cursor/mcp.json` globally 
 }
 ```
 
-### Windsurf
+### Other clients
 
-Add to `~/.codeium/windsurf/mcp_config.json` (adjust name and port for your IDE):
-
-```json
-{
-  "mcpServers": {
-    "intellij-idesense": {
-      "serverUrl": "http://127.0.0.1:29170/mcp/streamable-http"
-    }
-  }
-}
-```
-
-### VS Code (Generic MCP)
-
-```json
-{
-  "mcp.servers": {
-    "intellij-idesense": {
-      "url": "http://127.0.0.1:29170/mcp/streamable-http"
-    }
-  }
-}
-```
+Use the section "Generic MCP Config" of the popup (see [Using the "Install on Coding Agents" Button](#using-the-install-on-coding-agents-button)). The documents of the client say which file and which key take the config.
 
 > **Note**: Replace the server name and port with your IDE's defaults. See [IDE-Specific Defaults](#ide-specific-defaults) below.
 
@@ -300,14 +289,17 @@ Each JetBrains IDE has a unique default port and server name to allow running mu
 | CLion | `clion-idesense` | 29177 |
 | RustRover | `rustrover-idesense` | 29178 |
 | DataGrip | `datagrip-idesense` | 29179 |
+| Aqua | `aqua-idesense` | 29180 |
+| DataSpell | `dataspell-idesense` | 29181 |
+| Other IntelliJ-based IDE | `jetbrains-idesense` | 29199 |
 
 > **Tip**: Use the "Install on Coding Agents" button in the tool window - it automatically uses the correct server name and port for your IDE.
 >
-> **Note**: The full IDE port list (including Aqua, DataSpell, and Rider) is documented in [ARCHITECTURE.md](docs/ARCHITECTURE.md#ide-specific-defaults). Rider has a port entry but is currently marked incompatible in the plugin manifest and is not supported.
+> **Note**: Rider is not supported. The plugin manifest marks it incompatible.
 
 ## Multi-Project Support
 
-When multiple projects are open in a single IDE window, you must specify which project to use with the `project_path` parameter:
+When more than one project is open in the IDE, you must specify which project to use with the `project_path` parameter:
 
 ```json
 {
@@ -333,7 +325,7 @@ The plugin supports **workspace projects** where a single IDE window contains mu
 - A **sub-project path** (module content root)
 - A **subdirectory** of any open project
 
-When an error occurs, the response returns `available_projects`. By default this includes workspace sub-projects so AI agents can discover valid module content roots. If you want smaller error payloads, switch **Project list in error responses** to **Compact** in plugin settings to return only top-level project roots.
+A `project_not_found` or `multiple_projects_open` error returns `available_projects`. By default this includes workspace sub-projects so AI agents can discover valid module content roots. If you want smaller error payloads, switch **Project list in error responses** to **Compact** in plugin settings to return only top-level project roots.
 
 ## Tool Window
 
@@ -356,43 +348,12 @@ The plugin adds an "IdeSense" tool window (bottom panel) that shows:
 | Copy URL | Copy the MCP server URL to clipboard |
 | Clear History | Clear the command history |
 | Export History | Export history to JSON or CSV file |
+| Get Companion Skill | Install the companion skill into `.claude/skills/` in the project root, or save it as a `.skill` or `.zip` file |
 | **Install on Coding Agents** | Install MCP server on AI assistants (prominent button on right) |
 
 ## Error Codes
 
-### JSON-RPC Standard Errors
-
-| Code | Name | Description |
-|------|------|-------------|
-| -32700 | Parse Error | Failed to parse JSON-RPC request |
-| -32600 | Invalid Request | Invalid JSON-RPC request format |
-| -32601 | Method Not Found | Unknown method name |
-| -32602 | Invalid Params | Invalid or missing parameters |
-| -32603 | Internal Error | Unexpected internal error |
-
-### Tool Errors (resolved tool failures)
-
-Pre-dispatch failures (parse error, unknown method, missing params) use JSON-RPC numeric error objects. Once a tool is dispatched and fails, it returns a **normal MCP result** with `isError: true` and a structured payload:
-
-```json
-{
-  "error": "<snake_case_code>",
-  "message": "<human-readable description>"
-}
-```
-
-Common `error` codes:
-
-| Code | When It Occurs |
-|------|----------------|
-| `index_not_ready` | IDE is in dumb mode (indexing in progress) |
-| `file_not_found` | Specified file does not exist |
-| `symbol_not_found` | No symbol found at the specified position |
-| `refactoring_conflict` | Refactoring cannot be completed (e.g., name conflict) |
-| `invalid_arguments` | Parameter validation failed (includes a `violations` array) |
-| `tool_error` | Generic tool failure |
-| `internal_error` | Unexpected server error |
-| `no_project_open` / `project_not_found` / `multiple_projects_open` | Project resolution errors |
+The JSON-RPC error codes and the tool error codes are listed in [Error Handling](docs/USAGE.md#error-handling) in USAGE.md.
 
 ## Settings
 
@@ -407,7 +368,7 @@ Configure the plugin at <kbd>Settings</kbd> > <kbd>Tools</kbd> > <kbd>IdeSense</
 | Project List in Error Responses | Expanded | Controls `available_projects` detail for invalid/missing `project_path` errors. `Expanded` includes workspace sub-projects; `Compact` returns only top-level project roots |
 | Sync External Changes | false | Sync external file changes before operations (**WARNING: significant performance impact**) |
 | Disabled Tools | 5 tools | Per-tool enable/disable toggles. Tools that modify code or the IDE — plus `ide_read_file` — are disabled by default |
-| Response Format | `JSON` | Format for tool result text content block: `JSON` (default) mirrors the structured JSON; `TOON` converts it to a compact text-object notation for older clients |
+| Response Format | `JSON` | Format for tool result text content block: `JSON` (default) mirrors the structured JSON; `TOON` writes the text block in Token-Oriented Object Notation. `structuredContent` stays JSON in both formats |
 
 ## Community Integrations
 

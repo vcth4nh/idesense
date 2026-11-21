@@ -4,8 +4,8 @@
 - Pin: tag `2.5.3`, commit `1f0755fb044fe08e99fccde6722062fb2bf6c8f4`, committed 2026-08-22
 - License: MIT
 - IDE: WebStorm (port 29173), fixture languages JavaScript and TypeScript
-- Node.js: `engines.node` is `>= 20.4.0` in `package.json`. The fleet host has Node.js 24.16.0
-  and npm 11.13.0.
+- Node.js: `engines.node` is `>= 20.4.0` in `package.json`. The expected rows were blessed with
+  Node.js 24.16.0 and npm 11.13.0.
 - Languages: the server is CommonJS JavaScript (`server/`), the frontend is Vue 3 single-file
   components (`src/`), and `src/util.ts` is the shared TypeScript module. `src/util.js` is the
   compiled copy of `src/util.ts`, and it is in the repository. `extra/` holds four small
@@ -76,39 +76,5 @@ folder). WebStorm downloads these type files by itself, and the lockfile does no
 `ide_find_class` for `Router` with the libraries scope gives two `index.d.ts` files of
 `@types/express` 4.17.25 from that cache.
 
-## Captured ground truth
-
-- `usage-Monitor.start` gives 0 usages. Find Usages of WebStorm says "Nothing found in
-  'Project Files'", and the code vision shows "no usages": each call goes through a value with
-  no type.
-- `hier-sub-NotificationProvider` gives 0 subtypes and `impls-NotificationProvider` gives 0
-  implementations, while 105 classes in other files extend it through `require`. The Type
-  Hierarchy of WebStorm shows no subtype, and Go to Implementation says "No implementations
-  found" (see the JavaScript fixture note on CommonJS subtypes). The usages of the class are
-  107, the same as Find Usages of WebStorm.
-- `hier-super-KumaColumnCompiler` gives no supertype. The base class comes from a `require` of
-  a knex file, and the Supertypes view of WebStorm shows no supertype either.
-- `find-file-dayjs.min.js-libraries-scope` gives no file. Go to File of WebStorm with "All
-  Places" finds nothing either.
-- `find-symbol-startDateTime` gives the computed property of `MaintenanceTime.vue` and a local
-  constant of a method in `server/model/maintenance.js`. Go to Symbol of WebStorm lists the
-  same two. The qualified name of the computed property is `default.computed.startDateTime`,
-  the same as Copy Reference of WebStorm.
-
-## Parked rows
-
-Each of these rows shows an open defect (see "Parked rows" in `live-test/CLAUDE.md`).
-
-| Row | Issue | Defect |
-|---|---|---|
-| `def-notification-provider-require-path` | #191 | a position in a `require` path gives the folder of the first path segment (`PACKAGE`), not the module file |
-| `def-util.ts-import-path-vue` | #192 | a position in the module path of an ES6 `import` gives "Could not resolve symbol definition" |
-| `def-startDateTime-decl`, `explain-startDateTime-decl-pos`, `usage-startDateTime` | #193 | the name of a computed property takes the reference of the outer key `computed`: the result is the `.vue` file, or the key as the only usage |
-| `hier-caller-beat-d1` | #194 | a function in a local constant gives the hierarchy of the enclosing method |
-| `usage-NotificationProvider.send`, `usage-Discord.send` | #196 | the tool gives the 10 dynamic usages that Find Usages of WebStorm hides by default ("0 of 10 usages"). For `Discord.send` WebStorm first asks "Do you want to find usages of the base method?", and the 10 are the answer No (#171) |
-| `file-structure-discord.js` | #198 | an object literal node that has no text is absent, with its children. The row also shows #199: the full text of a spread element is a node name over several lines |
-| `search-text-startDateTime`, `search-text-startDateTime-code` | #184 | a match in an injected fragment comes a second time, with the path `/<file name>` |
-| `def-startDateTime-from-template`, `explain-startDateTime-from-template-pos` | #189 | a position in a template interpolation is no anchor: the result is the `div` element of the HTML schema |
-
-`file-structure-MaintenanceTime.vue` shows #197 (the node `default` of `export default` has
-line 1), but it is a `shape` row, which pins only the line count. So it is not parked. #195 and #200 have no row.
+The notes on the results of the rows and the parked rows are in
+[../../_snapshots/uptime-kuma/GROUND-TRUTH.md](../../_snapshots/uptime-kuma/GROUND-TRUTH.md).

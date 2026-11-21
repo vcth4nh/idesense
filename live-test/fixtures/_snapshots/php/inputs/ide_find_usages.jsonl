@@ -1,3 +1,4 @@
+{"id":"usage-Circle.area-override","tool":"ide_find_usages","params":{"column":21,"file":"src/Normal.php","line":22}}
 {"id":"usage-Drawable-interface","tool":"ide_find_usages","params":{"column":11,"file":"src/Normal.php","line":7}}
 {"id":"usage-Labeled-interface","tool":"ide_find_usages","params":{"column":11,"file":"src/EnumSuper.php","line":6}}
 {"id":"usage-Probe.target-production-scope","tool":"ide_find_usages","params":{"column":21,"file":"src/Probes.php","line":9,"scope":"project_production_files"}}

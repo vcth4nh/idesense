@@ -1,9 +1,7 @@
 # GitHub Actions Workflow is created for testing and preparing the plugin release in the following steps:
-# - Classify changed paths (pull requests): only code changes need the full build; docs-only PRs run just 'test'.
-# - Run the 'buildPlugin' task and prepare artifact for further tests (code PRs and pushes to main).
-# - Run the 'test' task (every PR and push to main — docs changes can fail tests via DocsDriftUnitTest).
-# - Run Qodana inspections (pushes to main only).
-# - Run the 'runPluginVerifier' task (pushes to main only).
+# - Run the 'buildPlugin' task and prepare artifact for further tests.
+# - Run the 'check' task, which runs all tests.
+# - Run the 'verifyPlugin' task (pushes to main only).
 # - Create a draft release (pushes to main only).
 #
 # The workflow is triggered on push and pull_request events.
@@ -20,54 +18,20 @@ on:
   # Trigger the workflow on any pull request
   pull_request:
 
+# A new push to a pull request cancels the run in progress of that pull request. A push to 'main'
+# cancels no run in progress, and the new run waits for it. Only one run can wait, so a newer push
+# replaces the run that waits.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
   
 jobs:
-
-  # Classify the changed paths of a pull request: 'code' selects which jobs are worth running.
-  # On pushes to main the filter step is skipped and the output falls back to 'true' (run everything).
-  changes:
-    name: Changes
-    runs-on: ubuntu-latest
-    outputs:
-      code: ${{ steps.filter.outputs.code || 'true' }}
-    steps:
-
-      # Detect changed files via the GitHub API (no checkout needed on pull_request events)
-      - name: Filter Changed Paths
-        if: github.event_name == 'pull_request'
-        id: filter
-        uses: dorny/paths-filter@v4
-        with:
-          filters: |
-            code:
-              - 'src/**'
-              - 'build.gradle.kts'
-              - 'settings.gradle.kts'
-              - 'gradle.properties'
-              - 'gradle/**'
-              - 'gradlew'
-              - 'gradlew.bat'
-              - 'qodana.yml'
-              - '.github/workflows/**'
 
   # Prepare the environment and build the plugin
   build:
     name: Build
-    needs: [ changes ]
-    if: needs.changes.outputs.code == 'true'
     runs-on: ubuntu-latest
     steps:
-
-      # Free GitHub Actions Environment Disk Space
-      - name: Maximize Build Space
-        uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          preinstalled-runtimes: false
-          large-packages: false
-          swap-storage: true
 
       # Check out the current repository
       - name: Fetch Sources
@@ -106,20 +70,11 @@ jobs:
           name: ${{ steps.artifact.outputs.filename }}
           path: ./build/distributions/content/*/*
 
-  # Run tests and upload a code coverage report
+  # Run tests
   test:
     name: Test
-    needs: [ changes ]
     runs-on: ubuntu-latest
     steps:
-
-      # Free GitHub Actions Environment Disk Space
-      - name: Maximize Build Space
-        uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          preinstalled-runtimes: false
-          large-packages: false
-          swap-storage: true
 
       # Check out the current repository
       - name: Fetch Sources
@@ -150,53 +105,6 @@ jobs:
           name: tests-result
           path: ${{ github.workspace }}/build/reports/tests
 
-      # Upload the Kover report to CodeCov
-      - name: Upload Code Coverage Report
-        uses: codecov/codecov-action@v7
-        with:
-          files: ${{ github.workspace }}/build/reports/kover/report.xml
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-  # Run Qodana inspections and provide a report
-  inspectCode:
-    name: Inspect code
-    needs: [ build ]
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      checks: write
-      pull-requests: write
-    steps:
-
-      # Free GitHub Actions Environment Disk Space
-      - name: Maximize Build Space
-        uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          preinstalled-runtimes: false
-          large-packages: false
-          swap-storage: true
-
-      # Check out the current repository
-      - name: Fetch Sources
-        uses: actions/checkout@v7
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}  # to check out the actual pull request commit, not the merge commit
-          fetch-depth: 0  # a full history is required for pull request analysis
-
-      # Set up the Java environment for the next steps
-      - name: Setup Java
-        uses: actions/setup-java@v6
-        with:
-          distribution: zulu
-          java-version: 21
-
-      # Run Qodana inspections
-      - name: Qodana - Code Inspection
-        uses: JetBrains/qodana-action@v2026.2.2
-        with:
-          cache-default-branch-only: true
-
   # Run plugin structure verification along with IntelliJ Plugin Verifier
   verify:
     name: Verify plugin
@@ -204,14 +112,6 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
-
-      # Free GitHub Actions Environment Disk Space
-      - name: Maximize Build Space
-        uses: jlumbroso/free-disk-space@v2.0.0
-        with:
-          preinstalled-runtimes: false
-          large-packages: false
-          swap-storage: true
 
       # Check out the current repository
       - name: Fetch Sources
@@ -247,7 +147,7 @@ jobs:
   releaseDraft:
     name: Release draft
     if: github.event_name != 'pull_request'
-    needs: [ build, test, inspectCode, verify ]
+    needs: [ build, test, verify ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
