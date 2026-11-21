@@ -324,8 +324,9 @@ The repository has one issue form for each type, and blank issues are off
 | `refactor.yml` | `[REFACTOR] ` | `refactor` | Problem or motivation; Proposed solution; Alternatives considered; IDE / language context; Please confirm the following |
 
 From the command line, write the body with the `###` headings of the form. Put logs in a `bash`
-code fence. The command gives the type label, the `severity:` label and the `component:` labels
-(see "Labels").
+code fence. Below `IDE type`, write one option of the form, and write `All IDEs` for a defect in
+shared plugin code. The command gives the type label, the `severity:` label and the `component:`
+labels (see "Labels").
 
 ```bash
 gh issue create --title "[BUG] <summary>" --label bug --label "severity: <level>" \
@@ -407,8 +408,14 @@ so is a field or a mark on a row that the IDE does not show. Two kinds of issue 
   mark and a link to the entry, and close the issue as "not planned".
 
 The body of a request ends with the section `### Decision for the owner`, after the sections of
-its form. The section is a few lines long. It states what the IDE shows, what the tool returns or
-the request asks for instead, and the choices of the owner.
+its form. The section is a list with the items **The IDE**, **The tool today** or **The request**,
+and **Choices**. The item **The IDE** states what the IDE shows, and whether this fact comes from
+an observation or from the code. The choices have numbers, so that the owner can answer with a
+number. The section makes clear which choice gives a result that differs from the IDE. An item
+**Open points** follows when the body names open points, and one more item can give limits or
+measurements of the body. The section holds only facts of the body, of the comments and of the
+documents of the repository, and it recommends nothing. The section of a parent issue points to
+the sub-issues that hold the decisions.
 
 These cases get no mark:
 
