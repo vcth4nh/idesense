@@ -178,11 +178,15 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   delete (#169).
 - The descriptions of `ide_file_structure` and `ide_find_symbol` no longer say "disabled by
   default". Both tools are on by default (#168).
-- A tool call that the IDE cancels no longer writes error entries to the IDE log. When the IDE
-  stopped the MCP server during a call, the server logged the cancellation as an error, and the
-  platform added the entry "Control-flow exceptions ... should never be logged". The server then
-  updated the command history on the disposed project, which gave a second entry. The cancellation
-  now stops the call, with no log entry and no history update (#127).
+- A cancelled tool call no longer writes error entries to the IDE log. The server logged the
+  cancellation with its exception, and the platform logger wrote "Control-flow exceptions ...
+  should never be logged" in place of the exception. When the IDE stopped the MCP server during a
+  call, the server also updated the command history of the disposed project, which gave a second
+  entry. Now a cancellation of the call itself, for example when the server stops, ends the call
+  with no log entry, no history update and no answer. The IDE can also cancel an operation while
+  the call is still active, for example when the index is not ready after an IDE start. Then the
+  client gets the same answer as before, and the log gets one warning line with no exception
+  (#127).
 - `ide_find_super_methods` no longer returns an empty `hierarchy` when a write action interrupts
   the search of the super methods. The provider of the language took the cancellation for a
   failure, so the IDE did not run the search again. `ide_find_usages` and `ide_explain_symbol` take

@@ -11,6 +11,8 @@ import com.github.vcth4nh.idesense.testutil.LogRecorder
 import com.github.vcth4nh.idesense.tools.ToolRegistry
 import junit.framework.TestCase
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
@@ -297,14 +299,56 @@ class JsonRpcHandlerUnitTest : TestCase() {
         )
     }
 
-    // A cancellation leaves handleRequest and gets no log entry (#127). The cancellation comes
-    // from the tool gate, because a unit test has no project for the call of a tool.
-    fun testACancellationLeavesHandleRequestWithNoLog() {
-        val cancelled = JsonRpcHandler(
+    // A cancellation while the call is active: the client gets the error answer, and the log gets
+    // no error and no throwable (#127). The cancellation comes from the tool gate, because a unit
+    // test has no project for the call of a tool.
+    fun testACancellationInAnActiveCallGetsTheErrorAnswer() {
+        val cancelling = JsonRpcHandler(
             toolRegistry,
             isToolEnabled = { throw CancellationException("cancelled") }
         )
-        val request = JsonRpcRequest(
+
+        val log = LogRecorder()
+        var response: String? = null
+        log.record {
+            response = runBlocking { cancelling.handleRequest(cancelledCallRequest()) }
+        }
+
+        val error = json.decodeFromString<JsonRpcResponse>(response!!).error
+        assertEquals(JsonRpcErrorCodes.INTERNAL_ERROR, error?.code)
+        assertEquals("cancelled", error?.message)
+        assertEquals(emptyList<String>(), log.errorsAndThrowables())
+        assertTrue("One line about the cancellation: ${log.entries}", log.entries.single().contains("CancellationException: cancelled"))
+    }
+
+    // A cancellation of the call itself leaves handleRequest with no answer and no log entry (#127).
+    fun testACancellationOfTheCallLeavesHandleRequest() {
+        var call: Job? = null
+        val cancelling = JsonRpcHandler(
+            toolRegistry,
+            isToolEnabled = {
+                call!!.cancel()
+                throw CancellationException("cancelled")
+            }
+        )
+
+        val log = LogRecorder()
+        var response: String? = null
+        log.record {
+            runBlocking {
+                call = launch { response = cancelling.handleRequest(cancelledCallRequest()) }
+                call!!.join()
+            }
+        }
+
+        assertTrue("The call must end as cancelled", call!!.isCancelled)
+        assertNull("No answer after the cancellation of the call", response)
+        assertEquals(emptyList<String>(), log.entries)
+    }
+
+    private fun cancelledCallRequest(): String = json.encodeToString(
+        JsonRpcRequest.serializer(),
+        JsonRpcRequest(
             id = JsonPrimitive(11),
             method = JsonRpcMethods.TOOLS_CALL,
             params = buildJsonObject {
@@ -312,21 +356,7 @@ class JsonRpcHandlerUnitTest : TestCase() {
                 put(ParamNames.ARGUMENTS, buildJsonObject { })
             }
         )
-
-        val log = LogRecorder()
-        var response: String? = null
-        var thrown: Throwable? = null
-        log.record {
-            try {
-                response = runBlocking { cancelled.handleRequest(json.encodeToString(JsonRpcRequest.serializer(), request)) }
-            } catch (e: CancellationException) {
-                thrown = e
-            }
-        }
-
-        assertNotNull("The cancellation must leave handleRequest, got the response $response", thrown)
-        assertEquals(emptyList<String>(), log.entries)
-    }
+    )
 
     fun testInitializeFallsBackForUnsupportedRequestedVersion() = runBlocking {
         val request = JsonRpcRequest(
