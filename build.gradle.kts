@@ -185,7 +185,9 @@ tasks {
     // With the configuration cache on, the Kotlin classpath snapshot of this task has no entry for a
     // classes folder, so a change of the main classes did not compile the tests again (#235). The
     // trigger is the attribute that the IntelliJ Platform Gradle Plugin gives the artifact type
-    // "directory". This input makes each change of a main class file compile the tests again.
+    // "directory". This input makes each change of a main class file compile the tests again. It
+    // needs the full classpath normalizer: a normalizer for the signatures only does not see a
+    // change of the body of an inline function.
     compileTestKotlin {
         inputs.files(sourceSets.main.get().output.classesDirs)
             .withPropertyName("mainClasses")

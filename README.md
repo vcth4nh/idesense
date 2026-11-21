@@ -163,7 +163,6 @@ The plugin provides **20 MCP tools** — 15 enabled by default, 5 opt-in (toggle
 - RubyMine
 - CLion
 - DataGrip
-- Aqua
 - DataSpell
 
 > The plugin uses standard IntelliJ Platform APIs and should work on each IntelliJ-based IDE except Rider (see the note in [IDE-Specific Defaults](#ide-specific-defaults)), but the live-test suites run only on the tested IDEs above.
@@ -270,7 +269,7 @@ Add to `.cursor/mcp.json` in your project root or `~/.cursor/mcp.json` globally 
 
 ### Other clients
 
-The popup section "Generic MCP Config" copies a Streamable HTTP config or a Legacy SSE config. The documents of the client say which file and which key take it.
+Use the section "Generic MCP Config" of the popup (see [Using the "Install on Coding Agents" Button](#using-the-install-on-coding-agents-button)). The documents of the client say which file and which key take the config.
 
 > **Note**: Replace the server name and port with your IDE's defaults. See [IDE-Specific Defaults](#ide-specific-defaults) below.
 
