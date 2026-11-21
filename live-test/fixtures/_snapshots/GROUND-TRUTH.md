@@ -10,9 +10,9 @@ in `<lang>/GROUND-TRUTH.md`.
 
 - **`hier-callee-makeDefault` constructor callees split by language.** **Kotlin & PHP**
   return empty callees — constructor invocations inside a method body don't surface as
-  call-hierarchy callees there. **Java & TypeScript** are non-empty: Java surfaces the
-  `Circle`/`Rectangle`/`Square` constructors as `CONSTRUCTOR` callees, and WebStorm
-  surfaces them (in TS) as `CLASS` callees — so both the Java and TS
+  call-hierarchy callees there. **Java, JavaScript & TypeScript** are non-empty: Java
+  surfaces the `Circle`/`Rectangle`/`Square` constructors as `CONSTRUCTOR` callees, and
+  WebStorm surfaces them (in JS and TS) as `CLASS` callees — so the Java, JS and TS
   `hier-callee-makeDefault` snapshots are non-empty.
 - **`ide_find_definition` at a constructor call differs by language.** Java and Kotlin give
   the class: `def-Circle-via-new-call` (Java) and `def-Circle-ctor-call`,
@@ -32,20 +32,11 @@ in `<lang>/GROUND-TRUTH.md`.
   these to empty. (`direction: both` is the union of the supertypes walk and the subtypes
   walk, not the combined widget: see "Why `direction: both` is a union" in
   `docs/ARCHITECTURE.md`.)
-- **Library/SDK targets show as a bare basename**: a hit resolving into a
-  JDK / stdlib / stub file (`java.lang.Object`, JS `Number.parseInt`, Python
-  `int`, …) is reduced to basename + symbol identity, with no directory and no
-  line/column — so it reads as `Object.class` / `lib.es5.d.ts` / `builtins.pyi`,
-  not a path. By design (see "Path normalization — project vs library" in
-  `live-test/CONVENTIONS.md`); a
-  toolchain or IDE bump no longer drifts these rows, so it is not a re-bless
-  trigger.
 - **JS/TS return the full transitive super chain**: e.g.
   `super-LeafMix.greet-3level` (JS) and `super-DeepLeaf.m`/`super-DeepMid2.m` (TS)
   return every transitive super, matching the Java/Kotlin/Python analogs and
   WebStorm's overriding-gutter. The provider recurses on
-  `JSInheritanceUtil.findNearestOverriddenMembers` to a fixpoint. Resolved in
-  #23 (was previously immediate-parent only).
+  `JSInheritanceUtil.findNearestOverriddenMembers` to a fixpoint.
 - **JavaScript and TypeScript `find_usages` search the base declaration too (#171, #196).**
   For a member that overrides a base member, WebStorm asks whether to search the
   base method. The result is the union of the answers Yes and No, with marks. The
@@ -87,10 +78,6 @@ in `<lang>/GROUND-TRUTH.md`.
     `fun circleAreaProbe(c: Circle): Double = c.area()` and a Java class that extends
     `Shape`. The tool gave the probe call with no `match` and the other 5 usages with `BASE`,
     and the IDE listed the same 6 usages.
-  - The Java rows on a method or a constructor (`usage-Circle-ctor`,
-    `usage-Probe.target-files-scope`, the two `usage-Quirks.parse-*` rows,
-    `usage-area-from-totalArea`, `usage-area-libraries-scope`) lost their `warnings` entry.
-    Their usages did not change.
 - **A reference inside a doc comment is a `COMMENT` usage in every language.**
   PHP `usage-Shape-class` lists `Shape` in `/** @var Shape[] */`
   (src/Normal.php:53) with `usageType` `COMMENT`. The platform rule of the

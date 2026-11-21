@@ -2,11 +2,9 @@
 
 These results look wrong, but the IDE returns the same. Do not change the probe to "fix" them.
 
-- **ripgrep: the module file.** The bootstrap writes `.idea/ripgrep.iml` with the 16 source and
-  test folders that RustRover itself writes at a first open, and `target` excluded. At a later
-  open RustRover loads the project model from its cache, the Cargo sync sets the roots, and then
-  the IDE applies the module file. A module file with no folder removes all roots, and the scope
-  rows then give `scope_matches_no_files` or no subtypes.
+- **ripgrep: the module file.** The scope rows need the 16 source and test folders of the module
+  file that the bootstrap writes (see "Setup" in [notes.md](../../_setup/ripgrep/notes.md)).
+  When the module file has no folder, the scope rows give `scope_matches_no_files` or no subtypes.
 - **ripgrep: `crates/core` is in no source folder.** It holds the targets of the root package.
   So `hier-sub-Flag-production-scope` gives 0 subtypes, and `find-file-mod.rs` gives 5 files and
   its production scope 2.

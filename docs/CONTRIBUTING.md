@@ -14,7 +14,7 @@ test, dev builds, dependencies, CI, issues, pull requests and release.
 
 Each version is in the file that this list names. Do not copy a version into a doc.
 
-- **Language**: Kotlin on a JVM 21 toolchain (`jvmToolchain` in `build.gradle.kts`).
+- **Language**: Kotlin on the JVM toolchain of `jvmToolchain` in `build.gradle.kts`.
 - **Build**: Gradle with the Kotlin DSL. The wrapper version is in
   `gradle/wrapper/gradle-wrapper.properties` and in `gradleVersion` of `gradle.properties`.
 - **Libraries and Gradle plugins**: `gradle/libs.versions.toml`.
@@ -52,20 +52,17 @@ edit → ./gradlew buildPlugin -PpluginVersion=<version>-dev.NN → install → 
      → check serverInfo.version → live-test run → compare
 ```
 
-- **Give the version on the command line.** IntelliJ treats an equal version string as a no-op
-  install: it keeps the old code and reports no error. So each build that goes into an IDE needs
-  a new version. A `-P` property overrides `gradle.properties`, so no dev version lands on a
-  branch. `pluginVersion` in `gradle.properties` changes only at a release.
+- **Give the version on the command line.** Only the version tells one build from another:
+  `serverInfo.version`, the jar name on the disk and `idea.log` show the version of a build and
+  nothing else. So each build that goes into an IDE needs a new version. A `-P` property
+  overrides `gradle.properties`, so no dev version lands on a branch. `pluginVersion` in
+  `gradle.properties` changes only at a release.
 - **`<version>` is the next patch version.** When `pluginVersion` is `X.Y.Z`, the dev builds are
   `X.Y.(Z+1)-dev.NN`.
-- **`NN` is higher than each build that an IDE has or that is on the disk.** Other sessions and
-  other checkouts deploy to the same IDEs, and the last install wins. Read the version of each
-  IDE and the zip names in `build/distributions/` of each checkout and worktree.
-- **`serverInfo.version` proves the running build.** The `initialize` response gives the version
-  of the loaded plugin descriptor (`McpConstants.SERVER_VERSION`). Read it after each restart. A
-  build that is only on the disk does not run before the IDE restarts. How to read the build on
-  the disk and in `idea.log` is in [live-test/README.md](../live-test/README.md), "Prove which
-  build runs".
+- **`NN` is higher than each build that an IDE has or that is on the disk.** Read the version of
+  each IDE and the zip names in `build/distributions/` of each checkout and worktree.
+- **Prove the running build.** Read `serverInfo.version` after each restart (see
+  [live-test/README.md](../live-test/README.md#prove-which-build-runs), "Prove which build runs").
 - **Deploy.** The tools `ide_install_plugin` and `ide_restart` are off by default. The steps,
   the zip containment rule and the ports are in [live-test/README.md](../live-test/README.md),
   "Deploy a build to the IDEs".
@@ -125,19 +122,19 @@ only under two conditions: `requiresPsiSync` is `true` (the default), and the us
 
 ## Response models
 
-The result classes are in `tools/models/ToolModels.kt`. The result JSON encodes default values,
-also a `null` (see "Platform Contracts and Traps" in [ARCHITECTURE.md](ARCHITECTURE.md)).
+The result classes are in `tools/models/` (`ToolModels.kt`, `StructureModels.kt`). The result
+JSON encodes default values, also a `null` (see "Platform Contracts and Traps" in
+[ARCHITECTURE.md](ARCHITECTURE.md)).
 
-A live-test row compares the whole normalized result (see "Compare modes" in
-[CONVENTIONS.md](../live-test/CONVENTIONS.md)). Thus a new nullable field with the default
-`null` adds `"<field>":null` to each row of each tool that returns the class. Each of these rows
-then needs a bless. For example, each `ide_find_usages` row that is no error holds the key
-`warnings`, in most rows as `"warnings":null`.
+A fixture row and an `exact` or `ordered` product row compare the whole normalized result (see
+"Compare modes" in [CONVENTIONS.md](../live-test/CONVENTIONS.md)). Thus a new nullable field with
+the default `null` adds `"<field>":null` to each such row of each tool that returns the class.
+Each of these rows then needs a bless. For example, each `ide_find_usages` fixture row that is no
+error holds the key `warnings`, in most rows as `"warnings":null`.
 
-The rule: give a new optional field `@EncodeDefault(EncodeDefault.Mode.NEVER)`, and give its
-class `@OptIn(ExperimentalSerializationApi::class)`. Then the JSON omits the field while it is
-`null`, and only the rows that get a value change. `UsageLocation.match` and
-`FindUsagesResult.notes` show the pattern. The docs drift test does not check result fields:
+For a new optional field, follow "The JSON of a result encodes defaults" in "Platform Contracts
+and Traps" of [ARCHITECTURE.md](ARCHITECTURE.md#platform-contracts-and-traps). Then only the rows
+that get a value change. The docs drift test does not check result fields:
 update the "Returns" blocks of `tools-reference.md` and the result descriptions of `USAGE.md`
 by hand.
 
@@ -206,7 +203,7 @@ FindUsagesHandlerFactory.EP_NAME.getPoint(project)
 - The tool names in the `SKILL.md` front matter: exactly the tools that are on by default.
 
 The test does not check result field names, enum values, required flags, the language support
-of a tool, or prose. Check these by hand against `ToolModels.kt` and the schemas.
+of a tool, or prose. Check these by hand against the classes in `tools/models/` and the schemas.
 
 The test reads the `.md` files at run time, and Gradle does not know them as task inputs. After
 an edit of a doc only, a plain `./gradlew test` reports `UP-TO-DATE`, and `cleanTest` can report
@@ -242,7 +239,9 @@ A new platform test must fail on the old code first. To see that failure without
 platform run:
 
 1. Commit the test alone. It must compile against the old code: run `./gradlew compileTestKotlin`.
-2. Push. The Test job of the pull request fails.
+2. Push, and open a draft pull request for the branch if it has none. The Build workflow runs
+   only for a pull request and for a push to `main` (see "CI"). The Test job of the pull request
+   fails.
 3. Read the failure with `gh run view --job <job id> --log-failed`. Make sure that the failed
    line is the intended assertion.
 4. Push the correction. The Test job passes.
@@ -253,7 +252,8 @@ When the Test job stops at `> Task :test` with no output, a test thread waits fo
 thread dumps before you stop a process: a kill first leaves a dead process with no stack. On a
 test branch, add a temporary step that starts `./gradlew check` in the background, waits, and
 then runs `jstack` for each JVM that `jps` lists. Also collect `free -m` and each
-`hs_err_pid*.log` file.
+`hs_err_pid*.log` file. Open a draft pull request for the test branch. A push to a branch with
+no pull request starts no Build run.
 
 ### Live tests
 
@@ -263,10 +263,8 @@ snapshots. CI does not run it. For a change of tool behavior, run the fixture su
 (`./live-test/run.py --suite all`). The commands, the deploy and the bless rules are in
 [live-test/README.md](../live-test/README.md) and [live-test/AGENTS.md](../live-test/AGENTS.md).
 
-After a live run, read the log of each IDE (`idea.log`, on Linux in
-`~/.cache/JetBrains/<IDE><version>/log/`). An entry with `Plugin to blame: IdeSense`, or with a
-stack frame of `com.github.vcth4nh.idesense`, is a defect of the plugin. This is also true when
-the tool result is correct. Write an issue for it.
+After a live run, read `idea.log` of each IDE (see "A defect that no row shows" in
+[live-test/README.md](../live-test/README.md#troubleshooting)).
 
 ## Evidence for a platform claim
 
@@ -274,11 +272,13 @@ A claim about the IntelliJ Platform, a language plugin or an IDE needs evidence 
 not assert" in [AGENTS.md](../AGENTS.md)). Get the evidence in one of these ways:
 
 - **Source.** Read `JetBrains/intellij-community` at the tag of the IDE build. For IntelliJ IDEA
-  the tag is `idea/<build number>`. The build number is in `build.txt` of the IDE installation.
+  the tag is `idea/` and the build number without the product code. `build.txt` of the IDE
+  installation holds the build number after the product code. For example, `IU-262.8665.337`
+  gives the tag `idea/262.8665.337`.
 - **Bytecode.** Run `javap -p -c -cp <jar> <class>` on a jar of the installed IDE (`lib/` or
   `plugins/<plugin>/lib/`). Use this for a language plugin that has no public source.
 - **Decompiler.** IntelliJ IDEA has a decompiler jar. Run it with the bundled runtime of the IDE,
-  because the JDK 21 of the build cannot load its classes:
+  because the toolchain JDK of the build cannot load its classes:
 
   ```bash
   <IDE>/jbr/bin/java -cp <IDE>/plugins/java-decompiler/lib/java-decompiler.jar \
@@ -405,8 +405,9 @@ rubric:
 ### Merge
 
 Merge with a squash merge. The subject is the title of the pull request and its number:
-`<title> (#<n>)`. The titles use the Conventional Commits form, for example
-`fix(tools): <summary>`.
+`<title> (#<n>)`. Give the subject in the command:
+`gh pr merge <n> --squash --subject "<title> (#<n>)"`. The titles use the Conventional Commits
+form, for example `fix(tools): <summary>`.
 
 ### A stacked pull request after the squash merge of its base
 
@@ -415,8 +416,9 @@ conflicts against `main`, because both sides changed the same lines. This proced
 force push:
 
 1. Change the base of the pull request: `gh pr edit <n> --base main`.
-2. Make sure that `main` is the old `main` plus the one squash commit. Make sure that the tree of
-   `main` equals the head of the old base branch: `git diff --quiet origin/main <old base head>`.
+2. Run `git fetch origin`. Make sure that `main` is the old `main` plus the one squash commit.
+   Make sure that the tree of `main` equals the head of the old base branch:
+   `git diff --quiet origin/main <old base head>`.
    Make sure that the stacked branch contains that head:
    `git merge-base --is-ancestor <old base head> HEAD`. Stop if one of the checks fails: the
    merge of step 3 then drops changes of `main`.

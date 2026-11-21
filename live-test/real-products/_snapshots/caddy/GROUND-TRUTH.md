@@ -10,11 +10,12 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   usage (`usage-FastAbs-decl-windows`, a `_windows.go` file on a Linux host). GoLand says
   "Nothing found" and shows a banner about the OS mismatch. The row depends on the OS of the
   IDE host.
-- **One match for each line.** `ide_search_text` returns one match for a line that has the
-  word two times.
-- **`CODE` in a file that is no program source.** `search-text-tailscale-code` has matches in
-  `go.mod`, `go.sum` and an HTML file. The label of a match that is not in a comment and not
-  in a string literal is `CODE`, and the `context` filter keeps the matches by this label.
+- **`ide_search_text` rows.** The search-text rows pin the approved deviation
+  "`ide_search_text`: one match for each line, and a label filter" (see "Where a tool differs
+  from the IDE on purpose" in
+  [docs/ARCHITECTURE.md](../../../../docs/ARCHITECTURE.md#where-a-tool-differs-from-the-ide-on-purpose)).
+  `search-text-tailscale-code` has matches in `go.mod`, `go.sum` and an HTML file. The label
+  of a match that is not in a comment and not in a string literal is `CODE`.
 - **More types than methods.** `impls-Validator` has 24 types and `impls-Validator.Validate`
   has 21 methods. Three types get the method from an embedded type, and that method is
   already in the list. With the library scope the two anchors gave 1,947 types and 1,933

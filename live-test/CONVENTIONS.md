@@ -110,8 +110,8 @@ hyphen, don't dot. E.g. `usage-Drawable-trait`, `impls-Shape-struct`,
 
 What each source file hosts, per language. Files are named after the campaign
 that added them — do not rename or move; anchors and expected paths depend on
-them. Fixture edits are append-only at EOF or brand-new files (see
-Fixture-edit safety), and check the file's `file_structure`/`diagnostics`
+them. Prefer an append at EOF or a new file. An insert shifts the anchors below it
+(see "When fixtures change"). Check the file's `file_structure`/`diagnostics`
 pins first — appending to a pinned file drifts its blessed row.
 
 | Language | File | Hosts |
@@ -134,7 +134,7 @@ pins first — appending to a pinned file drifts its blessed row.
 | javascript | src/probes.js | Probe, freeProdCaller, ProbeProdChild |
 | javascript | test/probe.test.js | ProbeTest, ProbeTestChild (cross-file CommonJS extends) |
 | javascript | src/setter_super.js | Base/Derived accessors, writeProbe WRITE-usage site |
-| javascript | src/accessors.js, mixin_super.js, multisuper.js, triple_super.js, async_super.js, static_super…, negative_super.js, consumer.js | super-methods/mixin campaign fixtures |
+| javascript | src/accessors.js, mixin_super.js, multisuper.js, triple_super.js, async_super.js, negative_super.js, consumer.js | super-methods/mixin campaign fixtures |
 | typescript | src/normal.ts | Shape hierarchy, Drawable, ShapeCollection |
 | typescript | src/multisuper.ts | diamond (DiamondTop/DiamondBottom), AbstractCombo/ConcreteCombo (readonly p), accessor/static supers |
 | typescript | src/quirks.ts | q* dispatch, TypedCoercer |
@@ -223,7 +223,8 @@ Hard rules (they keep the pinned snapshots stable):
    when the previously blessed result was **not** an error (or the row is
    new) — a degraded IDE must not silently poison snapshots. Rows already
    blessed as errors (intentional negative probes) stay re-blessable.
-   Override with `--bless-errors` (e.g. when adding a new negative probe).
+   Override with `--bless-errors` (e.g. when adding a new negative probe, with `--tool` for
+   the file of that row).
 3. Drop orphan expected ids (ids in `expected/` no longer in any
    `inputs/<tool>.jsonl`). Override with `--prune`.
 4. Run with `--tool` filter matching zero rows.
@@ -247,7 +248,8 @@ Check what a bless changed before the commit:
   examine that row.
 - A bless that changes rows: the ids of the deleted lines (`git diff -U0`) equal the ids that
   you intended to change.
-- To hold one row back, bless, and then remove the line of that row from its expected file.
+- To hold back a changed row, put its old line back from git. A new row that you hold back
+  makes `--check-fixtures` fail until it is blessed.
 
 ## Path normalization — project vs library
 
@@ -268,10 +270,10 @@ and toolchain versions by classifying every file ref (`_is_library`):
 Absoluteness is the signal because the plugin already emits project files
 relative and library files absolute. We key off the **project root** (which we
 are handed), never off library install locations — so a new host, install
-manager, SDK version, or renamed checkout needs **zero** maintenance, and a
-toolchain bump no longer drifts the snapshot or forces a re-bless. There is no
-`LIBRARY_PATH_SUBS` list to extend. `enclosingScope` is kept — it is usually the
-enclosing method/class scope (a relative name chain like `['ShapeCollection',
+manager, SDK version, or renamed checkout needs **zero** maintenance. A line
+shift in a library file changes no row. A new qualified name or base name of a
+library symbol (after an IDE or a toolchain update) still changes the row.
+`enclosingScope` is kept — it is usually the enclosing method/class scope (a relative name chain like `['ShapeCollection',
 'Add']`), which is real signal; only its absolute-*directory* form (a FILE
 node's folder, `['/','home',…,'src']`) is dropped as machine-specific and
 redundant with `file`.
@@ -302,8 +304,9 @@ redundant with `file`.
 4. `./run.py --language <lang>` — see the new row reported as MISSING.
 5. Inspect the IDE response in `fixtures/_snapshots/<lang>/output.jsonl` for that id.
    Confirm it looks like the truth you expected.
-6. Bless under the bless rule of [AGENTS.md](AGENTS.md): `./run.py --bless --language <lang>`.
-   The new row's expected entry is added; pre-existing expected rows are preserved.
+6. Bless under the bless rule of [AGENTS.md](AGENTS.md):
+   `./run.py --bless --language <lang> --tool <tool>`. It rewrites each row of that tool file.
+   Check the diff (see "Check a bless").
 7. If the result looks wrong but the IDE returns the same, add a note with the evidence
    (see "Ground-truth notes").
 8. New/edited fixture files follow the "Fixture comment standard" above, and
@@ -320,9 +323,9 @@ redundant with `file`.
   re-bless if the new behavior is correct, or update the probe's `line`/
   `column` to point at the original target.
 - Renaming a class: rename every ID referencing it in `inputs/` **and**
-  `expected/` in lockstep (script it; ids are the join key), then run
-  `--check-fixtures` and a full language run — results are unchanged so no
-  re-bless.
+  `expected/` in lockstep (script it; ids are the join key). Then run
+  `--write-anchors`, `--check-fixtures` and a full language run. Re-bless the
+  rows whose names changed.
 
 ## Ground-truth notes
 
@@ -381,13 +384,13 @@ tries for 60 seconds. The first try that differs prints the difference. When the
 part of the project model after it reports smart mode (a nested dependency root, a library
 that the sync of a build tool adds), one canary row must resolve into that part.
 
-- Never bless a product that is `MISCONFIGURED` because of its project model. Repair the
-  checkout or the IDE first.
+- The rule for a product that is `MISCONFIGURED` because of its project model is in
+  AGENTS.md ("Bless").
 - A change of the plugin can also alter a canary row, because a canary row is an exact
   snapshot of a normal tool. The printed difference shows it, and the fixture suite shows
-  the same change. Only then is `--bless --bless-canary` correct, under the bless rule of
-  AGENTS.md. Read the
-  `git diff` of the expected files before the commit.
+  the same change. For a change of the plugin, only then is `--bless --bless-canary`
+  correct, under the bless rule of AGENTS.md. Read the `git diff` of the expected files
+  before the commit.
 - A normal `--bless` does not rewrite the canary rows. `--bless-canary` does, and no gate
   protects that bless. Use it for a new product and for a new pin, after a check of the
   canary results by hand.

@@ -8,9 +8,9 @@ The "verified against" column cites the exact call site so a future reader can r
 
 | Tool | Backing mechanism | verified against |
 |---|---|---|
-| `ide_find_usages` | EP: `FindUsagesHandlerFactory.EP_NAME` (Alt+F7 equivalence class) + `ReferencesSearch` fallback | `FindUsagesHandlerSearch.kt` / `FindUsagesTool.kt` |
+| `ide_find_usages` | `SuperMethodsProvider.findDirectReferences` first (Java, Kotlin, PHP), else EP `FindUsagesHandlerFactory.EP_NAME` (Alt+F7 equivalence class), else `ReferencesSearch`; symbol anchor: `SymbolAnchorResolver` | `FindUsagesHandlerSearch.kt` / `FindUsagesTool.kt` / `SuperMethodsProvider.kt` |
 | `ide_find_definition` | none — `PsiUtils.resolveTargetElement` → `PsiElement.navigationElement` (Ctrl+B) | `FindDefinitionTool.kt` |
-| `ide_find_class` | headless Go-to-Class popup: `PopupFaithfulClassSearch` → `ChooseByNameModel` (Ctrl+N) | `FindClassTool.kt` / `PopupFaithfulClassSearch.kt` |
+| `ide_find_class` | headless Go-to-Class popup: `PopupFaithfulClassSearch` → `GotoClassModel2` (Ctrl+N) | `FindClassTool.kt` / `PopupFaithfulClassSearch.kt` |
 | `ide_find_file` | EP iteration: `ChooseByNameContributor.FILE_EP_NAME` (Go-to-File, Ctrl+Shift+N) | `FindFileTool.kt` |
 | `ide_find_symbol` | headless Go-to-Symbol popup: `PopupFaithfulSymbolSearch` → `GotoSymbolModel2` (Ctrl+Alt+Shift+N) | `FindSymbolTool.kt` / `PopupFaithfulSymbolSearch.kt` |
 | `ide_find_implementations` | EP: `DefinitionsScopedSearch.search()` (Ctrl+Alt+B) | `FindImplementationsTool.kt` |
@@ -21,9 +21,9 @@ The "verified against" column cites the exact call site so a future reader can r
 | `ide_file_structure` | EP: `LanguageStructureViewBuilder` → `TreeModelWrapper` + `SmartTreeStructure` (Structure view) | `FileStructureTool.kt` |
 | `ide_read_file` | none — `PsiUtils.resolveVirtualFileAnywhere` / `PsiManager.findFile` (VFS + PSI) | `ReadFileTool.kt` |
 | `ide_diagnostics` | multiple: `DaemonCodeAnalyzerEx` (open files) + `CodeSmellDetector` (closed files) + `BuildDiagnosticsCacheService` + `TestResultsCollector` | `GetDiagnosticsTool.kt` / `DiagnosticsAnalysisService.kt` |
-| `ide_explain_symbol` | composes: anchor via `ClassResolver` / `PopupFaithfulSymbolSearch`; facets via `DocumentationManager` quick doc + `SuperMethodsProvider` EP + `DefinitionsScopedSearch` + `FindUsagesHandlerSearch`/`ReferencesSearch` + optional `DiagnosticsAnalysisService` | `ExplainSymbolTool.kt` |
+| `ide_explain_symbol` | composes: anchor via `SymbolAnchorResolver`; quick doc via `DocumentationManager`, else `PsiDocumentationTargetProvider.EP_NAME`; facets via `SuperMethodsProvider` EP + `DefinitionsScopedSearch` + `FindUsagesHandlerSearch` + optional `DiagnosticsAnalysisService` | `ExplainSymbolTool.kt` / `SymbolAnchorResolver.kt` |
 | `ide_index_status` | service: `DumbService.getInstance(project).isDumb` | `GetIndexStatusTool.kt` |
-| `ide_sync_files` | none — `VfsUtil.markDirtyAndRefresh` + `LocalFileSystem` + `PsiDocumentManager.commitAllDocuments` | `SyncFilesTool.kt` |
+| `ide_sync_files` | none — `VfsUtil.markDirtyAndRefresh` + `LocalFileSystem` + `PsiDocumentManager.commitAllDocuments` | `SyncFilesTool.kt` / `AbstractMcpTool.kt` (`commitDocuments`) |
 | `ide_install_plugin` | none — `PathManager.getPluginsDir()` + JDK `ZipInputStream` (zip-slip guarded) | `InstallPluginTool.kt` |
 | `ide_restart` | none — `ApplicationManagerEx.getApplicationEx().restart(true)` (scheduled via `AppExecutorUtil`) | `RestartIdeTool.kt` |
 | `ide_refactor_rename` | `RenameProcessor` + `RenamePsiElementProcessor` EP + `AutomaticRenamerFactory` EP iteration | `RenameSymbolTool.kt` |
@@ -160,19 +160,6 @@ case 2 above, and an entry here.
   the index search runs with `UsageSearchContext.ANY`: the index puts plain text, HTML text and JSON
   strings in other contexts, so a context mask loses matches (#133) (`SearchTextTool`).
 
-## Key Documentation
-
-### IntelliJ Platform SDK
-- **Indexing and PSI Stubs**: https://plugins.jetbrains.com/docs/intellij/indexing-and-psi-stubs.html
-- **Rename Refactoring**: https://plugins.jetbrains.com/docs/intellij/rename-refactoring.html
-- **Plugin Configuration**: https://plugins.jetbrains.com/docs/intellij/plugin-configuration-file.html
-
-### Model Context Protocol (MCP)
-- **Tools API (2025-11-25 — structuredContent)**: https://modelcontextprotocol.io/specification/2025-11-25/server/tools
-- **Specification (2025-03-26, also supported)**: https://spec.modelcontextprotocol.io/specification/2025-03-26/
-- **Tools API (2025-03-26, also supported)**: https://modelcontextprotocol.io/specification/2025-03-26/server/tools
-- **Legacy SSE Transport**: https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/transports/
-
 ## Project Structure
 
 Package map under `src/main/kotlin/com/github/vcth4nh/idesense/`
@@ -180,12 +167,15 @@ Package map under `src/main/kotlin/com/github/vcth4nh/idesense/`
 
 - `server/` — MCP infra: `McpServerService` (app-level lifecycle), `JsonRpcHandler`,
   `ProjectResolver` (multi-project/workspace), `transport/` (Ktor CIO + SSE), `models/`
-- `tools/` — one class per MCP tool. `AbstractMcpTool` (auto VFS/PSI sync + threading;
-  extend this and implement `doExecute()`), `ToolRegistry` (data-driven registration),
+- `tools/` — one class per MCP tool. `AbstractMcpTool` (VFS refresh and document commit before
+  `doExecute()` only when `syncExternalChanges` is on, off by default; threading helpers),
+  `ToolRegistry` (data-driven registration),
   `schema/SchemaBuilder` (all tool input schemas), `SymbolAnchor`/`SymbolAnchorResolver` (see
   "Symbol Anchors"). Subpackages: `navigation/` (incl. the note builders `BaseDeclarationsNote`,
-  `OverridingDeclarationsNote`, `SkippedBasesNote`, `DroppedUsagesNote`), `intelligence/`,
-  `project/` (incl. `InstallPluginTool`/`RestartIdeTool` dev-loop), `refactoring/`
+  `OverridingDeclarationsNote`, `SkippedBasesNote`, `DroppedUsagesNote`, and `structure/`, the
+  modifier text of `ide_file_structure`), `intelligence/`,
+  `project/` (incl. `InstallPluginTool`/`RestartIdeTool` dev-loop), `refactoring/`, `models/`
+  (the result data classes)
 - `tools/navigation/hierarchy/` — **IDE extension-point delegation** for
   `ide_call_hierarchy`/`ide_type_hierarchy`. `HierarchyTreeWalker` drives the IDE's own
   `HierarchyProvider` browser/tree-structure headlessly; `ClassLikePsi` is the cross-IDE
@@ -194,21 +184,28 @@ Package map under `src/main/kotlin/com/github/vcth4nh/idesense/`
   ships no type-hierarchy provider). See "Hierarchy Tools" below.
 - `handlers/` — `LanguageServices` (object with `getKind`/`findSuperMethods` dispatch)
   backed by `LanguageKindResolver` and `SuperMethodsProvider` IntelliJ `LanguageExtension`
-  EPs (registered in `plugin.xml`). Also: `PopupFaithfulSymbolSearch`/`ClassSearch`
+  EPs (declared in `plugin.xml`). Also: `PopupFaithfulSymbolSearch`/`ClassSearch`
   (headless Go-to-Symbol popup model), `SameNameSymbolOrder`, `SymbolDataConverter`,
   `LanguageDisplayName`, `BuiltInSearchScope*`, `FindUsagesHandlerSearch` (with the language parts
   `go/GoFindUsages`, `javascript/JavaScriptFindUsages`, `markdown/MarkdownFindUsages`),
-  `HandlerDataClasses` (wire-format data classes). `handlers` does not import `tools`.
+  `HandlerDataClasses` (wire-format data classes). `handlers` does not import `tools`. The
+  `LanguageKindResolver` and `SuperMethodsProvider` implementations of a language are in
+  `handlers/<lang>/`.
 - `constants/` — `ToolNames`, `ParamNames`, `UsageTypes`, `UsageMatch` (the marks of a usage),
   `UsageDrop` (the kinds of a left-out usage)
 - `util/` — `QualifiedNameUtil` (QualifiedNameProvider EP delegation + Go/Rust
   fallbacks), `ClassResolver`, `ProjectUtils`, `PsiUtils`, `PluginDetectors`,
   `ThreadingUtils`, `LinePreview`
-- `settings/`, `startup/`, `ui/` — config + configurable, startup activities, tool-window UI
-- `resources/META-INF/` — `plugin.xml` + optional `*-features.xml` language extensions
+- `settings/`, `startup/`, `ui/` — config + configurable, startup activities, tool-window UI.
+  The tool window takes its actions from `actions/`, its icons from `icons/` and its command list
+  from `history/` (`CommandHistoryService`).
+- `exceptions/`: `McpException` and its subclasses.
 
-Tests: `src/test/kotlin` (`*UnitTest` = `TestCase`, no platform; `*Test` =
-`BasePlatformTestCase`), live harness in `live-test/`.
+Resources: `src/main/resources/META-INF/` (`plugin.xml` and the optional `*-features.xml`
+language extensions).
+
+Tests: `src/test/kotlin` (the test kinds are in [CONTRIBUTING.md](CONTRIBUTING.md#test-kinds),
+"Test kinds"), live harness in `live-test/`.
 
 ## Architecture Concepts
 
@@ -220,8 +217,8 @@ represented as modules with separate content roots:
 - **Project resolution** (`ProjectResolver.resolve`): Checks exact basePath → module content roots → subdirectory match
 - **File resolution** (`AbstractMcpTool.resolveFile`): Tries basePath, then module content roots
 - **Relative path computation** (`ProjectUtils.getRelativePath`): Strips the matching content root prefix
-- **VFS/PSI sync** (`AbstractMcpTool.ensurePsiUpToDate`): Refreshes all content roots, not just basePath
-- **Error responses**: `available_projects` detail is configurable. Expanded mode includes workspace sub-projects with their `workspace` parent name; compact mode returns only top-level project roots.
+- **VFS/PSI sync** (`AbstractMcpTool.ensurePsiUpToDate`): Refreshes all content roots, not just basePath. It runs only when `syncExternalChanges` is on.
+- **Error responses**: `ProjectResolver` builds `available_projects`. The setting `availableProjectsMode` selects the expanded or the compact list (see "Settings" in [README.md](../README.md#settings)).
 - **All open projects at once**: with no `project_path`, a tool that implements `AllProjectsTool` (today `ide_index_status`) answers for each open project instead of `multiple_projects_open`. It is a separate interface, not a default method of `McpTool`, because `McpTool` is the interface of the public extension point `mcpTool`.
 
 Key utility: `ProjectUtils.getModuleContentRoots(project)` returns all module content root paths.
@@ -234,11 +231,9 @@ no resources. `JsonRpcHandler` answers the JSON-RPC methods `initialize`,
 
 **Server Infrastructure:**
 - Custom embedded **Ktor CIO** HTTP server (not IntelliJ's built-in server)
-- Configurable port with IDE-specific defaults (e.g., IntelliJ: 29170, PyCharm: 29172) via Settings → Tools → IdeSense → Server Port
-- Binds to `127.0.0.1` (localhost) by default; configurable via **Server Host** setting
+- The port, the host and the other server settings are in "Settings" of [README.md](../README.md#settings)
 - **Non-loopback bind is opt-in.** There is no auth token on any transport, so a non-loopback host (`0.0.0.0`, a LAN address, …) hands every enabled tool to anything that can reach the port. `ServerHostPolicy` is the single choke point on every bind path: a non-loopback host is honored only when the user has ticked **Allow non-loopback bind**; otherwise the server falls back to loopback, stays running (local agents keep working), and warns via notification. Every URL the plugin reports — status panel, generated client configs — is built from the host actually bound, never the configured one
 - Single server instance across all open projects
-- Auto-restart on port change
 
 **Key Server Classes:**
 - `McpServerService` - Application-level service managing server lifecycle
@@ -246,44 +241,31 @@ no resources. `JsonRpcHandler` answers the JSON-RPC methods `initialize`,
 - `KtorSseSessionManager` - SSE session management using Kotlin channels
 - `JsonRpcHandler` - JSON-RPC 2.0 request processing
 
-**Transport**: This plugin supports two transports with JSON-RPC 2.0. All tool results include native `structuredContent` (MCP 2025-11-25). The text content block mirrors the structured content for backward compatibility: in **JSON** mode (default) it contains the serialized JSON; in **TOON** mode it contains the TOON representation instead. The format is controlled by the **Response Format** setting.
+**Transport**: This plugin supports three transport modes with JSON-RPC 2.0. A tool result that `StructuredToolResult` builds includes native `structuredContent` (MCP 2025-11-25). Only `AbstractMcpTool.createSuccessResult` (today the empty-file answer of `ide_file_structure`) and the fallback for a formatting failure give a result with text only. The text content block mirrors the structured content for backward compatibility: in **JSON** mode (default) it contains the serialized JSON; in **TOON** mode it contains the TOON representation instead. The format is controlled by the **Response Format** setting.
 
 *Streamable HTTP (Primary, MCP 2025-11-25):*
 - `POST /mcp/streamable-http` → Stateless JSON-RPC requests/responses
 - `GET /mcp/streamable-http` → 405 Method Not Allowed
 - `DELETE /mcp/streamable-http` → 405 Method Not Allowed
-- Protocol version is negotiated on `initialize` (supported: 2025-11-25, 2025-03-26, 2024-11-05); streamable-HTTP defaults to 2025-11-25
+- Protocol version is negotiated on `initialize` (the versions in `McpConstants.SUPPORTED_PROTOCOL_VERSIONS`); streamable-HTTP defaults to 2025-11-25
 
 *Legacy SSE (MCP 2024-11-05):*
 - `GET /mcp/sse` → Opens SSE stream, sends `endpoint` event with POST URL
-- `POST /mcp` → JSON-RPC requests/responses
+- `POST /mcp?sessionId=<id>` → 202, the answer is an SSE `message` event (`POST /mcp/sse` goes to the same handler)
 
-
-**Port Configuration**: Settings → Tools → IdeSense → Server Port (IDE-specific defaults, range: 1024-65535)
+*Stateless (legacy):*
+- `POST /mcp` with no `sessionId` → immediate JSON, default protocol `McpConstants.LEGACY_MCP_PROTOCOL_VERSION`
 
 ### IDE-Specific Defaults
 
-| IDE | Server Name | Default Port |
-|-----|-------------|--------------|
-| IntelliJ IDEA | `intellij-idesense` | 29170 |
-| Android Studio | `android-studio-idesense` | 29171 |
-| PyCharm | `pycharm-idesense` | 29172 |
-| WebStorm | `webstorm-idesense` | 29173 |
-| GoLand | `goland-idesense` | 29174 |
-| PhpStorm | `phpstorm-idesense` | 29175 |
-| RubyMine | `rubymine-idesense` | 29176 |
-| CLion | `clion-idesense` | 29177 |
-| RustRover | `rustrover-idesense` | 29178 |
-| DataGrip | `datagrip-idesense` | 29179 |
-| Aqua | `aqua-idesense` | 29180 |
-| DataSpell | `dataspell-idesense` | 29181 |
-| Rider | `rider-idesense` | 29182 |
-
-> **Note**: Rider has a port entry but is currently marked incompatible in `plugin.xml` and is not supported.
+Server names and default ports come from `IdeProductInfo.IdeProduct` (`util/IdeProductInfo.kt`).
+The table for a user is in [README.md](../README.md#ide-specific-defaults), "IDE-Specific
+Defaults". `IdeProductInfo` has a Rider entry, but `plugin.xml` marks the plugin incompatible
+with Rider (`incompatible-with`).
 
 ## Multi-Language Architecture
 
-Two distinct mechanisms — pick by whether the platform exposes a usable extension point
+Three mechanisms — pick by whether the platform exposes a usable extension point
 (see "Core Design Principle: Mimic the IDE"):
 
 **1. IDE extension-point delegation (preferred).** `ide_call_hierarchy` /
@@ -297,11 +279,12 @@ resolution and `ide_find_super_methods`.
 - `LanguageServices` (`handlers/LanguageServices.kt`) — object with `getKind(element)`
   (dispatches to `LanguageKindResolver` EP → `LanguageFindUsages.getType()` fallback →
   className fallback) and `findSuperMethods(element, project)` (dispatches to
-  `SuperMethodsProvider` EP). Both EPs are registered in `plugin.xml` per language.
-- `LanguageKindResolver` / `SuperMethodsProvider` — IntelliJ `LanguageExtension` EPs;
-  implementations are registered for each supported language and use reflection where
-  needed to avoid compile-time deps on language plugins (prevents `NoClassDefFoundError`
-  in IDEs lacking them).
+  `SuperMethodsProvider` EP). `plugin.xml` declares both EPs.
+- `LanguageKindResolver` / `SuperMethodsProvider` — IntelliJ `LanguageExtension` EPs.
+  Each language registers its implementations in its `<lang>-features.xml`. The
+  implementations use reflection where needed to avoid compile-time deps on language plugins
+  (prevents `NoClassDefFoundError` in IDEs lacking them). JavaScript and TypeScript register
+  only a `SuperMethodsProvider`, so their kind comes from the two fallbacks of `getKind`.
 
 **3. `DefinitionsScopedSearch` EP delegation.** `ide_find_implementations` calls the
 platform's `DefinitionsScopedSearch.search()` directly — the same API behind Ctrl+Alt+B.
@@ -426,7 +409,7 @@ Related issues: #218, #223 and #225 (Go call hierarchy), #224 (Python property),
 
 Symbol search across all languages drives IntelliJ's headless "Go to Symbol" popup stack via `PopupFaithfulSymbolSearch` (in `handlers/PopupFaithfulSymbolSearch.kt`):
 - Wraps `GotoSymbolModel2` + `ChooseByNameModelEx` — the same APIs as IntelliJ's own Ctrl+Alt+Shift+N popup
-- Inherits the IDE's parallel execution, dumb-mode safety, cancellation, proximity-aware sorting, and qualified-query support (e.g. `BasicSolver.run`)
+- Inherits the IDE's parallel execution, dumb-mode safety, cancellation, the name order of the popup (`SameNameSymbolOrder` orders the symbols of one name), and qualified-query support (e.g. `BasicSolver.run`)
 - `FindSymbolTool` owns the over-fetch loop and converts NavigationItems to wire-format `SymbolData` via `SymbolDataConverter`
 - An exact-name search (`searchExactName`) serves the exact mode of `ide_find_symbol` and the name anchors of `SymbolAnchorResolver`. The popup ranks its items by a fuzzy match, so an item with the exact name can come after any number of other items (GoLand indexes a symbol as `package.name`, and the text `PKI` matches each symbol of the package `caddypki`). The exact-name search gives the popup stack only the index names that end with the name, and it keeps only the items with the exact name (#131)
 - `SymbolDataConverter` delegates `kind` classification to `LanguageServices.getKind()` and qualified names to `QualifiedNameUtil`
@@ -503,7 +486,7 @@ Its KDoc has the detail and the bytecode citations. The summary:
   whose `GotoDeclarationHandler` step moves a `new Foo()` caret to the constructor and loses usages.
   The map of a Kotlin constructor to its class thus stays in `FindDefinitionTool.effectiveDeclarationTarget`.
 
-Provider hooks (`SuperMethodsProvider`; a hook that throws changes nothing, a cancellation leaves the search):
+Provider hooks (`SuperMethodsProvider`; a hook that throws changes nothing, a cancellation or a `LinkageError` leaves the search):
 
 | Hook | Effect | Languages |
 |---|---|---|
@@ -529,20 +512,23 @@ The plugin supports cursor-based pagination for search tools that return flat re
 - Same cursor token always returns the same page (idempotent, safe for retries)
 - Each response includes `nextCursor` for the next page
 
-**Cache lifecycle:**
-- Over-collection: tools collect 500 results internally, serve in configurable page sizes (default varies per tool)
-- Inactivity-based TTL: 10 minutes of idle time before cursor expires
-- LRU eviction: max 20 active cursors
-- Max 5,000 cached results per cursor; beyond this, `hasMore` returns false
+**Cache lifecycle** (the constants are in `PaginationService`):
+- Over-collection: tools collect `DEFAULT_OVERCOLLECT` results internally, serve in configurable page sizes (default varies per tool)
+- Inactivity-based TTL: `TTL_MINUTES` of idle time before cursor expires
+- LRU eviction: max `MAX_CURSORS` active cursors
+- Max `MAX_CACHED_RESULTS_PER_CURSOR` cached results per cursor; the `searchExtender` runs only while the cache holds fewer results
 - Staleness detection via `PsiModificationTracker` — `stale: true` in response if PSI changed
+
+The effect of these limits for a user is in [USAGE.md](USAGE.md#pagination-and-result-size),
+"Pagination and Result Size".
 
 **Tool integration pattern:**
 1. Check for `cursor` parameter → serve from cache via `getPageFromCache()`
 2. Fresh search → collect results, create cursor via `PaginationService.createCursor()`, serve first page
 3. `searchExtender` lambda enables lazy cache extension when pages are exhausted
-4. Each tool has a `buildPaginatedResult()` helper mapping `GetPageResult` to its own result model
+4. Each tool calls `AbstractMcpTool.buildPaginatedResult` with a lambda that maps the page to its own result model
 
-**Schema:** All parameters are optional in the schema (no `required` array) because the Anthropic API does not support `anyOf`/`oneOf` at the top level. Validation is done at runtime — if `cursor` is absent, the tool checks for its required search params and returns an error if missing.
+**Schema:** All parameters of the paginated tools are optional in the schema (no `required` array) because the Anthropic API does not support `anyOf`/`oneOf` at the top level. Validation is done at runtime — if `cursor` is absent, the tool checks for its required search params and returns an error if missing.
 
 **Backward compatibility:** Old `limit`/`maxResults` parameters work as aliases for `pageSize`. Legacy cursors (without embedded pageSize) are still decodable but require an explicit `pageSize` parameter.
 
@@ -562,8 +548,7 @@ those would throw on and stays lenient on numeric-string→int (`line: "123"` pa
 does not). The undocumented pagination aliases `limit`/`maxResults` are allowlisted; `project_path`
 is in-schema on every tool. **Consequence:** because validation enforces the schema, every
 parameter (and enum value) a tool actually accepts MUST be declared in its `SchemaBuilder` schema —
-an accepted-but-undeclared param is a bug (this surfaced `ide_find_class` `matchMode: camelCase`,
-which was missing from the enum). Conversely a param the tool ignores should not be sent; the
+an accepted-but-undeclared param is a bug. Conversely a param the tool ignores should not be sent; the
 validator (correctly) rejects it.
 
 **`McpErrors`** (`server/McpErrors.kt`) — builds canonical error bodies as `JsonObject`s (pure;
@@ -576,38 +561,26 @@ callers render them to a `ToolCallResult` via `StructuredToolResult.fromElement`
 **Error channel & catch-all split.** Once a tool resolves, all errors are **tool results**
 (`isError: true` + text mirror + native `structuredContent`), never JSON-RPC `error` objects — those
 stay reserved for pre-dispatch protocol failures (parse, bad jsonrpc, missing params, unknown
-tool/method). `AbstractMcpTool.createErrorResult(message)` wraps to
+tool/method, disabled tool). `AbstractMcpTool.createErrorResult(message)` wraps to
 `{"error":"tool_error","message":message}` centrally, and is recursion-safe
 (`createStructuredErrorResult`'s formatting-failure fallback builds plain text inline).
 `processToolCall`'s catch is split: `catch (McpException)` → `McpErrors.fromException(e)` using
-`e.errorType`, **not** logged at ERROR (client-caused, e.g. dumb mode); `catch (Exception)` →
-`internal_error`, logged at ERROR.
+`e.errorType`, logged at INFO (client-caused, e.g. dumb mode); `catch (Exception)` →
+`index_out_of_sync` at WARN when `McpErrors.isIndexMismatch(e)`, else `internal_error` at ERROR.
 
-**`error` code vocabulary:** `invalid_arguments` (validator) · `tool_error` (generic
-`createErrorResult`) · `internal_error` (generic catch / `InternalErrorException`) · the
-`McpException.errorType` codes `index_not_ready` / `file_not_found` / `symbol_not_found` /
-`refactoring_conflict` / `invalid_params` · `invalid_scope` (an unsupported `scope` value) ·
-`scope_matches_no_files` (see "Where a tool differs from the IDE on purpose") ·
-`index_out_of_sync` (the platform failure "PSI and index do not match"; the platform calls
-`rebuildStub()` on the file before it throws (`FileTrees`, idea/262.8665.337), so a later call can
-succeed; `McpErrors.isIndexMismatch`, logged at WARN) · and `ProjectResolver`'s `no_project_open` /
+**`error` code vocabulary** (the class that makes each code; the list for a user is in
+"Error Handling" of [USAGE.md](USAGE.md#error-handling)): `invalid_arguments`
+(`ArgumentValidator` and `AbstractMcpTool.createMissingRequiredParamError`, with `violations`;
+the check of `SymbolAnchor.parse` in `ide_find_usages`, `ide_call_hierarchy` and
+`ide_explain_symbol`, with no `violations`) · `tool_error` (generic `createErrorResult`) ·
+`internal_error` (the generic catch of `processToolCall`) · `index_not_ready`
+(`IndexNotReadyException` from `AbstractMcpTool.requireSmartMode`, the only `McpException` that a
+tool throws) · `invalid_scope` (`McpErrors.invalidScope`, an unsupported `scope` value) ·
+`scope_matches_no_files` (`McpErrors.scopeMatchesNoFiles`, see "Where a tool differs from the IDE
+on purpose") · `index_out_of_sync` (`McpErrors.indexOutOfSync`, for the platform failure "PSI and
+index do not match"; the platform calls `rebuildStub()` on the file before it throws (`FileTrees`,
+idea/262.8665.337), so a later call can succeed) · and `ProjectResolver`'s `no_project_open` /
 `project_not_found` / `multiple_projects_open`.
-
-## Search Collection Pattern (Processor)
-
-All search operations use the `Processor` pattern for efficient streaming and early termination:
-
-```kotlin
-// ✗ Inefficient: loads all results into memory
-val results = SomeSearch.search(element).findAll().take(100)
-
-// ✓ Efficient: streams results with early termination
-val results = mutableListOf<Result>()
-SomeSearch.search(element).forEach(Processor { item ->
-    results.add(convertToResult(item))
-    results.size < 100  // Return false to stop iteration
-})
-```
 
 ## Platform Contracts and Traps
 
@@ -670,5 +643,6 @@ Each entry gives the contract, the consequence for the code, and the class that 
   (`AbstractMcpTool.json`, `StructuredToolResult`) have `encodeDefaults = true`, so a new nullable
   field shows as `"field": null` in each response. A field that is absent in the normal case takes
   `@EncodeDefault(EncodeDefault.Mode.NEVER)` (`UsageLocation.match`, `FindUsagesResult.notes`,
-  `ExplainSymbolResult.notes`). `FindUsagesResult.warnings` has no such annotation, so each
-  `ide_find_usages` response has `"warnings": null`.
+  `ExplainSymbolResult.notes`), and its class takes `@OptIn(ExperimentalSerializationApi::class)`.
+  Then the JSON omits the field while it is `null`. `FindUsagesResult.warnings` has no such
+  annotation, so each `ide_find_usages` response has `"warnings": null`.

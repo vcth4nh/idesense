@@ -18,6 +18,4 @@ a probe to "fix" one. The notes that cover more than one language are in
 - **JS `super-WithMixin.shout-mixin`**: empty hierarchy. `WithMixin` extends
   a dynamically-constructed mixin class (`Amplifier(Plain)`); the IDE cannot
   statically resolve the super — confirmed the gutter shows nothing either.
-  This is expected ground truth (not a tool gap), unlike the immediate-only
-  case of the note "JS/TS return the full transitive super chain" in
-  `../GROUND-TRUTH.md`.
+  This is expected ground truth (not a tool gap).

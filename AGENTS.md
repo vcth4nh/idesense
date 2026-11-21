@@ -30,11 +30,10 @@ CLion, RustRover, DataGrip, Android Studio).
   for `plugin.xml`. Check the report of a subagent against the source before you use it.
 - **Never run platform tests yourself** (`*Test` extending `BasePlatformTestCase`) — CI runs
   them. Unit tests (`*UnitTest`) are fine.
-- **Dev builds.** IntelliJ treats an equal version string as a no-op install, so each build
-  that goes into an IDE needs a new version. Give it on the command line:
-  `./gradlew buildPlugin -PpluginVersion=<version>-dev.NN`. Take a number above each build that
-  an IDE has or that is on the disk. No `-dev.NN` value lands on `main`. Details:
-  [CONTRIBUTING.md](docs/CONTRIBUTING.md).
+- **Dev builds.** Only the version tells one build from another, so each build that goes into
+  an IDE needs a new version. Give it on the command line, never in `gradle.properties`:
+  `./gradlew buildPlugin -PpluginVersion=<version>-dev.NN`. No `-dev.NN` value lands on `main`.
+  Details: [CONTRIBUTING.md](docs/CONTRIBUTING.md#dev-builds), "Dev builds".
 - **Live tests use shared IDEs.** Read [live-test/AGENTS.md](live-test/AGENTS.md) before a live
   run, a bless, or a change of a row or of a fixture file.
 - **Docs are pinned to the code.** After an edit of `README.md`, `docs/USAGE.md`,
@@ -48,11 +47,14 @@ Each fact has one home: the file of its reader.
 | Reader | File | Content |
 |---|---|---|
 | User of the plugin | [README.md](README.md), [docs/USAGE.md](docs/USAGE.md) | Install, configuration, tool reference |
+| User of the plugin | [CHANGELOG.md](CHANGELOG.md) | The changes of each release |
 | Agent that uses the tools | [SKILL.md](src/main/resources/skill/idesense/SKILL.md), [tools-reference.md](src/main/resources/skill/idesense/references/tools-reference.md) | Tool selection and return shapes; shipped with the plugin |
 | Agent that works on this repository | this file, [live-test/AGENTS.md](live-test/AGENTS.md) | The rules that an agent needs in each session |
 | Maintainer | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Build, test, dev loop, dependencies, CI, issues, pull requests, release |
 | Maintainer | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Design rules, backing mechanisms, platform contracts |
 | Maintainer | [live-test/README.md](live-test/README.md), [live-test/CONVENTIONS.md](live-test/CONVENTIONS.md) | The live-test harness: commands, IDE operation, row and fixture conventions |
+| Maintainer | the `GROUND-TRUTH.md` files in `live-test/fixtures/_snapshots/` and `live-test/real-products/_snapshots/`, `live-test/real-products/_setup/<product>/notes.md` | Results that look wrong but that the IDE also returns, parked rows, the setup facts of a product |
 
-A new fact goes to the file of its reader, not to this file. A fact about one machine or one
+A new fact goes to the file of its reader. This file gets only a rule that an agent needs in
+each session, as a short rule with a link. A fact about one machine or one
 person (a path, a host name, an account) goes to no tracked file.

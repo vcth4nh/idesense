@@ -18,5 +18,4 @@ a probe to "fix" one. The notes that cover more than one language are in
 - **Java `super-LambdaHost-lambda.run-sam`**: returns the lambda's SAM as the
   `method` (`java.lang.Runnable#run`, empty `hierarchy`). Caret is on a lambda's
   `->`; the provider resolves the functional interface's single abstract method
-  via `LambdaUtil.getFunctionalInterfaceMethod`, mirroring Ctrl+U. Resolved in
-  #22 (was previously a `tool_error`).
+  via `LambdaUtil.getFunctionalInterfaceMethod`, mirroring Ctrl+U.

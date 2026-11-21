@@ -14,13 +14,6 @@ a probe to "fix" one. The notes that cover more than one language are in
   `qualifiedName` reads `builtins.object`, `builtins.int.__new__`,
   `builtins.super.__init__`. PyCharm's `QualifiedNameFinder` now always prefixes
   builtins with `builtins`; 2026.1.3 returned the bare name (`object`).
-- **Python scope rows need `test/` marked as a test root.** PyCharm 2026.2
-  re-imports the fixture from `pyproject.toml` as `.idea/live-test-python.iml`
-  (and rewrites the tracked `modules.xml`) with `test/` as a plain source root.
-  Then `hier-caller-target-production` gains the test caller and
-  `hier-caller-target-test` loses it. Fix: stop PyCharm, set
-  `isTestSource="true"` on the `test` source folder in that `.iml`, restart.
-  The `.iml` is gitignored, so a fresh checkout needs the same edit.
 - **Python usage rows with `match` `DYNAMIC`.** `usage-area-from-describe` and
   `usage-area-libraries-scope` give `src/normal.py:79:47` (`key=lambda s: s.area()`:
   the parameter `s` has no type) with `match` `DYNAMIC`. The platform rule gives
@@ -45,8 +38,8 @@ a probe to "fix" one. The notes that cover more than one language are in
     builtins). Yes shows 2 result rows: line 60 `super().__init__(side, side)` and line
     85 (`Rectangle(` and `Square(` on one row). Row `usage-Square.__init__-override`:
     85:47 with no `match`, 85:26 `BASE`, 60:9 `BASE`. The first `notes` entry names
-    `Rectangle.__init__`. The tool does not search a method of the class `object`: each
-    class is a subclass of `object`, so that search gives the calls of each class of the
-    project (decision of the owner, 2026-11-17). A second `notes` entry says so: "The base
-    method builtins.object.__init__ is not searched: each class is a subclass of object."
-    The fixture has no usage of `object.__init__`, so the result equals the Yes list.
+    `Rectangle.__init__`. The second `notes` entry is "The base method
+    builtins.object.__init__ is not searched: each class is a subclass of object." The
+    fixture has no usage of `object.__init__`, so the result equals the Yes list. Approved
+    deviation: see "Where a tool differs from the IDE on purpose" in
+    [docs/ARCHITECTURE.md](../../../../docs/ARCHITECTURE.md#where-a-tool-differs-from-the-ide-on-purpose).

@@ -18,23 +18,22 @@ a probe to "fix" one. The notes that cover more than one language are in
 - **Go `super-Standalone.Compute-negative`**: a method satisfying no interface
   returns an empty `hierarchy` (method found, no super), matching
   Java/Python/Kotlin. Verified in GoLand: no gutter icon, Ctrl+U no-ops.
-  Resolved in #25 (was previously a misleading `tool_error`).
-- **Go `super-IFull.Full` returns the interface method with an empty hierarchy.** A method that
-  an interface declares has no super method. By design (#135), and the same rule as
-  `super-Standalone.Compute-negative` and the Rust inherent method: at this position Go to
-  Super of GoLand works on the type, and its popup says so ("Type 'IFull' Implements 3
-  Interfaces"). The tool gives that type result for a position on the type name
-  (`super-IFull-type`) and on an embedded interface (`super-IFull.IMidM-embedded`).
-- **Go `impls-Stamper.Stamp-promoted` has one row for two hits.** `Pad` embeds `*Ink` and
-  gets `Stamp` by promotion. GoLand's search gives the declared method of `Ink` and a second
+- **Go `super-IFull.Full` returns the interface method with an empty hierarchy (#135).** The
+  rule is the same as for `super-Standalone.Compute-negative` and the Rust inherent method. At
+  this position the Go to Super popup of GoLand says "Type 'IFull' Implements 3 Interfaces".
+  The type result is in `super-IFull-type` (a position on the type name) and
+  `super-IFull.IMidM-embedded` (a position on an embedded interface). Approved deviation: see
+  "Where a tool differs from the IDE on purpose" in
+  [docs/ARCHITECTURE.md](../../../../docs/ARCHITECTURE.md#where-a-tool-differs-from-the-ide-on-purpose).
+- **Go `impls-Stamper.Stamp-promoted` has one row for two hits (#129).** `Pad` embeds `*Ink`
+  and gets `Stamp` by promotion. GoLand's search gives the declared method of `Ink` and a second
   element for the promoted method (`GoLightMethodDeclaration`). That element has no text of
-  its own, only the declared method as its navigation element, and it does not name `Pad`. So
-  both hits have the same position, and the tool returns the position one time. By design
-  (#129): the Choose Implementation popup of GoLand shows two equal rows `Ink` for this small
-  result, and both rows open the declared method. For a long list the popup keeps its rows in
-  a set that compares only the row texts (`BackgroundUpdaterTaskBase`, a `TreeSet`), so the
-  equal row is absent there: caddy `Validate` shows "1,933 found", the count of the tool. The
-  type anchor (`impls-Stamper-promoted`) lists both `Ink` and `Pad`.
+  its own, only the declared method as its navigation element, and it does not name `Pad`. The
+  Choose Implementation popup of GoLand shows two equal rows `Ink` for this small result, and
+  both rows open the declared method. For a long list, caddy `Validate` shows "1,933 found",
+  the count of the tool. The type anchor (`impls-Stamper-promoted`) lists both `Ink` and `Pad`.
+  Approved deviation: see "Where a tool differs from the IDE on purpose" in
+  [docs/ARCHITECTURE.md](../../../../docs/ARCHITECTURE.md#where-a-tool-differs-from-the-ide-on-purpose).
 - **Go `explain-Main-name` resolves a type with the name of its package.** GoLand's symbol
   index knows a symbol as `package.name`, so the text `Main` matches each symbol of the
   package `main`, and the popup ranks the type after dozens of them. The name anchors take
@@ -63,14 +62,13 @@ a probe to "fix" one. The notes that cover more than one language are in
   (`Issuer{CA: ca}`). The reference of a key is a `PsiMultiReference` with a field
   part and an identifier part, and `isReferenceTo` is true when one part matches
   (bytecode of `intellij.go.impl.jar`, build 262.8665; the facts are in the KDoc of
-  `GoFindUsages.isFieldKeyOfType`). Such a key names the field, not the type. The
-  tool leaves the key out when it resolves to a named field declaration
-  (`GoFieldDefinition`), and the first page gets a `notes` entry with the count of the
-  left-out rows. This is a deviation from the list of GoLand, a decision of the owner
-  (2026-11-17). A key of an embedded field stays (it names the type: the 6 keys of
-  `usage-baseShape-embed`), and a key that does not resolve stays. The fixture has no
-  key of a named field with the name of a type, so no fixture row has the note. The
-  caddy row `usage-caddytls.CA-field-keys` pins the rule.
+  `GoFindUsages.isFieldKeyOfType`). The tool leaves out a key that resolves to a named
+  field declaration (`GoFieldDefinition`). A key that does not resolve stays, and the 6
+  keys of the embedded field in `usage-baseShape-embed` stay. The fixture has no key of a
+  named field with the name of a type, so no fixture row has such a `notes` entry. The
+  caddy row `usage-caddytls.CA-field-keys` pins the rule. Approved deviation: see "Where
+  a tool differs from the IDE on purpose" in
+  [docs/ARCHITECTURE.md](../../../../docs/ARCHITECTURE.md#where-a-tool-differs-from-the-ide-on-purpose).
 - **Go `find_usages` gives what the Find Usages action of GoLand lists (#130, #132).**
   For a method that implements an interface method, the result also has the
   usages of the interface method, and each of these usages has `match` `BASE`:
@@ -78,8 +76,9 @@ a probe to "fix" one. The notes that cover more than one language are in
   `s.Area()` calls through `Shape` in `TotalArea` and `Largest` with `BASE`. The
   `notes` entry of the first page names the interface method
   (`main.Shape.Area (normal.go:21:2)`) and gives the count of the `BASE` usages.
-  Rule of the owner (2026-11-17): a marked false positive is better than a false
-  negative. A method with no super method gets no note (`usage-ShapeCollection.add`). A
+  Approved deviation: see "Where a tool differs from the IDE on purpose" in
+  [docs/ARCHITECTURE.md](../../../../docs/ARCHITECTURE.md#where-a-tool-differs-from-the-ide-on-purpose).
+  A method with no super method gets no note (`usage-ShapeCollection.add`). A
   comment word that spells the name is a usage with `usageType` `COMMENT`, at the
   position of the word: the "Usage in comments" group of GoLand
   (`usage-Circle-struct`, `usage-Shape-iface`). `ide_explain_symbol` counts these

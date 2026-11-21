@@ -4,8 +4,8 @@
 - Pin: tag `13.3.1`, commit `fc024931d6ad047404e9d86536735923fe63a06b`, committed 2026-08-13
 - License: BSD-3-Clause
 - IDE: PhpStorm (port 29175)
-- PHP: `composer.json` needs PHP 8.4.1 or later and six extensions. The machine has PHP 8.2.
-  PhpStorm needs no PHP interpreter to index the product.
+- PHP: `composer.json` needs PHP 8.4.1 or later and six extensions. The expected rows were
+  blessed with PHP 8.2. PhpStorm needs no PHP interpreter to index the product.
 - Autoload: `classmap` of `src/` and `tests/_files`, not PSR-4.
 
 ## Setup
