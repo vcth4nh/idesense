@@ -5,6 +5,7 @@ import com.github.vcth4nh.idesense.handlers.MethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.diagnostic.logger
@@ -105,6 +106,7 @@ class RustSuperMethodsProvider : SuperMethodsProvider {
         val rawTargets = try {
             invoker.invoke(null, abstractable) as? List<PsiElement> ?: return emptyList()
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("RsGotoSuperHandlerKt.gotoSuperTargets invocation failed", t)
             return emptyList()
         }

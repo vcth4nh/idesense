@@ -7,6 +7,7 @@ import com.github.vcth4nh.idesense.handlers.MethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.diagnostic.logger
@@ -454,6 +455,7 @@ class PhpSuperMethodsProvider : SuperMethodsProvider {
         try {
             invoker.invoke(null, member, proxy)
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("PhpClassHierarchyUtils.processSuperMembers invocation failed", t)
             return emptyList()
         }
@@ -497,6 +499,7 @@ class PhpSuperMethodsProvider : SuperMethodsProvider {
         val parents: List<PsiElement> = try {
             invoker.invoke(null, phpClass) as? List<PsiElement> ?: return emptyList()
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("PhpClassHierarchyUtils.getImmediateParents invocation failed", t)
             return emptyList()
         }

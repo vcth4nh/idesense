@@ -183,6 +183,11 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   platform added the entry "Control-flow exceptions ... should never be logged". The server then
   updated the command history on the disposed project, which gave a second entry. The cancellation
   now stops the call, with no log entry and no history update (#127).
+- `ide_find_super_methods` no longer returns an empty `hierarchy` when a write action interrupts
+  the search of the super methods. The provider of the language took the cancellation for a
+  failure, so the IDE did not run the search again. `ide_find_usages` and `ide_explain_symbol` take
+  their base declarations from the same search. The search now starts again, in Go, JavaScript,
+  Kotlin, PHP, Python, Rust and TypeScript (#210).
 
 ## [2.1.0] - 2026-11-09
 

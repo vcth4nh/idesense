@@ -5,6 +5,7 @@ import com.github.vcth4nh.idesense.handlers.MethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.diagnostic.logger
@@ -164,6 +165,7 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
         val query = try {
             search.invoke(null, pyFunction, true, ctx)
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("PySuperMethodsSearch.search invocation failed", t)
             return emptyList()
         }
@@ -175,6 +177,7 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
         val results = try {
             findAllMethod.invoke(query) as? Collection<PsiElement> ?: return emptyList()
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("Query.findAll invocation failed", t)
             return emptyList()
         }
@@ -204,6 +207,7 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
             val containingClass = getContainingClass.invoke(superMethod) ?: return false
             isObjectClass.invoke(null, containingClass) == true
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("PyFunction.getContainingClass or PyUtil.isObjectClass invocation failed", t)
             false
         }
@@ -231,6 +235,7 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
         val superClasses: Array<PsiElement> = try {
             method.invoke(pyClass, ctx) as? Array<PsiElement> ?: return emptyList()
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("PyClass.getSuperClasses invocation failed", t)
             return emptyList()
         }
@@ -259,6 +264,7 @@ class PythonSuperMethodsProvider : SuperMethodsProvider {
         return try {
             factory.invoke(null, project, origin)
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("TypeEvalContext.userInitiated invocation failed", t)
             null
         }

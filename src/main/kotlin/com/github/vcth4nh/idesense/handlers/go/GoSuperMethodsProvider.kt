@@ -6,6 +6,7 @@ import com.github.vcth4nh.idesense.handlers.MethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.project.Project
@@ -216,7 +217,7 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
             }
             true
         }
-        runCatching { method.invoke(search, params, processor) }
+        runCatching { method.invoke(search, params, processor) }.onFailure(::rethrowIfCancellation)
         return results
     }
 
