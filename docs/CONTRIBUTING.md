@@ -279,7 +279,10 @@ The citation names the class, the jar and the build number. For example:
 ## CI
 
 `.github/workflows/build.yml` (the workflow **Build**) runs on each pull request and on each
-push to `main`. A new push cancels the running Build run of the same pull request or branch.
+push to `main`. A new push to a pull request cancels the Build run in progress of that pull
+request. A push to `main` cancels no run in progress, and the new run waits until that run
+ends. Only one run can wait, so a newer push to `main` replaces the run that waits. The run of
+the newer push tests both commits.
 
 | Job | Runs | Does |
 |---|---|---|
