@@ -154,6 +154,7 @@ reason of each rule.
 | The Kotlin plugins change together, in the Dependabot group `kotlin`. A manual bump changes `kotlin` and `kotlinSerialization` together. | `.github/dependabot.yml`, group `kotlin` |
 | A Gradle wrapper bump also changes `gradleVersion` in `gradle.properties`. `tasks.wrapper` reads this property, so with the old value the next `./gradlew wrapper` writes the old wrapper again. A Dependabot wrapper pull request does not change the property. | `build.gradle.kts`, `tasks.wrapper` |
 | `verifyPlugin` fails only on compatibility problems (`failureLevel`). The hierarchy tools use internal API on purpose (open as #74). Keep this pin when you lift the pin of the IntelliJ Platform Gradle Plugin. | `build.gradle.kts`, `pluginVerification` |
+| The IDE list of the Plugin Verifier is fixed. It does not follow the JetBrains releases. When JetBrains releases a new IntelliJ IDEA version, add `create("IU", "<year>.<number>")` to the list. | `build.gradle.kts`, `pluginVerification` |
 
 Judge a dependency by its resolved version, not by the catalog. A transitive dependency can raise
 a version above the catalog value:
@@ -304,8 +305,8 @@ the newer push tests both commits.
 No job has a step that frees disk space, although the Build workflow of the
 [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
 has one (`jlumbroso/free-disk-space`). In November 2026 a runner had 86 GB of free disk before
-that step, and the job Verify plugin needs about 16 GB for its IDE downloads. If a job fails with
-a disk error, add the step again.
+that step, and the job Verify plugin needs about 28 GB for its IDE downloads (four IDEs for the
+verifier and one IDE to compile against). If a job fails with a disk error, add the step again.
 
 ## Issues
 
