@@ -57,7 +57,7 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `kind` list of `ide_find_symbol` in `docs/USAGE.md` gives `FIELD` and `CONSTANT` their own lines.
 - `ide_find_file` builds its name matcher with `NameUtil.buildMatcher(pattern).build()`, not with the
   overload that takes `NameUtil.MatchingCaseSensitivity`. JetBrains scheduled that overload for
-  removal. The matcher is the same: it ignores case (#255).
+  removal from the build 262 on. The matcher is the same: it ignores case (#255).
 
 ### Removed
 - The default server name and port for JetBrains Aqua (`aqua-idesense`, port 29180). JetBrains
@@ -318,9 +318,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - `ide_find_symbol` and the name anchors in GoLand order a Go embedded field (kind
   `ANONYMOUS_FIELD`) as a value, after the declarations of the same name. It could come before the
   type that it embeds when its file sorted first (#286).
-- `ide_find_definition`, `ide_find_class` and `ide_find_symbol` give the kind `TYPE_ALIAS` to a
-  Kotlin type alias, as for a Rust or a TypeScript type alias. It was `SYMBOL`. The
-  `qualifiedName` of a Kotlin type alias stays `null`, as in the IDE. Part of #278.
+- The tools that give a kind, for example `ide_find_definition`, `ide_find_class` and
+  `ide_find_symbol`, give the kind `TYPE_ALIAS` to a Kotlin type alias, as for a Rust or a
+  TypeScript type alias. It was `SYMBOL`. The `qualifiedName` of a Kotlin type alias does not
+  change. Part of #278.
 
 ## [2.1.0] - 2026-11-09
 
