@@ -1,0 +1,5 @@
+{"id":"hier-callee-$createImageNode-d1","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callees","file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":320,"maxDepth":1}}
+{"id":"hier-caller-$createImageNode-d1","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":320,"maxDepth":1}}
+{"id":"hier-caller-$getRoot-d1","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"packages/lexical/src/LexicalUtils.ts","line":793,"maxDepth":1},"compare":"shape"}
+{"id":"hier-caller-$isCaptionEditorEmpty-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"$isCaptionEditorEmpty"}}
+{"id":"hier-caller-$isCaptionEditorEmpty-d2","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":102,"maxDepth":2},"parked":186}

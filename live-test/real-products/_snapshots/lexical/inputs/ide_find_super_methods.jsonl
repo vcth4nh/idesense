@@ -1,0 +1,4 @@
+{"id":"super-ImageNode.decorate","tool":"ide_find_super_methods","params":{"column":3,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":302}}
+{"id":"super-ImageNode.setShowCaption-negative","tool":"ide_find_super_methods","params":{"column":3,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":272}}
+{"id":"super-ParagraphNode.exportJSON-deep-chain","tool":"ide_find_super_methods","params":{"column":3,"file":"packages/lexical/src/nodes/LexicalParagraphNode.ts","line":104}}
+{"id":"super-TextNode.getFormat-interface","tool":"ide_find_super_methods","params":{"column":3,"file":"packages/lexical/src/nodes/LexicalTextNode.ts","line":425}}

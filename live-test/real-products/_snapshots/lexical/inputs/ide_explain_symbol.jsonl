@@ -1,0 +1,2 @@
+{"id":"explain-$createImageNode-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"$createImageNode"}}
+{"id":"explain-createDOM-ambiguous","tool":"ide_explain_symbol","params":{"symbol":"createDOM"},"compare":"shape"}
