@@ -49,7 +49,7 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `ide_explain_symbol` has the new optional field `notes` with the same entries; its `usageCount`
   and `topUsages` do not hold a usage that is left out.
 - The texts of `ide_find_usages`, `ide_find_implementations` and `ide_refactor_rename` say what a
-  caller sees: each cursor collects up to 5,000 results, a find-usages failure of the IDE gives a
+  caller sees: each cursor collects up to about 5,000 results, a find-usages failure of the IDE gives a
   list that can be incomplete, and the value `ask` of `overrideStrategy` and
   `relatedRenamingStrategy` waits until a person answers an IDE dialog. The skill file no longer
   tells a caller to pass the sub-project root: the workspace root also selects the workspace
