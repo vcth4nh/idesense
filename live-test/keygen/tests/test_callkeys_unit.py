@@ -851,6 +851,32 @@ class DynMakeTest(unittest.TestCase):
         self.assertEqual(2, code)
         self.assertIn("Go calls file", stderr)
 
+    def test_dyntargets_lists_the_methods_whose_only_open_cause_is_interface(self):
+        """Serve, Idle and Bad: a method with the cause interface only. Not Unp (also unproven), not Fn (a func),
+        not Static (no symbols record), not Variant (two records)."""
+        paths = self.files()
+        out = os.path.join(self.d, "dyn-targets.json")
+        code, stdout, _ = run_main(["dyntargets", "-calls", paths[2], "-symbols", paths[4], "-out", out])
+        self.assertEqual(0, code, stdout)
+        expected = [{"id": f"m.go:{n}", "file": "m.go", "line": n} for n in (10, 120, 130)]
+        with open(out, encoding="utf-8") as f:
+            self.assertEqual(json.dumps(expected, indent=1) + "\n", f.read())
+        self.assertEqual(f"dyntargets: 3 methods in {out}", stdout.strip())
+        self.assertEqual(expected, callkeys.dyn_target_list(DYN_CALLS, DYN_SYMBOLS))
+
+    def test_dyntargets_keeps_the_order_of_the_calls_file(self):
+        calls = [dyn_rec("Serve", 10, "A"), dyn_rec("Idle", 3, "E", file="a.go")]
+        symbols = [dyn_sym(SERVE, "go:m.Server.Serve"), dyn_sym("go:m.E.Idle", "go:m.Idler.Idle")]
+        self.assertEqual(["m.go:10", "a.go:3"], [t["id"] for t in callkeys.dyn_target_list(calls, symbols)])
+
+    def test_dyntargets_refuses_a_python_calls_file(self):
+        argv = self.files()
+        write_jsonl(argv[2], [py("target_func", 10)])
+        code, _, stderr = run_main(["dyntargets", "-calls", argv[2], "-symbols", argv[4],
+                                    "-out", os.path.join(self.d, "dyn-targets.json")])
+        self.assertEqual(2, code)
+        self.assertIn("Go calls file", stderr)
+
     def test_score_of_answers(self):
         out = os.path.join(self.d, "keys.jsonl")
         run_main(self.files() + ["-out", out])
