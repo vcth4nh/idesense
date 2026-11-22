@@ -1628,7 +1628,7 @@ Get the hierarchical structure of a source file, similar to the IDE's Structure 
 
 **Response Notes:**
 - `structure` starts with the file name and an empty line. Each node is `<modifiers> <name> [<signature>] (line N)`, indented two spaces for each level.
-- A name is one line: each run of white space becomes one space, and a name longer than 80 characters is cut to 80 characters that end with `…`. A JavaScript or TypeScript object literal that the IDE shows with no text, for example an object in an array, has the name `{}`.
+- A name is one line: each run of white space becomes one space. A name that had a line break (source text of several lines) and is longer than 80 characters is cut to 80 characters that end with `…`. A name with no line break stays complete, so a long signature stays whole. A JavaScript or TypeScript object literal that the IDE shows with no text, for example an object in an array, has the name `{}`.
 - A file with no structure returns plain text that starts with `File is empty or has no parseable structure.`, with no JSON.
 
 ---

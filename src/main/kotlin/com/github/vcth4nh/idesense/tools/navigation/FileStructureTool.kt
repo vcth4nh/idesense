@@ -270,17 +270,20 @@ class FileStructureTool : AbstractMcpTool() {
         }
 
         /**
-         * The name of a node: one line of at most [MAX_NAME_LENGTH] characters. The JavaScript
-         * structure view gives the source text of an element that has no name, for example a spread
-         * element over several lines (#199). It gives no text to an object literal that is not the
-         * right side of an assignment, for example an object in an array; the node keeps its
-         * children under the name `{}` (#198). Another node with no text stays out of the outline.
+         * The name of a node: one line. The JavaScript structure view gives the source text of an
+         * element that has no name, for example a spread element over several lines (#199). A name
+         * that had a line break is cut at [MAX_NAME_LENGTH] characters; another name stays complete,
+         * so a long function signature stays whole. The JavaScript structure view gives no text to
+         * an object literal that is not the right side of an assignment, for example an object in
+         * an array; the node keeps its children under the name `{}` (#198). Another node with no
+         * text stays out of the outline.
          */
         internal fun nodeName(presentableText: String?, element: Any?): String? {
             val text = presentableText?.takeIf { it.isNotBlank() }
                 ?: return "{}".takeIf { jsObjectLiteralClass?.isInstance(element) == true }
             val name = text.replace(WHITE_SPACE, " ")
-            return if (name.length > MAX_NAME_LENGTH) name.take(MAX_NAME_LENGTH - 1) + "…" else name
+            val cut = ('\n' in text || '\r' in text) && name.length > MAX_NAME_LENGTH
+            return if (cut) name.take(MAX_NAME_LENGTH - 1) + "…" else name
         }
 
         /**

@@ -107,11 +107,13 @@ repository, and an entry here.
   `plugins/javascript-plugin/lib/modules/intellij.javascript.structureView.jar`, WS-263.7307.202).
   The File Structure popup shows such a node with an icon and no text. A text tree has no icon, so
   the tool gives the node the name `{}` and keeps its children (#198) (`FileStructureTool.nodeName`).
-- **`ide_file_structure`: a name of one line, at most 80 characters.** For an element with no name,
-  the JavaScript structure view gives the source text of the element, also over several lines. The
-  popup shows the node in one row and cuts the text at the width of the popup. The tool puts one
-  space in place of each run of white space, and it cuts a name of each language after 79 characters
-  and adds `…` (#199) (`FileStructureTool.nodeName`).
+- **`ide_file_structure`: a name of one line, cut at 80 characters after a line break.** For an
+  element with no name, the JavaScript structure view gives the source text of the element, also
+  over several lines. The popup shows the node in one row and cuts the text at the width of the
+  popup. The tool puts one space in place of each run of white space in a name of each language.
+  It cuts only a name that had a line break, after 79 characters, and adds `…`. A name with no line
+  break stays complete, so a long function signature stays whole (#199)
+  (`FileStructureTool.nodeName`).
 
 ## Project Structure
 

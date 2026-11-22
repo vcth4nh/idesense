@@ -8,8 +8,9 @@ import kotlinx.serialization.Serializable
 // modifiers   source-order tokens from the element's modifier list (e.g. public, private,
 //             abstract, final, override, suspend, data, sealed). Empty when the language
 //             has no modifier concept (Go) or the element carries none.
-// name        IDE's ItemPresentation.presentableText for the element, as one line of at most
-//             80 characters; `{}` for a JavaScript or TypeScript object literal with no text.
+// name        IDE's ItemPresentation.presentableText for the element, as one line; cut at 80
+//             characters only when the text had a line break; `{}` for a JavaScript or
+//             TypeScript object literal with no text.
 // signature   IDE's ItemPresentation.locationString (return type, qualifier, etc.).
 // line        1-based source line of the element's navigation element, where the Structure
 //             window goes; of the element itself when that is in another file.

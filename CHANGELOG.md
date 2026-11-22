@@ -243,9 +243,11 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - `ide_file_structure` keeps a JavaScript or TypeScript object literal that the IDE shows with no
   text, for example an object in an array, with its children. The node has the name `{}`. The
   outline left out such a node and all its children (#198).
-- A node name of `ide_file_structure` is one line of at most 80 characters. Each run of white space
-  becomes one space, and a longer name is cut and ends with `…`. In WebStorm, the name of a spread
-  element over several lines had these lines, so the outline had lines that were no nodes (#199).
+- A node name of `ide_file_structure` is one line. Each run of white space becomes one space. A name
+  that had a line break and is longer than 80 characters is cut and ends with `…`; a name with no
+  line break stays complete, so a long function signature stays whole. In WebStorm, the name of a
+  spread element over several lines had these lines, so the outline had lines that were no nodes
+  (#199).
 
 ## [2.1.0] - 2026-11-09
 
