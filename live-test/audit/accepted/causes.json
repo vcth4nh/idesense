@@ -30,12 +30,12 @@
     "permitted": null
   },
   "python-base-through-package-attribute": {
-    "text": "ide_find_implementations on a Python class does not return a subclass that names its base through an attribute of a package (`class PlaylistPlugin(beets.plugins.BeetsPlugin)` in a file that imports only `beets`). Go to Implementation(s) of PyCharm does not list the class either (the notes on `PlaylistPlugin` in live-test/real-products/_snapshots/beets/GROUND-TRUTH.md).",
+    "text": "ide_find_implementations on a Python class does not return a subclass that names its base through an attribute of a package (`class PlaylistPlugin(beets.plugins.BeetsPlugin)` in a file that imports `beets` and does not import `beets.plugins`). Go to Implementation(s) of PyCharm does not list the class either (the notes on `PlaylistPlugin` in live-test/real-products/_snapshots/beets/GROUND-TRUTH.md).",
     "issue": null,
     "permitted": null
   },
   "python-call-not-resolved": {
-    "text": "PyCharm resolves a Python call to no declaration: Go to Declaration at the call shows the hint \"Cannot find declaration to go to\". Then ide_find_usages and ide_call_hierarchy of the function do not have the call, with no signal, and ide_find_definition at the call gives the error \"Could not resolve symbol definition\". Find Usages of PyCharm does not list the call either. Seen for a receiver with a known type that does not declare the method, for `self` in a method with a decorator, and for a function of a module that comes from `pytest.importorskip` (the notes on #220 in live-test/real-products/_snapshots/beets/GROUND-TRUTH.md).",
+    "text": "PyCharm resolves a reference to a Python function or method (`<receiver>.<name>`, in most cases a call) to no declaration: Go to Declaration at the reference shows the hint \"Cannot find declaration to go to\". Then ide_find_usages and ide_call_hierarchy of the function do not have the reference, with no signal, and ide_find_definition at the reference gives the error \"Could not resolve symbol definition\". Find Usages of PyCharm does not list the reference either. Seen for a receiver with a known type that does not declare the method, for a `Mock` object, for `self` in a method with a decorator, and for a function of a module that comes from `pytest.importorskip` (the notes on #220 in live-test/real-products/_snapshots/beets/GROUND-TRUTH.md).",
     "issue": 220,
     "permitted": null
   },
