@@ -1,0 +1,6 @@
+{"id":"find-class-AdSoPrCo-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"pageSize":25,"query":"AdSoPrCo"}}
+{"id":"find-class-AimdRateControl","tool":"ide_find_class","params":{"query":"AimdRateControl"}}
+{"id":"find-class-ByteArrayBuffer-libraries-scope","tool":"ide_find_class","params":{"query":"ByteArrayBuffer","scope":"project_and_libraries"}}
+{"id":"find-class-Conference","tool":"ide_find_class","params":{"query":"Conference"}}
+{"id":"find-class-DePacketizer","tool":"ide_find_class","params":{"query":"DePacketizer"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}

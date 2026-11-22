@@ -1,0 +1,9 @@
+{"id":"usage-AppModule-bysymbol","tool":"ide_find_usages","params":{"symbol":"AppModule"},"compare":"shape","parked":269}
+{"id":"usage-Catch","tool":"ide_find_usages","params":{"column":17,"file":"packages/common/decorators/core/catch.decorator.ts","line":21}}
+{"id":"usage-Injectable-page1","tool":"ide_find_usages","params":{"column":17,"file":"packages/common/decorators/core/injectable.decorator.ts","line":46,"pageSize":100},"compare":"shape"}
+{"id":"usage-Injectable-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-Injectable-page1"}
+{"id":"usage-Module-bysymbol","tool":"ide_find_usages","params":{"symbol":"Module"},"compare":"shape","parked":269}
+{"id":"usage-ParseFilePipe","tool":"ide_find_usages","params":{"column":14,"file":"packages/common/pipes/file/parse-file.pipe.ts","line":24}}
+{"id":"usage-ParseFilePipe-production-scope","tool":"ide_find_usages","params":{"column":14,"file":"packages/common/pipes/file/parse-file.pipe.ts","line":24,"scope":"project_production_files"}}
+{"id":"usage-ParseFilePipe-test-scope","tool":"ide_find_usages","params":{"column":14,"file":"packages/common/pipes/file/parse-file.pipe.ts","line":24,"scope":"project_test_files"}}
+{"id":"usage-REQUEST_PATTERN_METADATA-no-usage","tool":"ide_find_usages","params":{"column":14,"file":"packages/microservices/constants.ts","line":40}}

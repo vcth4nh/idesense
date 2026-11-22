@@ -1,0 +1,12 @@
+{"id":"canary-def-Injectable-ts-paths","tool":"ide_find_definition","params":{"column":2,"file":"packages/core/discovery/discovery-service.ts","line":49}}
+{"id":"canary-def-Observable-into-dependency","tool":"ide_find_definition","params":{"column":6,"file":"packages/common/interfaces/features/nest-interceptor.interface.ts","line":39}}
+{"id":"def-AppModule-from-sample-main","tool":"ide_find_definition","params":{"column":40,"file":"sample/01-cats-app/src/main.ts","line":6}}
+{"id":"def-Get-decorator-factory-const","tool":"ide_find_definition","params":{"column":4,"file":"sample/01-cats-app/src/cats/cats.controller.ts","line":20}}
+{"id":"def-HttpException-cross-file","tool":"ide_find_definition","params":{"column":42,"file":"packages/common/exceptions/bad-request.exception.ts","line":11}}
+{"id":"def-Injectable-from-sample","tool":"ide_find_definition","params":{"column":2,"file":"sample/01-cats-app/src/cats/cats.service.ts","line":4}}
+{"id":"def-KafkaConfig-into-vendored","tool":"ide_find_definition","params":{"column":13,"file":"packages/microservices/server/server-kafka.ts","line":60}}
+{"id":"def-Reply-namespace-import","tool":"ide_find_definition","params":{"column":13,"file":"packages/platform-fastify/adapters/fastify-adapter.ts","line":444}}
+{"id":"def-iterate-into-dependency","tool":"ide_find_definition","params":{"column":10,"file":"packages/core/hooks/on-app-bootstrap.hook.ts","line":25}}
+{"id":"def-kafka.interface-import-path-js-ext","tool":"ide_find_definition","params":{"column":25,"file":"packages/microservices/server/server-kafka.ts","line":25},"parked":192}
+{"id":"def-metadataConstants-alias","tool":"ide_find_definition","params":{"column":3,"file":"packages/common/utils/validate-module-keys.util.ts","line":9}}
+{"id":"def-querystringParse-alias-into-dependency","tool":"ide_find_definition","params":{"column":20,"file":"packages/platform-fastify/adapters/fastify-adapter.ts","line":852}}

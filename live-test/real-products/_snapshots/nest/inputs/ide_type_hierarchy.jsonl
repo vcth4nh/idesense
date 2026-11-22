@@ -1,0 +1,5 @@
+{"id":"hier-sub-HttpException","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"packages/common/exceptions/http.exception.ts","line":28}}
+{"id":"hier-sub-Server","tool":"ide_type_hierarchy","params":{"column":23,"direction":"subtypes","file":"packages/microservices/server/server.ts","line":47},"compare":"shape","parked":304}
+{"id":"hier-super-ExceptionsHandler","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"packages/core/exceptions/exceptions-handler.ts","line":11}}
+{"id":"hier-super-ExpressAdapter-cross-package","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"packages/platform-express/adapters/express-adapter.ts","line":54}}
+{"id":"hier-super-NoopAdapter-byname","tool":"ide_type_hierarchy","params":{"className":"NoopAdapter","direction":"supertypes"},"parked":269}

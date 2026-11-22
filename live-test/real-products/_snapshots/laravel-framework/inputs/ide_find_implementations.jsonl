@@ -1,0 +1,6 @@
+{"id":"impls-FileStore-empty","tool":"ide_find_implementations","params":{"column":7,"file":"src/Illuminate/Cache/FileStore.php","line":15,"pageSize":100}}
+{"id":"impls-GeneratorCommand.getStub","tool":"ide_find_implementations","params":{"column":33,"file":"src/Illuminate/Console/GeneratorCommand.php","line":145,"pageSize":100}}
+{"id":"impls-Macroable-trait","tool":"ide_find_implementations","params":{"column":7,"file":"src/Illuminate/Macroable/Traits/Macroable.php","line":12,"pageSize":500}}
+{"id":"impls-Model-paged","tool":"ide_find_implementations","params":{"column":16,"file":"src/Illuminate/Database/Eloquent/Model.php","line":44,"pageSize":100},"compare":"shape"}
+{"id":"impls-Relation.addConstraints","tool":"ide_find_implementations","params":{"column":30,"file":"src/Illuminate/Database/Eloquent/Relations/Relation.php","line":203,"pageSize":100}}
+{"id":"impls-ShouldQueue","tool":"ide_find_implementations","params":{"column":11,"file":"src/Illuminate/Contracts/Queue/ShouldQueue.php","line":5,"pageSize":500}}

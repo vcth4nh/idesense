@@ -1,0 +1,6 @@
+{"id":"find-symbol-AbstractEndpointMessageTransport.onMessage-qualified","tool":"ide_find_symbol","params":{"query":"AbstractEndpointMessageTransport.onMessage"}}
+{"id":"find-symbol-rewriteRtp","tool":"ide_find_symbol","params":{"pageSize":50,"query":"rewriteRtp"}}
+{"id":"find-symbol-rewriteRtp-lang-java","tool":"ide_find_symbol","params":{"language":"Java","pageSize":50,"query":"rewriteRtp"}}
+{"id":"find-symbol-rewriteRtp-lang-kotlin","tool":"ide_find_symbol","params":{"language":"Kotlin","pageSize":50,"query":"rewriteRtp"}}
+{"id":"find-symbol-routeLoudestOnly","tool":"ide_find_symbol","params":{"query":"routeLoudestOnly"}}
+{"id":"find-symbol-trace-paged","tool":"ide_find_symbol","params":{"pageSize":20,"query":"trace"},"compare":"shape"}

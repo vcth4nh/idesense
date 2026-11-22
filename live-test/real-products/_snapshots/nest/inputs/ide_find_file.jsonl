@@ -1,0 +1,7 @@
+{"id":"find-file-app.module.ts","tool":"ide_find_file","params":{"pageSize":100,"query":"app.module.ts"},"parked":271}
+{"id":"find-file-app.module.ts-paged","tool":"ide_find_file","params":{"pageSize":10,"query":"app.module.ts"},"compare":"shape","parked":271}
+{"id":"find-file-app.module.ts-production-scope","tool":"ide_find_file","params":{"query":"app.module.ts","scope":"project_production_files"}}
+{"id":"find-file-http.exception.ts","tool":"ide_find_file","params":{"query":"http.exception.ts"}}
+{"id":"find-file-iterate.d.ts-libraries-scope","tool":"ide_find_file","params":{"query":"iterate.d.ts","scope":"project_and_libraries"}}
+{"id":"find-file-kafka.interface.ts","tool":"ide_find_file","params":{"query":"kafka.interface.ts"}}
+{"id":"find-file-zzqNoSuchFile.ts-no-match","tool":"ide_find_file","params":{"query":"zzqNoSuchFile.ts"}}

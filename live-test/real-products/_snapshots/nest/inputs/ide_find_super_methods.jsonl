@@ -1,0 +1,4 @@
+{"id":"super-ExceptionsHandler.setCustomFilters-negative","tool":"ide_find_super_methods","params":{"column":10,"file":"packages/core/exceptions/exceptions-handler.ts","line":21}}
+{"id":"super-ExpressAdapter.listen-deep-chain","tool":"ide_find_super_methods","params":{"column":10,"file":"packages/platform-express/adapters/express-adapter.ts","line":236},"parked":305}
+{"id":"super-KafkaRetriableException.getError","tool":"ide_find_super_methods","params":{"column":10,"file":"packages/microservices/exceptions/kafka-retriable-exception.ts","line":14}}
+{"id":"super-ParseIntPipe.transform-interface","tool":"ide_find_super_methods","params":{"column":9,"file":"packages/common/pipes/parse-int.pipe.ts","line":64}}

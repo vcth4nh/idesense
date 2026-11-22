@@ -1,0 +1,5 @@
+{"id":"hier-sub-SQLNode","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"go/vt/sqlparser/ast.go","line":33}}
+{"id":"hier-sub-Statement","tool":"ide_type_hierarchy","params":{"column":2,"direction":"subtypes","file":"go/vt/sqlparser/ast.go","line":41}}
+{"id":"hier-super-Route-byname","tool":"ide_type_hierarchy","params":{"className":"Route","direction":"supertypes"}}
+{"id":"hier-super-Select","tool":"ide_type_hierarchy","params":{"column":2,"direction":"supertypes","file":"go/vt/sqlparser/ast.go","line":291}}
+{"id":"hier-super-engine.Route-qualified","tool":"ide_type_hierarchy","params":{"className":"engine.Route","direction":"supertypes"}}

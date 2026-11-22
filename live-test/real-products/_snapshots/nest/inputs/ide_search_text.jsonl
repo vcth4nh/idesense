@@ -1,0 +1,5 @@
+{"id":"search-text-Injectable-paged","tool":"ide_search_text","params":{"pageSize":100,"query":"Injectable"},"compare":"shape"}
+{"id":"search-text-ParseFilePipe","tool":"ide_search_text","params":{"query":"ParseFilePipe"}}
+{"id":"search-text-ParseFilePipe-code","tool":"ide_search_text","params":{"context":"code","query":"ParseFilePipe"}}
+{"id":"search-text-ParseFilePipe-comments","tool":"ide_search_text","params":{"context":"comments","query":"ParseFilePipe"}}
+{"id":"search-text-ParseFilePipe-strings","tool":"ide_search_text","params":{"context":"strings","query":"ParseFilePipe"}}

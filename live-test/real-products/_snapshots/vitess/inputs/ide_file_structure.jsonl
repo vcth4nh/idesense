@@ -1,0 +1,5 @@
+{"id":"file-structure-grpcvtctldserver-server.go","tool":"ide_file_structure","params":{"file":"go/vt/vtctl/grpcvtctldserver/server.go"}}
+{"id":"file-structure-http.ts","tool":"ide_file_structure","params":{"file":"web/vtadmin/src/api/http.ts"}}
+{"id":"file-structure-sql.go","tool":"ide_file_structure","params":{"file":"go/vt/sqlparser/sql.go"},"compare":"shape"}
+{"id":"file-structure-tables.go-giant","tool":"ide_file_structure","params":{"file":"go/mysql/collations/vindex/collate/tables.go"}}
+{"id":"file-structure-vterrors.go","tool":"ide_file_structure","params":{"file":"go/vt/vterrors/vterrors.go"}}

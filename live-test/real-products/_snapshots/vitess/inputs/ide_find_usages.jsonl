@@ -1,0 +1,9 @@
+{"id":"canary-usage-yyParsePooled","tool":"ide_find_usages","params":{"column":6,"file":"go/vt/sqlparser/parser.go","line":51,"pageSize":100}}
+{"id":"usage-Errorf-page1","tool":"ide_find_usages","params":{"column":6,"file":"go/vt/vterrors/vterrors.go","line":143,"pageSize":200},"compare":"shape"}
+{"id":"usage-Errorf-page2","tool":"ide_find_usages","params":{"pageSize":200},"compare":"shape","cursorFrom":"usage-Errorf-page1"}
+{"id":"usage-NewLiteralBinary-empty","tool":"ide_find_usages","params":{"column":6,"file":"go/vt/vtgate/evalengine/api_literal.go","line":174,"pageSize":100}}
+{"id":"usage-Route.TryExecute-base","tool":"ide_find_usages","params":{"column":21,"file":"go/vt/vtgate/engine/route.go","line":110,"pageSize":500}}
+{"id":"usage-TryExecute-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"TryExecute"}}
+{"id":"usage-fetchClusters-ts","tool":"ide_find_usages","params":{"column":14,"file":"web/vtadmin/src/api/http.ts","line":138,"pageSize":100}}
+{"id":"usage-yyParsePooled-production-scope","tool":"ide_find_usages","params":{"column":6,"file":"go/vt/sqlparser/parser.go","line":51,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-yyParsePooled-test-scope","tool":"ide_find_usages","params":{"column":6,"file":"go/vt/sqlparser/parser.go","line":51,"pageSize":100,"scope":"project_test_files"}}

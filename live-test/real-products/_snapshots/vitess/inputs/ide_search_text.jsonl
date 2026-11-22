@@ -1,0 +1,5 @@
+{"id":"search-text-allowPartial","tool":"ide_search_text","params":{"pageSize":100,"query":"allowPartial"},"parked":309}
+{"id":"search-text-allowPartial-code","tool":"ide_search_text","params":{"context":"code","pageSize":100,"query":"allowPartial"}}
+{"id":"search-text-allowPartial-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"allowPartial"}}
+{"id":"search-text-allowPartial-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"allowPartial"},"parked":309}
+{"id":"search-text-vterrors-paged","tool":"ide_search_text","params":{"pageSize":50,"query":"vterrors"},"compare":"shape"}

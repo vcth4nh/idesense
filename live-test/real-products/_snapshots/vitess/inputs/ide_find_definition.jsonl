@@ -1,0 +1,11 @@
+{"id":"canary-def-fetchClusters-ts-cross-file","tool":"ide_find_definition","params":{"column":49,"file":"web/vtadmin/src/hooks/api.ts","line":115}}
+{"id":"canary-def-pflag.FlagSet-into-dependency","tool":"ide_find_definition","params":{"column":36,"file":"go/vt/servenv/buildinfo.go","line":44}}
+{"id":"def-BindVariable-via-import-alias","tool":"ide_find_definition","params":{"column":81,"file":"go/vt/vtgate/engine/primitive.go","line":262}}
+{"id":"def-Cluster-ts-into-giant-dts","tool":"ide_find_definition","params":{"column":28,"file":"web/vtadmin/src/api/http.ts","line":143}}
+{"id":"def-HttpOkResponse-ts-cross-file","tool":"ide_find_definition","params":{"column":10,"file":"web/vtadmin/src/api/http.ts","line":20}}
+{"id":"def-Primitive-cross-file","tool":"ide_find_definition","params":{"column":16,"file":"go/vt/vtgate/engine/plan.go","line":46}}
+{"id":"def-Route.Inputs-promoted","tool":"ide_find_definition","params":{"column":72,"file":"go/vt/vtgate/planbuilder/operators/aggregation_pushing.go","line":153}}
+{"id":"def-mainLookup-into-giant-file","tool":"ide_find_definition","params":{"column":13,"file":"go/mysql/collations/vindex/collate/index.go","line":14}}
+{"id":"def-proto.Clone-into-dependency","tool":"ide_find_definition","params":{"column":19,"file":"go/vt/vtgate/engine/simple_projection.go","line":111}}
+{"id":"def-sqltypes.Type-via-alias","tool":"ide_find_definition","params":{"column":32,"file":"go/mysql/query.go","line":1633}}
+{"id":"def-yyParserImpl-into-generated","tool":"ide_find_definition","params":{"column":11,"file":"go/vt/sqlparser/parser.go","line":36}}

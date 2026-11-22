@@ -1,0 +1,3 @@
+{"id":"super-Route.TryExecute","tool":"ide_find_super_methods","params":{"column":21,"file":"go/vt/vtgate/engine/route.go","line":110}}
+{"id":"super-Select.Format","tool":"ide_find_super_methods","params":{"column":21,"file":"go/vt/sqlparser/ast_format.go","line":24}}
+{"id":"super-yyParsePooled-negative","tool":"ide_find_super_methods","params":{"column":6,"file":"go/vt/sqlparser/parser.go","line":51}}

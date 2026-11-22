@@ -1,0 +1,7 @@
+{"id":"canary-impls-ViolationMetadata-derive-paged","tool":"ide_find_implementations","params":{"column":11,"file":"crates/ruff_linter/src/violation.rs","line":31,"pageSize":500},"compare":"shape"}
+{"id":"impls-AlwaysFixableViolation-trait","tool":"ide_find_implementations","params":{"column":11,"file":"crates/ruff_linter/src/violation.rs","line":87,"pageSize":500}}
+{"id":"impls-StatementVisitor-trait","tool":"ide_find_implementations","params":{"column":11,"file":"crates/ruff_python_ast/src/statement_visitor.rs","line":6,"pageSize":100}}
+{"id":"impls-StatementVisitor.visit_stmt-method","tool":"ide_find_implementations","params":{"column":8,"file":"crates/ruff_python_ast/src/statement_visitor.rs","line":10,"pageSize":100}}
+{"id":"impls-Violation-trait-page1","tool":"ide_find_implementations","params":{"column":11,"file":"crates/ruff_linter/src/violation.rs","line":49,"pageSize":500},"compare":"shape"}
+{"id":"impls-Violation-trait-page2","tool":"ide_find_implementations","params":{"pageSize":500},"compare":"shape","cursorFrom":"impls-Violation-trait-page1"}
+{"id":"impls-lines_before-none","tool":"ide_find_implementations","params":{"column":8,"file":"crates/ruff_python_trivia/src/tokenizer.rs","line":41,"pageSize":100}}
