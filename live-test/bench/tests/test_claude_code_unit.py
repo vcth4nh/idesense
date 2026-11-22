@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 from bench import claude_code
 
@@ -31,6 +32,39 @@ class KeyTest(unittest.TestCase):
             self.assertNotIn("sk-", str(e.exception))
         with self.assertRaises(claude_code.KeyFileError):
             claude_code.read_key(os.path.join(self.tmp, "absent"))
+
+
+class SecretEnvTest(unittest.TestCase):
+    """`secret_env` by the login kind (BENCH_LOGIN), with a temporary secret file (BENCH_SECRET_FILE)."""
+    KEY = "sk-fake-api-key-0123456789-test-only"
+    TOKEN = "sk-fake-oauth-token-0123456789-test-only"
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="claude-code-test-")
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.path = os.path.join(self.tmp, "secret")
+        env = mock.patch.dict(os.environ, {"BENCH_SECRET_FILE": self.path})
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop("BENCH_LOGIN", None)
+
+    def test_no_login_is_the_api_key(self):
+        write(self.path, self.KEY + "\n")
+        self.assertEqual(("ANTHROPIC_API_KEY", self.KEY), claude_code.secret_env())
+        os.environ["BENCH_LOGIN"] = "api-key"
+        self.assertEqual(("ANTHROPIC_API_KEY", self.KEY), claude_code.secret_env())
+
+    def test_subscription_is_the_oauth_token(self):
+        write(self.path, self.TOKEN + "\n")
+        os.environ["BENCH_LOGIN"] = "subscription"
+        self.assertEqual(("CLAUDE_CODE_OAUTH_TOKEN", self.TOKEN), claude_code.secret_env())
+
+    def test_empty_file_is_a_value_error(self):
+        write(self.path, "")
+        for login in ("api-key", "subscription"):
+            os.environ["BENCH_LOGIN"] = login
+            with self.assertRaises(ValueError, msg=login):
+                claude_code.secret_env()
 
 
 class ParserTest(unittest.TestCase):

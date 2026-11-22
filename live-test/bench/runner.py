@@ -38,19 +38,21 @@ The root of a run is the slot path of the tree (`trees.load_slots()`, plan amend
 the project of the route and the slot that the entry script keeps (`BENCH_SLOT`). The image is the image id of
 `IMAGES/<product>.json` (amendment A2: `id`, `server_name`, `slots`); its slot of the tree must equal the slot of
 `slots.json`. The docker command: `docker run` with CONTAINER_FLAGS, `--name run-<hex>`, `-e BENCH_SLOT=<slot id>`,
-`-e BENCH_AID=<aid or none>`, `-e ANTHROPIC_API_KEY` (the name only: the value is in the environment of the docker
-process and never in a command line or a file), the image id, then the arguments of `claude` (`claude_code.flags`). A
-plugin arm adds `--mcp-config` and the JSON of `claude_code.mcp_config` (`{"mcpServers": {"<server name>": {"type":
-"http", "url": "<route url>"}}}`). The route entry
+`-e BENCH_AID=<aid or none>`, `-e <the variable of the secret>` (`claude_code.secret_env` by the login kind
+`settings.login()`: ANTHROPIC_API_KEY for `api-key`, CLAUDE_CODE_OAUTH_TOKEN for `subscription`; the name only: the
+value is in the environment of the docker process and never in a command line or a file), the image id, then the
+arguments of `claude` (`claude_code.flags`). A plugin arm adds `--mcp-config` and the JSON of `claude_code.mcp_config`
+(`{"mcpServers": {"<server name>": {"type": "http", "url": "<route url>"}}}`). The route entry
 (`proxy.add_route`) has the run, the IDE URL as upstream, the root as project, the instructions, the notes and the
 additions of the run. `-dry-run` prints this command as a JSON list, and on stderr one line with the run id, the
 arm, the tools of the route notes, and the form and the row count of the route additions. It does nothing else; it
-does not read the API key.
+does not read the secret file.
 
 Run id `<question>__<arm>[-<aid>][-<variant>][-no-tools][-stop-<N>][-scrub]__<model>__<n>`, run folder
 `RUNS/<batch>/<run id>/` with `transcript.jsonl` (the stdout of the container), `stderr.txt`, `proxy.jsonl` (the
 proxy log lines of the route of the run; empty for arm C) and `run.json` (RUN_FIELDS). `run.json` names the question
-(`question`) and holds the SHA-256 of its question file and its key file (`question_sha256`, `key_sha256`).
+(`question`) and holds the SHA-256 of its question file and its key file (`question_sha256`, `key_sha256`), and the
+login kind (`login`, `settings.login()`; a record of an older runner has no `login`).
 `run.json` comes last: a folder with `run.json` holds a finished run, and `run` refuses it.
 
 A single `run` (not `-dry-run`) and `batch` hold the lock of the benchmark IDEs (`common.lock.ide_lock`) while they
@@ -59,8 +61,8 @@ before any route or container exists.
 
 Guards of each run, in this order:
 - a plugin arm needs an answer from the proxy at HEALTH_URL; with no answer `run` exits 2 and starts nothing;
-- the key file `settings.secret_file()` (the variable BENCH_SECRET_FILE; `claude_code.read_key`); no variable or a
-  bad key file exits 2;
+- the secret file `settings.secret_file()` (the variable BENCH_SECRET_FILE; `claude_code.secret_env`); no variable,
+  a bad BENCH_LOGIN or a bad secret file exits 2;
 - the IDE of the product (direct, not through the proxy): `serverInfo.version` must be the expected version and
   `ide_index_status` must say smart mode (`common.mcp.wait_ready`, up to READY_TIMEOUT s); else the outcome is
   `invalid` and no container starts. The expected version is the option `-plugin-version`; with no option, it is
@@ -72,9 +74,10 @@ Guards of each run, in this order:
 - after the run: the IDE version and the smart mode again, a proxy log line with status 502 (upstream failure,
   for example an IDE restart) or another `server_version`; each one makes the outcome `invalid` (not for
   `api_error`);
-- the key search (`search_key`) in `transcript.jsonl`, `stderr.txt`, `proxy.jsonl` and the text of `run.json`.
-  A hit deletes the three files, sets the outcome `key_leak`, keeps only metadata, cost and turns in `run.json`,
-  and exits 9. No message names the key;
+- the key search (`search_key`: the value of the secret file, for each login kind) in `transcript.jsonl`,
+  `stderr.txt`, `proxy.jsonl` and the text of `run.json`. A hit deletes the three files, sets the outcome
+  `key_leak`, keeps only metadata (also `login`), cost and turns in `run.json`, and exits 9. No message names the
+  key;
 - the leak words LEAK_WORDS in `transcript.jsonl` (amendment A4): `leak_words` holds the count of each one. A hit
   is no failure.
 
@@ -118,7 +121,8 @@ starts, for example the proxy is down) stops the batch too. A stop means: no new
 run of another worker ends normally. The exit code of the batch: 9 before 3, 3 before 2. `-jobs` runs go at the
 same time.
 
-`handshake`: with no key, a container of the product image runs the shell text of `claude_code.handshake_script`
+`handshake`: with no secret (no read of the secret file, and the environment of the docker process has no variable of
+`claude_code.SECRET_VARS`), a container of the product image runs the shell text of `claude_code.handshake_script`
 (`claude mcp add --transport http <server name> <route url>` and `claude mcp list`; the entry point is `/bin/bash`,
 so the entry script does not run). It prints
 the output and the proxy log lines of the route, and exits 0 when the log has an `initialize` with the status 200.
@@ -191,12 +195,13 @@ INSTRUCTIONS = ("This server gives the code analysis of a JetBrains IDE for the 
 GUIDE_INSTRUCTIONS = "Use the tools of this server for code navigation in the open project. " + PFG_SENTENCE
 LEAK_WORDS = (os.path.basename(trees.BENCH), "-plant-", "BENCH_", settings.repo_root() + "/")
 RUN_FIELDS = ("id", "question", "question_sha256", "key_sha256", "arm", "aid", "variant", "no_tools",
-              "stop_after_tools", "env_scrub", "model", "n", "image_id", "started", "seconds", "plugin_version_start",
-              "plugin_version_end", "outcome", "reason", "exit_code", "cost_usd", "turns", "usage", "model_usage",
-              "tools", "first_tools", "mcp_calls", "mcp_status", "answer", "invalid", "score", "leak_words")
+              "stop_after_tools", "env_scrub", "login", "model", "n", "image_id", "started", "seconds",
+              "plugin_version_start", "plugin_version_end", "outcome", "reason", "exit_code", "cost_usd", "turns",
+              "usage", "model_usage", "tools", "first_tools", "mcp_calls", "mcp_status", "answer", "invalid", "score",
+              "leak_words")
 # The fields of run.json after a key leak: metadata, cost and turns. Each other field is null.
 KEPT_AFTER_LEAK = ("id", "question", "question_sha256", "key_sha256", "arm", "aid", "variant", "no_tools",
-                   "stop_after_tools", "env_scrub", "model", "n", "image_id", "started", "seconds",
+                   "stop_after_tools", "env_scrub", "login", "model", "n", "image_id", "started", "seconds",
                    "plugin_version_start", "plugin_version_end", "exit_code", "cost_usd", "turns", "leak_words")
 # The status of a connected MCP server in `mcp_servers` of the init event (agent-sdk/mcp.md, "Error handling").
 CONNECTED = "connected"
@@ -427,7 +432,7 @@ def prepare(args) -> dict:
     plugin = args.arm in PLUGIN_ARMS
     token = proxy.new_token() if plugin else None
     name = "run-" + secrets.token_hex(6)
-    env = ["-e", f"BENCH_SLOT={slot['slot']}", "-e", f"BENCH_AID={args.aid or 'none'}", "-e", "ANTHROPIC_API_KEY"]
+    env = ["-e", f"BENCH_SLOT={slot['slot']}", "-e", f"BENCH_AID={args.aid or 'none'}", "-e", claude_code.secret_name()]
     if args.variant == "no-tool-search":
         env += ["-e", claude_code.NO_TOOL_SEARCH]
     if args.env_scrub:
@@ -622,7 +627,7 @@ def run_one(args) -> tuple[int, dict | None]:
         print(f"runner: {run_id}: {problem}; no run starts", file=sys.stderr)
         return 2, None
     try:
-        key = claude_code.read_key()
+        secret_name, key = claude_code.secret_env()
     except (claude_code.KeyFileError, ValueError) as e:
         print(f"runner: {run_id}: {e}; no run starts", file=sys.stderr)
         return 2, None
@@ -633,7 +638,7 @@ def run_one(args) -> tuple[int, dict | None]:
     rec.update(id=run_id, question=args.question, question_sha256=run["question_sha256"],
                key_sha256=run["key_sha256"], arm=args.arm, aid=args.aid, variant=args.variant,
                no_tools=args.no_tools, stop_after_tools=args.stop_after_tools, env_scrub=args.env_scrub,
-               model=args.model, n=args.n, image_id=run["image"]["id"])
+               login=settings.login(), model=args.model, n=args.n, image_id=run["image"]["id"])
     ide_url, root = IDE_URLS[run["product"]], run["root"]
     version, reason = check_ide(ide_url, root, READY_TIMEOUT)
     rec["plugin_version_start"] = version
@@ -655,7 +660,7 @@ def run_one(args) -> tuple[int, dict | None]:
                 "notes": run["notes"], "additions": run["additions"]})
         rec["started"] = _now()
         exit_code, seconds, ended = run_container(
-            run["cmd"], {**os.environ, "ANTHROPIC_API_KEY": key}, run["name"], files["transcript.jsonl"],
+            run["cmd"], {**os.environ, secret_name: key}, run["name"], files["transcript.jsonl"],
             files["stderr.txt"], WALL_LIMIT, args.stop_after_tools)
         rec["seconds"] = round(seconds, 1)
     except Exception as e:  # each failure of the runner is the outcome `error`, with the route removed
@@ -909,7 +914,7 @@ def handshake(product: str) -> int:
     route_run, name, url = f"handshake-{product}.{token[:8]}", "run-" + secrets.token_hex(6), proxy.route_url(token)
     cmd = ["docker", "run", *CONTAINER_FLAGS, "--name", name, "--entrypoint", "/bin/bash", image["id"], "-c",
            claude_code.handshake_script(), "handshake", image["server_name"], url]
-    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    env = {k: v for k, v in os.environ.items() if k not in claude_code.SECRET_VARS.values()}
     proxy.add_route(ROUTES_FILE, token, {"run": route_run, "upstream": IDE_URLS[product], "project": slot["path"],
                                          "instructions": None})
     try:

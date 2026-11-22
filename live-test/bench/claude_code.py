@@ -1,10 +1,17 @@
-"""The code of the agent benchmark that is specific to Claude Code: its arguments, its transcript, its key, its MCP
+"""The code of the agent benchmark that is specific to Claude Code: its arguments, its transcript, its secret, its MCP
 configuration and the shell text of the connection check. The module imports nothing from `bench.runner`.
 
 `flags` gives the arguments of `claude` of each run (Global Constraints). `mcp_config` gives the value of
-MCP_CONFIG_FLAG for one HTTP server. `read_key` reads the key file `settings.secret_file()` (the variable
-BENCH_SECRET_FILE). `handshake_script` is the shell text of the connection check of `runner handshake`: the server
-name is `$1` and the route URL is `$2`.
+MCP_CONFIG_FLAG for one HTTP server. `handshake_script` is the shell text of the connection check of `runner
+handshake`: the server name is `$1` and the route URL is `$2`.
+
+`secret_env` gives the variable of the secret in the container and its value, by the login kind `settings.login()`
+(the variable BENCH_LOGIN; SECRET_VARS): the login `api-key` gives ANTHROPIC_API_KEY, and the login `subscription`
+gives CLAUDE_CODE_OAUTH_TOKEN (the token that `claude setup-token` prints). The value is the text of the secret file
+`settings.secret_file()` (the variable BENCH_SECRET_FILE) with no white space at the two ends (`read_key`). A file
+that is absent, empty or has more than one line is a KeyFileError, a ValueError whose message never holds the
+content. `secret_name` gives the variable only and reads no file. No container run with the login `subscription` is
+verified yet.
 
 The transcript parser (`parse_transcript`) reads the stream-json events of Claude Code: of a `result` event (the last
 one) `subtype`, `is_error`, `terminal_reason`, `total_cost_usd`, `num_turns`, `usage`, `modelUsage` and
@@ -24,9 +31,10 @@ NO_TOOLS = ("--tools", "")                        # `-no-tools` (the memory prob
 NO_TOOL_SEARCH = "ENABLE_TOOL_SEARCH=false"       # `-variant no-tool-search`
 ENV_SCRUB = "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1"  # `-env-scrub`
 ANSWER_TOOL = "StructuredOutput"                  # the tool of the answer (`--json-schema`)
+SECRET_VARS = {"api-key": "ANTHROPIC_API_KEY", "subscription": "CLAUDE_CODE_OAUTH_TOKEN"}  # by settings.LOGINS
 
 
-class KeyFileError(Exception):
+class KeyFileError(ValueError):
     """The key file is absent, empty or has more than one line. The message never holds the content."""
 
 
@@ -50,8 +58,8 @@ def handshake_script() -> str:
 
 
 def read_key(path: str | None = None) -> str:
-    """The API key: the text of the key file (default: `settings.secret_file()`) without white space at the two
-    ends."""
+    """The secret (an API key or a token): the text of the key file (default: `settings.secret_file()`) without white
+    space at the two ends."""
     path = path or settings.secret_file()
     try:
         with open(path, encoding="utf-8") as f:
@@ -65,6 +73,16 @@ def read_key(path: str | None = None) -> str:
     if len(text.splitlines()) > 1:
         raise KeyFileError(f"{path}: the key file has more than one line")
     return text
+
+
+def secret_name() -> str:
+    """The variable of the secret in the container, by `settings.login()`. Reads no file."""
+    return SECRET_VARS[settings.login()]
+
+
+def secret_env() -> tuple[str, str]:
+    """(the variable, the value) of the secret, by `settings.login()` (module text)."""
+    return secret_name(), read_key()
 
 
 # ---------------------------------------------------------------- transcript parser (stream-json of Claude Code)

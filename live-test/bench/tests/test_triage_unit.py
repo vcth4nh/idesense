@@ -648,6 +648,16 @@ class ReportTest(unittest.TestCase):
                         paired[0])
         self.assertTrue(paired[1].startswith(f"| {OPUS} | PF | C | all | 0.400 | 1.000 | -0.600 |"), paired[1])
 
+    def test_report_reads_records_with_and_without_login(self):
+        # A record of a runner before the field `login` has no `login` (self.pf, self.stopped).
+        self.assertNotIn("login", self.pf)
+        put_run(self.batch, {**self.c, "login": "subscription"}, [use("u1", "Bash", {"command": "grep -rn x ."})])
+        triage.report(self.batch, self.out)
+        with open(os.path.join(self.out, "runs.jsonl"), encoding="utf-8") as f:
+            ids = [json.loads(line)["id"] for line in f]
+        self.assertEqual(sorted([self.pf["id"], self.c["id"], self.stopped["id"]]), ids)
+        self.assertEqual(4, len(triage._table_lines(triage.load_batch(self.batch)["runs"])))
+
     def test_report_has_the_rows_PFN_minus_PF_and_the_arm_order(self):
         put_run(self.batch, run("PFN", sc=score(2, 0, 1), answer=["pkg/a.go:3", "pkg/e.go:2"], cost=0.3))
         put_run(self.batch, run("PS", aid="rule", n=2, sc=score(1, 0, 2), answer=["pkg/a.go:3"]))

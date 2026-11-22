@@ -1,10 +1,11 @@
 """Unit tests of bench/runner.py with a fake `docker` on PATH.
 
-The fake `docker` writes its arguments and the value of ANTHROPIC_API_KEY in its environment to a log file, prints a
-stream-json fixture of tests/fixtures/stream/, and exits. For a route URL in its arguments it reads the route file and
-writes four lines to the proxy log of the route, as the proxy would. No test starts a container, calls an IDE or the
-proxy, or reads the real key file: the paths of the runner, the data root of the lock and the secret file point into
-a temporary folder, `check_ide`, `ide_version` and `proxy_healthy` are fakes, and the key is a fake value.
+The fake `docker` writes its arguments and the values of ANTHROPIC_API_KEY and CLAUDE_CODE_OAUTH_TOKEN in its
+environment to a log file, prints a stream-json fixture of tests/fixtures/stream/, and exits. For a route URL in its
+arguments it reads the route file and writes four lines to the proxy log of the route, as the proxy would. No test
+starts a container, calls an IDE or the proxy, or reads the real key file: the paths of the runner, the data root of
+the lock and the secret file point into a temporary folder, `check_ide`, `ide_version` and `proxy_healthy` are fakes,
+and the key and the token are fake values.
 """
 import contextlib
 import hashlib
@@ -59,7 +60,8 @@ import json, os, re, sys, time
 args = sys.argv[1:]
 log = os.environ["FAKE_DOCKER_LOG"]
 with open(log, "a") as f:
-    f.write(json.dumps({"argv": args, "key": os.environ.get("ANTHROPIC_API_KEY")}) + "\n")
+    f.write(json.dumps({"argv": args, "key": os.environ.get("ANTHROPIC_API_KEY"),
+                        "token": os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")}) + "\n")
 if not args or args[0] != "run":
     sys.exit(0)
 tokens = [m for a in args for m in re.findall(r"/r/([0-9a-f]{32})/mcp", a)]
@@ -88,7 +90,8 @@ if extra:
 if os.environ.get("FAKE_DOCKER_PRINT_KEY"):
     sys.stdout.write(json.dumps({"type": "user", "message": {"role": "user", "content": [
         {"type": "tool_result", "tool_use_id": "toolu_x",
-         "content": "ANTHROPIC_API_KEY=" + os.environ.get("ANTHROPIC_API_KEY", "")}]}}) + "\n")
+         "content": "ANTHROPIC_API_KEY=" + os.environ.get("ANTHROPIC_API_KEY", "") + " CLAUDE_CODE_OAUTH_TOKEN="
+                    + os.environ.get("CLAUDE_CODE_OAUTH_TOKEN", "")}]}}) + "\n")
 sys.stdout.flush()
 sys.stderr.write("fake docker\n")
 time.sleep(float(os.environ.get("FAKE_DOCKER_SLEEP", "0")))
@@ -146,7 +149,8 @@ class RunnerCase(unittest.TestCase):
                                            "BENCH_SECRET_FILE": t("key")})
         env.start()
         self.addCleanup(env.stop)
-        os.environ.pop("ANTHROPIC_API_KEY", None)
+        for name in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "BENCH_LOGIN"):
+            os.environ.pop(name, None)
 
     def fake_ide(self, url, root, timeout):
         self.assertEqual(ROOT, root)
@@ -826,6 +830,67 @@ class KeyTest(RunnerCase):
         self.assertNotIn(FAKE_KEY, out + err)
         self.assertEqual([], os.listdir(self.log_dir), "the proxy log of the run went into the run folder")
         self.assertEqual({}, self.routes_now())
+
+
+class LoginTest(RunnerCase):
+    """The two login kinds (`settings.login()`, the variable BENCH_LOGIN): the variable of the secret in the container,
+    the secret search and the field `login` of run.json. Each secret file is a temporary file with a made-up value."""
+    TOKEN = "sk-fake-oauth-token-0123456789-test-only"
+    VARS = {"api-key": "ANTHROPIC_API_KEY", "subscription": "CLAUDE_CODE_OAUTH_TOKEN"}
+    LOG = {"api-key": "key", "subscription": "token"}  # the field of the variable in the log of the fake docker
+
+    def use(self, login):
+        """Set the login and write its secret file; return the value of the file."""
+        value = FAKE_KEY if login == "api-key" else self.TOKEN
+        write(os.environ["BENCH_SECRET_FILE"], value + "\n")
+        os.environ["BENCH_LOGIN"] = login
+        return value
+
+    def files_with(self, value):
+        """The files below RUNS and the proxy log folder whose bytes hold the value."""
+        found = []
+        for top in (self.runs, self.log_dir):
+            for folder, _, names in os.walk(top):
+                for name in names:
+                    with open(os.path.join(folder, name), "rb") as f:
+                        if value.encode("utf-8") in f.read():
+                            found.append(os.path.join(folder, name))
+        return found
+
+    def test_container_gets_the_variable_of_the_login(self):
+        for n, (login, var) in enumerate(self.VARS.items(), 1):
+            with self.subTest(login):
+                value = self.use(login)
+                other = next(k for k in self.VARS if k != login)
+                with mock.patch.object(claude_code, "read_key", side_effect=AssertionError("a dry run reads it")):
+                    cmd = self.dry("P", "-n", str(n))
+                self.assertIn(var, env_values(cmd))
+                self.assertNotIn(self.VARS[other], json.dumps(cmd))
+                code, rec, _, err = self.start("P", "-n", str(n))
+                self.assertEqual((0, "ok", login), (code, rec["outcome"], rec["login"]), err)
+                call = self.runs_of_docker()[-1]
+                self.assertEqual((value, None), (call[self.LOG[login]], call[self.LOG[other]]),
+                                 "the value is only in the environment of the docker process")
+                self.assertIn(var, env_values(call["argv"]))
+                self.assertNotIn(self.VARS[other], json.dumps(call["argv"]))
+                self.assertNotIn(value, json.dumps(call["argv"]))
+
+    def test_secret_is_in_no_file_of_the_run_and_not_in_the_output(self):
+        for n, login in enumerate(self.VARS, 1):
+            with self.subTest(login):
+                value = self.use(login)
+                code, rec, out, err = self.start("P", "-n", str(n))
+                self.assertEqual((0, "ok", login), (code, rec["outcome"], rec["login"]), err)
+                self.assertEqual([], self.files_with(value))
+                self.assertNotIn(value, out + err)
+                # The container prints the secret: the runner finds it, deletes the files and keeps `login`.
+                code, rec, out, err = self.start("P", "-n", str(n + 2), print_key=1)
+                os.environ.pop("FAKE_DOCKER_PRINT_KEY")
+                self.assertEqual((9, "key_leak", login), (code, rec["outcome"], rec["login"]))
+                self.assertIn("transcript.jsonl", rec["reason"])
+                self.assertEqual(["run.json"], os.listdir(os.path.join(self.runs, "b1", rec["id"])))
+                self.assertEqual([], self.files_with(value))
+                self.assertNotIn(value, out + err)
 
 
 class RunTest(RunnerCase):
@@ -1539,6 +1604,21 @@ class HandshakeTest(RunnerCase):
         self.assertEqual({}, self.routes_now())
         self.assertIn("handshake beets: PASS", out)
         self.assertIn('"method": "initialize"', out)
+
+    def test_handshake_has_neither_secret_variable(self):
+        os.environ.update({"ANTHROPIC_API_KEY": FAKE_KEY, "CLAUDE_CODE_OAUTH_TOKEN": LoginTest.TOKEN,
+                           "FAKE_DOCKER_EXTRA": f"{SERVER}: http://172.17.0.1:29380/r/x/mcp (HTTP) - connected"})
+        for login in LoginTest.VARS:
+            with self.subTest(login):
+                os.environ["BENCH_LOGIN"] = login
+                with mock.patch.object(claude_code, "read_key", side_effect=AssertionError("the handshake reads it")):
+                    code, out, err = self.main("handshake", "-product", "beets")
+                self.assertEqual(0, code, out + err)
+                call = self.runs_of_docker()[-1]
+                self.assertEqual((None, None), (call["key"], call["token"]))
+                for text in (*LoginTest.VARS.values(), FAKE_KEY, LoginTest.TOKEN):
+                    self.assertNotIn(text, json.dumps(call["argv"]))
+                    self.assertNotIn(text, out + err)
 
 
 if __name__ == "__main__":
