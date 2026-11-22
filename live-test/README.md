@@ -712,3 +712,5 @@ The harness POSTs to live IDE-hosted servers, so it requires running
 IDEs. CI runners don't carry a desktop IDE. Headless IDE execution
 (`./gradlew runIde`) plus a fixture-loading script could enable this in
 the future.
+
+The unit tests of the harness do run in CI, in the job "Harness tests" of the workflow Build.

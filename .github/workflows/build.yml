@@ -1,6 +1,7 @@
 # GitHub Actions Workflow is created for testing and preparing the plugin release in the following steps:
 # - Run the 'buildPlugin' task and prepare artifact for further tests.
 # - Run the 'check' task, which runs all tests.
+# - Run the unit tests of the live-test harness (Python and Go).
 # - Run the 'verifyPlugin' task (pushes to main only).
 # - Create a draft release (pushes to main only).
 #
@@ -104,6 +105,38 @@ jobs:
         with:
           name: tests-result
           path: ${{ github.workspace }}/build/reports/tests
+
+  # Run the unit tests of the live-test harness (the release draft does not wait for this job)
+  harness:
+    name: Harness tests
+    runs-on: ubuntu-latest
+    steps:
+
+      # Check out the current repository
+      - name: Fetch Sources
+        uses: actions/checkout@v7
+
+      # Set up the lowest Python version that the harness supports
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.10'
+
+      # Run the Python unit tests of the harness
+      - name: Run Python Tests
+        run: python3 -B -m unittest discover -s live-test -t live-test -p "test_*_unit.py"
+
+      # Set up the Go version of the key generator
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: live-test/keygen/gokeys/go.mod
+          cache-dependency-path: live-test/keygen/gokeys/go.sum
+
+      # Run the Go unit tests of the key generator
+      - name: Run Go Tests
+        run: go test ./...
+        working-directory: live-test/keygen/gokeys
 
   # Run plugin structure verification along with IntelliJ Plugin Verifier
   verify:
