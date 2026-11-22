@@ -18,13 +18,17 @@ B="${BENCH_ROOT:-$HOME/dev/idesense-bench}"
 |---|---|
 | `gokeys/` | The Go command `gokeys`: Go keys from the Go compiler library (`extract`), their proof (`accept`), the calls file (`calls`), the occurrences of a name (`idents`), a copy of a tree for a run-time trace (`trace`) |
 | `pykeys.py` | Python keys: the unique-name scan (`unique`) and the class hierarchy by reflection (`hierarchy`) |
-| `callkeys.py` | Caller keys of two levels (`pycalls`, `make`), their trace proof (`targets`, `tracecheck`), and caller keys through an interface value (`dynmake`) |
+| `callkeys.py` | Caller keys of two levels (`pycalls`, `make`), their trace proof (`targets`, `tracecheck`), and caller keys through an interface value (`dyntargets`, `dynmake`) |
 | `plant.py` | Planted trees: one shared name for four methods, and the key from the state before the rename |
 | `pytest_plugin/trace_plugin.py` | A pytest plugin that logs the callers of target functions |
 | `trees.json` | The recipe and the digest of each benchmark tree |
 | `tests/` | The unit tests, and a small Python package for them |
 
-The module text at the top of each file gives each option, each file format and each exit code.
+The module text at the top of each Python file gives each option, each file format and each exit
+code. The Go command `gokeys` has no such text: `gokeys <command> -h` gives the options of a
+command, and the exit code is 0 for success, 1 for a failure and 2 for a usage error. The
+formats of its files are in the module texts of `common/keyrecord.py` (the key records of
+`extract`) and `callkeys.py` (the calls file, the targets file and the trace file).
 The key record format is in the module text of [`common/keyrecord.py`](../common/keyrecord.py).
 A key holds positions, names and classes, and no source text of a product.
 
@@ -93,7 +97,7 @@ benchmark holds only the lines of its answer (see
 | `plant.jsonl` | the planted trees | `plant make` | By hand: Go, `gokeys extract` on the planted tree; Python, a trace of the test suite (below) |
 | `calls.jsonl` | each tree | `gokeys calls` (Go), `callkeys pycalls` (Python) | No key |
 | `callers.jsonl` | each tree | `callkeys make` | Go: `gokeys calls -check`; Python: `callkeys targets`, a trace, `callkeys tracecheck` |
-| `dyncallers.jsonl` | caddy | `gokeys trace`, a test run, `callkeys dynmake` | the rule of `dynmake` |
+| `dyncallers.jsonl` | caddy | `callkeys dyntargets`, `gokeys trace`, a test run, `callkeys dynmake` | the rule of `dynmake` |
 
 `callers.jsonl` and `dyncallers.jsonl` hold the keys of the functions that are targets. A
 `calls.jsonl` file is no key: it holds the uses of each function declaration, and the caller keys
@@ -194,22 +198,69 @@ the tree.
 ### Caller keys through an interface value
 
 `callkeys dynmake` gives a key of one level to a Go method whose only open cause is `interface`.
-Its inputs are the static calls, the call sites of the interface methods and a run-time trace:
+Its inputs are the static calls, the call sites of the interface methods and a run-time trace.
+`R` is a new folder for the files of one run:
 
 ```bash
-"$B/scratch/gokeys-bin" trace -tree "$B/trees/caddy" -targets <targets.json> -dst <copy>
-(cd <copy> && BENCH_TRACE_OUT=<trace.jsonl> go test -count=1 ./...)
+R="$B/scratch/calls/<run>"
+mkdir -p "$R/xdg/config" "$R/xdg/data"
+./live-test/run.py keygen callkeys dyntargets -calls "$B/keys/caddy/calls.jsonl" \
+  -symbols "$B/keys/caddy/symbols.jsonl" -out "$R/targets.json"
+"$B/scratch/gokeys-bin" trace -tree "$B/trees/caddy" -targets "$R/targets.json" -dst "$R/copy"
+(cd "$R/copy" && go version && XDG_CONFIG_HOME="$R/xdg/config" XDG_DATA_HOME="$R/xdg/data" \
+  BENCH_TRACE_OUT="$R/trace.jsonl" go test -count=1 ./...) > "$R/test.log" 2>&1
 ./live-test/run.py keygen callkeys dynmake -calls "$B/keys/caddy/calls.jsonl" \
-  -symbols "$B/keys/caddy/symbols.jsonl" -targets <targets.json> -trace <trace.jsonl> \
-  -root <copy> -out "$B/keys/caddy/dyncallers.jsonl"
+  -symbols "$B/keys/caddy/symbols.jsonl" -targets "$R/targets.json" -trace "$R/trace.jsonl" \
+  -root "$R/copy" -out "$R/dyncallers.jsonl"
 ```
 
-The targets file is a JSON list of `{"id", "file", "line"}`, with the line of the `decl` of a
-record of `calls.jsonl`. No command of the harness writes it: it lists the methods whose open
-causes (`callkeys.open_causes`) are exactly `interface`. In the copy of `gokeys trace`, each target
-logs its call stack, and no line of a file moves. `-count=1` makes Go run each test: a cached test
-result runs no code and logs no call. `dynmake` exits 1 when a traced caller breaks its rule, after
-it wrote the other records.
+`dyntargets` writes the targets file: a JSON list of `{"id", "file", "line"}`, one entry for each
+record of kind `method` in `calls.jsonl` whose open causes (`callkeys.open_causes`, with the
+symbols file) are exactly `interface`. The id is `<file>:<line>`, with the line of the `decl`. In
+the copy of `gokeys trace`, each target logs its call stack, and no line of a file moves. `-depth`
+of `gokeys trace` (default 6) is the maximum count of frames in one trace line. `dynmake` looks
+for a library caller (`"why": "library"`) only in these frames, so `-depth` changes only these
+`dnc` sites and their count in `dynamic`. The stored key used the default.
+
+The test run has these conditions:
+
+- `BENCH_TRACE_OUT` is an absolute path. `go test` runs each test binary in the folder of its
+  package, so a relative path gives one trace file in each package folder.
+- The trace file does not exist before the run: each test binary appends its lines to it.
+- `-count=1` makes Go run each test: a cached test result runs no code and logs no call.
+- `XDG_CONFIG_HOME` and `XDG_DATA_HOME` name new empty folders. The tests of caddy keep their
+  state (a local CA, certificates, an ACME database, a saved configuration) in
+  `$XDG_DATA_HOME/caddy` and `$XDG_CONFIG_HOME/caddy`. The default of these folders is below the
+  home folder, and the state stays after the run. An old state changes some lines of the trace
+  and can change the result of a test.
+- `go test` can exit 1. A failed test of the product does not make the trace wrong: each traced
+  call is a real call, and the trace is a lower limit ([METHOD.md](../METHOD.md), section 3.3).
+  With a new state, the caddy test `TestReverseProxySNIPlaceHolder` can fail.
+
+The traced calls can also depend on the timing of the tests: the count of CPUs (`GOMAXPROCS`) and
+the option `-p` of `go test` can change them. The first line of `test.log` is the Go version.
+`dynmake` exits 1 when a traced caller breaks its rule, after it wrote the other records.
+
+The files of the run that made the stored key are in `$B/scratch/calls/`: `caddy-dyn-targets.json`
+(the targets file), `caddy-trace/` (the copy), `caddy-trace.jsonl` (the trace) and
+`caddy-trace-test.log` (the test output).
+
+**Repeat check.** A second run does not always give a file that is equal byte for byte, so
+compare the records. Each record is one line, in the order of `calls.jsonl`, so `diff` shows each
+record that differs or that only one file has:
+
+```bash
+diff "$B/keys/caddy/dyncallers.jsonl" "$R/dyncallers.jsonl"
+```
+
+- No answer changes when only the `proof` of a caller changes between `static` and
+  `static+trace`.
+- A caller with the class `required` that only one file has changes an answer: it needs a
+  decision. A record that only one file has holds such callers.
+
+The new file goes to `$B/keys/caddy/dyncallers.jsonl` only after this decision. Then
+`./live-test/run.py bench qfiles check -data` shows each tracked question whose answer differs
+from the new file.
 
 ## Tests
 

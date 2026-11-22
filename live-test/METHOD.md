@@ -106,6 +106,13 @@ compiler fact names the callers. The key of such a method has three classes of c
 The trace is a lower limit: it proves only the calls that the test suite makes. So the questions
 take methods with few callers that are not decided. The question asks for one level of callers.
 
+The traced calls can change from run to run: the timing of the tests and the state that the tests
+of the product keep can change which calls a run makes. So the `proof` of a caller can change, and
+a caller with the proof `trace` only can come or go. A second run does not always give a key file
+that is equal byte for byte. The repeat check of "Caller keys through an interface value" in
+[keygen/README.md](keygen/README.md#caller-keys-through-an-interface-value) says which difference
+changes an answer.
+
 ## 4. The audit
 
 The audit asks: what do the tools of the plugin answer for each symbol of a key file, with no
