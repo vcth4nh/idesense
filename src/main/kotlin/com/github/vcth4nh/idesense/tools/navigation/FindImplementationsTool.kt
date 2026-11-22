@@ -69,7 +69,7 @@ class FindImplementationsTool : AbstractMcpTool() {
         for Java functional interfaces.
 
         Returns: implementing classes/methods with file paths, 1-based line/column, kind, and
-        qualified name. Paginated (each cursor collects up to about 5,000 results) — pass the returned cursor for the next page; the count reflects collected results, not a guaranteed whole-project total.
+        qualified name. Paginated (each cursor collects up to about ${PaginationService.MAX_CACHED_RESULTS_PER_CURSOR} results) — pass the returned cursor for the next page; the count reflects collected results, not a guaranteed whole-project total.
 
         Gotchas: requires smart mode. For the supertype chain use ide_type_hierarchy; for "who
         extends X" in a tree use ide_type_hierarchy with direction=subtypes.
