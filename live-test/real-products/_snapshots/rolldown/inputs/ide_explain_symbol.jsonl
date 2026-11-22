@@ -1,0 +1,4 @@
+{"id":"explain-LinkStage","tool":"ide_explain_symbol","params":{"symbol":"LinkStage"}}
+{"id":"explain-Plugin-ambiguous","tool":"ide_explain_symbol","params":{"symbol":"Plugin"},"parked":269}
+{"id":"explain-Plugin-rust-qualified-name","tool":"ide_explain_symbol","params":{"symbol":"rolldown_plugin::plugin::Plugin"},"parked":273}
+{"id":"explain-canonical_name_for-position","tool":"ide_explain_symbol","params":{"column":10,"file":"crates/rolldown/src/module_finalizers/mod.rs","line":144}}

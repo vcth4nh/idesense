@@ -1,0 +1,5 @@
+{"id":"file-structure-hook_usage.rs-generated","tool":"ide_file_structure","params":{"file":"crates/rolldown_plugin/src/generated/hook_usage.rs"},"parked":190}
+{"id":"file-structure-module_finalizers-mod.rs-large","tool":"ide_file_structure","params":{"file":"crates/rolldown/src/module_finalizers/mod.rs"},"compare":"shape"}
+{"id":"file-structure-plain-object-like.ts","tool":"ide_file_structure","params":{"file":"packages/rolldown/src/types/plain-object-like.ts"}}
+{"id":"file-structure-plugin.rs","tool":"ide_file_structure","params":{"file":"crates/rolldown_plugin/src/plugin.rs"}}
+{"id":"file-structure-symbol_ref.rs","tool":"ide_file_structure","params":{"file":"crates/rolldown_common/src/types/symbol_ref.rs"}}

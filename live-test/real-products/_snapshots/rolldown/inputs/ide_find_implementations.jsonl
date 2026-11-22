@@ -1,0 +1,5 @@
+{"id":"impls-BuildEvent-trait","tool":"ide_find_implementations","params":{"column":11,"file":"crates/rolldown_error/src/build_diagnostic/events/mod.rs","line":61,"pageSize":100}}
+{"id":"impls-LinkStage-struct-impl-blocks","tool":"ide_find_implementations","params":{"column":12,"file":"crates/rolldown/src/stages/link_stage/mod.rs","line":89,"pageSize":100}}
+{"id":"impls-MinimalPluginContextImpl-ts","tool":"ide_find_implementations","params":{"column":14,"file":"packages/rolldown/src/plugin/minimal-plugin-context.ts","line":111,"pageSize":100}}
+{"id":"impls-Plugin-trait","tool":"ide_find_implementations","params":{"column":11,"file":"crates/rolldown_plugin/src/plugin.rs","line":32,"pageSize":100}}
+{"id":"impls-Plugin.name-method","tool":"ide_find_implementations","params":{"column":6,"file":"crates/rolldown_plugin/src/plugin.rs","line":33,"pageSize":100}}

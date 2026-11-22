@@ -1,0 +1,6 @@
+{"id":"find-symbol-BindingMagicString-language-rust","tool":"ide_find_symbol","params":{"language":"Rust","query":"BindingMagicString"}}
+{"id":"find-symbol-BindingMagicString-language-ts","tool":"ide_find_symbol","params":{"language":"TypeScript","query":"BindingMagicString"}}
+{"id":"find-symbol-NoSuchSymbolXyz","tool":"ide_find_symbol","params":{"query":"NoSuchSymbolXyz"}}
+{"id":"find-symbol-canonical_ref_for","tool":"ide_find_symbol","params":{"query":"canonical_ref_for"}}
+{"id":"find-symbol-defineConfig-ts-overloads","tool":"ide_find_symbol","params":{"query":"defineConfig"}}
+{"id":"find-symbol-new-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"new"},"compare":"shape"}

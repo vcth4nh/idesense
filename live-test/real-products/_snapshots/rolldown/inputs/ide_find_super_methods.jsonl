@@ -1,0 +1,3 @@
+{"id":"super-AssetModulePlugin.name-rust","tool":"ide_find_super_methods","params":{"column":6,"file":"crates/rolldown_plugin_asset_module/src/lib.rs","line":33}}
+{"id":"super-LoadPluginContextImpl.addWatchFile-ts","tool":"ide_find_super_methods","params":{"column":10,"file":"packages/rolldown/src/plugin/load-plugin-context.ts","line":24}}
+{"id":"super-is_validate_identifier_name-none","tool":"ide_find_super_methods","params":{"column":8,"file":"crates/rolldown_utils/src/ecmascript.rs","line":8}}
