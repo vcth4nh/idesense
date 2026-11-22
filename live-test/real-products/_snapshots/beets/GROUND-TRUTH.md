@@ -2,12 +2,12 @@
 
 These results look wrong, but the IDE returns the same. Do not change the probe to "fix" them.
 
-- **beets: a base class through `import beets`.** `beetsplug/playlist.py` imports only
-  `beets` and names the base class `beets.plugins.BeetsPlugin`. `beets/__init__.py` has a
-  module `__getattr__`. `def-plugins-via-module-getattr` gives the error "Could not resolve
-  symbol definition". In PyCharm, Go to Declaration does nothing at that position. The error
-  row needs the two-step bless (see "Rows that pin an expected error" in
-  `live-test/CONVENTIONS.md`).
+- **beets: a base class through `import beets`.** `beetsplug/playlist.py` imports `beets`
+  but not `beets.plugins`, and names the base class `beets.plugins.BeetsPlugin`.
+  `beets/__init__.py` has a module `__getattr__`. `def-plugins-via-module-getattr` gives the
+  error "Could not resolve symbol definition". In PyCharm, Go to Declaration does nothing at
+  that position. The error row needs the two-step bless (see "Rows that pin an expected error"
+  in `live-test/CONVENTIONS.md`).
 - **beets: 103 subclasses of `BeetsPlugin`.** `impls-BeetsPlugin` and `hier-sub-BeetsPlugin`
   give 103 classes, and a scan of the source finds 105. The two other classes are
   `PlaylistPlugin` (its base is the name of the bullet above) and a local `OtherPlugin` whose
@@ -21,16 +21,16 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   "Untyped (probable) usage" (`playlist.py:75`). The tool gives the sum, 173. The probable
   usage has the `usageType` `REFERENCE` and `match` `DYNAMIC`, and it is the only usage with a
   `match` (#143).
-- **beets: a call that PyCharm does not resolve is in no usage list (#220).** Seen on
-  2026-11-22 with PyCharm 2026.3.0.1 (build 263.7307.329), the interpreter of the project
-  (`.venv`, Python 3.12.3) and the scope "Project Files". Two instances of this build on the
-  same tree gave the windows of this bullet and of the next two bullets: one with no plugin, and
-  one with a development build of the plugin code of main @ 2b4c071, which also gave the tool
-  answers. No position of this bullet has a row. At each call below, Go to Declaration shows
-  the hint "Cannot find declaration to go to" and does not jump, and `ide_find_definition`
-  gives the error "Could not resolve symbol definition". Where the window showed Find Usages of
-  the method, the list does not have the call, and `ide_find_usages` gives the same list. The
-  observed kinds:
+- **beets: a call or a reference that PyCharm does not resolve is in no usage list (#220).**
+  Seen on 2026-11-22 with PyCharm 2026.3.0.1 (build 263.7307.329), the interpreter of the
+  project (`.venv`, Python 3.12.3) and the scope "Project Files". Instances of this build on the
+  same tree gave the windows of this bullet and of the next two bullets: an instance with no
+  plugin, and instances with a development build of the plugin code of main @ 2b4c071, which
+  also gave the tool answers. No position of this bullet has a row. At each call or reference
+  below, Go to Declaration shows the hint "Cannot find declaration to go to" and does not jump,
+  and `ide_find_definition` gives the error "Could not resolve symbol definition". Where the
+  window showed Find Usages of the method, the list does not have the call or the reference,
+  and `ide_find_usages` gives the same list. The observed kinds:
   - A receiver with a type that does not declare the method. Find Usages at
     `beets/importer/tasks.py:544:9` (`handle_created`) lists 4 usages, and not the calls at
     `beets/importer/stages.py:75:30` and `:88:30`. Error Description at `stages.py:75:30` says
@@ -51,6 +51,12 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
     `extra/release.py:250:5` (`changelog_as_markdown`) lists only line 279. The call at
     `test/extra/test_release.py:133:22` is not in the list: its module `release` comes from
     `pytest.importorskip("extra.release")` (line 10).
+  - A reference on a `Mock` object. At `test/plugins/test_smartplaylist.py:171:11`, `:206:11`
+    and `:249:11`, the reference `i.evaluate_template` gets a `side_effect`, and `i` is a
+    `Mock` (line 170) or a `MagicMock` (lines 201 and 242). These are references, not calls.
+    Find Usages at `beets/dbcore/db.py:695:9` (`evaluate_template`) lists 16 usages, and not
+    these three lines. The name has no wavy underline, and Error Description at `:171:11`
+    shows no text.
 
   The window did not show Find Usages of `_subcommand_for_name`, `_fetch_va_genres`,
   `_filter_valid`, `_format_genres` and `make_search_result`. For these methods, the audit run
