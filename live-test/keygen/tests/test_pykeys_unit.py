@@ -207,22 +207,26 @@ class HierarchyTest(unittest.TestCase):
         # StopImport (its module stops at import), ExtraLeaf, LocalLeaf, LocalTwig.
         self.assertEqual(4, self.recs[0]["unseen"])
 
-    def test_hierarchy_lists_typeddict_subclasses(self):
-        def required(name):
-            return [i["id"].rsplit(".", 1)[-1] for i in self.classes["py:shop.models." + name]["implementers"]
-                    if i["class"] == "required"]
+    def required(self, name):
+        return [i["id"].rsplit(".", 1)[-1] for i in self.classes["py:shop.models." + name]["implementers"]
+                if i["class"] == "required"]
 
+    def test_hierarchy_lists_typeddict_subclasses(self):
+        if sys.version_info < (3, 12):
+            self.skipTest("a TypedDict class has no __orig_bases__ before Python 3.12")
         # The bases of a TypedDict class are (dict,): its declared bases (__orig_bases__) make the relation.
-        self.assertEqual(["ChildRecord", "GrandRecord", "MergedRecord"], required("BaseRecord"))
-        self.assertEqual(["GrandRecord"], required("ChildRecord"))
-        self.assertEqual(["MergedRecord"], required("ExtraRecord"))
+        self.assertEqual(["ChildRecord", "GrandRecord", "MergedRecord"], self.required("BaseRecord"))
+        self.assertEqual(["GrandRecord"], self.required("ChildRecord"))
+        self.assertEqual(["MergedRecord"], self.required("ExtraRecord"))
         self.assertEqual([impl("py:shop.models.MergedRecord", "shop/models.py", 102, 7, "required")],
                          self.classes["py:shop.models.ExtraRecord"]["implementers"])
-        self.assertEqual([], required("GrandRecord"))
-        # NamedTuple and Generic: the same lists as __subclasses__() alone gives (this part passed before the change).
-        self.assertEqual(["LabeledPair"], required("Pair"))
-        self.assertEqual(["IntBox"], required("Box"))
-        self.assertEqual([], required("IntBox"))
+        self.assertEqual([], self.required("GrandRecord"))
+
+    def test_hierarchy_lists_namedtuple_and_generic_subclasses(self):
+        # The same lists as __subclasses__() alone gives.
+        self.assertEqual(["LabeledPair"], self.required("Pair"))
+        self.assertEqual(["IntBox"], self.required("Box"))
+        self.assertEqual([], self.required("IntBox"))
 
 
 class TracePluginTest(unittest.TestCase):

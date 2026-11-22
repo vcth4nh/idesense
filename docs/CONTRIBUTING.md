@@ -247,7 +247,8 @@ no pull request starts no Build run.
 ### Live tests
 
 The live-test harness runs the tools against running IDEs and compares the results with blessed
-snapshots. CI does not run it. For a change of tool behavior and for a release, run both suites
+snapshots. CI does not run the live suites. The unit tests of the harness run in CI (see "CI").
+For a change of tool behavior and for a release, run both suites
 (`./live-test/run.py --suite all`): see "Run the suites against a new build" in
 [live-test/README.md](../live-test/README.md). The commands, the deploy and the bless rules are
 in that file and in [live-test/AGENTS.md](../live-test/AGENTS.md).
@@ -295,6 +296,7 @@ the newer push tests both commits.
 |---|---|---|
 | Build | always | `./gradlew buildPlugin`; uploads the plugin as an artifact. |
 | Test | always | `./gradlew check`: the unit tests and the platform tests. |
+| Harness tests | always | The unit tests of the live-test harness: `python3 -B -m unittest discover -s live-test -t live-test -p "test_*_unit.py"` (Python 3.10), and `go test ./...` in `live-test/keygen/gokeys`. The release draft does not wait for it. |
 | Verify plugin | on a push to `main` only | `./gradlew verifyPlugin`. |
 | Release draft | on a push to `main` only, after Build, Test and Verify plugin | Replaces the draft release (see "Release"). |
 
