@@ -46,4 +46,35 @@ class FileStructureToolUnitTest : TestCase() {
         assertNull(name(null))
         assertNull(name(" \n "))
     }
+
+    // #335: the signature of a node (the location text of the IDE) is one line, and it is not cut.
+    private fun signature(text: String?) = FileStructureTool.nodeSignature(text)
+
+    fun testSignatureWithLineBreaksIsOneLine() =
+        assertEquals("first line second line", signature("first line\nsecond line"))
+
+    fun testSignatureWithCarriageReturnAndLineFeedIsOneLine() =
+        assertEquals("first line second line", signature("first line\r\nsecond line"))
+
+    fun testSignatureWithIndentedLinesAndAnEmptyLineIsOneLine() =
+        assertEquals("para one continues para two", signature("para one\n    continues\n\n  para two"))
+
+    fun testSignatureLosesTheWhiteSpaceAtTheTwoEnds() =
+        assertEquals("text", signature("  \n\ttext \r\n "))
+
+    fun testBlankSignatureIsAbsent() {
+        assertNull(signature(null))
+        assertNull(signature(""))
+        assertNull(signature(" \n\t "))
+    }
+
+    fun testSignatureOfOneLineStaysAsItIs() =
+        assertEquals("(a: Int, b: Int): Unit", signature("(a: Int, b: Int): Unit"))
+
+    fun testLongSignatureOfSeveralLinesStaysWhole() {
+        val text = "a".repeat(60) + "\n   " + "b".repeat(60) + "\n\n" + "c".repeat(60)
+        val result = signature(text)
+        assertEquals("a".repeat(60) + " " + "b".repeat(60) + " " + "c".repeat(60), result)
+        assertFalse(result!!.contains("…"))
+    }
 }

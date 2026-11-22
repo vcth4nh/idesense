@@ -239,7 +239,7 @@ class FileStructureTool : AbstractMcpTool() {
         return StructureNode(
             name = name,
             modifiers = UniversalModifiers.extract(rawValue),
-            signature = presentation.locationString?.takeIf { it.isNotBlank() },
+            signature = nodeSignature(presentation.locationString),
             line = line,
             children = walkAbstractTreeNode(node, project, psiFile),
         )
@@ -285,6 +285,14 @@ class FileStructureTool : AbstractMcpTool() {
             val cut = ('\n' in text || '\r' in text) && name.length > MAX_NAME_LENGTH
             return if (cut) name.take(MAX_NAME_LENGTH - 1).let { if (it.last().isHighSurrogate()) it.dropLast(1) else it } + "…" else name
         }
+
+        /**
+         * The signature of a node: the location text of the IDE, as one line. Each run of white
+         * space becomes one space, and white space at the two ends goes away, as the Structure
+         * window shows the text in one row. The text is not cut. A blank text gives no signature.
+         */
+        internal fun nodeSignature(locationString: String?): String? =
+            locationString?.takeIf { it.isNotBlank() }?.replace(WHITE_SPACE, " ")?.trim()
 
         /**
          * The line of the navigation element of [psi], where the Structure window goes. The node
