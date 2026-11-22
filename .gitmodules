@@ -93,3 +93,13 @@
 	url = https://github.com/meta/lexical
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/spring-framework"]
+	path = live-test/real-products/spring-framework
+	url = https://github.com/spring-projects/spring-framework
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/webpack"]
+	path = live-test/real-products/webpack
+	url = https://github.com/webpack/webpack
+	shallow = true
+	ignore = dirty
