@@ -1,0 +1,7 @@
+{"id":"hier-sub-CustomErrorBase","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"packages/errors/src/errors/CustomErrorBase.ts","line":37}}
+{"id":"hier-sub-EntityProvider","tool":"ide_type_hierarchy","params":{"column":18,"direction":"subtypes","file":"plugins/catalog-node/src/api/provider.ts","line":70}}
+{"id":"hier-sub-EventRouter","tool":"ide_type_hierarchy","params":{"column":23,"direction":"subtypes","file":"plugins/events-node/src/api/EventRouter.ts","line":27}}
+{"id":"hier-sub-EventRouter-byname","tool":"ide_type_hierarchy","params":{"className":"EventRouter","direction":"subtypes"}}
+{"id":"hier-sub-UrlReaderService","tool":"ide_type_hierarchy","params":{"column":18,"direction":"subtypes","file":"packages/backend-plugin-api/src/services/definitions/UrlReaderService.ts","line":26}}
+{"id":"hier-super-GithubEntityProvider","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"plugins/catalog-backend-module-github/src/providers/GithubEntityProvider.ts","line":99}}
+{"id":"hier-super-GithubEventRouter","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"plugins/events-backend-module-github/src/router/GithubEventRouter.ts","line":30}}

@@ -1,0 +1,10 @@
+{"id":"find-file-GithubEventRouter.ts","tool":"ide_find_file","params":{"query":"GithubEventRouter.ts"}}
+{"id":"find-file-GithubEventRouter.ts-directory-part","tool":"ide_find_file","params":{"query":"router/GithubEventRouter.ts"},"parked":271}
+{"id":"find-file-index.ts-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"index.ts"},"compare":"shape","parked":271}
+{"id":"find-file-index.ts-production-scope","tool":"ide_find_file","params":{"query":"index.ts","scope":"project_production_files"}}
+{"id":"find-file-module.ts.hbs","tool":"ide_find_file","params":{"pageSize":100,"query":"module.ts.hbs"},"parked":271}
+{"id":"find-file-package.json-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"package.json"},"compare":"shape","parked":271}
+{"id":"find-file-plugin.ts-directory-part","tool":"ide_find_file","params":{"pageSize":100,"query":"src/plugin.ts"},"parked":271}
+{"id":"find-file-plugin.ts-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"plugin.ts"},"compare":"shape","parked":271}
+{"id":"find-file-setupTests.ts-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"setupTests.ts"},"compare":"shape"}
+{"id":"find-file-zzqNoSuchFile.ts-no-match","tool":"ide_find_file","params":{"query":"zzqNoSuchFile.ts"}}

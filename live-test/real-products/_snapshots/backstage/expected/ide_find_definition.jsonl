@@ -1,0 +1,7 @@
+{"id":"canary-def-Logger-into-winston","result":{"column":9,"enclosingScope":null,"file":"node_modules/winston/index.d.ts","kind":"CLASS","line":98,"name":"Logger","qualifiedName":"winston.Logger"}}
+{"id":"canary-def-SubTopicEventRouter-extends-package","result":{"column":23,"enclosingScope":null,"file":"plugins/events-node/src/api/SubTopicEventRouter.ts","kind":"CLASS","line":30,"name":"SubTopicEventRouter","qualifiedName":"SubTopicEventRouter"}}
+{"id":"def-Config-import-type","result":{"column":13,"enclosingScope":null,"file":"packages/config/src/types.ts","kind":"TYPE_ALIAS","line":52,"name":"Config","qualifiedName":"Config"}}
+{"id":"def-EntityProvider-reexport-chain","result":{"column":18,"enclosingScope":null,"file":"plugins/catalog-node/src/api/provider.ts","kind":"INTERFACE","line":70,"name":"EntityProvider","qualifiedName":"EntityProvider"}}
+{"id":"def-InfoCard-jsx-named-import","result":{"column":17,"enclosingScope":null,"file":"packages/core-components/src/layout/InfoCard/InfoCard.tsx","kind":"FUNCTION","line":167,"name":"InfoCard","qualifiedName":"InfoCard"}}
+{"id":"def-UrlReaderService-reexport-chain","result":{"column":18,"enclosingScope":null,"file":"packages/backend-plugin-api/src/services/definitions/UrlReaderService.ts","kind":"INTERFACE","line":26,"name":"UrlReaderService","qualifiedName":"UrlReaderService"}}
+{"id":"def-useApi-hook","result":{"column":17,"enclosingScope":null,"file":"packages/frontend-plugin-api/src/apis/system/useApi.tsx","kind":"FUNCTION","line":48,"name":"useApi","qualifiedName":"useApi"}}

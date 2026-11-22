@@ -1,0 +1,8 @@
+{"id":"canary-def-Logger-into-winston","tool":"ide_find_definition","params":{"column":13,"file":"packages/backend-defaults/src/entrypoints/rootLogger/WinstonLogger.ts","line":52}}
+{"id":"canary-def-SubTopicEventRouter-extends-package","tool":"ide_find_definition","params":{"column":40,"file":"plugins/events-backend-module-github/src/router/GithubEventRouter.ts","line":30}}
+{"id":"def-Config-import-type","tool":"ide_find_definition","params":{"column":11,"file":"packages/backend-defaults/src/entrypoints/auditor/utils.ts","line":42}}
+{"id":"def-DateInput-jsx-default-import","tool":"ide_find_definition","params":{"column":11,"file":"plugins/scaffolder-react/src/next/components/Form/BuiTheme/widgets/DateWidget.tsx","line":29},"parked":315}
+{"id":"def-EntityProvider-reexport-chain","tool":"ide_find_definition","params":{"column":46,"file":"plugins/catalog-backend-module-github/src/providers/GithubEntityProvider.ts","line":99}}
+{"id":"def-InfoCard-jsx-named-import","tool":"ide_find_definition","params":{"column":6,"file":"plugins/home/src/componentRenderers/ComponentTabs/ComponentTabs.tsx","line":37}}
+{"id":"def-UrlReaderService-reexport-chain","tool":"ide_find_definition","params":{"column":41,"file":"packages/backend-defaults/src/entrypoints/urlReader/lib/GithubUrlReader.ts","line":61}}
+{"id":"def-useApi-hook","tool":"ide_find_definition","params":{"column":22,"file":"plugins/catalog/src/alpha/components/EntityHeader/EntityHeader.tsx","line":135}}
