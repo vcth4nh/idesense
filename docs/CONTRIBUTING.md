@@ -449,7 +449,7 @@ issue has only `component: source`. An issue about two parts gets one label for 
 | `component: skill` | The agent skill in `src/main/resources/skill/`. |
 | `component: docs` | `README.md`, `AGENTS.md`, `CHANGELOG.md` and `docs/`. |
 | `component: test` | The unit tests and the platform tests in `src/test/`. |
-| `component: live-test` | The two snapshot suites in `live-test/`: the fixture suite, the real-product suite, their harness and their documents. |
+| `component: live-test` | The two snapshot suites in `live-test/`: the fixture suite, the real-product suite, their harness and their documents. Also the parts that all instruments share: `live-test/common/`, `live-test/run.py`, `live-test/manifest.json` and `live-test/METHOD.md`. |
 | `component: benchmark` | The audit and the agent benchmark in `live-test/audit/`, `live-test/bench/` and `live-test/keygen/`. |
 | `component: build` | The Gradle build, the GitHub workflows, the dependencies and the release. |
 

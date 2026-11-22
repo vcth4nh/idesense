@@ -6,14 +6,19 @@ a verdict: `pass`, `fail` or `wait`. The method (the audits, the views, the mark
 and the limits) is in [METHOD.md](../METHOD.md), section 4.
 
 The audit runs on the benchmark IDEs: GoLand on port 29374 for caddy, and PyCharm on port 29372
-for beets. Each IDE has the slots of the trees of its product open. The audit needs the trees, the
-keys and the slots of the data root, and a plugin build in the benchmark IDEs: the setup and the
-build are in [bench/README.md](../bench/README.md). The commands run from the root of the
-repository. `B` is the data root:
+for beets. Each IDE has the slots of the trees of its product open. The audit needs steps 1 to 5
+and step 7 of "Setup from zero" in [bench/README.md](../bench/README.md#setup-from-zero): the
+trees, the keys, the slots, and the benchmark IDEs with a plugin build. It needs no image, no
+proxy and no secret. The commands run from the root of the repository. `B` is the data root:
 
 ```bash
 B="${BENCH_ROOT:-$HOME/dev/idesense-bench}"
 ```
+
+**The lock.** The commands of the audit that call an IDE hold the lock of the benchmark IDEs
+(`<data root>/state/lock`) while they run: `verdict run`, `symbols run`, `callers callers` and
+`callers dyn`. When another command holds the lock, they print its holder and exit 2. `verdict
+check`, `verdict propose` and `symbols disagreements` call no IDE.
 
 ## Files
 
@@ -150,13 +155,19 @@ the IDE does. While a cause has no date in `permitted`, an audit with a line of 
 `wait` (or in `fail`, when it also has a new line). The first accepted list of a product comes
 from a run on a present build.
 
+No cause of `causes.json` has a permission yet, so `wait` is the expected verdict of a build with
+no regression. An audit with no accepted line gives `fail` when it finds a disagreement, because
+each found line is new. Write the first list of the audit with the steps below before you read
+a `fail` as a regression. A result that did not audit each symbol of the list, for example a
+single `symbols run` with a small `-n`, gives `not audited` lines and `wait`.
+
 1. Run all audits (see "Run all audits"). Read each `new` line.
 2. Decide for each new line: a defect of the plugin (write an issue), or a behaviour that the IDE
    also shows (find the evidence: the rule "Mimic the IDE" in the root
-   [AGENTS.md](../../AGENTS.md)). A line that shows a defect with no issue stays new: the audit
-   fails.
-3. Run `propose` for the audit. It writes the found lines into `accepted/<product>.jsonl`, and
-   each new line has the cause null.
+   [AGENTS.md](../../AGENTS.md)).
+3. Run `propose` for the audit. It writes each found line into `accepted/<product>.jsonl`, and
+   each new line has the cause null. Remove from the list each line that you do not accept, for
+   example a defect with no issue. That line stays new, and the audit fails.
 4. Give each new line the name of its cause. For a new cause, add an entry to `causes.json` with
    its text, its issue and `"permitted": null`.
 5. Ask the owner of the repository to permit each new cause. The owner writes the date into
@@ -172,11 +183,11 @@ from a run on a present build.
 2. Run all audits into a new folder `"$B/audit/<build>"`.
 3. Read the verdict. A `fail` shows a new or a changed disagreement: a regression, or a correction
    that the accepted list does not know yet. A `gone` line shows a disagreement that the change
-   removed: run `propose` to take it out of the list.
+   removed: `propose` takes it out of the list. Run `propose` only after you make a decision for
+   each new line of that audit (see "Accept a disagreement").
 4. For a new line that the change makes correct, follow "Accept a disagreement".
 
 ## Tests
 
-```bash
-python3 -B -m unittest discover -s live-test -t live-test -p "test_*_unit.py"
-```
+The unit tests of the audit run with the other unit tests of `live-test/`: see "Requirements" in
+[README.md](../README.md#requirements).

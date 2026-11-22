@@ -42,14 +42,15 @@ result. The keys of the audit and of the agent batch exist for this reason.
 ## 3. The keys
 
 Rule: a key never comes from the plugin or from an IDE. Each key source has a proof, and the proof
-uses a second method. The commands are in [keygen/README.md](keygen/README.md).
+uses a second method. The commands are in [keygen/README.md](keygen/README.md). A proof with no
+tracked command is made by hand when the key is made.
 
 | Key | Source | Proof |
 |---|---|---|
-| Go symbols: uses, families, implementers | The name resolution of the Go compiler library (`go/types`), one load for each build configuration (Linux, Windows, macOS), test code included | `gokeys accept` renames each key line in a copy of the tree, and each configuration must type-check. With one line removed, the check must fail. |
-| Python uses | A token scan, only for a function or a method whose name has one definition and no other meaning in the tree (the unique-name rules of `pykeys unique`) | A second scan with a different method, and a run-time trace of the test suite, give the same lines. |
-| Python subclasses | Reflection in the interpreter of the product | Two runs give equal files, and each position is at a class name. |
-| Planted trees | A copy of a tree in which 4 methods with unique names, on 4 unrelated types, get one shared name. The key is the state before the rename. | Go: the key equals the compiler key of the planted tree. Python: the test suite gives the result of the base tree, and the call sites that a run-time trace logs are compared with the key. |
+| Go symbols: uses, families, implementers | The name resolution of the Go compiler library (`go/types`), one load for each build configuration (Linux, Windows, macOS), test code included | `gokeys accept` renames the key lines of each chosen record (`-ids` or `-sample`) in a copy of the tree, and each configuration must type-check. A unit test (`TestAcceptFailsWhenOneRequiredSiteIsAbsent`) shows that the check fails when one line is absent. |
+| Python uses | A token scan, only for a function or a method whose name has one definition and no other meaning in the tree (the unique-name rules of `pykeys unique`) | A second scan with a different method, and a run-time trace of the test suite, give the same lines. Made by hand when the key was made; no tracked command. |
+| Python subclasses | Reflection in the interpreter of the product | Two runs give equal files. Made by hand when the key was made; no tracked command. |
+| Planted trees | A copy of a tree in which 4 methods with unique names, on 4 unrelated types, get one shared name. The key is the state before the rename. | Go: the key equals the compiler key of the planted tree. Python: the test suite gives the result of the base tree, and the call sites that a run-time trace logs are compared with the key. Both made by hand when the key was made; no tracked command. `plant make` checks only the rename. |
 | Go callers | `gokeys calls`: each use of a function declaration, with the declaration that holds it and whether it is a call | `gokeys calls -check`: the static calls of the SSA form of the program (`go/ssa`) must give the same pairs of caller and callee in each configuration. |
 | Python callers | `callkeys pycalls`: the uses of the unique-name keys, with the outermost `def` that holds each use (from the syntax tree) | `callkeys tracecheck`: each call site that a trace of the test suite logs for the target and for its direct callers must be in a function of the key. |
 | Go callers through an interface value | `callkeys dynmake`: the static callers, and the callers that a run-time trace of the test suite logs (`gokeys trace` makes a copy of the tree in which each target logs its call stack; no line of a file moves) | Each traced caller must be a static caller, or it must hold a call site of an interface method that the target implements. A target that breaks this rule gets no key. |
@@ -319,8 +320,9 @@ again with the present keys.
 - A caller key covers only chains of calls that are certain (section 3.2), or one level of calls
   through an interface value that the tests run (section 3.3). A call through a function value or
   by a computed name has no key.
-- The questions and the keys are public. A model can learn them. The memory probe is the control
-  for this.
+- The questions and the keys are public. A model can learn them. The keys are in git on purpose,
+  so a person outside the project can score an agent. The memory probe and the flag `repo_access`
+  are the controls.
 - The suites pass an error that the IDE and the tool share (section 2). The audit passes a changed
   field or error text (section 4).
 

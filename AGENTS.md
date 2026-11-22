@@ -34,7 +34,7 @@ the scope and the design principles are in [docs/PRINCIPLES.md](docs/PRINCIPLES.
   `./gradlew buildPlugin -PpluginVersion=<version>-dev.NN`. No `-dev.NN` value lands on `main`.
   Details: [CONTRIBUTING.md](docs/CONTRIBUTING.md#dev-builds), "Dev builds".
 - **Live tests use shared IDEs.** Read [live-test/AGENTS.md](live-test/AGENTS.md) before a live
-  run, a bless, or a change of a row or of a fixture file.
+  run, a bless, a change of a row or of a fixture file, an audit, or an agent batch.
 - **Docs are pinned to the code.** After an edit of `README.md`, `docs/USAGE.md`,
   `docs/ARCHITECTURE.md` or the skill files, run the docs drift test
   ([CONTRIBUTING.md](docs/CONTRIBUTING.md), "Editing docs").

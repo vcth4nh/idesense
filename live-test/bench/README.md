@@ -80,32 +80,45 @@ id comes from the name of the tree. The agent in the container and the benchmark
 slot path.
 
 **The lock.** One user of the benchmark IDEs at a time: `runner batch`, a single `runner run`,
-`runner handshake`, the `run` commands of the audit and `bench build -start` hold the lock
-`<data root>/state/lock`. A
-second user stops at once with a message that names the holder. On a machine that more than one
-person or agent uses, only one Gradle build runs at a time.
+`runner handshake`, each command of the audit that calls an IDE (see
+[audit/README.md](../audit/README.md)) and `bench build -start` hold the lock
+`<data root>/state/lock`. A second user stops at once with a message that names the holder. A
+machine has one data root: two data roots give two locks for the same IDE ports.
 
 ## Setup from zero
 
-Requirements: Linux with Docker, Python 3.10 or later, git, Go and uv, and GoLand and PyCharm
-from the Toolbox app (the benchmark IDEs use these installs with folders of their own). The setup
-also needs the checkouts of caddy and beets in `live-test/real-products/` (see "Get a checkout" in
-[README.md](../README.md#get-a-checkout)).
+Requirements:
 
-1. **Trees.** Make the trees of the products and the planted trees: "Trees" in
+- Linux with Docker, Python 3.10 or later, git, Go, uv, `curl`, `unzip` and `ss`.
+- A JDK for the Gradle build of the plugin (`jvmToolchain` in `build.gradle.kts`; see "Build and
+  run" in [CONTRIBUTING.md](../../docs/CONTRIBUTING.md#build-and-run)).
+- GoLand and PyCharm from the Toolbox app. The benchmark IDEs use these installs with folders of
+  their own. Start each IDE one time and activate it: at its first start, a benchmark IDE copies
+  the config folder and the plugins of the installed IDE.
+- A data root with a short path: the path of each folder of a benchmark IDE (`$B/ide/<ide>/...`)
+  has 60 characters or fewer, else `bench-ide.sh` refuses it.
+- The checkouts of caddy and beets in `live-test/real-products/` (see "Get a checkout" in
+  [README.md](../README.md#get-a-checkout)).
+
+1. **Product trees.** Make the tree of each product: "Trees" in
+   [keygen/README.md](../keygen/README.md#trees).
+2. **Compiler key of caddy.** Build `$B/scratch/gokeys-bin` and write
+   `$B/keys/caddy/symbols.jsonl`: the first two commands of "Go keys" in
+   [keygen/README.md](../keygen/README.md#go-keys), for the tree caddy. A Go plant needs both.
+3. **Planted trees.** Make the planted trees: "Trees" in
    [keygen/README.md](../keygen/README.md#trees). `./live-test/run.py common trees digests` prints
    `ok` for each tree.
-2. **Keys.** Make the key files of each tree: "The key files" in
+4. **Keys.** Make the other key files of each tree: "The key files" in
    [keygen/README.md](../keygen/README.md#the-key-files).
    `./live-test/run.py bench qfiles check -data` prints `0 problems`.
-3. **Slots.** Make the slot of each tree of `keygen/trees.json`:
+5. **Slots.** Make the slot of each tree of `keygen/trees.json`:
 
    ```bash
    for t in $(python3 -c 'import json; print(*json.load(open("live-test/keygen/trees.json")))'); do
      ./live-test/run.py common trees slot "$t"
    done
    ```
-4. **Images.** Build the image of each product, and check it:
+6. **Images.** Build the image of each product, and check it:
 
    ```bash
    ./live-test/run.py bench images build caddy
@@ -117,9 +130,9 @@ also needs the checkouts of caddy and beets in `live-test/real-products/` (see "
    The build reads the pins of [`live-test/manifest.json`](../manifest.json) and stops when the
    file or a pin is absent. `gate` prints one line with PASS or FAIL for each check, and exits 0
    only when each check passes.
-5. **Benchmark IDEs.** Build the plugin and start the benchmark IDEs with it:
+7. **Benchmark IDEs.** Build the plugin and start the benchmark IDEs with it:
    `./live-test/run.py bench build -start` (see "The plugin build under test").
-6. **Proxy.** Start the proxy in a terminal of its own, then check the connection of each image:
+8. **Proxy.** Start the proxy in a terminal of its own, then check the connection of each image:
 
    ```bash
    ./live-test/run.py bench proxy serve -routes "$B/proxy/routes.json" -log-dir "$B/proxy/log"
@@ -149,14 +162,18 @@ file is untracked and not ignored: commit the change first. The zip goes to
 beets slots. After a failure, its last line is `build: <reason>`.
 
 The benchmark IDEs are GoLand on port 29374 and PyCharm on port 29372, with their folders in
-`$B/ide/<ide>/`. They never use a fleet port (29170 to 29178).
+`$B/ide/<ide>/`. They never use a fleet port (29170 to 29178). When systemd can give one,
+`bench-ide.sh start` runs a benchmark IDE in a systemd scope of its own (the header of
+`ide/bench-ide.sh`). The scope is below the user manager: on a machine where the user has no
+linger (`loginctl enable-linger`), the end of the last session of the user stops the IDE.
 
 ```bash
 live-test/bench/ide/bench-ide.sh status goland     # serverInfo.version and the open projects
 live-test/bench/ide/bench-ide.sh stop pycharm
 ```
 
-`bench-ide.sh` takes no lock: change the build with `bench build -start`.
+`bench-ide.sh` takes no lock: change the build with `bench build -start`. Stop a benchmark IDE
+only when no command holds the lock.
 
 ## Questions, keys and plans
 
@@ -188,7 +205,7 @@ run number. The tracked plans:
 |---|---|
 | `smoke` | The first batch on a new build or a new image: it proves the chain at a low cost |
 | `dev` | A batch during development |
-| `release` | Each tracked question, arms `C`, `P` and `PF`, both models |
+| `release` | Each tracked question; the arms and the models are in the plan file |
 
 The `rule` of each plan says how it chose its questions. `./live-test/run.py bench planfile check
 smoke dev release` prints the run count of each plan, or its problems.
@@ -279,7 +296,7 @@ summaries: [METHOD.md](../METHOD.md), section 6, says what must be equal.
 ### A development batch
 
 1. Commit the change, then `./live-test/run.py bench build -start`.
-2. Start the proxy if it does not run (step 6 of "Setup from zero").
+2. Start the proxy if it does not run (step 8 of "Setup from zero").
 3. `./live-test/run.py bench runner batch -plan smoke -batch <batch>-smoke`. Read the transcript of
    one plugin run (`transcript.jsonl` in its run folder): the agent called the IDE, and the answer
    has a score.
@@ -319,6 +336,5 @@ summaries: [METHOD.md](../METHOD.md), section 6, says what must be equal.
 
 ## Tests
 
-```bash
-python3 -B -m unittest discover -s live-test -t live-test -p "test_*_unit.py"
-```
+The unit tests of the benchmark run with the other unit tests of `live-test/`: see
+"Requirements" in [README.md](../README.md#requirements).

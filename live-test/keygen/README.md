@@ -52,7 +52,8 @@ and prepares the tree for its IDE: the `.idea` files and the dependencies.
 
 Make a planted tree from its recipe in `trees.json`. The command also writes the key of the plant.
 The recipe does not hold these options: `-product`, and for Go `-keys`, the compiler key of the
-tree of the product (see "Go keys"), or for Python `-modules beets,beetsplug`.
+tree of the product (see "Go keys"), or for Python `-modules beets,beetsplug`. Before a Go plant,
+do the first two commands of "Go keys" for the tree caddy.
 
 ```bash
 ./live-test/run.py keygen plant make -lang go -product caddy -keys "$B/keys/caddy/symbols.jsonl" \
@@ -86,10 +87,10 @@ benchmark holds only the lines of its answer (see
 | File | Trees | Command | Proof |
 |---|---|---|---|
 | `symbols.jsonl` | caddy, its planted trees | `gokeys extract` | `gokeys accept` |
-| `unique.jsonl` | beets, its planted trees | `pykeys unique` | A second scan and a trace ([METHOD.md](../METHOD.md), section 3) |
+| `unique.jsonl` | beets, its planted trees | `pykeys unique` | By hand: a second scan and a trace (below) |
 | `unique-used.jsonl` | beets | `pykeys unique -min-required 1` | As `unique.jsonl` |
-| `hierarchy.jsonl` | beets | `pykeys hierarchy` | Two runs give equal files |
-| `plant.jsonl` | the planted trees | `plant make` | Go: `gokeys extract` on the planted tree; Python: a trace of the test suite |
+| `hierarchy.jsonl` | beets | `pykeys hierarchy` | By hand: two runs give equal files (below) |
+| `plant.jsonl` | the planted trees | `plant make` | By hand: Go, `gokeys extract` on the planted tree; Python, a trace of the test suite (below) |
 | `calls.jsonl` | each tree | `gokeys calls` (Go), `callkeys pycalls` (Python) | No key |
 | `callers.jsonl` | each tree | `callkeys make` | Go: `gokeys calls -check`; Python: `callkeys targets`, a trace, `callkeys tracecheck` |
 | `dyncallers.jsonl` | caddy | `gokeys trace`, a test run, `callkeys dynmake` | the rule of `dynmake` |
@@ -97,6 +98,20 @@ benchmark holds only the lines of its answer (see
 `callers.jsonl` and `dyncallers.jsonl` hold the keys of the functions that are targets. A
 `calls.jsonl` file is no key: it holds the uses of each function declaration, and the caller keys
 and the caller audit read it.
+
+A proof "by hand" has no tracked command: a maintainer makes it when the key is made.
+
+- `unique.jsonl`: a second scan of the names with another method, and a run-time trace of the
+  test suite, give the lines of the key.
+- `hierarchy.jsonl`: run `pykeys hierarchy` two times into two files, and compare the files (for
+  example with `cmp`).
+- `plant.jsonl` of a Go plant: run `gokeys extract` on the planted tree (see "Go keys"), and
+  compare its records of the shared name with the records of `plant.jsonl`.
+- `plant.jsonl` of a Python plant: the test suite of the planted tree gives the result of the
+  base tree, and the call sites that a run-time trace logs are compared with the key.
+
+`plant make` itself checks only the rename: each occurrence of the shared name is a renamed
+position, and no original name is left.
 
 ### Go keys
 
@@ -198,9 +213,9 @@ it wrote the other records.
 
 ## Tests
 
+The Python unit tests of the key makers run with the other unit tests of `live-test/`: see
+"Requirements" in [README.md](../README.md#requirements). The Go tests of `gokeys`:
+
 ```bash
-python3 -B -m unittest discover -s live-test -t live-test -p "test_*_unit.py"
 (cd live-test/keygen/gokeys && go test ./...)
 ```
-
-The first command runs the unit tests of each package of `live-test/`.

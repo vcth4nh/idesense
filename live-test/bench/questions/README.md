@@ -52,6 +52,8 @@ names and classes, and no source text of the product.
 
 ## Score an agent
 
+Get a checkout of this repository. Run the commands from its root.
+
 1. **Check out the product at the pin.** The repository of each product is the field `repo` (a
    GitHub `<owner>/<name>`) of its entry in `live-test/real-products/products.json`.
 
