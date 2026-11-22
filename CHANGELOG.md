@@ -241,6 +241,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   When RustRover gives no module path, `qualifiedName` is `null`. A file as a result now also goes
   to the qualified-name providers of the other languages. In IntelliJ IDEA, a Gradle build script
   can now get the Gradle path of its project (#187).
+- `ide_type_hierarchy` in RustRover no longer stops the subtypes of a trait at 100 types. It also
+  no longer stops the supertypes of a type at 100 traits. For example, the trait `Flag` of
+  ripgrep now gives all 104 types that implement it, as `ide_find_implementations` does (#185).
 - A PHP class constant gets the `kind` `CONSTANT`, as a PHP constant outside a class. It had the
   `kind` `CLASS`, because the type name "Class constant" of PhpStorm contains "class" (#180).
 - The `qualifiedName` of a Go struct field holds the name of its struct: `package.Struct.field`.

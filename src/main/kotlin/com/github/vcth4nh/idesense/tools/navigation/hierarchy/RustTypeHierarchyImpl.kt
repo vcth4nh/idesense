@@ -364,7 +364,7 @@ internal class RustTypeHierarchyImpl {
                         }
                     }
                 }
-                results.size < 100
+                true
             })
 
             LOG.debug("Found ${results.size} implementing types via DefinitionsScopedSearch")
@@ -427,7 +427,7 @@ internal class RustTypeHierarchyImpl {
                         }
                     }
                 }
-                results.size < 100
+                true
             })
         } catch (e: Exception) {
             LOG.debug("Error finding implemented traits: ${e.message}")
