@@ -164,6 +164,32 @@ class UniversalModifiersTest : BasePlatformTestCase() {
 
     // endregion
 
+    // region Java: no text of a comment stays
+
+    // A comment between the keywords is a child of the modifier list (#282). A doc comment before
+    // the keywords is not.
+    fun testJavaCommentBetweenKeywords() {
+        java(
+            """
+            class A {
+                public /* c */ static void m() {}
+                public /*c*/ static void n() {}
+                public // line
+                static void o() {}
+                /** doc */ public static void p() {}
+                static/*c*/final int g = 1;
+            }
+            """
+        )
+        assertEquals(listOf("public", "static"), modifiersOf("m"))
+        assertEquals(listOf("public", "static"), modifiersOf("n"))
+        assertEquals(listOf("public", "static"), modifiersOf("o"))
+        assertEquals(listOf("public", "static"), modifiersOf("p"))
+        assertEquals(listOf("static", "final"), modifiersOf("g"))
+    }
+
+    // endregion
+
     // region Java: the name of a class initializer holds its keyword
 
     // The IDE writes `static` into the name of a static initializer, so the modifiers do not give
@@ -246,6 +272,28 @@ class UniversalModifiersTest : BasePlatformTestCase() {
             """
         )
         assertEquals(listOf("public", "open"), modifiersOf("r"))
+    }
+
+    // endregion
+
+    // region Kotlin: no text of a comment stays
+
+    // A comment between the keywords is a child of the modifier list (#282). The modifier list
+    // gives only its composite children in `getChildren()`, so a comment is not among them.
+    fun testKotlinCommentBetweenKeywords() {
+        kotlin(
+            """
+            open class K {
+                public /* c */ open fun m() {}
+                public/*c*/open fun n() {}
+                public // line
+                open fun o() {}
+            }
+            """
+        )
+        assertEquals(listOf("public", "open"), modifiersOf("m"))
+        assertEquals(listOf("public", "open"), modifiersOf("n"))
+        assertEquals(listOf("public", "open"), modifiersOf("o"))
     }
 
     // endregion

@@ -1,6 +1,7 @@
 package com.github.vcth4nh.idesense.tools.navigation.structure
 
 import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 
 /**
@@ -12,8 +13,8 @@ import com.intellij.psi.PsiElement
  * accessor methods are conventionally one of `getModifierList`, `getAttributeList`,
  * or `getVis`, and the returned PSI element's `getText()` yields the source-order
  * keyword list. We probe those accessors reflectively, remove the text of each
- * annotation or decorator child (see [withoutAnnotations]), and split the resulting
- * text on whitespace, dropping anything that looks like an annotation (`@...`).
+ * annotation, decorator or comment child (see [withoutAnnotationsAndComments]), and split
+ * the resulting text on whitespace, dropping anything that looks like an annotation (`@...`).
  *
  * PHP class and field elements don't expose `getModifierList()` (only methods do).
  * As a fallback, we probe `getModifier()` — which returns a `PhpModifier` whose
@@ -45,7 +46,7 @@ internal object UniversalModifiers {
         for (getter in GETTERS) {
             val sub = invokeNoArg(value, getter) ?: continue
             val text = invokeString(sub, "getText") ?: continue
-            return splitKeywords(withoutAnnotations(sub, text))
+            return splitKeywords(withoutAnnotationsAndComments(sub, text))
         }
         invokeNoArg(value, "getModifier")?.let { mod ->
             val text = mod.toString()
@@ -60,6 +61,10 @@ internal object UniversalModifiers {
      * can hold white space, so the `@` filter of [splitKeywords] alone left parts of them (#173).
      * With the space, two keywords next to the child stay apart (`static@A(x)final`).
      *
+     * A comment between two keywords is also a child, and it gets a space too (#282). A comment
+     * is a leaf, and `getChildren()` of a Kotlin modifier list gives only the composite children,
+     * so the comments come from the walk over the siblings.
+     *
      * The offsets come from the PSI, so a string or a parenthesis in the arguments has no effect.
      * In a compiled Java class the annotations are the only children, and the text and the
      * offsets come from the decompiled text. The loop goes from the end, so that each
@@ -69,13 +74,15 @@ internal object UniversalModifiers {
      * that a Java class inherits. Its text is the text of its navigation element, so the children
      * come from that element when the two texts are the same.
      */
-    private fun withoutAnnotations(modifierList: Any, text: String): String {
+    private fun withoutAnnotationsAndComments(modifierList: Any, text: String): String {
         if (modifierList !is PsiElement) return text
         val source = modifierList.navigationElement.takeIf { it.text == text } ?: modifierList
+        val annotations = source.children.filter { it.text.startsWith("@") }
+        val comments = generateSequence(source.firstChild) { it.nextSibling }.filterIsInstance<PsiComment>()
         val result = StringBuilder(text)
-        for (child in source.children.reversed()) {
+        for (child in (annotations + comments).sortedByDescending { it.startOffsetInParent }) {
             val start = child.startOffsetInParent
-            if (start < 0 || !child.text.startsWith("@")) continue
+            if (start < 0) continue
             result.replace(start, start + child.textLength, " ")
         }
         return result.toString()

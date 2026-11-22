@@ -312,6 +312,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - `ide_file_structure` writes the keyword `static` one time for a Java static initializer:
   `static class initializer`, as the Structure tool window. The line was
   `static static class initializer` (#326).
+- `ide_file_structure` leaves a comment between two modifier keywords out of the modifiers of a
+  Java or Kotlin declaration. For `public /* c */ static void m() {}` the line was
+  `public /* c */ static m(): void`, and a line comment also brought the next keyword after `//`.
+  The line is now `public static m(): void` (#282).
 
 ## [2.1.0] - 2026-11-09
 
