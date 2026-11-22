@@ -1,0 +1,11 @@
+{"id":"canary-def-Collection-d.ts-into-dependency","result":{"column":22,"enclosingScope":null,"file":"node_modules/mongodb/mongodb.d.ts","kind":"CLASS","line":2652,"name":"Collection","qualifiedName":"Collection"}}
+{"id":"canary-def-Schema-ts-paths","result":{"column":5,"enclosingScope":null,"file":"types/index.d.ts","kind":"CONSTRUCTOR","line":336,"name":"constructor","qualifiedName":"module:mongoose.Schema"}}
+{"id":"canary-def-mpath.set-into-dependency","result":{"column":9,"enclosingScope":null,"file":"node_modules/mpath/lib/index.js","kind":"DEFINITION","line":179,"name":"set","qualifiedName":"exports.set"}}
+{"id":"def-BSON-into-dependency","result":{"column":19,"enclosingScope":null,"file":"node_modules/bson/bson.d.ts","kind":"NAMESPACE","line":193,"name":"BSON","qualifiedName":"BSON"}}
+{"id":"def-CastError-alias-call","result":{"column":7,"enclosingScope":null,"file":"lib/schema/uuid.js","kind":"CONSTANT","line":8,"name":"CastError","qualifiedName":"CastError"}}
+{"id":"def-CastError-reexport-member","result":{"column":9,"enclosingScope":null,"file":"lib/schemaType.js","kind":"DEFINITION","line":1953,"name":"CastError","qualifiedName":"SchemaType.CastError"}}
+{"id":"def-Document.$get-alias","result":{"error":"tool_error","message":"Could not resolve symbol definition"}}
+{"id":"def-Kareem-into-dependency","result":{"column":16,"enclosingScope":null,"file":"node_modules/kareem/index.d.ts","kind":"MODULE","line":1,"name":"module:kareem","qualifiedName":"module:kareem"}}
+{"id":"def-Schema.emit-via-prototype","result":{"error":"tool_error","message":"Could not resolve symbol definition"}}
+{"id":"def-SchemaType-cross-file","result":{"column":10,"enclosingScope":null,"file":"lib/schemaType.js","kind":"FUNCTION","line":43,"name":"SchemaType","qualifiedName":"SchemaType"}}
+{"id":"def-mquery-into-dependency","result":{"column":10,"enclosingScope":null,"file":"node_modules/mquery/lib/mquery.js","kind":"FUNCTION","line":27,"name":"Query","qualifiedName":"Query"}}

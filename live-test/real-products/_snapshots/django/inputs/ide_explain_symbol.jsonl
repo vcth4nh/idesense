@@ -1,0 +1,3 @@
+{"id":"explain-PositiveBigIntegerField-pos","tool":"ide_explain_symbol","params":{"column":7,"file":"django/db/models/fields/__init__.py","line":2442}}
+{"id":"explain-filepath_to_uri-name","tool":"ide_explain_symbol","params":{"symbol":"filepath_to_uri"}}
+{"id":"explain-gettext-name","tool":"ide_explain_symbol","params":{"symbol":"gettext"}}

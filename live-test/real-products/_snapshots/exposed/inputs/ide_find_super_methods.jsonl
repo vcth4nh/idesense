@@ -1,0 +1,5 @@
+{"id":"super-Database.registerJdbcDriver-negative","tool":"ide_find_super_methods","params":{"column":13,"file":"exposed-jdbc/src/main/kotlin/org/jetbrains/exposed/v1/jdbc/Database.kt","line":159}}
+{"id":"super-ExposedSQLException.getErrorCode-java","tool":"ide_find_super_methods","params":{"column":18,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/Exceptions.kt","line":42}}
+{"id":"super-SpringTransactionManager.doBegin-java","tool":"ide_find_super_methods","params":{"column":18,"file":"spring-transaction/src/main/kotlin/org/jetbrains/exposed/v1/spring/transaction/SpringTransactionManager.kt","line":103}}
+{"id":"super-TextColumnType.sqlType","tool":"ide_find_super_methods","params":{"column":18,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/ColumnType.kt","line":914}}
+{"id":"super-VarCharColumnType.equals","tool":"ide_find_super_methods","params":{"column":18,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/ColumnType.kt","line":886}}

@@ -1,0 +1,8 @@
+{"id":"canary-find-class-CastError","tool":"ide_find_class","params":{"query":"CastError"}}
+{"id":"find-class-CastError-lang-javascript","tool":"ide_find_class","params":{"language":"javascript","query":"CastError"}}
+{"id":"find-class-CastError-lang-typescript","tool":"ide_find_class","params":{"language":"typescript","query":"CastError"}}
+{"id":"find-class-Collection-libraries-scope","tool":"ide_find_class","params":{"query":"Collection","scope":"project_and_libraries"}}
+{"id":"find-class-MissingSchemaError","tool":"ide_find_class","params":{"query":"MissingSchemaError"}}
+{"id":"find-class-PathTrie","tool":"ide_find_class","params":{"query":"PathTrie"}}
+{"id":"find-class-SchTyOpt-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"SchTyOpt"}}
+{"id":"find-class-zzqNoSuchClassXyz-no-match","tool":"ide_find_class","params":{"query":"zzqNoSuchClassXyz"}}

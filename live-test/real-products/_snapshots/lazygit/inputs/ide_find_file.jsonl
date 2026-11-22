@@ -1,0 +1,7 @@
+{"id":"find-file-entry.go-vendored","tool":"ide_find_file","params":{"query":"entry.go"}}
+{"id":"find-file-keybindings.go-paged","tool":"ide_find_file","params":{"pageSize":5,"query":"keybindings.go"},"compare":"shape"}
+{"id":"find-file-modules.txt-vendored","tool":"ide_find_file","params":{"query":"modules.txt"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-options.go","tool":"ide_find_file","params":{"query":"options.go"}}
+{"id":"find-file-shared.go-paged","tool":"ide_find_file","params":{"pageSize":5,"query":"shared.go"},"compare":"shape","parked":271}
+{"id":"find-file-test_list.go","tool":"ide_find_file","params":{"query":"test_list.go"},"parked":271}

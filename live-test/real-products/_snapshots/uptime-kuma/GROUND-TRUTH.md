@@ -46,8 +46,7 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   name of the computed property is `default.computed.startDateTime`, the same as Copy
   Reference of WebStorm.
 - **uptime-kuma: instruction files in the checkout.** The checkout has its own instruction
-  files for agents (see "Product checkouts" in [AGENTS.md](../../../AGENTS.md)). The agents of
-  the agent task do not get them.
+  files for agents (see "Product checkouts" in [AGENTS.md](../../../AGENTS.md)).
 - **uptime-kuma: the usages of `send` are dynamic usages (#196, #171).**
   `usage-NotificationProvider.send` and `usage-Discord.send` give the 10 calls, all with
   `match` `DYNAMIC`. Find Usages of WebStorm hides them by default ("0 of 10 usages") and lists
@@ -55,9 +54,6 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   to find usages of the base method?", and the 10 calls are the answer No.
   `usage-Discord.send` has a `notes` entry that names `NotificationProvider.send`, with "0 of
   the 10 usages have match BASE": the search of `Discord.send` itself found the 10 calls first.
-- **uptime-kuma: `file-structure-MaintenanceTime.vue` shows #197.** The node `default` of
-  `export default` has line 1. The row is a `shape` row, which pins only the line count, so it
-  is not parked.
 - **uptime-kuma: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
   `live-test/CONVENTIONS.md`).
 
@@ -67,7 +63,6 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   | `def-util.ts-import-path-vue` | #192 | a position in the module path of an ES6 `import` gives "Could not resolve symbol definition" |
   | `def-startDateTime-decl`, `explain-startDateTime-decl-pos`, `usage-startDateTime` | #193 | the name of a computed property takes the reference of the outer key `computed`: the result is the `.vue` file, or the key as the only usage |
   | `hier-caller-beat-d1` | #194 | a function in a local constant gives the hierarchy of the enclosing method |
-  | `file-structure-discord.js` | #198 | an object literal node that has no text (an object in an array) is absent, with its children. The row also shows #199: the full text of a spread element is a node name over several lines |
   | `search-text-startDateTime`, `search-text-startDateTime-code` | #184 | a match in an injected fragment comes a second time, with the path `/<file name>` |
   | `def-startDateTime-from-template`, `explain-startDateTime-from-template-pos` | #189 | a position in a template interpolation is no anchor: the result is the `div` element of the HTML schema |
 

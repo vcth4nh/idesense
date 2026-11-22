@@ -1,0 +1,5 @@
+{"id":"find-file-CommentRepository.kt","tool":"ide_find_file","params":{"query":"CommentRepository.kt"}}
+{"id":"find-file-EntityClass.kt","tool":"ide_find_file","params":{"query":"EntityClass.kt"}}
+{"id":"find-file-index.html-paged","tool":"ide_find_file","params":{"pageSize":20,"query":"index.html"},"compare":"shape"}
+{"id":"find-file-navigation.html","tool":"ide_find_file","params":{"pageSize":50,"query":"navigation.html"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}

@@ -1,0 +1,4 @@
+{"id":"canary-impls-IController","tool":"ide_find_implementations","params":{"column":6,"file":"pkg/gui/types/context.go","line":271,"pageSize":500}}
+{"id":"impls-Context","tool":"ide_find_implementations","params":{"column":6,"file":"pkg/gui/types/context.go","line":111,"pageSize":500}}
+{"id":"impls-IController.GetOnFocus","tool":"ide_find_implementations","params":{"column":2,"file":"pkg/gui/types/context.go","line":276,"pageSize":100}}
+{"id":"impls-IntegrationTest-struct-empty","tool":"ide_find_implementations","params":{"column":6,"file":"pkg/integration/components/test.go","line":26,"pageSize":100}}

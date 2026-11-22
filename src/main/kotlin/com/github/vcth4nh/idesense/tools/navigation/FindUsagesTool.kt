@@ -89,11 +89,11 @@ class FindUsagesTool : AbstractMcpTool() {
         caret on the symbol name (file + line + column).
 
         Returns: file paths, 1-based positions, context snippets, and reference kinds
-        (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE, COMMENT). Paginated (each cursor collects up to an internal cap; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
+        (METHOD_CALL, FIELD_ACCESS, IMPORT, PARAMETER, VARIABLE, REFERENCE, COMMENT). Paginated (each cursor collects up to about ${PaginationService.MAX_CACHED_RESULTS_PER_CURSOR} results; the count is a collected count, not a guaranteed whole-project total) — pass the returned cursor for the next page.
         For a Go, Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member that overrides or implements a base declaration, the result also holds the usages of that base declaration, and a notes list on the first page names it. For a PHP method, the result also holds the usages of each method that overrides or implements it, and the notes list names these methods. A usage can have match: BASE (it refers to a base declaration, or to another declaration that overrides or implements it: a call on a value of the base type, which can run this symbol or another implementation, or on a value of another type that implements the base declaration), match: OVERRIDE (it refers to a PHP method that overrides or implements this symbol; it is a call on a value whose type has that method) or match: DYNAMIC (only the name matches; the type of the receiver is not known). A usage with no match refers to the symbol itself. The notes list also names each kind of usage that the result leaves out, with the count (for example a Go composite literal key that names a struct field with the same name as the type, or a reference to a PHP class through ${'$'}this, self or static inside the class), and each base method that the search does not search (a method of the Python class object).
 
-        Gotchas: requires smart mode (not indexing). If the language's find-usages handler degrades
-        mid-search, a warnings list on the first page flags the partial coverage. For a quick literal
+        Gotchas: requires smart mode (not indexing). If the IDE's find-usages code for the language fails
+        in a part of the search, a warnings list on the first page flags the partial coverage. For a quick literal
         word sweep use ide_search_text; for "who calls this" as a tree use ide_call_hierarchy.
     """.trimIndent()
 

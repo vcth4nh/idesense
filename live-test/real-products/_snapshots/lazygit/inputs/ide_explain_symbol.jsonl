@@ -1,0 +1,4 @@
+{"id":"explain-Gui-name","tool":"ide_explain_symbol","params":{"symbol":"Gui"}}
+{"id":"explain-IController-pos","tool":"ide_explain_symbol","params":{"column":6,"file":"pkg/gui/types/context.go","line":271},"compare":"shape"}
+{"id":"explain-IController.GetOnFocus-pos","tool":"ide_explain_symbol","params":{"column":2,"file":"pkg/gui/types/context.go","line":276}}
+{"id":"explain-NewIntegrationTest-name","tool":"ide_explain_symbol","params":{"symbol":"NewIntegrationTest"},"compare":"shape"}

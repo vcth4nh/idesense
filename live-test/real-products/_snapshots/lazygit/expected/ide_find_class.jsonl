@@ -1,0 +1,5 @@
+{"id":"find-class-BrCtrl-fuzzy","result":{"classes":[],"hasMore":false,"offset":0,"pageSize":25,"query":"BrCtrl","totalCollected":0}}
+{"id":"find-class-Entry-vendored","result":{"classes":[],"hasMore":false,"offset":0,"pageSize":25,"query":"Entry","totalCollected":0}}
+{"id":"find-class-Gui","result":{"classes":[{"column":6,"file":"pkg/gocui/gui.go","kind":"STRUCT","line":126,"name":"Gui","qualifiedName":"gocui.Gui"},{"column":6,"file":"pkg/gui/gui.go","kind":"STRUCT","line":62,"name":"Gui","qualifiedName":"gui.Gui"}],"hasMore":false,"offset":0,"pageSize":25,"query":"Gui","totalCollected":2}}
+{"id":"find-class-IController","result":{"classes":[{"column":6,"file":"pkg/gui/types/context.go","kind":"INTERFACE","line":271,"name":"IController","qualifiedName":"types.IController"}],"hasMore":false,"offset":0,"pageSize":25,"query":"IController","totalCollected":1}}
+{"id":"find-class-NoSuchTypeXyz-no-match","result":{"classes":[],"hasMore":false,"offset":0,"pageSize":25,"query":"NoSuchTypeXyz","totalCollected":0}}

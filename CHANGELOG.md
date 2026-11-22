@@ -48,6 +48,13 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   each base method that the search does not search (a method of the Python class `object`).
   `ide_explain_symbol` has the new optional field `notes` with the same entries; its `usageCount`
   and `topUsages` do not hold a usage that is left out.
+- The texts of `ide_find_usages`, `ide_find_implementations` and `ide_refactor_rename` say what a
+  caller sees: each cursor collects up to about 5,000 results, a find-usages failure of the IDE gives a
+  list that can be incomplete, and the value `ask` of `overrideStrategy` and
+  `relatedRenamingStrategy` waits until a person answers an IDE dialog. The skill file no longer
+  tells a caller to pass the sub-project root: the workspace root also selects the workspace
+  project, and only `ide_sync_files` with no `paths` syncs just the sub-project of its root. The
+  `kind` list of `ide_find_symbol` in `docs/USAGE.md` gives `FIELD` and `CONSTANT` their own lines.
 
 ### Removed
 - The default server name and port for JetBrains Aqua (`aqua-idesense`, port 29180). JetBrains
@@ -94,6 +101,15 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   is a different classification: matches in plain text, in HTML and in JSON strings were absent from
   the filtered results. One case is lost: `strings` no longer finds a word that follows an escape
   sequence with no space (`World` in `"Hello\nWorld"`). `all` did not find it before (#133).
+- The excluded-path rules of `ide_search_text` test a file of a content root outside the project
+  base path with its path relative to that content root. They tested its absolute path. So a
+  folder above the content root with the name of a rule, for example `node_modules` or `venv`,
+  removed each file of the root from the result, and the rules for `build/`, `bin/`, `out/`,
+  `.gradle/`, `env/` and `.env/` at the root never applied there. A folder beside the base path
+  whose name starts with the name of the base path folder (`app` and `appbin`) got a wrong
+  relative path (`bin/...`), and its files were removed. A file below the base path keeps its
+  path relative to the base path. A file of the project outside the base path and outside each
+  module content root now gets no rule. Before, the rules tested its absolute path (#148).
 - `ide_find_super_methods` at a method that a Go interface declares returns that method with an
   empty hierarchy. The `method` field named the interface, and the hierarchy listed the super
   interfaces of the interface: the result of Go to Super in GoLand for the type. A position on the
@@ -199,6 +215,21 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `= "3.9") static public loadDataAndPrepareJob(...)`. The line now starts with the keywords only:
   `static public loadDataAndPrepareJob(...)`. Java and Kotlin annotations and JavaScript and
   TypeScript decorators had this defect (#173).
+- `ide_file_structure` gives a node the line where the Structure window of the IDE goes: the line of
+  the navigation element of the node. In WebStorm, the node `default` of an `export default { ... }`
+  object had the line 1, because the IDE makes a node with no place in the source for it. It now has
+  the line of the first member of the object. The node `exports` of `module.exports = { ... }` also
+  had the line 1, and it now has the line of its first member. When the navigation element is in
+  another file, for example the source of a compiled class, the line stays the line of the node in
+  the file (#197).
+- `ide_file_structure` keeps a JavaScript or TypeScript object literal that the IDE shows with no
+  text, for example an object in an array, with its children. The node has the name `{}`. The
+  outline left out such a node and all its children (#198).
+- A node name of `ide_file_structure` is one line. Each run of white space becomes one space. A name
+  that had a line break and is longer than 80 characters is cut and ends with `…`; a name with no
+  line break stays complete, so a long function signature stays whole. In WebStorm, the name of a
+  spread element over several lines had these lines, so the outline had lines that were no nodes
+  (#199).
 - A cancelled tool call no longer writes error entries to the IDE log. The server logged the
   cancellation with its exception, and the platform logger wrote "Control-flow exceptions ...
   should never be logged" in place of the exception. When the IDE stopped the MCP server during a
@@ -211,6 +242,19 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   call is still active, for example when the index is not ready after an IDE start. Then the
   client gets the same answer as before, and the log gets one warning line with no exception
   (#127).
+- `ide_sync_files` no longer logs two SEVERE entries ("Cannot run synchronous
+  submitTransactionAndWait" and "Write-unsafe context!") that name IdeSense as the plugin to blame.
+  Each request ran with the modality `ModalityState.any()`, and the platform permits no document
+  commit in that modality. Each request now runs with `ModalityState.nonModal()`. The same commit
+  also runs after a rename of `ide_refactor_rename`, and before a tool call when the setting "Sync
+  external file changes before operations" is on. While a modal dialog is open in the IDE, a tool
+  step that writes (for example this commit) waits until the dialog closes. The searches and
+  `ide_diagnostics` do not wait, unless the setting "Sync external file changes before operations"
+  is on: then each of these tools commits the documents first, and that step waits (#145).
+- `ide_restart` no longer logs SEVERE entries "Write-unsafe context!" when the IDE saves the
+  documents and the projects before the restart. The restart request ran with
+  `ModalityState.any()`, and it now runs with `ModalityState.nonModal()`. While a modal dialog is
+  open, the restart waits until the dialog closes (#147).
 - `ide_find_super_methods` no longer returns an empty `hierarchy` when a write action interrupts
   the search of the super methods. The provider of the language took the cancellation for a
   failure, so the IDE did not run the search again. `ide_find_usages` and `ide_explain_symbol` take
@@ -225,6 +269,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   When RustRover gives no module path, `qualifiedName` is `null`. A file as a result now also goes
   to the qualified-name providers of the other languages. In IntelliJ IDEA, a Gradle build script
   can now get the Gradle path of its project (#187).
+- `ide_type_hierarchy` in RustRover no longer stops the subtypes of a trait at 100 types. It also
+  no longer stops the supertypes of a type at 100 traits. For example, the trait `Flag` of
+  ripgrep now gives all 104 types that implement it, as `ide_find_implementations` does (#185).
 - A PHP class constant gets the `kind` `CONSTANT`, as a PHP constant outside a class. It had the
   `kind` `CLASS`, because the type name "Class constant" of PhpStorm contains "class" (#180).
 - The `qualifiedName` of a Go struct field holds the name of its struct: `package.Struct.field`.
@@ -235,6 +282,8 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   anonymous struct gets the name of the nearest enclosing type declaration, and `package.field`
   when it has none. GoLand gives `package.field`: this name differs from GoLand on purpose (#136).
   The new name is no `symbol` anchor, as the name of a Go method (#139): use a position for a field.
+- The warning of `ide_find_file` for a file contributor that failed names an anonymous contributor
+  class by its class name without the package. The name was empty before.
 - `ide_find_usages` no longer returns an empty or partial list of usages, and `ide_explain_symbol`
   no longer returns a `usageCount` and `topUsages` that are too low, when the IDE enters dumb mode
   during the search. The result had the warning "Find-usages handler ... threw on

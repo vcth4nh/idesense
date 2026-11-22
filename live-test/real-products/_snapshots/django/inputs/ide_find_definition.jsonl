@@ -1,0 +1,8 @@
+{"id":"canary-def-sync_to_async-into-dependency","tool":"ide_find_definition","params":{"column":50,"file":"django/core/handlers/asgi.py","line":9}}
+{"id":"def-DEBUG-via-lazy-settings","tool":"ide_find_definition","params":{"column":23,"file":"django/conf/urls/static.py","line":23},"parked":178}
+{"id":"def-Q-via-reexport","tool":"ide_find_definition","params":{"column":48,"file":"django/contrib/auth/backends.py","line":9}}
+{"id":"def-jQuery-into-vendored-js","tool":"ide_find_definition","params":{"column":27,"file":"django/contrib/admin/static/admin/js/jquery.init.js","line":8},"parked":178}
+{"id":"def-len-builtin","tool":"ide_find_definition","params":{"column":20,"file":"django/utils/text.py","line":137}}
+{"id":"def-objects-dynamic-manager","tool":"ide_find_definition","params":{"column":34,"file":"tests/basic/tests.py","line":54}}
+{"id":"def-punycode-cross-file","tool":"ide_find_definition","params":{"column":14,"file":"django/core/mail/message.py","line":156}}
+{"id":"def-split-into-dependency","tool":"ide_find_definition","params":{"column":39,"file":"django/db/backends/base/operations.py","line":369}}

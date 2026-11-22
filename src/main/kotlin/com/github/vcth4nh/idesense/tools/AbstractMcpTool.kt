@@ -152,12 +152,14 @@ abstract class AbstractMcpTool : McpTool {
      * Commits all documents in a write-safe context.
      *
      * [PsiDocumentManager.commitAllDocuments] requires a write-safe EDT context
-     * (enforced by [TransactionGuard]). Since MCP tools are invoked from HTTP handlers
-     * (not user actions), there is no inherent write-safe context.
-     * [TransactionGuard.submitTransactionAndWait] explicitly creates one.
+     * (enforced by [TransactionGuard]). Off the EDT, [TransactionGuard.submitTransactionAndWait]
+     * runs the commit on the EDT with the default modality of the calling thread. The context is
+     * write-safe only when that modality is: in a request it is [ModalityState.nonModal] (see
+     * `KtorMcpServer.runWithIdeModality`), so the commit waits while a modal dialog is open. Under
+     * `ModalityState.any()` the platform logs two errors and commits in a write-unsafe context.
      *
-     * From EDT (e.g. inside [withContext]([Dispatchers.EDT])), falls back to
-     * [WriteCommandAction] which also provides write-safety.
+     * On the EDT (a test that runs the tool there), it commits inside a [WriteCommandAction].
+     * A [WriteCommandAction] does not make the context write-safe: the caller must be in one.
      */
     @Suppress("DEPRECATION")
     protected suspend fun commitDocuments(project: Project) {

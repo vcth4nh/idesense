@@ -1,0 +1,4 @@
+{"id":"hier-className-PlainObjectLike","tool":"ide_type_hierarchy","params":{"className":"PlainObjectLike","direction":"subtypes"}}
+{"id":"hier-sub-MinimalPluginContextImpl-ts","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"packages/rolldown/src/plugin/minimal-plugin-context.ts","line":111}}
+{"id":"hier-sub-PlainObjectLike-ts","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"packages/rolldown/src/types/plain-object-like.ts","line":37}}
+{"id":"hier-super-TransformPluginContextImpl-ts","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"packages/rolldown/src/plugin/transform-plugin-context.ts","line":61}}

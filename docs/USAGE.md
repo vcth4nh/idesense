@@ -912,14 +912,15 @@ Searches for code symbols (classes, interfaces, methods, fields, and functions) 
 - `ANNOTATION` - Annotation type
 - `RECORD` - Record class (Java 16+)
 - `METHOD` - Method
-- `FIELD` - Field or constant
+- `FIELD` - Field, for example a Rust struct field or a Python class attribute
 - `FUNCTION` - Function
 - `SYMBOL` - Generic symbol when the IDE contributor does not expose a more specific kind
 - `DATA_CLASS`, `SEALED_CLASS`, `OBJECT` - Kotlin data class, sealed class, object
 - `STRUCT` - Go or Rust struct
 - `TRAIT` - PHP or Rust trait
 - `ENUM_VARIANT`, `IMPL`, `MACRO`, `MODULE` - Rust enum variant, impl block, macro, module
-- `PROPERTY`, `VARIABLE`, `CONSTANT`, `TYPE_ALIAS`, `TYPE`, `PARAMETER`, `CONSTRUCTOR`, `PACKAGE`, `LABEL` - Other declarations
+- `CONSTANT` - Constant, for example a Rust `const` or a PHP class constant
+- `PROPERTY`, `VARIABLE`, `TYPE_ALIAS`, `TYPE`, `PARAMETER`, `CONSTRUCTOR`, `PACKAGE`, `LABEL` - Other declarations
 
 The list is open, and other values can occur. When the plugin does not map the IDE's name for an element type, `kind` is that name in upper case, with `_` for each space.
 
@@ -970,7 +971,7 @@ copy the zip into that project first.
 
 Restart THIS IDE. Use after `ide_install_plugin` to load a freshly installed plugin build.
 
-The restart is scheduled after this tool's response is flushed (default 2 s delay) so the MCP client receives the result before the connection drops. In remote-dev / serverMode the backend relaunches and the thin client reconnects automatically.
+The restart is scheduled after this tool's response is flushed (default 2 s delay) so the MCP client receives the result before the connection drops. In remote-dev / serverMode the backend relaunches and the thin client reconnects automatically. If a modal dialog is open in the IDE, the restart waits until it closes; the server keeps answering meanwhile, and each further call queues one more restart.
 
 **Use when:**
 - Loading a freshly installed plugin build (pair with `ide_install_plugin`)
@@ -1628,6 +1629,7 @@ Get the hierarchical structure of a source file, similar to the IDE's Structure 
 
 **Response Notes:**
 - `structure` starts with the file name and an empty line. Each node is `<modifiers> <name> [<signature>] (line N)`, indented two spaces for each level.
+- A name is one line: each run of white space becomes one space. A name that had a line break (source text of several lines) and is longer than 80 characters is cut to 80 characters that end with `…`. A name with no line break stays complete, so a long signature stays whole. A JavaScript or TypeScript object literal that the IDE shows with no text, for example an object in an array, has the name `{}`.
 - A file with no structure returns plain text that starts with `File is empty or has no parseable structure.`, with no JSON.
 
 ---

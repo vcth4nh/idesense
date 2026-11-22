@@ -36,7 +36,7 @@ object ThreadingUtils {
     }
 
     fun runOnEdt(action: () -> Unit) {
-        ApplicationManager.getApplication().invokeLater(action, ModalityState.any())
+        ApplicationManager.getApplication().invokeLater(action, ModalityState.nonModal())
     }
 
     fun <T> runOnEdtAndWait(action: () -> T): T {

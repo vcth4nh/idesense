@@ -1,0 +1,8 @@
+{"id":"canary-find-class-InitResource","tool":"ide_find_class","params":{"query":"InitResource"}}
+{"id":"find-class-Album","tool":"ide_find_class","params":{"query":"Album"}}
+{"id":"find-class-BaseApiReq-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"BaseApiReq"}}
+{"id":"find-class-BaseApiRequest","tool":"ide_find_class","params":{"query":"BaseApiRequest"}}
+{"id":"find-class-InitResource-lang-php","tool":"ide_find_class","params":{"language":"PHP","query":"InitResource"}}
+{"id":"find-class-InitResource-lang-typescript","tool":"ide_find_class","params":{"language":"TypeScript","query":"InitResource"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-UrlGenerator-libraries-scope","tool":"ide_find_class","params":{"query":"UrlGenerator","scope":"project_and_libraries"}}

@@ -8,6 +8,7 @@ import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerEx
 import com.intellij.codeInsight.daemon.impl.HighlightInfo
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -399,9 +400,12 @@ class DiagnosticsAnalysisService(private val project: Project) {
         } else {
             withContext(Dispatchers.Default) {
                 var result: Result<T>? = null
-                ApplicationManager.getApplication().invokeAndWait {
+                // any() lets ide_diagnostics answer while a modal dialog is open. It is permitted
+                // because no caller changes the model: each one reads the editor state or restarts
+                // the daemon. A step that writes must not use this function.
+                ApplicationManager.getApplication().invokeAndWait({
                     result = runCatching(action)
-                }
+                }, ModalityState.any())
                 result!!.getOrThrow()
             }
         }

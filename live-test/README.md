@@ -44,12 +44,14 @@ The fixture projects are in `live-test/fixtures/`.
 Each fixture is a real IDE-openable project. Open it, wait for indexing,
 then run the harness.
 
-**Python: mark `test/` as a test root.** PyCharm 2026.2 re-imports the fixture from
-`pyproject.toml` as `.idea/live-test-python.iml` (and rewrites the tracked `modules.xml`) with
-`test/` as a plain source root. Then `hier-caller-target-production` gains the test caller and
-`hier-caller-target-test` loses it. Stop PyCharm, set `isTestSource="true"` on the `test`
-source folder in that `.iml`, and restart. The `.iml` is gitignored, so a fresh checkout needs
-the same edit. Issue #228 tracks the untracked module file.
+**Python: run the bootstrap before the first open.** `fixtures/_setup/python/bootstrap.sh`
+needs `uv` on the `PATH`. It makes the environment `.venv` with `uv sync`, and it writes
+`.idea/live-test-python.iml` when that file is absent: `src` is the source root and `test` is
+the test root. The script keeps a module file that exists: to get a new one, delete the older
+module file and run the script again. At the first open PyCharm makes an interpreter from `.venv`, and writes its name
+(a path of the machine) to `misc.xml` and to the module file (seen on PyCharm 2026.3). For this
+reason git does not track the module file. Without the test root, `hier-caller-target-production` gains the test caller
+and `hier-caller-target-test` loses it.
 
 In this document, **the fleet** is the set of these IDEs: each one runs on its default port
 and has its fixture projects open. **The fleet checkout** is the checkout of this repository
@@ -207,7 +209,9 @@ The measured times of each product are in `_setup/<folder>/notes.md`.
    is down. For a JavaScript product use `npm ci --ignore-scripts`: it runs no script of the
    product and no install script of a package.
 5. **Import check.** `--open-product <folder>`, then compare some tool calls with the IDE
-   itself. Record the times and the memory in `_setup/<folder>/notes.md`.
+   itself. Record the times and the memory in `_setup/<folder>/notes.md`. A product that the
+   IDE imports with Gradle needs one restart with `ide_restart` after its first sync: see
+   "Kotlin rows fail after an IDE restart with empty results" in "Troubleshooting".
 6. **Canary rows.** Add the rows with the id prefix `canary-` that pin the project model (see
    "Canary rows" in CONVENTIONS.md).
 7. **Sweep.** Draft the probe rows, run them, and give each row a class: OK, EMPTY, ERROR or
@@ -217,16 +221,13 @@ The measured times of each product are in `_setup/<folder>/notes.md`.
    cut. If the difference shows a defect, see "A row that differs between two equal runs" in
    CONVENTIONS.md. No row may resolve into a `.phar` file or count a result in one (see the
    phpunit [GROUND-TRUTH.md](real-products/_snapshots/phpunit/GROUND-TRUTH.md)).
-9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug,
-   with only `Read` and the read-only tools. The prompt, the MCP config, the runner and the
-   transcript analysis are local files that this repository does not track.
-10. **Triage.** One outcome for each finding: an issue, a decision of the owner of the
-    repository, a setup correction, or a ground-truth note.
-11. **Bless, under the bless rule of `AGENTS.md`.** Park the rows that show an open defect. Then
+9. **Triage.** One outcome for each finding: an issue, a decision of the owner of the
+   repository, a setup correction, or a ground-truth note.
+10. **Bless, under the bless rule of `AGENTS.md`.** Park the rows that show an open defect. Then
     run these commands with `--product <folder>`: `--bless --bless-canary`, `--write-anchors`,
     `--check-fixtures`, and two verify runs. For a row that pins an expected error, see "Rows
     that pin an expected error" in CONVENTIONS.md.
-12. **Notes.** Complete `notes.md` and the ground-truth notes in
+11. **Notes.** Complete `notes.md` and the ground-truth notes in
     `_snapshots/<folder>/GROUND-TRUTH.md`.
 
 ### Change a pin
@@ -453,10 +454,10 @@ fleet process, so the harness never restarts it. Run rows against it with `--url
 4. **Plugins.** Unzip the zip under test into `<throwaway root>/plugins`. The bundled plugins
    come from the IDE install. Another custom plugin loads only when you copy it too.
 5. **Project.** Use a copy of a fixture or a small new project, outside `<throwaway root>`.
-   Never open a folder that another IDE has open: two IDEs then write its `.idea/`. A copy of
-   the Python fixture needs `live-test-python.iml`, `misc.xml` and `modules.xml` from `.idea/`
-   of the fleet checkout (git tracks only `modules.xml`). Without them PyCharm has no
-   interpreter, and the usage types differ (seen on PyCharm 2026.2).
+   Never open a folder that another IDE has open: two IDEs then write its `.idea/`. For the
+   Python fixture, use the fixture of a second checkout (for example a git worktree), and run
+   its bootstrap first (see "Per-IDE fixture setup"). Without `.venv` PyCharm has no
+   interpreter, and many rows differ (seen on PyCharm 2026.2 and 2026.3).
 6. **Start:** `<PRODUCT>_VM_OPTIONS=<throwaway root>/ide.vmoptions setsid --fork
    <ide launcher> serverMode <project>`.
 7. **Prove it before the probe.** `pgrep -af 'idea.config.path=<throwaway root>/[c]onfig'`
@@ -619,25 +620,35 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
 - **Kotlin rows fail after an IDE restart with empty results (`"classes": []`,
   `"qualifiedName": null`), and `idea.log` has `Initial load of project-level (project=kotlin)
   libraries. There are 0 libraries to load.`** — the Kotlin fixture lost its Gradle model. The
-  IDE keeps the modules of a Gradle sync in
-  `<system dir>/projects/kotlin.<hash>/external_build_system/modules/`. It writes these files
-  at its next save, not at the sync. Seen on IntelliJ IDEA 2026.3 after the update from 2026.2:
-  the first start with the new system folder ran the sync, and the harness stopped the IDE four
-  minutes later, before these files existed. The log of the next start has the model of the
-  cache (`There are 2 libraries to load`) and then `Apply JPS storage (iml files)`. Each later
-  start has `There are 0 libraries to load` and no new sync, and 74 of the 119 Kotlin rows
-  failed. To repair:
+  IDE keeps the modules of a Gradle sync in its workspace model. It writes them to
+  `<system dir>/projects/kotlin.<hash>/external_build_system/modules/` only at a save of the
+  project after the model commit. In `serverMode` such a save does not come by itself. Seen on
+  IntelliJ IDEA 2026.3 with the product `exposed`: the only project save after a sync came 1 to
+  5 s before `External system: commit model`, and `idea.log` had no other save of that project
+  in the next 10 and 14 minutes. A stop with SIGTERM, which the harness uses for a project
+  switch, saves no project: `idea.log` goes from `Index dispose started` to `IDE SHUTDOWN` in
+  less than 0.2 s. A graceful exit saves each project: `ide_restart` goes through
+  `ApplicationImpl.exit`, which calls `saveAndCloseProjectsOnExit`
+  (`lib/intellij.platform.ide.impl.jar`, IU-263.7307.200), and the module files got the time of
+  that restart. Seen on IntelliJ IDEA 2026.3 after the update from 2026.2: the first start with
+  the new system folder ran the sync, and the harness stopped the IDE four minutes later,
+  before these files existed. The log of the next start has the model of the cache (`There are
+  2 libraries to load`) and then `Apply JPS storage (iml files)`. Each later start has `There
+  are 0 libraries to load` and no new sync, and 74 of the 119 Kotlin rows failed. To repair:
 
   1. Stop the IDE. Move `external_build_system`, `project-model-cache` and `cache-state.xml`
      out of `<system dir>/projects/kotlin.<hash>/`, and start the IDE. It runs the sync again:
      `idea.log` has `Gradle (kotlin): Execution RESOLVE_PROJECT:<n> is finished`.
-  2. Before the next stop, check that the folder `external_build_system/modules/` exists. Seen:
-     the IDE wrote it 2 seconds after one sync and 5 minutes after another one. If it does not
-     exist, restart the IDE one time with `ide_restart`: seen two times, the module files of a
-     project had the time of that restart.
+  2. When the sync has ended, restart the IDE one time with `ide_restart` (a deploy also does
+     it). Then check that the folder `external_build_system/modules/` exists. Do not wait for a
+     save in `serverMode`: two observations saw these files 2 seconds and 5 minutes after a
+     sync, but with the product `exposed` no save came in 10 and 14 minutes.
 
   The same holds for a product that the IDE imports with Gradle, and after each move to a new
-  version of the IDE, because the new version has a new system folder.
+  version of the IDE, because the new version has a new system folder. For such a product, the
+  restart of step 2 must come after its first sync and before the first project switch
+  (#276). The setup step is in the `notes.md` of the product (for example
+  `real-products/_setup/exposed/notes.md`).
 - **Java or Kotlin rows differ after an edit of fixture files from outside the IDE** — the
   IDE has not seen the change (seen on IntelliJ IDEA). Before the run, call `ide_sync_files`
   with only `project_path` for each project, `java` and `kotlin`.

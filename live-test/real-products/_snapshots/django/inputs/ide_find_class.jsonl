@@ -1,0 +1,9 @@
+{"id":"find-class-DaOp-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"pageSize":50,"query":"DaOp"}}
+{"id":"find-class-Field","tool":"ide_find_class","params":{"query":"Field"}}
+{"id":"find-class-MapWidget-lang-javascript","tool":"ide_find_class","params":{"language":"JavaScript","query":"MapWidget"}}
+{"id":"find-class-MapWidget-lang-python-empty","tool":"ide_find_class","params":{"language":"Python","query":"MapWidget"}}
+{"id":"find-class-Migration-paged","tool":"ide_find_class","params":{"pageSize":50,"query":"Migration"},"compare":"shape"}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-Node","tool":"ide_find_class","params":{"query":"Node"},"parked":176}
+{"id":"find-class-QuSe-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"pageSize":50,"query":"QuSe"},"parked":176}
+{"id":"find-class-QuerySet","tool":"ide_find_class","params":{"query":"QuerySet"}}

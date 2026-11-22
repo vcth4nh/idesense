@@ -1,0 +1,8 @@
+{"id":"canary-usage-run_integration_test_with_plugins-test-scope","tool":"ide_find_usages","params":{"column":10,"file":"crates/rolldown_testing/src/fixture.rs","line":48,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-Chunk-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"Chunk"},"parked":269}
+{"id":"usage-LinkStage","tool":"ide_find_usages","params":{"column":12,"file":"crates/rolldown/src/stages/link_stage/mod.rs","line":89,"pageSize":200}}
+{"id":"usage-LinkStage-production","tool":"ide_find_usages","params":{"column":12,"file":"crates/rolldown/src/stages/link_stage/mod.rs","line":89,"pageSize":200,"scope":"project_production_files"}}
+{"id":"usage-ModuleIdx-page1","tool":"ide_find_usages","params":{"column":16,"file":"crates/rolldown_common/src/ecmascript/module_idx.rs","line":3,"pageSize":100},"compare":"shape"}
+{"id":"usage-ModuleIdx-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-ModuleIdx-page1"}
+{"id":"usage-run_integration_test_with_plugins-production","tool":"ide_find_usages","params":{"column":10,"file":"crates/rolldown_testing/src/fixture.rs","line":48,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-unwrapBindingResult-ts","tool":"ide_find_usages","params":{"column":17,"file":"packages/rolldown/src/utils/error.ts","line":4,"pageSize":100}}
