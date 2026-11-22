@@ -1,0 +1,3 @@
+{"id":"explain-Mode-name","tool":"ide_explain_symbol","params":{"symbol":"Mode"}}
+{"id":"explain-MotionLeftBaseAction-pos","tool":"ide_explain_symbol","params":{"column":16,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/action/motion/leftright/MotionLeftAction.kt","line":24}}
+{"id":"explain-VimEditor-name","tool":"ide_explain_symbol","params":{"symbol":"VimEditor"}}

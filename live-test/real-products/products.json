@@ -35,7 +35,8 @@
     {"folder": "ruff", "ide": "rustrover", "repo": "astral-sh/ruff", "pin": "0.16.3",
      "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
     {"folder": "ideavim", "ide": "intellij", "repo": "JetBrains/ideavim", "pin": "2.46.0",
-     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900,
+     "ideOwnedFiles": [".idea/misc.xml"]},
     {"folder": "lexical", "ide": "webstorm", "repo": "meta/lexical", "pin": "v0.50.0",
      "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
   ]

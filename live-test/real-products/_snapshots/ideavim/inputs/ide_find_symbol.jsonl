@@ -1,0 +1,4 @@
+{"id":"find-symbol-VimEditor.lineCount-qualified","tool":"ide_find_symbol","params":{"query":"VimEditor.lineCount"}}
+{"id":"find-symbol-scrollVertically","tool":"ide_find_symbol","params":{"pageSize":50,"query":"scrollVertically"}}
+{"id":"find-symbol-scrollVertically-lang-java","tool":"ide_find_symbol","params":{"language":"Java","pageSize":50,"query":"scrollVertically"}}
+{"id":"find-symbol-scrollVertically-lang-kotlin","tool":"ide_find_symbol","params":{"language":"Kotlin","pageSize":50,"query":"scrollVertically"}}

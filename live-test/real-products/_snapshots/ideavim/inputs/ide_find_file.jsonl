@@ -1,0 +1,6 @@
+{"id":"find-file-Command.kt","tool":"ide_find_file","params":{"query":"Command.kt"},"compare":"shape","parked":271}
+{"id":"find-file-Range.kt","tool":"ide_find_file","params":{"query":"Range.kt"},"parked":271}
+{"id":"find-file-VimEditor.kt","tool":"ide_find_file","params":{"query":"VimEditor.kt"},"parked":271}
+{"id":"find-file-VimscriptParser.java-generated","tool":"ide_find_file","params":{"query":"VimscriptParser.java"}}
+{"id":"find-file-build.gradle.kts-paged","tool":"ide_find_file","params":{"pageSize":10,"query":"build.gradle.kts"},"compare":"shape"}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}

@@ -1,0 +1,4 @@
+{"id":"hier-callee-MotionLeftBaseAction.getOffset","tool":"ide_call_hierarchy","params":{"column":16,"direction":"callees","file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/action/motion/leftright/MotionLeftAction.kt","line":27,"maxDepth":1}}
+{"id":"hier-caller-EditorHelper.scrollVertically-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"EditorHelper.scrollVertically"}}
+{"id":"hier-caller-VimEditor.fileSize-production-scope","tool":"ide_call_hierarchy","params":{"column":7,"direction":"callers","file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimEditor.kt","line":73,"maxDepth":1,"scope":"production"}}
+{"id":"hier-caller-offsetToBufferPosition-d1","tool":"ide_call_hierarchy","params":{"column":7,"direction":"callers","file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimEditor.kt","line":157,"maxDepth":1},"compare":"shape"}

@@ -1,0 +1,5 @@
+{"id":"impls-EditorActionHandlerBase-paged","tool":"ide_find_implementations","params":{"column":16,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/handler/EditorActionHandlerBase.kt","line":45,"pageSize":100},"compare":"shape"}
+{"id":"impls-MotionActionHandler","tool":"ide_find_implementations","params":{"column":14,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/handler/MotionActionHandler.kt","line":39,"pageSize":500}}
+{"id":"impls-MotionActionHandler.ForEachCaret.getOffset","tool":"ide_find_implementations","params":{"column":18,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/handler/MotionActionHandler.kt","line":74,"pageSize":500}}
+{"id":"impls-VimEditor","tool":"ide_find_implementations","params":{"column":11,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimEditor.kt","line":65,"pageSize":500}}
+{"id":"impls-VimKeyGroup-java","tool":"ide_find_implementations","params":{"column":11,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimKeyGroup.kt","line":23,"pageSize":100}}
