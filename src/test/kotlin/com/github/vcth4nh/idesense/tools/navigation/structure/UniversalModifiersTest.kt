@@ -8,9 +8,11 @@ import com.intellij.ide.structureView.newStructureView.TreeModelWrapper
 import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.ide.util.treeView.smartTree.ProvidingTreeModel
 import com.intellij.ide.util.treeView.smartTree.SmartTreeStructure
+import com.intellij.ide.util.treeView.smartTree.TreeElement
 import com.intellij.lang.LanguageStructureViewBuilder
 import com.intellij.openapi.util.Disposer
 import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiClassInitializer
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.search.GlobalSearchScope
@@ -162,6 +164,24 @@ class UniversalModifiersTest : BasePlatformTestCase() {
 
     // endregion
 
+    // region Java: the name of a class initializer holds its keyword
+
+    // The IDE writes `static` into the name of a static initializer, so the modifiers do not give
+    // it a second time (#326).
+    fun testJavaClassInitializerLineHasStaticOneTime() {
+        java(
+            """
+            class A {
+                static { int a = 1; }
+                { int b = 2; }
+            }
+            """
+        )
+        assertEquals(listOf("static class initializer", "class initializer"), initializerLinesInStructureView())
+    }
+
+    // endregion
+
     // region Kotlin: no text of an annotation stays
 
     fun testKotlinFunctionWithNamedAnnotationArgument() {
@@ -284,6 +304,24 @@ class UniversalModifiersTest : BasePlatformTestCase() {
         val declaration = PsiTreeUtil.findChildrenOfType(myFixture.file, PsiNameIdentifierOwner::class.java)
             .first { it.name == name }
         return UniversalModifiers.extract(declaration)
+    }
+
+    // The modifiers and the name of each class initializer of the Java structure view of the file,
+    // in the order of `ide_file_structure`.
+    private fun initializerLinesInStructureView(): List<String> {
+        val builder = LanguageStructureViewBuilder.getInstance()
+            .getStructureViewBuilder(myFixture.file) as TreeBasedStructureViewBuilder
+        val model = builder.createStructureViewModel(null)
+        try {
+            return generateSequence(listOf<TreeElement>(model.root)) { level -> level.flatMap { it.children.asList() }.ifEmpty { null } }
+                .flatten()
+                .filterIsInstance<StructureViewTreeElement>()
+                .filter { it.value is PsiClassInitializer }
+                .map { (UniversalModifiers.extract(it.value) + it.presentation.presentableText!!).joinToString(" ") }
+                .toList()
+        } finally {
+            Disposer.dispose(model)
+        }
     }
 
     // The methods of the Java structure view of the file with the inherited members on. These are

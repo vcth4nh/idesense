@@ -24,6 +24,9 @@ import com.intellij.psi.PsiElement
  *
  * Languages without a modifier concept (Python, Go) silently return empty.
  *
+ * A Java class initializer also returns empty. Its only keyword is `static`, and the IDE already
+ * writes it into the name of the node (`static class initializer`, #326).
+ *
  * Caveat: Kotlin's `KtModifierList` includes declaration-shape keywords like `data`,
  * `sealed`, `enum`, `annotation` — those will surface as modifiers. That's
  * grammatically correct in Kotlin and we accept it rather than maintaining a
@@ -33,8 +36,12 @@ internal object UniversalModifiers {
 
     private val GETTERS = listOf("getModifierList", "getAttributeList", "getVis")
 
+    private val classInitializerClass: Class<*>? by lazy {
+        try { Class.forName("com.intellij.psi.PsiClassInitializer") } catch (_: ClassNotFoundException) { null }
+    }
+
     fun extract(value: Any?): List<String> {
-        if (value !is PsiElement) return emptyList()
+        if (value !is PsiElement || classInitializerClass?.isInstance(value) == true) return emptyList()
         for (getter in GETTERS) {
             val sub = invokeNoArg(value, getter) ?: continue
             val text = invokeString(sub, "getText") ?: continue

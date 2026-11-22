@@ -309,6 +309,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   "Search context invalidated due to file changes. Please re-search." or a short page before. The
   analysis of `ide_diagnostics` and the rename or move of `ide_refactor_rename` and `ide_move_file`
   do not wait; #295 tracks the refactorings (#267).
+- `ide_file_structure` writes the keyword `static` one time for a Java static initializer:
+  `static class initializer`, as the Structure tool window. The line was
+  `static static class initializer` (#326).
 
 ## [2.1.0] - 2026-11-09
 
