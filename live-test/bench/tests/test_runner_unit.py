@@ -318,6 +318,25 @@ class CommandTest(RunnerCase):
                                  "b1", "-dry-run")
         self.assertEqual(2, code)
 
+    def test_question_must_be_a_name(self):
+        upper = {**KEY, "question": "Beets-refs-helper"}
+        write_tracked(self.tmp, CHALLENGE, RECORD, upper)  # a pair of files that a run could read
+        read = mock.Mock(side_effect=AssertionError("a file read"))
+        with mock.patch.object(qfiles, "load_key", read), mock.patch.object(qfiles, "load_question", read):
+            for name in ("Beets-refs-helper", "../beets-refs-helper", "x/../beets-refs-helper", "..", "a/b"):
+                code, out, err = self.main("run", "-question", name, "-arm", "C", "-model", MODEL, "-batch", "b1",
+                                           "-dry-run")
+                self.assertEqual((2, ""), (code, out), name)
+                self.assertIn(f"SetupError: -question {name!r}: ", err)
+        self.assertEqual(([], []), (read.call_args_list, self.docker_calls()))
+
+    def test_digests_are_of_the_two_tracked_files(self):
+        run = runner.prepare(runner._parser().parse_args(self.run_args("C")))
+        for field, path in (("question_sha256", qfiles.question_path(KEY["question"], qfiles.QUESTIONS)),
+                            ("key_sha256", qfiles.key_path(KEY["question"], qfiles.KEYS))):
+            with open(path, "rb") as f:
+                self.assertEqual(hashlib.sha256(f.read()).hexdigest(), run[field], field)
+
     def test_run_id_has_the_probe_options(self):
         args = runner._parser().parse_args(self.run_args("C", "-no-tools", "-n", "3"))
         self.assertTrue(args.no_tools)

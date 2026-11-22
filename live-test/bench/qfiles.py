@@ -30,9 +30,12 @@ other fields come from the last challenge of the group (the newest choice). Two 
 
 `check` with no data root: each question has a key and each key has a question, each file name matches NAME, no two
 file names of a folder are equal in lowercase, each key has the fields KEY_FIELDS, its `question` is its file name
-and its `pin` is the pin of the product in products.json. With `data` (the data root): each `answer` equals
-`sets.answer` of a fresh key record of `key_file`, and each answer line is a line of its file in the master tree
-`TREES/<tree>/`. The command prints each problem and the count, and exits 0 only with no problem.
+and its `pin` is the pin of the product in products.json. Its `answer` is an object with the three lists
+`required`, `forbidden` and `not_counted`; each entry matches ENTRY, and each list is sorted by path and line (the
+line as a number), as `export` writes it. A file README.md in the question folder is no question. With
+`data` (the data root): each `answer` equals `sets.answer` of a fresh key record of `key_file`, and each answer
+entry that matches ENTRY is a line of its file in the master tree `TREES/<tree>/`. The command prints each problem
+and the count, and exits 0 only with no problem.
 
 `rescore` reads each stored `run.json` of each batch folder below the runs folder (BENCH/runs). A set-aside try
 (`<run id>.invalid-<k>`, `<run id>.api-error-<k>`) is not read, and a folder with no run folder is no batch. The
@@ -58,6 +61,9 @@ QUESTIONS = os.path.join(HERE, "questions")
 KEYS = os.path.join(HERE, "keys")
 PRODUCTS_FILE = os.path.join(settings.live_test_root(), "real-products", "products.json")
 NAME = re.compile(r"[a-z0-9][a-z0-9_.-]*")
+ENTRY = re.compile(r"[^/][^:]*:[1-9][0-9]*")  # an answer entry of a key: `<relative path>:<line>`
+ANSWER_LISTS = ("required", "forbidden", "not_counted")
+README = "README.md"
 KEY_FIELDS = ("question", "old_ids", "product", "pin", "tree", "family", "lang", "symbol", "name", "answer", "pick",
               "key_file", "source")
 # The name of a key file below BENCH/keys/<tree>/ -> how the keys of the file were made.
@@ -138,8 +144,8 @@ def export(set_files: list[str], questions_dir: str = QUESTIONS, keys_dir: str =
             if not NAME.fullmatch(final):
                 raise ValueError(f"the question name {final!r} does not match {NAME.pattern}")
             key["question"] = final
-            _write(os.path.join(questions_dir, final + ".md"), text + "\n")
-            _write(os.path.join(keys_dir, final + ".json"), json.dumps(key, indent=2, ensure_ascii=False) + "\n")
+            _write(question_path(final, questions_dir), text + "\n")
+            _write(key_path(final, keys_dir), json.dumps(key, indent=2, ensure_ascii=False) + "\n")
             names.append(final)
     return sorted(names)
 
@@ -147,7 +153,7 @@ def export(set_files: list[str], questions_dir: str = QUESTIONS, keys_dir: str =
 def _stems(folder: str, ext: str) -> list[str]:
     if not os.path.isdir(folder):
         return []
-    return sorted(name[:-len(ext)] for name in os.listdir(folder) if name.endswith(ext))
+    return sorted(name[:-len(ext)] for name in os.listdir(folder) if name.endswith(ext) and name != README)
 
 
 def names(keys_dir: str = KEYS) -> list[str]:
@@ -155,15 +161,23 @@ def names(keys_dir: str = KEYS) -> list[str]:
     return _stems(keys_dir, ".json")
 
 
+def question_path(name: str, questions_dir: str = QUESTIONS) -> str:
+    return os.path.join(questions_dir, name + ".md")
+
+
+def key_path(name: str, keys_dir: str = KEYS) -> str:
+    return os.path.join(keys_dir, name + ".json")
+
+
 def load_question(name: str, questions_dir: str = QUESTIONS) -> str:
     """The question text, with no final newline."""
-    with open(os.path.join(questions_dir, name + ".md"), encoding="utf-8") as f:
+    with open(question_path(name, questions_dir), encoding="utf-8") as f:
         text = f.read()
     return text[:-1] if text.endswith("\n") else text
 
 
 def load_key(name: str, keys_dir: str = KEYS) -> dict:
-    return score.load_key(os.path.join(keys_dir, name + ".json"))
+    return score.load_key(key_path(name, keys_dir))
 
 
 def by_old_id(keys_dir: str = KEYS) -> dict[str, str]:
@@ -181,7 +195,7 @@ def _line_count(path: str) -> int | None:
     try:
         with open(path, "rb") as f:
             data = f.read()
-    except FileNotFoundError:
+    except OSError:
         return None
     return data.count(b"\n") + (1 if data and not data.endswith(b"\n") else 0)
 
@@ -198,8 +212,10 @@ def _data_problems(label: str, key: dict) -> list[str]:
     except (OSError, ValueError, KeyError) as e:
         out.append(f"{label}: no fresh key record ({type(e).__name__}: {e})")
     counts = {}
-    for field in ("required", "forbidden", "not_counted"):
+    for field in ANSWER_LISTS:
         for entry in key["answer"][field]:
+            if not isinstance(entry, str) or not ENTRY.fullmatch(entry):
+                continue  # the check with no data root reports it
             path, _, line = entry.rpartition(":")
             if path not in counts:
                 counts[path] = _line_count(os.path.join(trees.TREES, key["tree"], path))
@@ -207,6 +223,19 @@ def _data_problems(label: str, key: dict) -> list[str]:
                 out.append(f"{label}: {entry} is no file of the tree {key['tree']}")
             elif int(line) > counts[path]:
                 out.append(f"{label}: {entry} is after the last line ({counts[path]}) of the tree {key['tree']}")
+    return out
+
+
+def _answer_problems(label: str, answer: dict) -> list[str]:
+    """The entries of the answer lists that do not match ENTRY, and the lists that are not sorted by path and line."""
+    out = []
+    for field in ANSWER_LISTS:
+        bad = [entry for entry in answer[field] if not isinstance(entry, str) or not ENTRY.fullmatch(entry)]
+        out += [f"{label}: the answer entry {entry!r} of `{field}` does not match {ENTRY.pattern}" for entry in bad]
+        if not bad:
+            lines = [(path, int(line)) for path, _, line in (entry.rpartition(":") for entry in answer[field])]
+            if lines != sorted(lines):
+                out.append(f"{label}: the list `{field}` of the answer is not sorted by path and line")
     return out
 
 
@@ -242,6 +271,12 @@ def check(data: bool = False, questions_dir: str = QUESTIONS, keys_dir: str = KE
             problems.append(f"{label}: the question is {key['question']}, not the file name")
         if key["pin"] != pin.get(key["product"]):
             problems.append(f"{label}: the pin {key['pin']} is not the pin {pin.get(key['product'])} of products.json")
+        answer = key["answer"]
+        if not isinstance(answer, dict) or set(answer) != set(ANSWER_LISTS) or not all(
+                isinstance(answer[field], list) for field in ANSWER_LISTS):
+            problems.append(f"{label}: the answer is no object with the lists required, forbidden and not_counted")
+            continue
+        problems += _answer_problems(label, answer)
         if data:
             problems += _data_problems(label, key)
     return problems

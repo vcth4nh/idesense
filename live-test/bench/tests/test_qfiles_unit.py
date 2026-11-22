@@ -228,6 +228,41 @@ class CheckTest(DataRoot):
                           "keys/caddy-refs-ca.json: zz.go:1 is no file of the tree caddy"],
                          qfiles.check(True, self.questions, self.keys))
 
+    def test_check_reports_an_answer_entry_of_another_form_and_a_list_out_of_order(self):
+        self.edit_key("caddy-refs-ca", answer={"required": ["a.go:9", "a.go:10"], "forbidden": ["a.go:10", "a.go:9"],
+                                               "not_counted": ["/abs/a.go:8", "a.go:0", "a.go", "a.go:8:2", 7]})
+        label, pattern = "keys/caddy-refs-ca.json", qfiles.ENTRY.pattern
+        self.assertEqual([f"{label}: the list `forbidden` of the answer is not sorted by path and line"]
+                         + [f"{label}: the answer entry {e!r} of `not_counted` does not match {pattern}"
+                            for e in ("/abs/a.go:8", "a.go:0", "a.go", "a.go:8:2", 7)],
+                         qfiles.check(False, self.questions, self.keys))
+        self.edit_key("caddy-refs-ca", answer=None)
+        self.assertEqual([f"{label}: the answer is no object with the lists required, forbidden and not_counted"],
+                         qfiles.check(True, self.questions, self.keys))
+
+    def test_check_data_reports_an_entry_below_a_file_with_no_traceback(self):
+        key = read_json(self.key_path("caddy-refs-ca"))
+        self.edit_key("caddy-refs-ca", answer=dict(key["answer"], required=["a.go:3", "a.go:5", "a.go/x.go:1", "zz"]))
+        label = "keys/caddy-refs-ca.json"
+        self.assertEqual([f"{label}: the answer entry 'zz' of `required` does not match {qfiles.ENTRY.pattern}",
+                          f"{label}: the answer differs from the view of caddy/symbols.jsonl",
+                          f"{label}: a.go/x.go:1 is no file of the tree caddy"],
+                         qfiles.check(True, self.questions, self.keys))
+
+    def test_check_and_names_ignore_the_readme_of_the_questions(self):
+        names = qfiles.names(self.keys)
+        write(os.path.join(self.questions, "README.md"), "# Questions\n")
+        self.assertEqual([], qfiles.check(False, self.questions, self.keys))
+        self.assertEqual([], qfiles.check(True, self.questions, self.keys))
+        self.assertEqual(names, qfiles.names(self.keys))
+
+    def test_paths_of_a_question(self):
+        self.assertEqual(os.path.join(self.questions, "caddy-refs-ca.md"),
+                         qfiles.question_path("caddy-refs-ca", self.questions))
+        self.assertEqual(os.path.join(self.keys, "caddy-refs-ca.json"), qfiles.key_path("caddy-refs-ca", self.keys))
+        self.assertEqual(os.path.join(qfiles.HERE, "questions", "x.md"), qfiles.question_path("x"))
+        self.assertEqual(os.path.join(qfiles.HERE, "keys", "x.json"), qfiles.key_path("x"))
+
     def test_cli_check_prints_the_count(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):

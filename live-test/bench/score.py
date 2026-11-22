@@ -17,12 +17,14 @@ each other line is a false line (`fp`). `miss` counts the required lines that th
 the scored lines, `invalid` the entries that cannot be read.
 
 `main` prints one line `exact=<bool> tp=<n> fp=<n> miss=<n> ignored=<n> outside=<n> invalid=<n>`, then a line
-`missed <path>:<line>` for each missed line and a line `false <path>:<line>` for each false line. With `--root`, the
-tree files are the output of `git -C <root> ls-files`, and an absolute path below the root is read as relative.
+`missed <path>:<line>` for each missed line and a line `false <path>:<line>` for each false line. With `--root` (a
+relative root is made absolute first), the tree files are the output of `git -C <root> ls-files`, and an absolute
+path below the root is read as relative.
 Exit codes: 0 exact, 1 not exact, 2 error.
 """
 import argparse
 import json
+import os
 import posixpath
 import re
 import subprocess
@@ -115,6 +117,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("answer", help='the answer: {"sites": ["<path>:<line>", ...]}')
     parser.add_argument("--root", help="the checkout of the product at the pin of the key")
     args = parser.parse_args(argv)
+    if args.root is not None:
+        args.root = os.path.abspath(args.root)
     try:
         key = load_key(args.key)
         with open(args.answer, encoding="utf-8") as f:

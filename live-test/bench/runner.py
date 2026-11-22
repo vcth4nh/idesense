@@ -7,9 +7,9 @@
     python3 -m bench.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1] [-plugin-version <text>]
     python3 -m bench.runner handshake -product <caddy|beets>
 
-The question is the tracked pair of `qfiles`: the task text is `qfiles.load_question(<name>)` with `{root}`
-replaced by the root of the run, and the key is `qfiles.load_key(<name>)`. The runner reads no set file and no key
-file of the data root.
+The question is the tracked pair of `qfiles` (`-question` matches `qfiles.NAME`, else no run starts): the task text
+is `qfiles.load_question(<name>)` with `{root}` replaced by the root of the run, and the key is
+`qfiles.load_key(<name>)`. The runner reads no set file and no key file of the data root.
 
 Arms: `C` has no MCP server. `P` has the MCP server of the IDE of the product, through a route of the filter
 proxy (`bench.proxy`). `PS` is `P` with an aid (`-aid skill` or `-aid rule`, installed by the entry script of
@@ -384,6 +384,8 @@ def _check_args(args) -> None:
         raise SetupError(f"-n {args.n}: the run number starts at 1")
     if args.stop_after_tools is not None and args.stop_after_tools < 1:
         raise SetupError(f"-stop-after-tools {args.stop_after_tools}: use 1 or more")
+    if not qfiles.NAME.fullmatch(args.question):
+        raise SetupError(f"-question {args.question!r}: a question name matches {qfiles.NAME.pattern}")
     for name, value in (("batch", args.batch), ("run id", run_id_of(args))):
         if not proxy.RUN_ID.fullmatch(value):
             raise SetupError(f"{name} {value!r}: use only the characters A-Z a-z 0-9 . _ - (first: a letter or digit)")
@@ -486,8 +488,8 @@ def prepare(args) -> dict:
     _check_args(args)
     key = qfiles.load_key(args.question, qfiles.KEYS)
     question = qfiles.load_question(args.question, qfiles.QUESTIONS)
-    digests = {"question_sha256": _sha256(os.path.join(qfiles.QUESTIONS, args.question + ".md")),
-               "key_sha256": _sha256(os.path.join(qfiles.KEYS, args.question + ".json"))}
+    digests = {"question_sha256": _sha256(qfiles.question_path(args.question, qfiles.QUESTIONS)),
+               "key_sha256": _sha256(qfiles.key_path(args.question, qfiles.KEYS))}
     product, tree = key["product"], key["tree"]
     if product not in IDE_URLS:
         raise SetupError(f"no benchmark IDE for the product {product!r}")

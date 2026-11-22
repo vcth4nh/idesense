@@ -14,8 +14,8 @@ adoption table, also when it has an answer.
 
 The question of a run is the field `question` of `run.json`. An old record has the field `challenge` and no
 `question`: its question is the tracked question whose `old_ids` hold the challenge id (`qfiles.by_old_id`), or the
-challenge id itself when no tracked key has it (`load_batch`). The key of a run is the tracked key of its question
-(`qfiles.load_key`), and its line classes are `score.line_classes`. The tree root of a question is its slot path
+challenge id itself when no tracked key has it (`load_batch`). A record with neither field is a ValueError. The key
+of a run is the tracked key of its question (`qfiles.load_key`), and its line classes are `score.line_classes`. The tree root of a question is its slot path
 (`trees.load_slots`). A site of an IDE result with an absolute path below the root is made relative to the root, as
 `score.parse_sites` does; another site stays as it is. A line that is in no answer list of the key has no class.
 
@@ -114,6 +114,8 @@ def load_batch(batch_dir: str) -> dict:
             raise ValueError(f"{path}: {e}") from None
         rec["folder"] = folder
         if not rec.get("question"):
+            if not rec.get("challenge"):
+                raise ValueError(f"{path}: the run record has no question and no challenge")
             if old_ids is None:
                 old_ids = qfiles.by_old_id(qfiles.KEYS)
             rec["question"] = old_ids.get(rec.get("challenge"), rec.get("challenge"))

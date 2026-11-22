@@ -180,6 +180,18 @@ class LoadBatchTest(unittest.TestCase):
         self.assertEqual("ok", got["runs"][0]["outcome"])
         self.assertEqual((2, 1), (got["set_aside"], got["unfinished"]))
 
+    def test_record_with_no_question_and_no_challenge_is_a_value_error(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        rec = run("C")
+        del rec["question"]
+        folder = put_run(d, rec)
+        with mock.patch.object(qfiles, "by_old_id", side_effect=AssertionError("a read of the keys")):
+            with self.assertRaises(ValueError) as e:
+                triage.load_batch(d)
+        self.assertEqual(f"{os.path.join(folder, 'run.json')}: the run record has no question and no challenge",
+                         str(e.exception))
+
 
 class IdeResultsTest(unittest.TestCase):
     def test_ide_results_pairs_use_and_result(self):
@@ -706,6 +718,18 @@ class ReportTest(unittest.TestCase):
         with contextlib.redirect_stdout(out):
             self.assertEqual(0, triage.main(["report", "-batch", "b1"]))
         self.assertEqual(os.path.join(self.runs, "b1.triage", "summary.md"), out.getvalue().strip())
+
+    def test_cli_exit_2_for_a_record_with_no_question_and_no_challenge(self):
+        rec = run("P", n=2)
+        del rec["question"]
+        path = os.path.join(put_run(self.batch, rec), "run.json")
+        for command in ("report", "table"):
+            with self.subTest(command=command):
+                out, err = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+                    self.assertEqual(2, triage.main([command, "-batch", "b1"]))
+                self.assertEqual(("", f"triage: ValueError: {path}: the run record has no question and no challenge\n"),
+                                 (out.getvalue(), err.getvalue()))
 
 
 if __name__ == "__main__":

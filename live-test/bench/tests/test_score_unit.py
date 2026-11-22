@@ -121,6 +121,22 @@ class CliTest(unittest.TestCase):
         self.assertEqual((1, "exact=False tp=1 fp=1 miss=1 ignored=0 outside=0 invalid=2"),
                          (code, out.splitlines()[0]))
 
+    def test_cli_relative_root_matches_an_absolute_entry_below_it(self):
+        checkout = os.path.join(self.tmp, "checkout")
+        os.makedirs(checkout)
+        with open(os.path.join(checkout, "a.go"), "w", encoding="utf-8") as f:
+            f.write("package a\n")
+        subprocess.run(["git", "init", "-q", checkout], check=True)
+        subprocess.run(["git", "-C", checkout, "add", "a.go"], check=True)
+        answer = self.answer([f"{checkout}/a.go:3", "a.go:9"])
+        cwd = os.getcwd()
+        os.chdir(self.tmp)
+        self.addCleanup(os.chdir, cwd)
+        for root in ("checkout", "./checkout/"):
+            code, out, _ = self.main(self.key, answer, "--root", root)
+            self.assertEqual((0, "exact=True tp=2 fp=0 miss=0 ignored=0 outside=0 invalid=0"), (code, out.strip()),
+                             root)
+
     def test_script_runs_alone_with_the_standard_library(self):
         with open(SCRIPT, encoding="utf-8") as f:
             tree = ast.parse(f.read())
