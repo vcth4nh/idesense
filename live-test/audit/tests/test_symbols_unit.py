@@ -496,7 +496,7 @@ class UsagesViewTest(unittest.TestCase):
         self.assertIn("| ide_find_definition | all | 2 | 1.000 | 1.000 | 1.000 | 0 | 0 | 0 | - | - | 0 |", text)
 
 
-# A usages result of the audit before the marks (caddy, build 2.1.1-bench.5beca97, run audit/5beca97/caddy-all),
+# A usages result of the audit before the marks (caddy, build 2.1.1-bench.5beca97),
 # and the sites of its key record. Identifiers, paths and lines only.
 OLD_ID = "go:github.com/caddyserver/caddy/v2/modules/caddypki.AuthorityConfig"
 OLD_DECL = {"file": "modules/caddypki/ca.go", "line": 459, "col": 6}

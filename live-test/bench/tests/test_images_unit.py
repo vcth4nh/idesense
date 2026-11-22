@@ -177,7 +177,7 @@ class BuildTest(unittest.TestCase):
     def test_dockerfile_has_no_version_default_and_declares_each_build_argument(self):
         code = dockerfile_code()
         args = [line.split()[1] for line in code if line.startswith("ARG ")]
-        self.assertEqual(["SLOTS_ROOT", "DEBIAN_FRONTEND"], [arg.split("=", 1)[0] for arg in args if "=" in arg],
+        self.assertEqual(["DEBIAN_FRONTEND"], [arg.split("=", 1)[0] for arg in args if "=" in arg],
                          "no version has a default")
         command = self.build_command()
         passed = {command[i + 1].split("=", 1)[0] for i, part in enumerate(command) if part == "--build-arg"}
@@ -264,7 +264,8 @@ class BuildTest(unittest.TestCase):
 
     def test_dockerfile_takes_the_slots_root_from_the_build_argument(self):
         code = dockerfile_code()
-        self.assertEqual(["ARG SLOTS_ROOT=/home/ubuntu/dev/ws"], [line for line in code if "/dev/ws" in line])
+        self.assertEqual([], [line for line in code if "/dev/ws" in line])
+        self.assertIn("ARG SLOTS_ROOT", code)
         self.assertIn("ENV BENCH_SLOTS_ROOT=${SLOTS_ROOT}", code)
         # A stage sees a global ARG only when it declares the ARG again.
         stages = "\n".join(code).split("\nFROM ")[1:]
@@ -325,6 +326,12 @@ class EntryTest(TmpTestCase):
         result = self.run_entry({})
         self.assertEqual(2, result.returncode)
         self.assert_nothing_removed("no BENCH_SLOT")
+
+    def test_entry_refuses_an_absent_slots_root(self):
+        result = self.run_entry({"BENCH_SLOT": SLOTS[0], "BENCH_SLOTS_ROOT": ""})
+        self.assertEqual(2, result.returncode)
+        self.assertIn("entry: BENCH_SLOTS_ROOT is not set", result.stderr)
+        self.assert_nothing_removed("no slots root")
 
     def test_entry_refuses_unknown_aid(self):
         result = self.run_entry({"BENCH_SLOT": SLOTS[0], "BENCH_AID": "skills"})

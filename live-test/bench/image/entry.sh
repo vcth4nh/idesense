@@ -6,19 +6,23 @@
 # It installs the aid, removes each other slot folder and its own folder, unsets each variable whose
 # name starts with BENCH, and runs `claude` in the tree with each argument of the container command.
 # An unknown slot or aid exits 2 before any removal, and so does a copy of this script that is not
-# in its init folder. The image sets BENCH_SLOTS_ROOT, the slots root (default /home/ubuntu/dev/ws);
+# in its init folder, and so does an empty or absent BENCH_SLOTS_ROOT. The image sets BENCH_SLOTS_ROOT, the slots root;
 # BENCH_INIT is set only by the unit tests.
 # The body is one function, called in the last line: the removal of this file does not break the run.
 
 main() {
   set -euo pipefail
-  local root="${BENCH_SLOTS_ROOT:-/home/ubuntu/dev/ws}"
+  local root="${BENCH_SLOTS_ROOT:-}"
   local init="${BENCH_INIT:-/home/ubuntu/.init}"
   local slot="${BENCH_SLOT:-}"
   local aid="${BENCH_AID:-none}"
 
   if [ "$(readlink -f "$0")" != "$(readlink -f "$init")/entry.sh" ]; then
     echo "entry: this script runs only as $init/entry.sh" >&2
+    exit 2
+  fi
+  if [ -z "$root" ]; then
+    echo "entry: BENCH_SLOTS_ROOT is not set" >&2
     exit 2
   fi
   case "$slot" in

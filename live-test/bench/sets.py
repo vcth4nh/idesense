@@ -38,6 +38,12 @@ For Go, the package name comes from the package clause of the declaration file i
 `-keys` sets the folder of the key files. `pilot` writes the pilot set of 8 challenges (see `pilot_set`), `main` the
 main set of 30 challenges (see `main_set`), `calls` the set calls1 of 20 `callers` challenges (see `calls_set`),
 `calls2` the set calls2 of 10 `dyncallers` challenges (see `calls2_set`).
+
+The set makers `pilot_set` and `main_set` also read the result of an audit of the tools: the file
+`disagreements.jsonl` of a result folder below `BENCH/audit` (`audit.symbols disagreements` writes the file; see
+`live-test/audit/README.md`). The folders are `beets-unique-all` (the result for the records of
+`beets/unique-used.jsonl`), `beets-plant-2` and `beets-plant-3` (the results for the planted trees). A note that
+names `audit/beets-unique-all` names this folder.
 """
 import argparse
 import contextlib
