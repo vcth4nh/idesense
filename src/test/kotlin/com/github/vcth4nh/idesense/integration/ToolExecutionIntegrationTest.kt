@@ -551,6 +551,11 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
             "Warning should name the throwing contributor and consequence: $warnings",
             warnings.any { it.contains("contributor") && it.contains("files may be incomplete") }
         )
+        // #206: the contributor is an anonymous class, which has an empty simple name.
+        assertTrue(
+            "Warning should name the anonymous contributor class without the package: $warnings",
+            warnings.any { it.startsWith("File contributor ToolExecutionIntegrationTest\$") }
+        )
     }
 
     fun testFindDefinitionToolEndToEnd() = runBlocking {

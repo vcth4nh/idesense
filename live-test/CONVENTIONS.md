@@ -135,6 +135,7 @@ pins first — appending to a pinned file drifts its blessed row.
 | javascript | test/probe.test.js | ProbeTest, ProbeTestChild (cross-file CommonJS extends) |
 | javascript | src/setter_super.js | Base/Derived accessors, writeProbe WRITE-usage site |
 | javascript | src/accessors.js, mixin_super.js, multisuper.js, triple_super.js, async_super.js, negative_super.js, consumer.js | super-methods/mixin campaign fixtures |
+| javascript | src/outline.js | export default object (not at line 1) with an array of object literals and a spread element over several lines (file structure) |
 | typescript | src/normal.ts | Shape hierarchy, Drawable, ShapeCollection |
 | typescript | src/multisuper.ts | diamond (DiamondTop/DiamondBottom), AbstractCombo/ConcreteCombo (readonly p), accessor/static supers |
 | typescript | src/quirks.ts | q* dispatch, TypedCoercer |

@@ -1,3 +1,4 @@
 {"id":"file-structure-Normal","tool":"ide_file_structure","params":{"file":"src/normal.js"}}
 {"id":"file-structure-Quirks","tool":"ide_file_structure","params":{"file":"src/quirks.js"}}
 {"id":"file-structure-accessors","tool":"ide_file_structure","params":{"file":"src/accessors.js"}}
+{"id":"file-structure-outline","tool":"ide_file_structure","params":{"file":"src/outline.js"}}

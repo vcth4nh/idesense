@@ -239,6 +239,7 @@ class CopyClientConfigAction : AnAction() {
                     }
 
                     override fun processTerminated(event: ProcessEvent) {
+                        // any(): a notification only, no model change.
                         ApplicationManager.getApplication().invokeLater({
                             val exitCode = event.exitCode
                             if (exitCode == 0) {
@@ -263,6 +264,7 @@ class CopyClientConfigAction : AnAction() {
                 handler.startNotify()
                 handler.waitFor()
             } catch (e: Exception) {
+                // any(): a notification only, no model change.
                 ApplicationManager.getApplication().invokeLater({
                     showNotification(
                         project,
