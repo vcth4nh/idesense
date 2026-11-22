@@ -527,8 +527,8 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   `DISPLAY` in `/proc/<pid>/environ` of the new JVM. Give the display to each command that
   sends a key or takes a screenshot, for example through one wrapper script that sets
   `DISPLAY`. A new shell does not keep a variable of an earlier command, and a command with no
-  display variable uses a default display, which can be a shared one (seen 2026-11-22: the 13
-  key presses of one loop went to the display of another session).
+  display variable uses a default display, which can be a shared one (seen 2026-11-22: the key
+  presses of one loop went to a shared display).
 - **Window.** With no window manager on the display, `xdotool windowactivate` did not work,
   and `windowfocus`, `windowmove` and `windowsize` worked (seen with GoLand 2026.3). Move the
   window to 0,0 and size it to the display: the window of GoLand 2026.3 opened at 1400x1000 on
@@ -559,23 +559,32 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   call to the next. A key by position (`Down`, Return) ran a wrong action two times (seen on
   PyCharm 2026.3.0.1: Find Usages in File, and Group declarations, which opened the Settings
   dialog). Read a crop of the list before Return, or use the shortcut that the list shows next
-  to the action. The list has two declaration actions, "Go to Declaration or Usages" and "Go to
-  Declaration" (seen on GoLand 2026.3 and PyCharm 2026.3.0.1). For the text "Go to
-  Declaration", PyCharm selected "Go to Declaration or Usages" in one call and "Go to
-  Declaration" in a later call.
-- **Hints.** With no target, Go to Declaration and Go to Declaration or Usages show only a
-  hint above the caret, "Cannot find declaration to go to": no jump and no popup. Take a
-  screenshot about 0.7 s after the key. When the hint closes was not measured (seen on GoLand
-  2026.3 and PyCharm 2026.3.0.1: the hint showed 0.7 s and about 2.4 s after the key).
+  to the action.
+- **Go to Declaration.** Find Action lists two declaration actions, "Go to Declaration or
+  Usages" (`ctrl+b`) and the plain "Go to Declaration" (seen on GoLand 2026.3 and PyCharm
+  2026.3.0.1). For the text "Go to Declaration", PyCharm selected "Go to Declaration or Usages"
+  in one call and "Go to Declaration" in a later call. The two actions are not equal. At a call
+  with no target, the plain action shows only a hint above the caret, "Cannot find declaration
+  to go to": no jump and no popup. There `ctrl+b` showed nothing on PyCharm 2026.3.0.1 (no
+  hint, no popup, no jump), and the same hint on GoLand 2026.3. For a declaration check, run
+  the plain action, and record the name of the action. Take a screenshot about 0.7 s after the
+  key. When the hint closes was not measured (seen on GoLand 2026.3 and PyCharm 2026.3.0.1: the
+  hint showed 0.7 s and 2 s to 2.4 s after the key). After a jump, read the active editor tab
+  and the position in the status bar: the breadcrumb of the status bar still showed the old
+  file 3 s after the jump (seen on PyCharm 2026.3.0.1).
 - **Read the window.** Take a screenshot (for example with `xwd`), crop the tool window, scale
   the crop 2x, and read the image. For a whole tree, click one row, then expand all
   (`ctrl+KP_Add`). For a long tree, maximize the tool window (Maximize Tool Window,
   `ctrl+shift+apostrophe`) and collapse all (`ctrl+KP_Subtract`). Then select one group row
   and expand only that group (`KP_Multiply`), and collapse it again with `Left`. Page Down
   scrolls a group that is longer than the window (seen on GoLand 2026.3 with 345 results and
-  on PyCharm 2026.3.0.1). The Find tool window can write its tree as text (Export to Text File,
-  `alt+o`, seen in 2026.2): for a comparison of line sets, the text is better. By default
-  the window shows two usages on one line as one row (seen on WebStorm 2026.2).
+  on PyCharm 2026.3.0.1). Maximize Tool Window had no effect while the focus was in the
+  editor, and after Find Usages the focus stayed there: click a row of the tree first. In the
+  maximized tree, the first Page Down moved the selection to the last visible row, and the
+  next Page Down scrolled (seen on PyCharm 2026.3.0.1). The Find tool window can write its
+  tree as text (Export to Text File, `alt+o`, seen in 2026.2): for a comparison of line sets,
+  the text is better. By default the window shows two usages on one line as one row (seen on
+  WebStorm 2026.2).
 - **Questions.** Some IDEs ask a question before a search, for example if Find Usages must
   search the base method (seen on WebStorm, PyCharm and RustRover 2026.2; not on IntelliJ IDEA
   for a Java or Kotlin override). Record the answer with the result. GoLand 2026.3 asked no

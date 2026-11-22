@@ -21,10 +21,10 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   `listen_test.go:39` and `:45`. Find Usages at `listen.go:128:31` (its method `Accept`, no
   row) lists 9 calls in other files (group "Call"), the usages of the interface method
   `net.Listener.Accept`. It does not list the call at `listen_test.go:59`. In the audit run of
-  2026-11-22 (plugin build `2.1.0-bench.0bc1497`), `ide_find_usages` gave the same lines:
-  `listen.go:107`, `:128` and `:177` for `fakeCloseListener`, and 9 rows for `Accept`, each
-  with the mark `BASE`, none in `listen_test.go`. These results depend on the OS of the IDE
-  host.
+  2026-11-22 (a development build of the plugin code of main @ d63e284), `ide_find_usages` gave
+  the same lines: `listen.go:107`, `:128` and `:177` for `fakeCloseListener`, and 9 rows for
+  `Accept`, each with the mark `BASE`, none in `listen_test.go`. These results depend on the
+  OS of the IDE host.
 - **Implementations of an interface in an excluded file.** Go to Implementation(s) at
   `listen.go:124:6` (the interface `canSetKeepAliveConfig`, no row) in GoLand 2026.3 opens the
   popup "Choose Implementation of canSetKeepAliveConfig (5 found)". It lists `TCPConn`
@@ -103,14 +103,14 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   `live-test/fixtures/_snapshots/go/GROUND-TRUTH.md`).
   The interface `caddyhttp.Handler` (`modules/caddyhttp/caddyhttp.go:65:6`, no row) has 2
   such keys: `Handler:` in an `http.Server` literal and in an `http3.Server` literal.
-- **caddy: GoLand and the tool list 3 keys of an embedded field as usages of `caddy.Context`.**
-  Find Usages at `context.go:46:6` (`caddy.Context`, no row) in GoLand 2026.3 lists 345
-  results in 8 groups: "Field declaration" 18, "Parameter declaration" 165, "Receiver" 21,
+- **caddy: GoLand and the tool list 3 keys of an embedded field as usages of `caddy.Context`
+  (#321).** Find Usages at `context.go:46:6` (`caddy.Context`, no row) in GoLand 2026.3 lists
+  345 results in 8 groups: "Field declaration" 18, "Parameter declaration" 165, "Receiver" 21,
   "Return type" 10, "Struct initialization" 118, "Unclassified" 6, "Usage in comments" 3 and
-  "Variable declaration" 4. "Unclassified" lists `admin_test.go:993`, `admin_test.go:1220` and
-  `context.go:673`. Each of the three lines is the key `Context:` of a `Context{...}` literal
-  whose type name is on the line before. The key names the embedded field `context.Context`
-  (`context.go:47`), a type of the Go SDK with the same name. The other 3 rows of
+  "Variable declaration" 4. "Unclassified" lists `admin_test.go:993`, `admin_test.go:1220`
+  and `context.go:673`. Each of the three lines is the key `Context:` of a `Context{...}`
+  literal whose type name is on the line before. The key names the embedded field
+  `context.Context` (`context.go:47`), a type of the Go SDK with the same name. The other 3 rows of
   "Unclassified" are such keys on a line that also has the type name `Context{`.
   In the audit run of 2026-11-22, `ide_find_usages` gave 345 rows too, with the three lines
   and no mark on them. The key file of the audit comes from the Go type checker, which
