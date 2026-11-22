@@ -54,6 +54,7 @@ class VersionTest(TempTestCase):
         write(os.path.join(self.repo, "src", "a.kt"), "a\n")
         write(os.path.join(self.repo, "live-test", "x.py"), "x\n")
         write(os.path.join(self.repo, "docs", "d.md"), "d\n")
+        write(os.path.join(self.repo, ".gitignore"), "build/\n")
         self.git("init", "-q")
         self.git("add", ".")
         self.git("commit", "-q", "-m", "one")
@@ -89,9 +90,32 @@ class VersionTest(TempTestCase):
         self.git("add", "docs/d.md")
         self.assertEqual("2.1.1-bench." + self.head[:7], build.version_of(self.repo))
 
-    def test_untracked_file_is_not_a_change(self):
-        write(os.path.join(self.repo, "src", "new.kt"), "n\n")
+    def test_untracked_file_below_src_is_refused(self):
+        write(os.path.join(self.repo, "src", "New.kt"), "n\n")
+        with self.assertRaises(ValueError) as e:
+            build.version_of(self.repo)
+        self.assertNotIn("\n", str(e.exception))
+        self.assertIn("src/New.kt", str(e.exception))
+
+    def test_untracked_file_below_live_test_and_docs_is_accepted(self):
+        write(os.path.join(self.repo, "live-test", "new", "y.py"), "y\n")
+        write(os.path.join(self.repo, "docs", "new.md"), "n\n")
         self.assertEqual("2.1.1-bench." + self.head[:7], build.version_of(self.repo))
+
+    def test_ignored_file_is_accepted(self):
+        write(os.path.join(self.repo, "build", "distributions", "idesense-2.1.1.zip"), "zip")
+        self.assertEqual("2.1.1-bench." + self.head[:7], build.version_of(self.repo))
+
+    def test_message_names_five_paths_tracked_changes_first(self):
+        write(os.path.join(self.repo, "src", "a.kt"), "b\n")
+        for name in ("0.kt", "1.kt", "2.kt", "3.kt", "4.kt"):
+            write(os.path.join(self.repo, "src", name), "n\n")
+        with self.assertRaises(ValueError) as e:
+            build.version_of(self.repo)
+        message = str(e.exception)
+        self.assertIn("6 file(s)", message)
+        self.assertIn("src/a.kt, src/0.kt, src/1.kt, src/2.kt, src/3.kt, ...", message)
+        self.assertNotIn("src/4.kt", message)
 
     def test_no_plugin_version_is_refused(self):
         write(os.path.join(self.repo, "gradle.properties"), "pluginGroup = x\n")

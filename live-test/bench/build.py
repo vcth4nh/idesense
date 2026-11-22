@@ -4,10 +4,10 @@
     python3 -m bench.build -start
 
 The version of the build is `<pluginVersion of gradle.properties>-bench.<the first 7 hex digits of HEAD>`, for
-example 2.1.1-bench.5beca97. The serverInfo.version of a benchmark IDE then names the commit of the plugin code. The
-command refuses to build when a tracked file outside live-test/ and docs/ has a change (`git status`): a build of
-changed plugin sources would get the name of a commit that it is not. Commit the change first. An untracked file is
-not a change.
+example 2.1.0-bench.5beca97. The serverInfo.version of a benchmark IDE then names the commit of the plugin code. The
+command refuses to build when a file outside live-test/ and docs/ has a change (`git status`): a tracked file with a
+change, or an untracked file that git does not ignore (Gradle also compiles a new file below src/). A build of
+changed plugin sources would get the name of a commit that it is not. Commit or remove the change first.
 
 The command runs `./gradlew buildPlugin -PpluginVersion=<version>` in the root of the repository (or worktree) that
 holds this live-test folder. Then it copies build/distributions/idesense-<version>.zip to
@@ -49,8 +49,8 @@ FREE_FOLDERS = ("live-test/", "docs/")  # a change below these folders does not 
 EXIT_CODES = """exit codes:
   0  done
   1  Gradle, the copy of the zip, or a stop or start of an IDE failed
-  2  nothing was built or started: a tracked file outside live-test/ and docs/ has a change, gradle.properties has
-     no pluginVersion, an IDE has no slot folder, a slot folder does not exist, or another holder has the lock"""
+  2  nothing was built or started: a file outside live-test/ and docs/ has a change or is untracked, gradle.properties
+     has no pluginVersion, an IDE has no slot folder, a slot folder does not exist, or another holder has the lock"""
 
 
 class BuildError(Exception):
@@ -70,25 +70,29 @@ def _git(repo: str, *args: str) -> str:
 
 
 def _changed_paths(repo: str) -> list[str]:
-    """The paths of the tracked files with a change (both paths of a rename or a copy)."""
-    fields = _git(repo, "status", "--porcelain=v1", "-z", "--untracked-files=no").split("\0")
-    paths = []
+    """The paths of the tracked files with a change (both paths of a rename or a copy), then the paths of the
+    untracked files that git does not ignore."""
+    fields = _git(repo, "status", "--porcelain=v1", "-z", "--untracked-files=all").split("\0")
+    tracked, untracked = [], []
     i = 0
     while i < len(fields):
         entry = fields[i]
         i += 1
         if not entry:
             continue
-        paths.append(entry[3:])
+        if entry[:2] == "??":
+            untracked.append(entry[3:])
+            continue
+        tracked.append(entry[3:])
         if "R" in entry[:2] or "C" in entry[:2]:
-            paths.append(fields[i])
+            tracked.append(fields[i])
             i += 1
-    return paths
+    return tracked + untracked
 
 
 def version_of(repo: str) -> str:
     """`<pluginVersion of gradle.properties>-bench.<7 hex of HEAD>`. ValueError when a tracked file outside
-    live-test/ and docs/ has a change."""
+    live-test/ and docs/ has a change, or an untracked file there is not ignored by git."""
     properties = os.path.join(repo, "gradle.properties")
     try:
         with open(properties, encoding="utf-8") as f:
@@ -100,9 +104,9 @@ def version_of(repo: str) -> str:
     head = _git(repo, "rev-parse", "HEAD").strip()
     changed = [p for p in _changed_paths(repo) if not p.startswith(FREE_FOLDERS)]
     if changed:
-        raise ValueError(f"{len(changed)} tracked file(s) outside live-test/ and docs/ have a change "
-                         f"({', '.join(changed[:5])}{', ...' if len(changed) > 5 else ''}): commit them first, "
-                         f"else the build gets the name of commit {head[:7]}, which does not have the change")
+        raise ValueError(f"{len(changed)} file(s) outside live-test/ and docs/ have a change or are untracked "
+                         f"({', '.join(changed[:5])}{', ...' if len(changed) > 5 else ''}): commit or remove them "
+                         f"first, else the build gets the name of commit {head[:7]}, which does not have them")
     return f"{m.group(1)}-bench.{head[:7]}"
 
 
