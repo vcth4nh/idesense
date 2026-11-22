@@ -309,6 +309,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   "Search context invalidated due to file changes. Please re-search." or a short page before. The
   analysis of `ide_diagnostics` and the rename or move of `ide_refactor_rename` and `ide_move_file`
   do not wait; #295 tracks the refactorings (#267).
+- The SSE transport no longer logs a cancellation at ERROR when the channel of a session closes
+  between the check and the send of an event. The cancellation now ends the sending coroutine with
+  no log entry, as in the request handlers (#283).
 
 ## [2.1.0] - 2026-11-09
 
