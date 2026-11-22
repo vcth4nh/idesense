@@ -576,6 +576,16 @@ Each entry gives the contract, the consequence for the code, and the class that 
   state that it fills starts empty in each run (`FindUsagesTool` clears its warnings and notes).
   Broad catches remain in `BrowserBackedResolver.resolve`, `HierarchyTreeWalker.resolveTarget`,
   `RustTypeHierarchyImpl`, `ClassResolver` and `QualifiedNameUtil`.
+- **Dumb mode can start after a dumb mode check.** A check of `DumbService.isDumb` holds only for
+  that moment. A search in a later plain read action can run in dumb mode: the platform
+  `IndexNotReadyException` then gives an empty result (platform code catches it, for example
+  `ExecutorsQuery`), a find-usages warning, or `internal_error` (#195, #267). The start of dumb mode
+  is a write action (`DumbServiceImpl.incrementDumbCounter`, `app-client.jar`, ideaIC-2025.1.3), and
+  `smartReadAction` tests smart mode inside the read lock before each run of its block
+  (`InternalReadAction.insideReadAction`). So after `requireSmartMode`, `suspendingReadAction` of
+  the same call is a smart read action, also for the search extender of a cursor
+  (`getPageFromCache`). Its constraint also waits while the scanner of unindexed files runs
+  (`SmartModeScheduler.getCurrentMode`).
 - **No exception may leave a search callback inside a stub index processor.** GoLand runs the
   callback of `DefinitionsScopedSearch` inside `StubIndexEx.processElements`, which takes an
   `IndexOutOfBoundsException` for index damage (`FileBasedIndexEx.extractCauseToRebuildIndex`) and

@@ -235,6 +235,18 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   anonymous struct gets the name of the nearest enclosing type declaration, and `package.field`
   when it has none. GoLand gives `package.field`: this name differs from GoLand on purpose (#136).
   The new name is no `symbol` anchor, as the name of a Go method (#139): use a position for a field.
+- `ide_find_usages` and `ide_explain_symbol` no longer return an empty or partial list of usages
+  with the warning "Find-usages handler ... threw on findReferencesToHighlight; skipped a search
+  target — usages may be incomplete" when the IDE enters dumb mode during the search. The search
+  now waits for the index and returns the full result (#195).
+- `ide_find_implementations` and `ide_type_hierarchy` no longer return an empty list with no error
+  when the IDE enters dumb mode after the dumb mode check of the tool. `ide_find_definition` gave
+  `internal_error` with the text of the platform `IndexNotReadyException` in the same case. Each
+  tool that checks for dumb mode at the start now does its search only while the index is ready:
+  when dumb mode starts, the call waits for the index and returns the full result. The wait also
+  covers the scan of the files before an index pass. A call that starts in dumb mode still gets
+  `index_not_ready` at once, and a tool that does not need the index does not wait. The search of
+  the refactoring in `ide_refactor_rename` and `ide_move_file` does not wait (#267).
 
 ## [2.1.0] - 2026-11-09
 

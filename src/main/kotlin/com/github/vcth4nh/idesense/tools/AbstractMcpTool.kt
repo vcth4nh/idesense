@@ -24,6 +24,7 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.application.TransactionGuard
 import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.application.readAction as platformReadAction
+import com.intellij.openapi.application.smartReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.progress.ProgressManager
@@ -40,7 +41,10 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.util.concurrency.annotations.RequiresReadLock
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
@@ -74,7 +78,7 @@ import kotlinx.serialization.json.jsonPrimitive
  *
  *     override suspend fun doExecute(project: Project, arguments: JsonObject): ToolCallResult {
  *         requireSmartMode(project)  // If index access is needed
- *         return readAction {
+ *         return suspendingReadAction {
  *             // PSI operations here
  *             createJsonResult(MyResult(...))
  *         }
@@ -220,7 +224,19 @@ abstract class AbstractMcpTool : McpTool {
         if (requiresPsiSync && settings.syncExternalChanges) {
             ensurePsiUpToDate(project)
         }
-        return doExecute(project, arguments)
+        return withContext(IndexAccess()) { doExecute(project, arguments) }
+    }
+
+    /**
+     * The project whose index the read actions of one tool call need. [requireSmartMode] sets it,
+     * and from then on each [suspendingReadAction] of the call is a smart read action (#195, #267).
+     * [execute] gives each call its own instance.
+     */
+    private class IndexAccess : AbstractCoroutineContextElement(IndexAccess) {
+        companion object Key : CoroutineContext.Key<IndexAccess>
+
+        @Volatile
+        var project: Project? = null
     }
 
     /**
@@ -240,13 +256,18 @@ abstract class AbstractMcpTool : McpTool {
      * Call this at the start of [doExecute] if your tool requires index access.
      * Tools that don't need the index (e.g., file operations) don't need to call this.
      *
+     * The IDE can enter dumb mode after this check. So each later [suspendingReadAction] of the
+     * call is a smart read action: it runs only while the index is ready, and it waits for the
+     * index when dumb mode starts (#195, #267).
+     *
      * @param project The project to check
      * @throws IndexNotReadyException if indexes are not available
      */
-    protected fun requireSmartMode(project: Project) {
+    protected suspend fun requireSmartMode(project: Project) {
         if (DumbService.isDumb(project)) {
             throw IndexNotReadyException("IDE is in dumb mode, indexes not available")
         }
+        currentCoroutineContext()[IndexAccess]?.project = project
     }
 
     /**
@@ -274,11 +295,16 @@ abstract class AbstractMcpTool : McpTool {
      * Use this instead of [readAction] for long-running PSI operations to avoid
      * blocking write actions and causing UI freezes.
      *
+     * After [requireSmartMode] in the same call, this is a smart read action: the platform tests
+     * smart mode inside the read lock before each run of [action], and it waits for smart mode.
+     *
      * @param action The action to execute
      * @return The result of the action
      */
     protected suspend fun <T> suspendingReadAction(action: () -> T): T {
-        return platformReadAction { action() }
+        val project = currentCoroutineContext()[IndexAccess]?.project
+            ?: return platformReadAction { action() }
+        return smartReadAction(project) { action() }
     }
 
     /**
@@ -549,6 +575,9 @@ abstract class AbstractMcpTool : McpTool {
      * @param pageSize Explicit pageSize from request, or null to use the cursor-embedded value.
      */
     protected suspend fun getPageFromCache(cursorToken: String, pageSize: Int?, project: Project): PaginationService.GetPageResult {
+        // The search extender of a cursor searches again, also in a call with a cursor, which
+        // does not call requireSmartMode: its read actions wait for the index too.
+        currentCoroutineContext()[IndexAccess]?.project = project
         val service = ApplicationManager.getApplication().getService(PaginationService::class.java)
         val basePath = ProjectResolver.normalizePath(project.basePath ?: "")
         val modCount = PsiModificationTracker.getInstance(project).modificationCount
