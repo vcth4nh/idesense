@@ -217,16 +217,13 @@ The measured times of each product are in `_setup/<folder>/notes.md`.
    cut. If the difference shows a defect, see "A row that differs between two equal runs" in
    CONVENTIONS.md. No row may resolve into a `.phar` file or count a result in one (see the
    phpunit [GROUND-TRUTH.md](real-products/_snapshots/phpunit/GROUND-TRUTH.md)).
-9. **Agent task.** Three bugs that were fixed after the pin, one fresh agent for each bug,
-   with only `Read` and the read-only tools. The prompt, the MCP config, the runner and the
-   transcript analysis are local files that this repository does not track.
-10. **Triage.** One outcome for each finding: an issue, a decision of the owner of the
-    repository, a setup correction, or a ground-truth note.
-11. **Bless, under the bless rule of `AGENTS.md`.** Park the rows that show an open defect. Then
+9. **Triage.** One outcome for each finding: an issue, a decision of the owner of the
+   repository, a setup correction, or a ground-truth note.
+10. **Bless, under the bless rule of `AGENTS.md`.** Park the rows that show an open defect. Then
     run these commands with `--product <folder>`: `--bless --bless-canary`, `--write-anchors`,
     `--check-fixtures`, and two verify runs. For a row that pins an expected error, see "Rows
     that pin an expected error" in CONVENTIONS.md.
-12. **Notes.** Complete `notes.md` and the ground-truth notes in
+11. **Notes.** Complete `notes.md` and the ground-truth notes in
     `_snapshots/<folder>/GROUND-TRUTH.md`.
 
 ### Change a pin
