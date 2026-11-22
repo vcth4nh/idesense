@@ -227,6 +227,14 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   can now get the Gradle path of its project (#187).
 - A PHP class constant gets the `kind` `CONSTANT`, as a PHP constant outside a class. It had the
   `kind` `CLASS`, because the type name "Class constant" of PhpStorm contains "class" (#180).
+- The `qualifiedName` of a Go struct field holds the name of its struct: `package.Struct.field`.
+  It was `package.field`, so the fields of one name in two structs of one package had one name.
+  For example, `ide_find_symbol` with the query `handler` on caddy gave `reverseproxy.handler` for
+  two fields. They are now `reverseproxy.metricsUpstreamsHealthyUpdater.handler` and
+  `reverseproxy.handleResponseContext.handler`. An embedded field gets the same form. A field of an
+  anonymous struct gets the name of the nearest enclosing type declaration, and `package.field`
+  when it has none. GoLand gives `package.field`: this name differs from GoLand on purpose (#136).
+  The new name is no `symbol` anchor, as the name of a Go method (#139): use a position for a field.
 
 ## [2.1.0] - 2026-11-09
 
