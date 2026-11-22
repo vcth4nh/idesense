@@ -62,9 +62,9 @@ The window observations used IntelliJ IDEA 2026.3 (IU-263.7307.200).
   - `ide_find_definition` on the supertype `BeanPostProcessor` gives "Could not resolve symbol
     definition" in both files below the link. In both files below `framework-docs/src` it gives
     `BeanPostProcessor.java`, line 67.
-  - So only the text search separates the two files below the link. Not tested: a Kotlin file in
-    no source root that is not below a link (the product tracks no such file). So the condition
-    can be the link or the place outside the source roots.
+  - So only the text search separates the two files below the link. The link is not the
+    condition: in a probe project, the tool also gave no match in a Kotlin file in no source
+    root that is below no link, and Find in Files found it (the comment of 2026-11-23 on #328).
   - `search-text-BeanPostProcessor-paged` is parked with #328. No other row depends on the link.
 - **spring-framework: parked rows.** Each of these rows shows an open defect (see "Parked
   rows" in `live-test/CONVENTIONS.md`).
@@ -84,7 +84,4 @@ The window observations used IntelliJ IDEA 2026.3 (IU-263.7307.200).
     `org.springframework.context.event.PayloadApplicationEventTests#payloadObjectWithPayloadType`.
     The rows with the suffix `-production-scope` give the same two trees with the scope
     `production`. They have no anonymous class and no local class, and they are blessed.
-  - `file-structure-AbstractApplicationContext.java` (#326): the tool gives the static
-    initializer as `static static class initializer`. The Structure tool window shows
-    `static class initializer`.
   - `search-text-BeanPostProcessor-paged` (#328): see the note on the symbolic link `docs-src`.

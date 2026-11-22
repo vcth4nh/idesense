@@ -1,0 +1,3 @@
+{"id":"find-symbol-GithubEventRouter.determineSubTopic-qualified","tool":"ide_find_symbol","params":{"query":"GithubEventRouter.determineSubTopic"}}
+{"id":"find-symbol-determineSubTopic","tool":"ide_find_symbol","params":{"query":"determineSubTopic"}}
+{"id":"find-symbol-zzqNoSuchSymbolXyz-no-match","tool":"ide_find_symbol","params":{"query":"zzqNoSuchSymbolXyz"}}

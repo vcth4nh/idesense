@@ -1,0 +1,4 @@
+{"id":"super-EventRouter.getSubscriberId-negative","tool":"ide_find_super_methods","params":{"column":22,"file":"plugins/events-node/src/api/EventRouter.ts","line":37}}
+{"id":"super-GithubEntityProvider.getProviderName-interface","tool":"ide_find_super_methods","params":{"column":3,"file":"plugins/catalog-backend-module-github/src/providers/GithubEntityProvider.ts","line":166}}
+{"id":"super-GithubEventRouter.determineSubTopic","tool":"ide_find_super_methods","params":{"column":13,"file":"plugins/events-backend-module-github/src/router/GithubEventRouter.ts","line":42}}
+{"id":"super-GithubEventRouter.getSubscriberId-two-levels","tool":"ide_find_super_methods","params":{"column":13,"file":"plugins/events-backend-module-github/src/router/GithubEventRouter.ts","line":38}}

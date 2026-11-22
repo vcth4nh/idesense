@@ -80,7 +80,6 @@ file is stale.
 
 | line:col | probe id | tool | identifier |
 |---|---|---|---|
-| — | file-structure-AbstractApplicationContext.java | file_structure | — |
 | 144:23 | hier-sub-AbstractApplicationContext-d20 | type_hierarchy | `AbstractApplicationContext` |
 | 144:23 | hier-sub-AbstractApplicationContext-d20-production-scope | type_hierarchy | `AbstractApplicationContext` |
 | 581:14 | hier-callee-AbstractApplicationContext.refresh-d1 | call_hierarchy | `refresh` |

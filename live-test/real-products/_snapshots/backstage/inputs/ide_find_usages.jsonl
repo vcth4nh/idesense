@@ -1,0 +1,10 @@
+{"id":"usage-Config-bysymbol","tool":"ide_find_usages","params":{"symbol":"Config"},"compare":"shape","parked":269}
+{"id":"usage-EntityProvider-production-scope","tool":"ide_find_usages","params":{"column":18,"file":"plugins/catalog-node/src/api/provider.ts","line":70,"scope":"project_production_files"}}
+{"id":"usage-EntityProvider-test-scope","tool":"ide_find_usages","params":{"column":18,"file":"plugins/catalog-node/src/api/provider.ts","line":70,"scope":"project_test_files"}}
+{"id":"usage-InfoCard","tool":"ide_find_usages","params":{"column":17,"file":"packages/core-components/src/layout/InfoCard/InfoCard.tsx","line":167,"pageSize":500},"parked":307}
+{"id":"usage-InfoCard-page1","tool":"ide_find_usages","params":{"column":17,"file":"packages/core-components/src/layout/InfoCard/InfoCard.tsx","line":167,"pageSize":50},"compare":"shape","parked":307}
+{"id":"usage-InfoCard-page2","tool":"ide_find_usages","params":{"pageSize":50},"compare":"shape","cursorFrom":"usage-InfoCard-page1","parked":307}
+{"id":"usage-UrlReaderPredicateMux","tool":"ide_find_usages","params":{"column":14,"file":"packages/backend-defaults/src/entrypoints/urlReader/lib/UrlReaderPredicateMux.ts","line":41}}
+{"id":"usage-UrlReaderPredicateMux-bysymbol","tool":"ide_find_usages","params":{"symbol":"UrlReaderPredicateMux"}}
+{"id":"usage-escapeRegExp","tool":"ide_find_usages","params":{"column":14,"file":"packages/backend-defaults/src/lib/escapeRegExp.ts","line":22}}
+{"id":"usage-useApi-paged","tool":"ide_find_usages","params":{"column":17,"file":"packages/frontend-plugin-api/src/apis/system/useApi.tsx","line":48,"pageSize":100},"compare":"shape"}

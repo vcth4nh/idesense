@@ -1,0 +1,5 @@
+{"id":"impls-EntityProvider","tool":"ide_find_implementations","params":{"column":18,"file":"plugins/catalog-node/src/api/provider.ts","line":70,"pageSize":500}}
+{"id":"impls-EntityProvider.getProviderName","tool":"ide_find_implementations","params":{"column":3,"file":"plugins/catalog-node/src/api/provider.ts","line":76,"pageSize":500}}
+{"id":"impls-SubTopicEventRouter.determineSubTopic","tool":"ide_find_implementations","params":{"column":22,"file":"plugins/events-node/src/api/SubTopicEventRouter.ts","line":38}}
+{"id":"impls-UrlReaderService","tool":"ide_find_implementations","params":{"column":18,"file":"packages/backend-plugin-api/src/services/definitions/UrlReaderService.ts","line":26,"pageSize":500}}
+{"id":"impls-UrlReaderService.readUrl","tool":"ide_find_implementations","params":{"column":3,"file":"packages/backend-plugin-api/src/services/definitions/UrlReaderService.ts","line":30,"pageSize":500}}
