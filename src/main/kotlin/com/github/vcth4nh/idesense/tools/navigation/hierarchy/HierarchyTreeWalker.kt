@@ -49,6 +49,9 @@ enum class HierarchyKind {
  *
  * No-op for every non-cancellation throwable, which keeps flowing through the
  * caller's normal failure handling.
+ *
+ * The request paths of the server use it too: `KtorMcpServer` and
+ * `cancellationInActiveCall` keep a cancellation out of the log (#127).
  */
 internal fun rethrowIfCancellation(t: Throwable) {
     val cause = (t as? InvocationTargetException)?.targetException ?: t
