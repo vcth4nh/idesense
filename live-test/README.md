@@ -398,6 +398,13 @@ this itself when it restarts an IDE.
 - **Trap: a project path for a running instance.** A start while an instance runs hands the
   project path to that instance. It logged `Opening existing project` and then stalled (seen
   on WebStorm 2026.2). Change the open projects only while the IDE is down.
+- **Trap: several new entries.** A bare start did not open each project when several entries
+  had `opened="true"` and no other data. In a new config folder with three such entries, the
+  IDE opened one of the three projects. It opened all three when each entry also had the
+  options `activationTimestamp` and `projectOpenTimestamp` and a `frame` element, as an entry
+  that the IDE writes itself (seen on WebStorm 2026.3). The cause is not found. A switch of
+  the harness adds one such entry for a new product, next to the entries of the fixture
+  projects, which the IDE wrote at their first open. That start opened all of them.
 - **Exit with no client.** An instance that an agent started, with no client connected, ended
   cleanly about 9 minutes after its start (seen on a 2026.1 IDE). The cause is not confirmed.
   When an IDE that you started is gone, read the end of its `idea.log` first.
