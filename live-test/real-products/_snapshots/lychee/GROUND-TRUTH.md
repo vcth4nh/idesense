@@ -36,4 +36,4 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   | `explain-Album-name`, `usage-Album-bysymbol`, `hier-super-Album-byname` | #269 | the name `Album` (3 PHP classes, 2 TypeScript types) resolves to the TypeScript interface, with no candidates |
   | `hier-caller-getValueAsBool-d1` | #186 | the caller in the Blade template has the path `/vueapp.blade.php` |
   | `search-text-favourite-code` | #181 | `context: "code"` returns PHP string and comment matches |
-  | `search-text-favourite`, `search-text-favourite-strings` | #184 | a match in an injected fragment (a Markdown code block) comes two times |
+  | `search-text-favourite`, `search-text-favourite-strings` | #144 | line 153 of `docs/specs/3-reference/frontend-architecture.md`, a line of a code fence with the info string `typescript`, has the label `CODE`. The Find tool window lists it below "Usage in string constants": Find in Files gives the 42 lines of the tool, and with "In String Literals" 33 lines, where `context: "strings"` gives 32 |

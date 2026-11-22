@@ -1,5 +1,4 @@
-{"id":"search-text-OFFSET","tool":"ide_search_text","params":{"pageSize":100,"query":"OFFSET"},"parked":184}
-{"id":"search-text-OFFSET-code","tool":"ide_search_text","params":{"context":"code","pageSize":100,"query":"OFFSET"},"parked":184}
+{"id":"search-text-OFFSET","tool":"ide_search_text","params":{"pageSize":100,"query":"OFFSET"}}
 {"id":"search-text-OFFSET-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"OFFSET"}}
 {"id":"search-text-OFFSET-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"OFFSET"}}
 {"id":"search-text-transaction-paged","tool":"ide_search_text","params":{"pageSize":50,"query":"transaction"},"compare":"shape"}

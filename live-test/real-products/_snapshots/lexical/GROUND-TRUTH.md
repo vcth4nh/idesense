@@ -72,9 +72,10 @@ The window checks used WebStorm 2026.3 (WS-263.7307.202) with a window, on a cop
 - `search-text-gamma-after-escape` (#309): 1 match. Find in Files with "Match case" and
   "Words" gives 3 matches in `LexicalReconciler.test.ts` (lines 562, 570, 585). The matches of
   lines 570 and 585 come after the escape `\n` in `'alpha\n\nbeta\n\ngamma'`.
-- `search-text-ImageNode-injected-fragment` (#184): 40 matches. One match is a second copy of
-  line 458 of `packages/lexical-website/docs/react/plugins.md` with the path `/plugins.md`,
-  line 4: the line in a code block of the Markdown file (the fence has the info string `jsx`).
+- `search-text-ImageNode-injected-fragment` (#144): 39 matches, the 39 lines of Find in Files
+  ("43 matches in 14 files" with "Match case" and "Words"). Line 458 of
+  `packages/lexical-website/docs/react/plugins.md`, a line of a code fence with the info string
+  `jsx`, has the label `CODE`. The Find tool window lists it below "Usage in string constants".
 - `hier-caller-$isCaptionEditorEmpty-d2` (#186): one child is a FILE node of a fragment in
   `packages/lexical-website/docs/serialization/serialization.md`. The tool gives the path
   `/serialization.md`, and the harness keeps the name only. The Call Hierarchy window shows the

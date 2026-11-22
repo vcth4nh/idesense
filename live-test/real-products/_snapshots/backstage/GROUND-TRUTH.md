@@ -58,6 +58,16 @@ The window checks used WebStorm 2026.3 (WS-263.7307.202) with a window, on a cop
   For `catalog-info.yaml` the window has a root node with the path, and the tool has the file
   name as a header. In its default state the window collapses some nodes (the constructor of
   `GithubEventRouter`, the keys of the YAML document), and the tool shows all nodes.
+- **backstage: the Structure window of an OpenAPI file.** For
+  `plugins/catalog-backend/src/schema/openapi.yaml` the Structure tool window shows the OpenAPI
+  view: the root row "OpenAPI 3.1 openapi.yaml", then `servers`, `Components` and `Paths`. It
+  has no node for the keys `openapi`, `info` and `tags`, and the tool has none. With all nodes
+  expanded the window has 217 rows: the root row and the 216 nodes of the tool, with the same
+  names, order and nesting. The tool has the file name as a header and no root node. A row of
+  the window shows the name and then the `description` of the node, on one row, and the tool
+  writes the description as the signature of the node, on one line (since the fix of #335).
+  `file-structure-openapi.yaml` is a `shape` row: it pins the 218 lines of the result (the file
+  name, an empty line and the 216 nodes).
 - **backstage: the TypeScript service.** WebStorm starts the TypeScript service of the product
   (the `typescript` 5.7.3 of `node_modules/`, Node.js with `--max_old_space_size=3072`) at the
   first request that needs it. After four runs of all rows the service had 3.16 GB resident
@@ -86,8 +96,8 @@ Each of these rows shows an open defect (see "Parked rows" in `live-test/CONVENT
 | Row | Issue | Defect |
 |---|---|---|
 | `usage-InfoCard`, `usage-InfoCard-page1`, `usage-InfoCard-page2` | #307 | the usage of a JSX tag has the column of `<`, for example `InfoCard.stories.tsx:57:5` (`<InfoCard {...args}>`); the tag name is at column 6. The 99 usages are the 98 of Find Usages and the JSDoc `{@link InfoCard }` of `BottomLink.tsx:53:37` with `DYNAMIC`, which Find Usages shows with "Show Dynamic Usages" on |
-| `search-text-GithubEventRouter`, `search-text-GithubEventRouter-code` | #184 | 96 and 91 matches; Find in Files gives "91 matches in 16 files". 8 matches are second copies of lines in Markdown code fences, with a path that starts with `/`: `/CHANGELOG.md.diff`, `/v1.24.0-changelog.md.diff` and `/v1.24.0-next.0-changelog.md.diff` (fences with the info string `diff`, lines 7 and 18), `/report.api.md` and `/README.md` (fences with `ts`) |
 | `def-DateInput-jsx-default-import` | #315 | the tag `<DateInput` of `DateWidget.tsx:29:11` gives the import line `DateWidget.tsx:22:8` (kind `IMPORTED_DEFAULT_BINDING`); Go to Declaration opens `DateInput.tsx` at 56:25, the function of the default export |
 | `find-file-index.ts-paged`, `find-file-package.json-paged`, `find-file-plugin.ts-paged` | #271 | Go to File also lists the files that match through the directory path: `index.ts` 1,255 against 1,259, `package.json` 287 against 325, `plugin.ts` 151 against 4,595; each file of the tool is in the Go to File list. The control `find-file-setupTests.ts-paged` gives the same 130 files as Go to File |
 | `find-file-module.ts.hbs`, `find-file-GithubEventRouter.ts-directory-part`, `find-file-plugin.ts-directory-part` | #271 | `module.ts.hbs`: 7 files, and Go to File lists the same 7 first, then more than 30 templates below `packages/cli-module-new/`. `router/GithubEventRouter.ts`: 0, and Go to File 2 (All Places). `src/plugin.ts`: 0, and Go to File many |
 | `usage-Config-bysymbol`, `explain-Config-ambiguous` | #269 | the name `Config`, which 83 declarations share, resolves to one declaration (33 usages) with no `candidates` |
+| `search-text-GithubEventRouter`, `search-text-GithubEventRouter-code`, `search-text-GithubEventRouter-strings` | #144 | 88, 83 and 7 matches. Find in Files gives "91 matches in 16 files" on the same 88 lines. The Find tool window lists 57 matches below "Usage in string constants": 7 lines of TypeScript files, and 50 lines of code fences in 10 Markdown files, which the tool gives the label `CODE`. So `context: "strings"` leaves the 50 lines out (Find in Files with "In String Literals": "57 matches in 15 files"), and `context: "code"` returns them (the window has 33 matches below "Unclassified"). `search-text-GithubEventRouter-comments` has 1 match, as Find in Files with "In Comments" ("1 match in 1 file") |

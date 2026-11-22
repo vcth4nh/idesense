@@ -86,6 +86,12 @@ file is stale.
 | 99:46 | def-EntityProvider-reexport-chain | find_definition | `EntityProvider` |
 | 166:3 | super-GithubEntityProvider.getProviderName-interface | find_super_methods | `getProviderName` |
 
+## plugins/catalog-backend/src/schema/openapi.yaml
+
+| line:col | probe id | tool | identifier |
+|---|---|---|---|
+| — | file-structure-openapi.yaml | file_structure | — |
+
 ## plugins/catalog-node/src/api/provider.ts
 
 | line:col | probe id | tool | identifier |
@@ -162,6 +168,7 @@ file is stale.
 | find-class-Config | find_class | `{"pageSize":100,"query":"Config"}` |
 | find-class-CustomErrorBase-lang-typescript | find_class | `{"language":"typescript","query":"CustomErrorBase"}` |
 | find-class-EntityProvider | find_class | `{"query":"EntityProvider"}` |
+| find-class-GitHubEvRo-fuzzy | find_class | `{"fuzzySearch":true,"query":"GitHubEvRo"}` |
 | find-class-zzqNoSuchClassXyz-no-match | find_class | `{"query":"zzqNoSuchClassXyz"}` |
 | find-file-GithubEventRouter.ts | find_file | `{"query":"GithubEventRouter.ts"}` |
 | find-file-GithubEventRouter.ts-directory-part | find_file | `{"query":"router/GithubEventRouter.ts"}` |
@@ -179,6 +186,8 @@ file is stale.
 | hier-sub-EventRouter-byname | type_hierarchy | `{"className":"EventRouter","direction":"subtypes"}` |
 | search-text-GithubEventRouter | search_text | `{"query":"GithubEventRouter"}` |
 | search-text-GithubEventRouter-code | search_text | `{"context":"code","query":"GithubEventRouter"}` |
+| search-text-GithubEventRouter-comments | search_text | `{"context":"comments","query":"GithubEventRouter"}` |
+| search-text-GithubEventRouter-strings | search_text | `{"context":"strings","query":"GithubEventRouter"}` |
 | search-text-moduleVar | search_text | `{"query":"moduleVar"}` |
 | search-text-useApi-paged | search_text | `{"pageSize":100,"query":"useApi"}` |
 | status-Status | index_status | `{}` |

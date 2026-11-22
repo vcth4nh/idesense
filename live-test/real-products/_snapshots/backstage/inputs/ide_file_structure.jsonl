@@ -4,5 +4,6 @@
 {"id":"file-structure-catalog-info.yaml","tool":"ide_file_structure","params":{"file":"catalog-info.yaml"},"compare":"shape"}
 {"id":"file-structure-config.d.ts","tool":"ide_file_structure","params":{"file":"plugins/home/config.d.ts"}}
 {"id":"file-structure-module.ts.hbs","tool":"ide_file_structure","params":{"file":"packages/cli-module-new/templates/backend-plugin-module/src/module.ts.hbs"}}
+{"id":"file-structure-openapi.yaml","tool":"ide_file_structure","params":{"file":"plugins/catalog-backend/src/schema/openapi.yaml"},"compare":"shape"}
 {"id":"file-structure-provider.ts","tool":"ide_file_structure","params":{"file":"plugins/catalog-node/src/api/provider.ts"}}
 {"id":"file-structure-report.api.md","tool":"ide_file_structure","params":{"file":"plugins/events-backend-module-github/report.api.md"}}

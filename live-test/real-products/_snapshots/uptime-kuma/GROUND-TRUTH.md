@@ -63,7 +63,6 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   | `def-util.ts-import-path-vue` | #192 | a position in the module path of an ES6 `import` gives "Could not resolve symbol definition" |
   | `def-startDateTime-decl`, `explain-startDateTime-decl-pos`, `usage-startDateTime` | #193 | the name of a computed property takes the reference of the outer key `computed`: the result is the `.vue` file, or the key as the only usage |
   | `hier-caller-beat-d1` | #194 | a function in a local constant gives the hierarchy of the enclosing method |
-  | `search-text-startDateTime`, `search-text-startDateTime-code` | #184 | a match in an injected fragment comes a second time, with the path `/<file name>` |
   | `def-startDateTime-from-template`, `explain-startDateTime-from-template-pos` | #189 | a position in a template interpolation is no anchor: the result is the `div` element of the HTML schema |
 
   #195 and #200 have no row.
