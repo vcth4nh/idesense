@@ -44,12 +44,13 @@ The fixture projects are in `live-test/fixtures/`.
 Each fixture is a real IDE-openable project. Open it, wait for indexing,
 then run the harness.
 
-**Python: mark `test/` as a test root.** PyCharm 2026.2 re-imports the fixture from
-`pyproject.toml` as `.idea/live-test-python.iml` (and rewrites the tracked `modules.xml`) with
-`test/` as a plain source root. Then `hier-caller-target-production` gains the test caller and
-`hier-caller-target-test` loses it. Stop PyCharm, set `isTestSource="true"` on the `test`
-source folder in that `.iml`, and restart. The `.iml` is gitignored, so a fresh checkout needs
-the same edit. Issue #228 tracks the untracked module file.
+**Python: run the bootstrap before the first open.** `fixtures/_setup/python/bootstrap.sh`
+needs `uv` on the `PATH`. It makes the environment `.venv` with `uv sync`, and it writes
+`.idea/live-test-python.iml` when that file is absent: `src` is the source root and `test` is
+the test root. At the first open PyCharm makes an interpreter from `.venv`, and writes its name
+(a path of the machine) to `misc.xml` and to the module file (seen on PyCharm 2026.3). For this
+reason git does not track the module file. Without the test root, `hier-caller-target-production` gains the test caller
+and `hier-caller-target-test` loses it.
 
 In this document, **the fleet** is the set of these IDEs: each one runs on its default port
 and has its fixture projects open. **The fleet checkout** is the checkout of this repository
@@ -452,10 +453,10 @@ fleet process, so the harness never restarts it. Run rows against it with `--url
 4. **Plugins.** Unzip the zip under test into `<throwaway root>/plugins`. The bundled plugins
    come from the IDE install. Another custom plugin loads only when you copy it too.
 5. **Project.** Use a copy of a fixture or a small new project, outside `<throwaway root>`.
-   Never open a folder that another IDE has open: two IDEs then write its `.idea/`. A copy of
-   the Python fixture needs `live-test-python.iml`, `misc.xml` and `modules.xml` from `.idea/`
-   of the fleet checkout (git tracks only `modules.xml`). Without them PyCharm has no
-   interpreter, and the usage types differ (seen on PyCharm 2026.2).
+   Never open a folder that another IDE has open: two IDEs then write its `.idea/`. For the
+   Python fixture, use the fixture of a second checkout (for example a git worktree), and run
+   its bootstrap first (see "Per-IDE fixture setup"). Without `.venv` PyCharm has no
+   interpreter, and many rows differ (seen on PyCharm 2026.2 and 2026.3).
 6. **Start:** `<PRODUCT>_VM_OPTIONS=<throwaway root>/ide.vmoptions setsid --fork
    <ide launcher> serverMode <project>`.
 7. **Prove it before the probe.** `pgrep -af 'idea.config.path=<throwaway root>/[c]onfig'`

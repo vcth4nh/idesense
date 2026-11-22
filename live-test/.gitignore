@@ -6,11 +6,14 @@
 .zed/
 *.iml
 
-# EXCEPTION: the source-folder config for python/javascript/typescript/php is
+# EXCEPTION: the source-folder config for javascript/typescript/php is
 # force-tracked (git add -f) so the production/test hierarchy-scope split is
 # reproducible from git (those languages have no committed build file that marks
 # test roots, unlike Maven/Gradle/Cargo/go). Only <lang>/.idea/<lang>.iml and
 # <lang>/.idea/modules.xml are tracked; everything else under .idea stays ignored.
+# python tracks only .idea/modules.xml: fixtures/_setup/python/bootstrap.sh writes
+# .idea/live-test-python.iml, and PyCharm then writes the interpreter of the machine
+# into it.
 # (Negation rules can't re-include these — the parent .idea dir is excluded — so
 # the files are committed via `git add -f`.)
 
