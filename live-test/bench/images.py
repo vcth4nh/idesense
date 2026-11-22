@@ -42,6 +42,7 @@ SKILL_SRC = os.path.join(trees.WT, "src", "main", "resources", "skill", "idesens
 CTX_ROOT = os.path.join(trees.BENCH, "scratch", "image-ctx")
 GATE_LOGS = os.path.join(trees.BENCH, "scratch", "image-gate")
 IMAGES = os.path.join(trees.BENCH, "images")
+# Paths in the image: /home/ubuntu is the home of `ubuntu`, the default user of the base image.
 INIT_IN_IMAGE = "/home/ubuntu/.init"
 ENTRY_IN_IMAGE = INIT_IN_IMAGE + "/entry.sh"
 GO_MODULE_CACHE = "/home/ubuntu/go/pkg/mod"

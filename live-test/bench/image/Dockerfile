@@ -6,7 +6,8 @@
 # `--build-arg SLOTS_ROOT=<the slots root of the host>` and a `--build-arg` for each pin of
 # live-test/manifest.json (BASE_IMAGE and the versions and SHA-256 values below). The trees come from their
 # master manifests, with no agent instruction file of the product, no .idea, no .venv and no .git. In the image
-# each tree is at its slot path SLOTS_ROOT/<slot id>/<product>, as on the host.
+# each tree is at its slot path SLOTS_ROOT/<slot id>/<product>, as on the host. The image runs as `ubuntu`, the
+# default user of the base image; /home/ubuntu is the home of that user in the image.
 # PRODUCT, BASE_IMAGE, SLOTS_ROOT and the pins have no default on purpose (so the check above is off): a build without
 # them fails. An empty CLAUDE_CODE_VERSION fails too (`test -n`); else npm installs the latest version. `bench.images
 # build` checks each pin before the build.
