@@ -1,0 +1,4 @@
+{"id":"file-structure-Conference.java","tool":"ide_file_structure","params":{"file":"jvb/src/main/java/org/jitsi/videobridge/Conference.java"},"compare":"shape"}
+{"id":"file-structure-Endpoint.kt","tool":"ide_file_structure","params":{"file":"jvb/src/main/kotlin/org/jitsi/videobridge/Endpoint.kt"},"compare":"shape"}
+{"id":"file-structure-Node.kt","tool":"ide_file_structure","params":{"file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/transform/node/Node.kt"}}
+{"id":"file-structure-RtcpListener.java","tool":"ide_file_structure","params":{"file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/rtcp/RtcpListener.java"}}

@@ -1,0 +1,5 @@
+{"id":"search-text-drain","tool":"ide_search_text","params":{"pageSize":100,"query":"drain"}}
+{"id":"search-text-drain-code","tool":"ide_search_text","params":{"context":"code","pageSize":100,"query":"drain"}}
+{"id":"search-text-drain-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"drain"}}
+{"id":"search-text-drain-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"drain"}}
+{"id":"search-text-packet-paged","tool":"ide_search_text","params":{"pageSize":50,"query":"packet"},"compare":"shape"}

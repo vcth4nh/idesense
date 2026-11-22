@@ -1,0 +1,5 @@
+{"id":"hier-callee-EndpointMessageTransport.webSocketTextReceived","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callees","file":"jvb/src/main/java/org/jitsi/videobridge/EndpointMessageTransport.java","line":425,"maxDepth":1}}
+{"id":"hier-caller-AbstractEndpointMessageTransport.onMessage-d2","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"jvb/src/main/kotlin/org/jitsi/videobridge/AbstractEndpointMessageTransport.kt","line":67,"maxDepth":2}}
+{"id":"hier-caller-ByteBufferPool.returnBuffer-production-scope","tool":"ide_call_hierarchy","params":{"column":24,"direction":"callers","file":"jvb/src/main/java/org/jitsi/videobridge/util/ByteBufferPool.java","line":176,"maxDepth":1,"scope":"production"}}
+{"id":"hier-caller-DataChannelStack.onDataChannelStackEvents-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"DataChannelStack.onDataChannelStackEvents"}}
+{"id":"hier-caller-PacketInfo.packetAs-d1","tool":"ide_call_hierarchy","params":{"column":39,"direction":"callers","file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/PacketInfo.kt","line":199,"maxDepth":1}}

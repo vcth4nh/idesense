@@ -1,0 +1,5 @@
+{"id":"super-Conference.getEncodingsManager-negative","tool":"ide_find_super_methods","params":{"column":38,"file":"jvb/src/main/java/org/jitsi/videobridge/Conference.java","line":1575}}
+{"id":"super-DataChannelPacket.clone-kotlin","tool":"ide_find_super_methods","params":{"column":19,"file":"jvb/src/main/java/org/jitsi/videobridge/datachannel/protocol/DataChannelPacket.java","line":54}}
+{"id":"super-Endpoint.wants-java","tool":"ide_find_super_methods","params":{"column":18,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/Endpoint.kt","line":991}}
+{"id":"super-EndpointMessageTransport.clientHello-kotlin","tool":"ide_find_super_methods","params":{"column":33,"file":"jvb/src/main/java/org/jitsi/videobridge/EndpointMessageTransport.java","line":112}}
+{"id":"super-EndpointMessageTransport.close-kotlin","tool":"ide_find_super_methods","params":{"column":17,"file":"jvb/src/main/java/org/jitsi/videobridge/EndpointMessageTransport.java","line":402}}

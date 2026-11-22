@@ -1,0 +1,10 @@
+{"id":"usage-AdaptiveSourceProjection.getTargetSsrc-via-synthetic-property","tool":"ide_find_usages","params":{"column":17,"file":"jvb/src/main/java/org/jitsi/videobridge/cc/AdaptiveSourceProjection.java","line":370,"pageSize":100}}
+{"id":"usage-AimdRateControl-kotlin-qualified-symbol","tool":"ide_find_usages","params":{"pageSize":50,"symbol":"org.jitsi.nlj.rtp.bandwidthestimation2.AimdRateControl"}}
+{"id":"usage-Conference.getEncodingsManager-via-synthetic-property","tool":"ide_find_usages","params":{"column":38,"file":"jvb/src/main/java/org/jitsi/videobridge/Conference.java","line":1575,"pageSize":100}}
+{"id":"usage-Conference.getLocalEndpoint-production-scope","tool":"ide_find_usages","params":{"column":21,"file":"jvb/src/main/java/org/jitsi/videobridge/Conference.java","line":999,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-Conference.getLocalEndpoint-test-scope","tool":"ide_find_usages","params":{"column":21,"file":"jvb/src/main/java/org/jitsi/videobridge/Conference.java","line":999,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-Endpoint.wants-base-java","tool":"ide_find_usages","params":{"column":18,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/Endpoint.kt","line":991,"pageSize":100}}
+{"id":"usage-LoudestConfig.routeLoudestOnly-from-java","tool":"ide_find_usages","params":{"column":13,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/LoudestConfig.kt","line":26,"pageSize":100}}
+{"id":"usage-PacketInfo-page1","tool":"ide_find_usages","params":{"column":12,"file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/PacketInfo.kt","line":117,"pageSize":100},"compare":"shape"}
+{"id":"usage-PacketInfo-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-PacketInfo-page1"}
+{"id":"usage-Transceiver.clearPayloadTypes-empty","tool":"ide_find_usages","params":{"column":9,"file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/Transceiver.kt","line":251,"pageSize":100}}

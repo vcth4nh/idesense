@@ -1,0 +1,6 @@
+{"id":"impls-AdaptiveSourceProjectionContext","tool":"ide_find_implementations","params":{"column":18,"file":"jvb/src/main/java/org/jitsi/videobridge/cc/AdaptiveSourceProjectionContext.java","line":37,"pageSize":100}}
+{"id":"impls-AdaptiveSourceProjectionContext.rewriteRtp","tool":"ide_find_implementations","params":{"column":10,"file":"jvb/src/main/java/org/jitsi/videobridge/cc/AdaptiveSourceProjectionContext.java","line":65,"pageSize":100}}
+{"id":"impls-ByteArrayBufferImpl","tool":"ide_find_implementations","params":{"column":23,"file":"rtp/src/main/kotlin/org/jitsi/rtp/ByteArrayBufferImpl.java","line":25,"pageSize":500}}
+{"id":"impls-LoudestConfig-empty","tool":"ide_find_implementations","params":{"column":7,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/LoudestConfig.kt","line":23,"pageSize":100}}
+{"id":"impls-MessageHandler.clientHello","tool":"ide_find_implementations","params":{"column":14,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/message/BridgeChannelMessage.kt","line":145,"pageSize":100}}
+{"id":"impls-RtcpListener","tool":"ide_find_implementations","params":{"column":18,"file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/rtcp/RtcpListener.java","line":30,"pageSize":100},"parked":277}
