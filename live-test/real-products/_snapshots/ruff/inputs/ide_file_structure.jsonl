@@ -1,0 +1,5 @@
+{"id":"file-structure-builder.rs-largest","tool":"ide_file_structure","params":{"file":"crates/ty_python_semantic/src/types/infer/builder.rs"},"compare":"shape"}
+{"id":"file-structure-codes.rs-macro","tool":"ide_file_structure","params":{"file":"crates/ruff_linter/src/codes.rs"}}
+{"id":"file-structure-generated.rs-generated","tool":"ide_file_structure","params":{"file":"crates/ruff_python_ast/src/generated.rs"},"compare":"shape"}
+{"id":"file-structure-settings.ts","tool":"ide_file_structure","params":{"file":"playground/ruff/src/Editor/settings.ts"}}
+{"id":"file-structure-violation.rs","tool":"ide_file_structure","params":{"file":"crates/ruff_linter/src/violation.rs"}}

@@ -1,0 +1,7 @@
+{"id":"hier-callee-expression-d1","tool":"ide_call_hierarchy","params":{"column":15,"direction":"callees","file":"crates/ruff_linter/src/checkers/ast/analyze/expression.rs","line":25,"maxDepth":1},"compare":"shape"}
+{"id":"hier-callee-lines_before-d1","tool":"ide_call_hierarchy","params":{"column":8,"direction":"callees","file":"crates/ruff_python_trivia/src/tokenizer.rs","line":41,"maxDepth":1}}
+{"id":"hier-caller-is_docstring_stmt-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"is_docstring_stmt"}}
+{"id":"hier-caller-is_docstring_stmt-d1","tool":"ide_call_hierarchy","params":{"column":8,"direction":"callers","file":"crates/ruff_python_ast/src/helpers.rs","line":1256,"maxDepth":1}}
+{"id":"hier-caller-is_docstring_stmt-d2","tool":"ide_call_hierarchy","params":{"column":8,"direction":"callers","file":"crates/ruff_python_ast/src/helpers.rs","line":1256,"maxDepth":2}}
+{"id":"hier-caller-lines_before-d1","tool":"ide_call_hierarchy","params":{"column":8,"direction":"callers","file":"crates/ruff_python_trivia/src/tokenizer.rs","line":41,"maxDepth":1}}
+{"id":"hier-caller-report_diagnostic-d1","tool":"ide_call_hierarchy","params":{"column":19,"direction":"callers","file":"crates/ruff_linter/src/checkers/ast/mod.rs","line":436,"maxDepth":1},"compare":"shape"}

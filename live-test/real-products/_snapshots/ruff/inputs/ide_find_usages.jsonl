@@ -1,0 +1,8 @@
+{"id":"canary-usage-lines_before-test-scope","tool":"ide_find_usages","params":{"column":8,"file":"crates/ruff_python_trivia/src/tokenizer.rs","line":41,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-Settings-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"Settings"},"parked":269}
+{"id":"usage-SourceCodeSnippet","tool":"ide_find_usages","params":{"column":19,"file":"crates/ruff_linter/src/fix/snippet.rs","line":5,"pageSize":200}}
+{"id":"usage-inner_range-none","tool":"ide_find_usages","params":{"column":12,"file":"crates/ruff_python_ast/src/nodes.rs","line":3652,"pageSize":100}}
+{"id":"usage-lines_before","tool":"ide_find_usages","params":{"column":8,"file":"crates/ruff_python_trivia/src/tokenizer.rs","line":41,"pageSize":100}}
+{"id":"usage-lines_before-production","tool":"ide_find_usages","params":{"column":8,"file":"crates/ruff_python_trivia/src/tokenizer.rs","line":41,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-report_diagnostic-page1","tool":"ide_find_usages","params":{"column":19,"file":"crates/ruff_linter/src/checkers/ast/mod.rs","line":436,"pageSize":100},"compare":"shape"}
+{"id":"usage-report_diagnostic-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-report_diagnostic-page1"}

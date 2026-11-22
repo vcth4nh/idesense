@@ -1,0 +1,8 @@
+{"id":"canary-def-CompactString-into-dependency","tool":"ide_find_definition","params":{"column":18,"file":"crates/ruff_linter/src/suppression.rs","line":1}}
+{"id":"def-Checker-cross-file","tool":"ide_find_definition","params":{"column":27,"file":"crates/ruff_linter/src/rules/flake8_bugbear/rules/unintentional_type_annotation.rs","line":7}}
+{"id":"def-Formatter-into-stdlib","tool":"ide_find_definition","params":{"column":15,"file":"crates/ruff_linter/src/codes.rs","line":5}}
+{"id":"def-Rule-attribute-macro","tool":"ide_find_definition","params":{"column":13,"file":"crates/ruff_linter/src/message/mod.rs","line":285},"parked":188}
+{"id":"def-Rule.UnusedImport-proc-macro","tool":"ide_find_definition","params":{"column":19,"file":"crates/ruff_linter/src/message/mod.rs","line":285},"parked":188}
+{"id":"def-Settings-ts-type-alias","tool":"ide_find_definition","params":{"column":37,"file":"playground/ruff/src/Editor/settings.ts","line":9}}
+{"id":"def-Stmt-generated-via-reexport","tool":"ide_find_definition","params":{"column":22,"file":"crates/ruff_linter/src/rules/pyflakes/rules/redefined_while_unused.rs","line":4}}
+{"id":"def-TextRange-cross-crate","tool":"ide_find_definition","params":{"column":21,"file":"crates/ruff_linter/src/violation.rs","line":7}}

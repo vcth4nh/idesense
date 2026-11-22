@@ -1,0 +1,6 @@
+{"id":"canary-def-CompactString-into-dependency","result":{"enclosingScope":null,"file":"lib.rs","kind":"STRUCT","name":"CompactString","qualifiedName":"compact_str::CompactString"}}
+{"id":"def-Checker-cross-file","result":{"column":19,"enclosingScope":null,"file":"crates/ruff_linter/src/checkers/ast/mod.rs","kind":"STRUCT","line":195,"name":"Checker","qualifiedName":"ruff_linter::checkers::ast::Checker"}}
+{"id":"def-Formatter-into-stdlib","result":{"enclosingScope":null,"file":"mod.rs","kind":"STRUCT","name":"Formatter","qualifiedName":"core::fmt::Formatter"}}
+{"id":"def-Settings-ts-type-alias","result":{"column":13,"enclosingScope":null,"file":"playground/ruff/src/Editor/settings.ts","kind":"TYPE_ALIAS","line":4,"name":"Settings","qualifiedName":"Settings"}}
+{"id":"def-Stmt-generated-via-reexport","result":{"column":10,"enclosingScope":null,"file":"crates/ruff_python_ast/src/generated.rs","kind":"ENUM","line":125,"name":"Stmt","qualifiedName":"ruff_python_ast::generated::Stmt"}}
+{"id":"def-TextRange-cross-crate","result":{"column":12,"enclosingScope":null,"file":"crates/ruff_text_size/src/range.rs","kind":"STRUCT","line":16,"name":"TextRange","qualifiedName":"ruff_text_size::range::TextRange"}}

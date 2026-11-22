@@ -1,0 +1,7 @@
+{"id":"canary-find-class-LinterSettings","tool":"ide_find_class","params":{"query":"LinterSettings"}}
+{"id":"find-class-Checker","tool":"ide_find_class","params":{"query":"Checker"}}
+{"id":"find-class-LinSet-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"pageSize":50,"query":"LinSet"}}
+{"id":"find-class-NoSuchTypeXyz","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-Rule-macro","tool":"ide_find_class","params":{"query":"Rule"},"parked":188}
+{"id":"find-class-Settings-lang-typescript","tool":"ide_find_class","params":{"language":"TypeScript","query":"Settings"}}
+{"id":"find-class-Settings-rust-and-ts","tool":"ide_find_class","params":{"pageSize":100,"query":"Settings"}}
