@@ -1,0 +1,6 @@
+{"id":"hier-callee-getValueAsBool-d1","tool":"ide_call_hierarchy","params":{"column":18,"direction":"callees","file":"app/Repositories/ConfigManager.php","line":108,"maxDepth":1}}
+{"id":"hier-caller-AlbumService.clearCache-d1","tool":"ide_call_hierarchy","params":{"column":2,"direction":"callers","file":"resources/js/services/album-service.ts","line":92,"maxDepth":1}}
+{"id":"hier-caller-getValueAsBool-d1","tool":"ide_call_hierarchy","params":{"column":18,"direction":"callers","file":"app/Repositories/ConfigManager.php","line":108,"maxDepth":1},"parked":186}
+{"id":"hier-caller-getValueAsByteSize-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"ConfigManager::getValueAsByteSize"}}
+{"id":"hier-caller-getValueAsByteSize-d2","tool":"ide_call_hierarchy","params":{"column":18,"direction":"callers","file":"app/Repositories/ConfigManager.php","line":122,"maxDepth":2}}
+{"id":"hier-caller-getValueAsByteSize-production-scope","tool":"ide_call_hierarchy","params":{"column":18,"direction":"callers","file":"app/Repositories/ConfigManager.php","line":122,"maxDepth":1,"scope":"production"}}

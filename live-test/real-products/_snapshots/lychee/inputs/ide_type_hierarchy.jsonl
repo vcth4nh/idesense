@@ -1,0 +1,4 @@
+{"id":"hier-sub-BaseApiRequest","tool":"ide_type_hierarchy","params":{"column":16,"direction":"subtypes","file":"app/Http/Requests/BaseApiRequest.php","line":30}}
+{"id":"hier-sub-Photo","tool":"ide_type_hierarchy","params":{"column":18,"direction":"subtypes","file":"resources/js/embed/types.ts","line":97}}
+{"id":"hier-super-Album-byname","tool":"ide_type_hierarchy","params":{"className":"Album","direction":"supertypes"},"parked":269}
+{"id":"hier-super-FlushOldOrdersTest","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"tests/Webshop/OrderManagement/FlushOldOrdersTest.php","line":37}}

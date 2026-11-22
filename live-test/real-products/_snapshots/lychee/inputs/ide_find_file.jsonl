@@ -1,0 +1,6 @@
+{"id":"canary-find-file-UrlGenerator.php","tool":"ide_find_file","params":{"query":"UrlGenerator.php"}}
+{"id":"find-file-BaseApiRequest.php","tool":"ide_find_file","params":{"query":"BaseApiRequest.php"}}
+{"id":"find-file-FormRequest.php-libraries-scope","tool":"ide_find_file","params":{"query":"FormRequest.php","scope":"project_and_libraries"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-spec.md-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"spec.md"},"compare":"shape"}
+{"id":"find-file-webauthn.ts","tool":"ide_find_file","params":{"query":"webauthn.ts"}}

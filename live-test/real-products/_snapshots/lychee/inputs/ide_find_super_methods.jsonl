@@ -1,0 +1,3 @@
+{"id":"super-ConfigManager.getValueAsBool-negative","tool":"ide_find_super_methods","params":{"column":18,"file":"app/Repositories/ConfigManager.php","line":108}}
+{"id":"super-FlushOldOrdersTest.setUp","tool":"ide_find_super_methods","params":{"column":18,"file":"tests/Webshop/OrderManagement/FlushOldOrdersTest.php","line":43}}
+{"id":"super-ImageOptCheck.handle","tool":"ide_find_super_methods","params":{"column":18,"file":"app/Actions/Diagnostics/Pipes/Checks/ImageOptCheck.php","line":36}}
