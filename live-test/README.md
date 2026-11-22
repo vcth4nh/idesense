@@ -350,6 +350,11 @@ display. The harness starts an IDE with the launcher, the environment and the wo
 of the process before: `setsid --fork <ide launcher> serverMode`. `<ide launcher>` is
 `<app>/bin/<ide>.sh` (`idea.sh`, `pycharm.sh`, `webstorm.sh`, `goland.sh`, `phpstorm.sh`,
 `rustrover.sh`). `setsid --fork` makes the IDE independent of the shell.
+On a machine with systemd, start it through a scope of its own:
+`systemd-run --user --scope --quiet --collect -- setsid --fork <ide launcher> serverMode`.
+`setsid` does not leave the cgroup of the shell. If systemd-oomd kills the unit of the
+shell, the IDE dies with it. The scope takes the IDE out of that unit. The harness does
+this itself when it restarts an IDE.
 
 - **Projects.** A bare `serverMode` start opens each project that has `opened="true"` in
   `<config dir>/options/recentProjects.xml`. To change the set, stop the IDE, change the
