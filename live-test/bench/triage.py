@@ -2,6 +2,7 @@
 
     python3 -m bench.triage report -batch <name> [-out <dir>]   (run from live-test)
     python3 -m bench.triage table -batch <name>
+    python3 -m bench.triage ledger -batch <name> [-out <dir>]
 
 The input is a batch folder `RUNS/<batch>/` of `bench.runner`: one folder for each run, with `run.json`,
 `transcript.jsonl` and `proxy.jsonl`. A folder `<run id>.invalid-<k>` or `<run id>.api-error-<k>` is a try that the
@@ -32,10 +33,32 @@ of a run is the tracked key of its question (`qfiles.load_key`), and its line cl
   the order of `runner.ARMS` (C, P, PS, PF, PFN, PFR, PFL, PFG, PFI, PFS). Numbers: 3 decimals for scores and
   shares, 4 for USD, 1 for seconds and the means of counts, 0 for tokens; `-` for None.
 
+The flag `repo_access` is true when the input of a tool use of REPO_TOOLS (`Bash`, `WebFetch`, `WebSearch`) holds,
+with no case, the text REPO_TEXT (`bench/keys`) or the slug `<owner>/<repository>` of the remote `origin` of this
+repository. The tracked keys are public, so such a run can read its key. `repo_slug` reads the slug at run time
+(`git remote get-url origin` in `settings.repo_root()`) from a URL `https://github.com/<owner>/<repository>[.git]` or
+`git@github.com:<owner>/<repository>[.git]`; with no git, no remote or another URL there is no slug, and only
+REPO_TEXT counts. No file holds the slug.
+
 `table` prints one line for each run: question, arm label, model, n, outcome, tp, fp, miss, exact, USD, turns,
 seconds, tool calls, IDE calls.
 
-Exit codes: 0 done; 2 the batch folder does not exist, or a key or a run cannot be read.
+`ledger` writes `<-out>/<date>-<batch>.md` (default `-out`: LEDGER, `live-test/bench/ledger/`), the tracked summary of
+the batch. A maintainer compares batches by reading these files; the run folders stay in the data root. `<date>` is
+the date of the earliest `started` of the runs (UTC, as the runner writes it); a batch whose runs have no `started`
+is a ValueError. A second call writes the file again. The summary holds, in this order: the batch name and the date;
+a note when `qfiles.rescore` gives `different` runs for the batch (the runner scored them with an earlier key; the
+tables keep the stored scores); the plan (`plan.json` of the batch, or a sentence that there is no stored plan); the
+versions of the recorded manifest (`manifest.json`: the plugin version of each product, the agent, `plan_models`,
+`image_ids`, the repository commit with the word `dirty`, the login kind, and the IDEs BENCH_IDES of
+`machine_ides`), or for a batch with no recorded manifest the plugin versions and the image ids of each product and
+the models of the run records; the sections of summary.md after its batch folder line; the total cost of the runs
+and, when the batch has set-aside tries, of the tries (`cost_usd` of their `run.json`). It holds no path and no text
+of a transcript: no table of summary.md holds a free text field of a run (the flag `ide_error_texts` shows the run
+count and the run ids). `ledger` writes nothing else.
+
+Exit codes: 0 done; 2 the batch folder does not exist, or a key or a run cannot be read, or (`ledger`) no run has a
+start time.
 """
 import argparse
 import collections
@@ -44,13 +67,16 @@ import math
 import os
 import random
 import re
+import subprocess
 import sys
 
 from bench import claude_code, qfiles, runner, score
-from common import trees
+from common import settings, trees
 
 RUNS = runner.RUNS
 SLOTS_FILE = trees.SLOTS_FILE
+LEDGER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ledger")
+BENCH_IDES = ("goland", "pycharm")  # the IDEs of the benchmark: their folders in `machine_ides`
 
 # The arms whose labels have the base PF too (`paired`), in the order of runner.ARMS.
 PF_BASED = ("PFN", "PFR", "PFL", "PFG", "PFI", "PFS")
@@ -73,7 +99,11 @@ FLAG_IDS = 10        # the run ids of a flag in summary.md
 BOOTSTRAP = (0.025, 0.975)
 FLAGS = ("no_plugin_call", "ide_calls", "ide_tools", "ide_error", "anchor_error", "ide_error_texts",
          "has_more_no_cursor", "ide_forbidden_lines", "answer_repeats_ide_forbidden", "ide_missed_required",
-         "answer_miss_not_in_ide", "text_after_ide", "edit_then_ide_no_sync", "plugin_wrong_control_right")
+         "answer_miss_not_in_ide", "text_after_ide", "edit_then_ide_no_sync", "repo_access",
+         "plugin_wrong_control_right")
+REPO_TOOLS = ("Bash", "WebFetch", "WebSearch")
+REPO_TEXT = "bench/keys"
+SLUG = re.compile(r"(?:https://github\.com/|git@github\.com:)([^/\s]+/[^/\s]+?)(?:\.git)?")
 MEANS = ("f1", "precision", "recall", "cost_usd", "seconds", "turns", "tool_calls", "ide_calls", "tokens")
 PAIRED = ("f1", "exact", "cost_usd", "seconds", "tool_calls")
 DIGITS = {"f1": 3, "precision": 3, "recall": 3, "exact": 3, "adoption": 3, "share": 3, "cost_usd": 4,
@@ -279,10 +309,30 @@ def _has_cursor(result: dict) -> bool:
     return isinstance(result["input"], dict) and "cursor" in result["input"]
 
 
-def flags(rec: dict, lines, proxy_lines, key, root: str | None = None) -> dict:
+def repo_slug() -> str | None:
+    """The slug `<owner>/<repository>` of the remote `origin` of this repository (module text), or None."""
+    try:
+        url = subprocess.run(["git", "--no-optional-locks", "-C", settings.repo_root(), "remote", "get-url", "origin"],
+                             capture_output=True, text=True, timeout=60).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+    match = SLUG.fullmatch(url)
+    return match.group(1) if match else None
+
+
+def _reads_repo(call: dict, slug: str | None) -> bool:
+    """True when the input of a tool use of REPO_TOOLS holds REPO_TEXT or the slug, with no case."""
+    if call["name"] not in REPO_TOOLS:
+        return False
+    text = json.dumps(call["input"], ensure_ascii=False).lower()
+    return REPO_TEXT in text or (bool(slug) and slug.lower() in text)
+
+
+def flags(rec: dict, lines, proxy_lines, key, root: str | None = None, slug: str | None = None) -> dict:
     """The flags of one run (spec 6.8; each value a count unless the name says more): `lines` are the transcript
-    lines, `proxy_lines` the proxy log lines (str, bytes or dicts), `key` the tracked key of the question and `root`
-    the tree root of the question (None: no site path changes)."""
+    lines, `proxy_lines` the proxy log lines (str, bytes or dicts), `key` the tracked key of the question, `root`
+    the tree root of the question (None: no site path changes) and `slug` the slug of `repo_slug` (None: only
+    REPO_TEXT counts for `repo_access`)."""
     calls = _calls(lines)
     ide = [_ide_result(call) for call in calls if call["name"].startswith(IDE_PREFIX)]
     prefix = root.rstrip("/") + "/" if root else None
@@ -318,6 +368,7 @@ def flags(rec: dict, lines, proxy_lines, key, root: str | None = None) -> dict:
         "text_after_ide": 0 if first is None else sum(1 for call in calls
                                                       if call["index"] > first and _text_search(call)),
         "edit_then_ide_no_sync": _edit_then_ide(calls),
+        "repo_access": any(_reads_repo(call, slug) for call in calls),
     }
 
 
@@ -514,10 +565,11 @@ def _flags_section(rows: list[dict]) -> str:
     return _md(["flag", "runs", f"ids (at most {FLAG_IDS})"], out)
 
 
-def report(batch_dir: str, out_dir: str) -> str:
-    """Write `<out_dir>/runs.jsonl` and `<out_dir>/summary.md` (module text); return the path of summary.md."""
+def _triage(batch_dir: str) -> tuple[dict, list[dict], dict]:
+    """The batch (`load_batch`), the rows of runs.jsonl and the tracked key of each question of the batch."""
     batch = load_batch(batch_dir)
     slots = trees.load_slots(SLOTS_FILE)
+    slug = repo_slug()
     tracked, run_flags = {}, []
     for rec in batch["runs"]:
         name = rec["question"]
@@ -533,21 +585,20 @@ def report(batch_dir: str, out_dir: str) -> str:
         except FileNotFoundError:
             lines = []
         proxy_lines = runner._read_jsonl(os.path.join(rec["folder"], "proxy.jsonl"))
-        run_flags.append(flags(rec, lines, proxy_lines, key, (slots.get(key["tree"]) or {}).get("path")))
+        run_flags.append(flags(rec, lines, proxy_lines, key, (slots.get(key["tree"]) or {}).get("path"), slug))
     batch_flags(batch["runs"])
     rows = []
     for rec, rec_flags in zip(batch["runs"], run_flags):
         rows.append({"id": rec["id"], "question": rec["question"], "model": rec["model"], "arm_label": arm_label(rec),
                      "n": rec.get("n"), "outcome": rec.get("outcome"), **measures(rec), **rec_flags,
                      "plugin_wrong_control_right": rec["plugin_wrong_control_right"]})
-    os.makedirs(out_dir, exist_ok=True)
-    with open(os.path.join(out_dir, "runs.jsonl"), "w", encoding="utf-8") as f:
-        for row in rows:
-            f.write(json.dumps({k: _plain(v) for k, v in row.items()}, ensure_ascii=False) + "\n")
+    return batch, rows, tracked
+
+
+def _tables(batch: dict, rows: list[dict]) -> list[str]:
+    """The sections of summary.md after its batch folder line."""
     records = batch["runs"]
-    text = "\n\n".join([
-        f"# Triage of the batch `{os.path.basename(os.path.normpath(batch_dir))}`",
-        f"Batch folder `{batch_dir}`.",
+    return [
         "## Batch", _batch_section(batch),
         "## By question, model and arm", _summary_section(records),
         "## Paired differences",
@@ -556,10 +607,139 @@ def report(batch_dir: str, out_dir: str) -> str:
         "bootstrap mean and 95 % interval over the questions.",
         _paired_section(records),
         "## Adoption", _adoption_section(records),
-        "## Flags", _flags_section(rows)]) + "\n"
+        "## Flags", _flags_section(rows)]
+
+
+def report(batch_dir: str, out_dir: str) -> str:
+    """Write `<out_dir>/runs.jsonl` and `<out_dir>/summary.md` (module text); return the path of summary.md."""
+    batch, rows, _ = _triage(batch_dir)
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, "runs.jsonl"), "w", encoding="utf-8") as f:
+        for row in rows:
+            f.write(json.dumps({k: _plain(v) for k, v in row.items()}, ensure_ascii=False) + "\n")
+    text = "\n\n".join([
+        f"# Triage of the batch `{os.path.basename(os.path.normpath(batch_dir))}`",
+        f"Batch folder `{batch_dir}`.",
+        *_tables(batch, rows)]) + "\n"
     path = os.path.join(out_dir, "summary.md")
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
+    return path
+
+
+# ---------------------------------------------------------------- ledger
+
+def _plan_section(batch_dir: str) -> str:
+    try:
+        with open(os.path.join(batch_dir, "plan.json"), encoding="utf-8") as f:
+            plan = json.load(f)
+    except FileNotFoundError:
+        return "The batch has no stored plan (`plan.json`)."
+    return ("The plan of the batch (`plan.json`):\n\n```json\n" + json.dumps(plan, indent=2, ensure_ascii=False)
+            + "\n```")
+
+
+def _ide_version(value) -> str:
+    return f"{value['version']} (build {value['build']})" if isinstance(value, dict) else "-"
+
+
+def _manifest_rows(record: dict) -> list[list[str]]:
+    """The rows of the recorded manifest of a batch (module text)."""
+    plugin = record.get("plugin")
+    if isinstance(plugin, dict):
+        rows = [[f"plugin version ({product})", _raw(v)] for product, v in sorted(plugin.items())]
+    else:
+        rows = [["plugin version (each product)", _raw(plugin)]]
+    agent = record.get("agent") or {}
+    rows.append(["agent", " ".join(str(agent[k]) for k in ("name", "version") if agent.get(k)) or "-"])
+    rows.append(["models", ", ".join(record.get("plan_models") or []) or "-"])
+    rows += [[f"image ({product})", _raw(image)] for product, image in sorted((record.get("image_ids") or {}).items())]
+    repo = record.get("repository") or {}
+    rows.append(["repository commit", _raw(repo.get("commit")) + (" (dirty)" if repo.get("dirty") else "")])
+    # Another value of `login` is the text of an error, and it can hold a value of the environment.
+    rows.append(["login", record.get("login") if record.get("login") in settings.LOGINS else "unknown"])
+    ides = record.get("machine_ides")
+    rows += [[f"IDE {name}", _ide_version(ides.get(name) if isinstance(ides, dict) else None)] for name in BENCH_IDES]
+    return rows
+
+
+def _record_rows(runs: list[dict], keys: dict) -> list[list[str]]:
+    """The plugin versions and the image ids of each product, and the models, of the run records."""
+    by_product: dict[str, list] = {}
+    for rec in runs:
+        by_product.setdefault(keys[rec["question"]]["product"], []).append(rec)
+    rows = []
+    for product, recs in sorted(by_product.items()):
+        versions = {v for rec in recs for v in (rec.get("plugin_version_start"), rec.get("plugin_version_end")) if v}
+        rows.append([f"plugin version ({product})", ", ".join(sorted(versions)) or "-"])
+    rows.append(["models", ", ".join(sorted({rec["model"] for rec in runs})) or "-"])
+    for product, recs in sorted(by_product.items()):
+        images = {rec["image_id"] for rec in recs if rec.get("image_id")}
+        rows.append([f"image ({product})", ", ".join(sorted(images)) or "-"])
+    return rows
+
+
+def _versions_section(batch_dir: str, runs: list[dict], keys: dict) -> str:
+    try:
+        with open(os.path.join(batch_dir, "manifest.json"), encoding="utf-8") as f:
+            record = json.load(f)
+    except FileNotFoundError:
+        return ("The batch has no recorded manifest (`manifest.json`). The values of the run records:\n\n"
+                + _md(["item", "value"], _record_rows(runs, keys)))
+    return ("The recorded manifest of the batch (`manifest.json`, the values of the last start with a run to do):\n\n"
+            + _md(["item", "value"], _manifest_rows(record)))
+
+
+def _set_aside_cost(batch_dir: str) -> float:
+    """The sum of `cost_usd` of the set-aside tries of the batch (a try with no run.json counts 0)."""
+    total = 0.0
+    for name in os.listdir(batch_dir):
+        folder = os.path.join(batch_dir, name)
+        if SET_ASIDE.search(name) and os.path.isdir(folder):
+            try:
+                with open(os.path.join(folder, "run.json"), encoding="utf-8") as f:
+                    total += json.load(f).get("cost_usd") or 0
+            except FileNotFoundError:
+                pass
+    return total
+
+
+def _cost_section(batch_dir: str, batch: dict) -> str:
+    runs = batch["runs"]
+    rows = [["runs of the batch", str(len(runs)), _fmt(sum(r.get("cost_usd") or 0 for r in runs), "cost_usd")]]
+    if batch["set_aside"]:
+        rows.append(["set-aside tries", str(batch["set_aside"]), _fmt(_set_aside_cost(batch_dir), "cost_usd")])
+    return _md(["part", "count", "USD"], rows)
+
+
+def ledger(batch_dir: str, out_dir: str) -> str:
+    """Write the tracked summary `<out_dir>/<date>-<batch>.md` of the batch (module text); return its path."""
+    name = os.path.basename(os.path.normpath(batch_dir))
+    batch, rows, keys = _triage(batch_dir)
+    started = [rec["started"] for rec in batch["runs"] if rec.get("started")]
+    if not started:
+        raise ValueError(f"{batch_dir}: no run of the batch has a start time")
+    date = min(started)[:10]  # the runner writes UTC times of one form (`runner._now`)
+    different = (qfiles.rescore(os.path.dirname(os.path.normpath(batch_dir))).get(name) or {}).get("different", 0)
+    parts = [
+        f"# Batch `{name}`",
+        f"The summary of the benchmark batch `{name}`. The command `python3 -m bench.triage ledger -batch {name}` "
+        "(run from `live-test`) wrote it from the run folders of the batch. The run folders stay in the data root, "
+        "outside the repository. The tables are the tables of `summary.md` of `python3 -m bench.triage report`. The "
+        "module text of `bench/triage.py` defines each table, column and flag. The first run of the batch started on "
+        f"{date} (UTC)."]
+    if different:
+        parts.append(f"Note: {different} run{' was' if different == 1 else 's were'} scored with an earlier key. The "
+                     "stored score differs from the score with the present tracked key (`python3 -m bench.qfiles "
+                     "rescore`). The tables show the stored scores.")
+    parts += ["## Plan", _plan_section(batch_dir),
+              "## Versions", _versions_section(batch_dir, batch["runs"], keys),
+              *_tables(batch, rows),
+              "## Total cost", _cost_section(batch_dir, batch)]
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, f"{date}-{name}.md")
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n\n".join(parts) + "\n")
     return path
 
 
@@ -587,6 +767,9 @@ def main(argv: list[str] | None = None) -> int:
     rep.add_argument("-out", help="output folder (default: RUNS/<batch>.triage)")
     tab = sub.add_parser("table", help="print one line for each run", allow_abbrev=False)
     tab.add_argument("-batch", required=True, help="the folder below RUNS")
+    led = sub.add_parser("ledger", help="write the tracked summary of the batch", allow_abbrev=False)
+    led.add_argument("-batch", required=True, help="the folder below RUNS")
+    led.add_argument("-out", help="output folder (default: live-test/bench/ledger)")
     args = parser.parse_args(argv)
     batch_dir = os.path.join(RUNS, args.batch)
     if not os.path.isdir(batch_dir):
@@ -597,7 +780,10 @@ def main(argv: list[str] | None = None) -> int:
             for line in _table_lines(load_batch(batch_dir)["runs"]):
                 print(line)
             return 0
-        path = report(batch_dir, args.out or os.path.join(RUNS, args.batch + ".triage"))
+        if args.command == "ledger":
+            path = ledger(batch_dir, args.out or LEDGER)
+        else:
+            path = report(batch_dir, args.out or os.path.join(RUNS, args.batch + ".triage"))
     except (OSError, ValueError, KeyError) as e:
         print(f"triage: {type(e).__name__}: {e}", file=sys.stderr)
         return 2

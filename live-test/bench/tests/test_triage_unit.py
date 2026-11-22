@@ -8,12 +8,15 @@ import contextlib
 import io
 import json
 import os
+import re
 import shutil
+import subprocess
 import tempfile
 import unittest
 from unittest import mock
 
 from bench import qfiles, runner, triage
+from common import settings
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, "fixtures", "triage")
@@ -253,8 +256,35 @@ class IdeResultsTest(unittest.TestCase):
 
 
 class FlagsTest(unittest.TestCase):
-    def flags(self, rec, lines, sites=FIXTURE_SITES, proxy_lines=(), root=ROOT):
-        return triage.flags(rec, lines, list(proxy_lines), key_of(sites), root=root)
+    def flags(self, rec, lines, sites=FIXTURE_SITES, proxy_lines=(), root=ROOT, slug=None):
+        return triage.flags(rec, lines, list(proxy_lines), key_of(sites), root=root, slug=slug)
+
+    def test_repo_access_flag(self):
+        curl = "curl https://raw.githubusercontent.com/o/r/main/live-test/bench/keys/x.json"
+        finder = "mcp__goland-idesense__ide_find_usages"
+        cases = [
+            ("curl of a key with the slug", [use("u1", "Bash", {"command": curl})], "o/r", True),
+            ("slug in another case", [use("u1", "Bash", {"command": "git clone https://github.com/O/R.git"})],
+             "o/r", True),
+            ("slug of the remote in another case", [use("u1", "Bash", {"command": "curl https://github.com/o/r"})],
+             "O/R", True),
+            ("WebFetch", [use("u1", "WebFetch", {"url": "https://github.com/o/r", "prompt": "list the files"})],
+             "o/r", True),
+            ("WebSearch", [use("u1", "WebSearch", {"query": "o/r question keys"})], "o/r", True),
+            ("bench/keys with no slug", [use("u1", "Bash", {"command": "cat live-test/bench/keys/x.json"})], None,
+             True),
+            ("slug text with no slug", [use("u1", "Bash", {"command": "curl https://github.com/o/r"})], None, False),
+            ("other Bash", [use("u1", "Bash", {"command": "grep -rn Widget pkg"})], "o/r", False),
+            ("Read is no such tool", [use("u1", "Read", {"file_path": "/x/o/r/live-test/bench/keys/x.json"})],
+             "o/r", False),
+            ("only the MCP tool", [use("u1", finder, {"file": "pkg/a.go", "line": 3}),
+                                   result("u1", json.dumps({"usages": []}))], "o/r", False),
+            ("MCP input with the texts", [use("u1", finder, {"file": "o/r/bench/keys.go", "line": 3})], "o/r",
+             False),
+        ]
+        for label, lines, slug, expected in cases:
+            with self.subTest(label):
+                self.assertIs(expected, self.flags(run("PF"), lines, slug=slug)["repo_access"])
 
     def test_no_plugin_call_flag(self):
         with_ide = {"Bash": 1, ide("ide_find_usages"): 2, "StructuredOutput": 1}
@@ -383,10 +413,38 @@ class FlagsTest(unittest.TestCase):
                           "anchor_error": 1, "has_more_no_cursor": 0,
                           "ide_forbidden_lines": {("pkg/c.go", 12)}, "answer_repeats_ide_forbidden": 1,
                           "ide_missed_required": {("pkg/d.go", 20)}, "answer_miss_not_in_ide": 1,
-                          "text_after_ide": 1, "edit_then_ide_no_sync": 0},
+                          "text_after_ide": 1, "edit_then_ide_no_sync": 0, "repo_access": False},
                          {k: v for k, v in got.items() if k != "ide_error_texts"})
         self.assertEqual(1, len(got["ide_error_texts"]))
         self.assertIn("No named element at position", got["ide_error_texts"][0])
+
+
+class RepoSlugTest(unittest.TestCase):
+    def slug(self, stdout="", code=0, error=None):
+        def fake(cmd, **kwargs):
+            self.assertEqual(["git", "--no-optional-locks", "-C", "/r", "remote", "get-url", "origin"], cmd)
+            if error is not None:
+                raise error
+            return subprocess.CompletedProcess(cmd, code, stdout, "")
+
+        with mock.patch.object(settings, "repo_root", return_value="/r"), \
+                mock.patch.object(subprocess, "run", side_effect=fake):
+            return triage.repo_slug()
+
+    def test_slug_of_each_url_form(self):
+        for url in ("https://github.com/o/r.git\n", "https://github.com/o/r\n", "git@github.com:o/r.git\n",
+                    "git@github.com:o/r"):
+            with self.subTest(url=url):
+                self.assertEqual("o/r", self.slug(url))
+        self.assertEqual("O/R", self.slug("https://github.com/O/R.git\n"))
+
+    def test_no_slug_with_no_remote_no_git_or_another_url(self):
+        self.assertIsNone(self.slug("", code=2))
+        self.assertIsNone(self.slug(error=FileNotFoundError("git")))
+        self.assertIsNone(self.slug(error=subprocess.TimeoutExpired("git", 60)))
+        for url in ("https://gitlab.com/o/r.git\n", "https://github.com/o/r/tree/main\n", "/srv/git/r.git\n"):
+            with self.subTest(url=url):
+                self.assertIsNone(self.slug(url))
 
 
 class TablesTest(unittest.TestCase):
@@ -588,27 +646,34 @@ class TablesTest(unittest.TestCase):
 
 class ReportTest(unittest.TestCase):
     def setUp(self):
-        d = tempfile.mkdtemp()
+        d = self.tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d)
         self.keys = os.path.join(d, "tracked", "keys")
         write(os.path.join(self.keys, QUESTION + ".json"), json.dumps(key_of(FIXTURE_SITES), indent=2) + "\n")
         slots = os.path.join(d, "slots.json")
         write(slots, json.dumps({"demo": {"slot": "s1", "path": ROOT, "product": "demo"}}))
         self.runs = os.path.join(d, "runs")
+        # The repository root is the temporary folder: no git repository, so no slug (RepoSlugTest).
         for target, name, value in ((qfiles, "KEYS", self.keys), (triage, "SLOTS_FILE", slots),
-                                    (triage, "RUNS", self.runs)):
+                                    (triage, "RUNS", self.runs), (settings, "repo_root", lambda: d)):
             patcher = mock.patch.object(target, name, value)
             patcher.start()
             self.addCleanup(patcher.stop)
         self.batch = os.path.join(self.runs, "b1")
         self.out = os.path.join(d, "out")
+        self.ledger_dir = os.path.join(d, "ledger")
+        versions = {"plugin_version_start": "2.2.0-dev.01", "plugin_version_end": "2.2.0-dev.01",
+                    "image_id": "sha256:aa"}
         self.pf = run("PF", sc=score(1, 1, 2), answer=["pkg/a.go:3", "pkg/c.go:12"], cost=0.5, seconds=40.0,
                       tools={"Grep": 1, ide("ide_find_usages"): 2, ide("ide_find_definition"): 2, "Bash": 1,
                              "StructuredOutput": 1})
+        self.pf.update(versions, started="2026-11-18T00:10:00+00:00")
         self.c = run("C", sc=score(3, 0, 0), answer=["pkg/a.go:3", "pkg/d.go:20", "pkg/e.go:2"], cost=0.1234,
                      seconds=12.0)
+        self.c.update(versions, started="2026-11-17T23:59:59+00:00")
         self.stopped = run("PS", "stopped", aid="rule", stop=5, first_tools=["ToolSearch", ide("ide_find_usages")],
                            tools={"ToolSearch": 1, ide("ide_find_usages"): 4}, cost=None)
+        self.stopped.update(versions, plugin_version_end="2.2.0-dev.02", started="2026-11-18T00:01:00+00:00")
         put_run(self.batch, self.pf, fixture_lines("transcript.jsonl"), fixture_lines("proxy.jsonl"))
         put_run(self.batch, self.c, [use("u1", "Bash", {"command": "grep -rn Widget ."}), result("u1", "x")])
         put_run(self.batch, self.stopped, [use("u1", "ToolSearch"), use("u2", ide("ide_find_usages"))])
@@ -703,6 +768,147 @@ class ReportTest(unittest.TestCase):
             text = f.read()
         self.assertIn("The base is C for each plugin arm, and also PF for PFN, PFR, PFL, PFG, PFI and PFS. ", text)
 
+    def test_report_has_the_flag_repo_access(self):
+        slug_run, keys_run = run("PFN", sc=score(1, 0, 3), answer=["pkg/a.go:3"]), run("P", n=2)
+        put_run(self.batch, slug_run, [use("u1", "Bash", {"command": "curl -s https://github.com/O/R/tree/main"})])
+        put_run(self.batch, keys_run, [use("u1", "WebFetch", {"url": "https://example.com/live-test/bench/keys/"})])
+        with mock.patch.object(triage, "repo_slug", return_value="o/r") as slug:
+            path = triage.report(self.batch, self.out)
+        slug.assert_called_once_with()
+        with open(os.path.join(self.out, "runs.jsonl"), encoding="utf-8") as f:
+            got = {row["id"]: row["repo_access"] for row in map(json.loads, f)}
+        self.assertEqual({slug_run["id"]: True, keys_run["id"]: True, self.pf["id"]: False, self.c["id"]: False,
+                          self.stopped["id"]: False}, got)
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        ids = ", ".join(f"`{i}`" for i in sorted([slug_run["id"], keys_run["id"]]))
+        self.assertIn(f"| repo_access | 2 | {ids} |", text)
+        # With no slug (no git repository at the repository root), only the text bench/keys counts.
+        triage.report(self.batch, self.out)
+        with open(os.path.join(self.out, "runs.jsonl"), encoding="utf-8") as f:
+            self.assertEqual([keys_run["id"]], [row["id"] for row in map(json.loads, f) if row["repo_access"]])
+
+    # ------------------------------------------------------------ ledger
+
+    def ledger(self, **statuses):
+        counts = {"b1": dict(dict.fromkeys(qfiles.STATUSES, 0), equal=3, **statuses), "other": {"different": 5}}
+        with mock.patch.object(qfiles, "rescore", return_value=counts) as rescore:
+            path = triage.ledger(self.batch, self.ledger_dir)
+        rescore.assert_called_once_with(self.runs)
+        with open(path, encoding="utf-8") as f:
+            return path, f.read()
+
+    def test_ledger_writes_one_summary_named_by_the_date_of_the_first_run(self):
+        before = sorted(os.listdir(self.batch))
+        path, text = self.ledger()
+        self.assertEqual(["2026-11-17-b1.md"], os.listdir(self.ledger_dir))
+        self.assertEqual(os.path.join(self.ledger_dir, "2026-11-17-b1.md"), path)
+        self.assertTrue(text.startswith("# Batch `b1`\n"), text[:80])
+        headings = [line for line in text.splitlines() if line.startswith("## ")]
+        for heading in ("## Batch", "## By question, model and arm", "## Paired differences", "## Adoption",
+                        "## Flags", "## Total cost"):
+            self.assertIn(heading, headings)
+        for line in ("| ok | 2 |", "| total cost (USD) | 0.6234 |",
+                     f"| `{QUESTION}` | {OPUS} | PF | 1 | ok 1 | 0.400 |", "| runs of the batch | 3 | 0.6234 |",
+                     "| set-aside tries | 1 | 0.1000 |", "| repo_access | 0 | - |"):
+            self.assertIn(line, text)
+        self.assertIn("The first run of the batch started on 2026-11-17 (UTC).", text)
+        self.assertNotIn("scored with an earlier key", text)
+        # No absolute path: not the temporary folder, not the root of a tree, no word that starts with a slash.
+        for absent in (self.tmp, ROOT, "Batch folder"):
+            self.assertNotIn(absent, text)
+        self.assertIsNone(re.search(r"(?:^|[\s`(\"'])/\w", text, re.M))
+        # Nothing is written below the runs folder.
+        self.assertEqual((["b1"], before), (os.listdir(self.runs), sorted(os.listdir(self.batch))))
+
+    def test_ledger_of_a_batch_with_no_plan_and_no_manifest_shows_the_run_records(self):
+        _, text = self.ledger()
+        self.assertIn("The batch has no stored plan (`plan.json`).", text)
+        self.assertIn("The batch has no recorded manifest (`manifest.json`).", text)
+        for line in ("| plugin version (demo) | 2.2.0-dev.01, 2.2.0-dev.02 |", "| image (demo) | sha256:aa |",
+                     f"| models | {OPUS} |"):
+            self.assertIn(line, text)
+        # With no set-aside try, the total cost has one line.
+        shutil.rmtree(os.path.join(self.batch, run("P")["id"] + ".invalid-1"))
+        _, text = self.ledger()
+        self.assertIn("| runs of the batch | 3 | 0.6234 |", text)
+        self.assertNotIn("set-aside tries", text)
+
+    def test_ledger_shows_the_plan_and_the_recorded_manifest(self):
+        plan = {"rule": "each arm of one question", "questions": [QUESTION], "arms": [{"arm": "C"}, {"arm": "PF"}],
+                "models": [OPUS], "runs": 1}
+        write(os.path.join(self.batch, "plan.json"), json.dumps(plan, indent=2) + "\n")
+        build = {"goland": {"version": "2026.3", "build": "263.7307.211"},
+                 "pycharm": {"version": "2026.3.0.1", "build": "263.7307.329"},
+                 "webstorm": {"version": "2026.3", "build": "263.7307.202"}}
+        record = {"ides": build, "agent": {"name": "claude-code", "version": "2.1.326"},
+                  "image": {"base": "ubuntu:24.04"}, "models": ["claude-haiku-5-5", OPUS], "machine_ides": build,
+                  "repository": {"commit": "0123abc", "dirty": True}, "plugin": {"demo": "2.2.0-dev.07"},
+                  "plan_models": [OPUS], "image_ids": {"demo": "sha256:bb"}, "slots_root": "/home/someone/ws",
+                  "login": "subscription", "questions": {QUESTION: {"question_sha256": "q" * 64,
+                                                                    "key_sha256": "k" * 64}}}
+        write(os.path.join(self.batch, "manifest.json"), json.dumps(record, indent=1))
+        _, text = self.ledger()
+        self.assertIn("```json\n" + json.dumps(plan, indent=2) + "\n```", text)
+        for line in ("| plugin version (demo) | 2.2.0-dev.07 |", "| agent | claude-code 2.1.326 |",
+                     f"| models | {OPUS} |", "| image (demo) | sha256:bb |", "| repository commit | 0123abc (dirty) |",
+                     "| login | subscription |", "| IDE goland | 2026.3 (build 263.7307.211) |",
+                     "| IDE pycharm | 2026.3.0.1 (build 263.7307.329) |"):
+            self.assertIn(line, text)
+        for absent in ("webstorm", "/home/", "someone", "q" * 64, "no stored plan", "no recorded manifest",
+                       "sha256:aa", "claude-haiku-5-5", "ubuntu"):
+            self.assertNotIn(absent, text)
+        # A plugin version for each product (the option -plugin-version), a clean tree, an unknown login and no
+        # benchmark IDE on the machine.
+        record.update(plugin="2.2.0-dev.08", repository={"commit": "0123abc", "dirty": False},
+                      login="unknown (BENCH_LOGIN='/home/someone': use one of api-key, subscription)", machine_ides={})
+        write(os.path.join(self.batch, "manifest.json"), json.dumps(record, indent=1))
+        _, text = self.ledger()
+        for line in ("| plugin version (each product) | 2.2.0-dev.08 |", "| repository commit | 0123abc |",
+                     "| login | unknown |", "| IDE goland | - |", "| IDE pycharm | - |"):
+            self.assertIn(line, text)
+        self.assertNotIn("someone", text)
+
+    def test_ledger_notes_a_score_of_an_earlier_key(self):
+        _, text = self.ledger(different=2)
+        self.assertIn("Note: 2 runs were scored with an earlier key. ", text)
+        # The note comes before the tables.
+        self.assertLess(text.index("scored with an earlier key"), text.index("## Batch"))
+        _, text = self.ledger(different=1)
+        self.assertIn("Note: 1 run was scored with an earlier key. ", text)
+
+    def test_ledger_of_a_batch_with_no_start_time_is_a_value_error(self):
+        for rec in (self.pf, self.c, self.stopped):
+            write(os.path.join(self.batch, rec["id"], "run.json"), json.dumps(dict(rec, started=None)))
+        with mock.patch.object(qfiles, "rescore", return_value={}), self.assertRaises(ValueError) as e:
+            triage.ledger(self.batch, self.ledger_dir)
+        self.assertIn("no run of the batch has a start time", str(e.exception))
+        self.assertFalse(os.path.exists(self.ledger_dir))
+
+    def test_cli_ledger_prints_the_path_and_writes_the_file_again(self):
+        self.assertEqual(os.path.join(os.path.dirname(os.path.abspath(triage.__file__)), "ledger"), triage.LEDGER)
+        default = os.path.join(self.tmp, "tracked", "ledger")
+        expected = os.path.join(default, "2026-11-17-b1.md")
+
+        def cli(*extra):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(0, triage.main(["ledger", "-batch", "b1", *extra]))
+            return out.getvalue().strip()
+
+        def cost_line(path):
+            with open(path, encoding="utf-8") as f:
+                return next(line for line in f if line.startswith("| runs of the batch |"))
+
+        with mock.patch.object(triage, "LEDGER", default), mock.patch.object(qfiles, "rescore", return_value={}):
+            self.assertEqual(expected, cli())
+            self.assertEqual("| runs of the batch | 3 | 0.6234 |\n", cost_line(expected))
+            put_run(self.batch, run("C", n=2, sc=score(3, 0, 0), cost=2.0))
+            self.assertEqual(expected, cli())
+            self.assertEqual("| runs of the batch | 4 | 2.6234 |\n", cost_line(expected))
+            self.assertEqual(["2026-11-17-b1.md"], os.listdir(default))
+            self.assertEqual(os.path.join(self.ledger_dir, "2026-11-17-b1.md"), cli("-out", self.ledger_dir))
+
     def test_table_prints_one_line_for_each_run(self):
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
@@ -717,13 +923,15 @@ class ReportTest(unittest.TestCase):
                           "4"], next(line for line in lines if "stop-5" in line).split())
 
     def test_cli_exit_2_for_a_missing_batch(self):
-        for command in ("report", "table"):
+        for command in ("report", "table", "ledger"):
             with self.subTest(command=command):
                 err = io.StringIO()
-                with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+                with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()), \
+                        mock.patch.object(triage, "LEDGER", self.ledger_dir):
                     self.assertEqual(2, triage.main([command, "-batch", "absent"]))
                 self.assertIn(os.path.join(self.runs, "absent"), err.getvalue())
         self.assertFalse(os.path.exists(os.path.join(self.runs, "absent.triage")))
+        self.assertFalse(os.path.exists(self.ledger_dir))
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
             self.assertEqual(0, triage.main(["report", "-batch", "b1"]))
