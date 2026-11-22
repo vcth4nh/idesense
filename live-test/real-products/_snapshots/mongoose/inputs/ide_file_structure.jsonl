@@ -1,0 +1,4 @@
+{"id":"file-structure-cast.js","tool":"ide_file_structure","params":{"file":"lib/error/cast.js"}}
+{"id":"file-structure-connection.js","tool":"ide_file_structure","params":{"file":"lib/connection.js"}}
+{"id":"file-structure-error.d.ts","tool":"ide_file_structure","params":{"file":"types/error.d.ts"}}
+{"id":"file-structure-expressions.d.ts","tool":"ide_file_structure","params":{"file":"types/expressions.d.ts"}}

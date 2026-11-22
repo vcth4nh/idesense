@@ -1,0 +1,11 @@
+{"id":"usage-CastError","tool":"ide_find_usages","params":{"column":7,"file":"lib/error/cast.js","line":19}}
+{"id":"usage-CastError.copy","tool":"ide_find_usages","params":{"column":3,"file":"lib/error/cast.js","line":64}}
+{"id":"usage-Document-d.ts-ts-to-js","tool":"ide_find_usages","params":{"column":9,"file":"types/document.d.ts","line":34,"pageSize":200},"parked":186}
+{"id":"usage-MissingSchemaError-bysymbol","tool":"ide_find_usages","params":{"symbol":"MissingSchemaError"},"parked":269}
+{"id":"usage-MongooseError-page1","tool":"ide_find_usages","params":{"column":7,"file":"lib/error/mongooseError.js","line":7,"pageSize":100},"compare":"shape"}
+{"id":"usage-MongooseError-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-MongooseError-page1"}
+{"id":"usage-PathTrie","tool":"ide_find_usages","params":{"column":7,"file":"lib/helpers/pathTrie.js","line":25}}
+{"id":"usage-PathTrie-production-scope","tool":"ide_find_usages","params":{"column":7,"file":"lib/helpers/pathTrie.js","line":25,"scope":"project_production_files"}}
+{"id":"usage-PathTrie-test-scope","tool":"ide_find_usages","params":{"column":7,"file":"lib/helpers/pathTrie.js","line":25,"scope":"project_test_files"}}
+{"id":"usage-RemoveOptions-no-usage","tool":"ide_find_usages","params":{"column":13,"file":"types/models.d.ts","line":136}}
+{"id":"usage-isBsonType","tool":"ide_find_usages","params":{"column":10,"file":"lib/helpers/isBsonType.js","line":8}}

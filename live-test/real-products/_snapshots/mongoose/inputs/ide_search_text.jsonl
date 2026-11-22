@@ -1,0 +1,5 @@
+{"id":"search-text-DivergentArrayError","tool":"ide_search_text","params":{"query":"DivergentArrayError"}}
+{"id":"search-text-DivergentArrayError-code","tool":"ide_search_text","params":{"context":"code","query":"DivergentArrayError"}}
+{"id":"search-text-DivergentArrayError-comments","tool":"ide_search_text","params":{"context":"comments","query":"DivergentArrayError"}}
+{"id":"search-text-DivergentArrayError-strings","tool":"ide_search_text","params":{"context":"strings","query":"DivergentArrayError"}}
+{"id":"search-text-schema-paged","tool":"ide_search_text","params":{"pageSize":100,"query":"schema"},"compare":"shape"}
