@@ -1,0 +1,5 @@
+{"id":"hier-callee-computeMigratedConfig-d2","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callees","file":"pkg/config/app_config.go","line":277,"maxDepth":2}}
+{"id":"hier-caller-NewChangesSet-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"NewChangesSet"}}
+{"id":"hier-caller-NewIntegrationTest-d1","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callers","file":"pkg/integration/components/test.go","line":119,"maxDepth":1},"compare":"shape"}
+{"id":"hier-caller-NewIntegrationTest-d2","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callers","file":"pkg/integration/components/test.go","line":119,"maxDepth":2},"compare":"shape"}
+{"id":"hier-caller-NewTranslationSetFromConfig-d2","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callers","file":"pkg/i18n/i18n.go","line":18,"maxDepth":2}}

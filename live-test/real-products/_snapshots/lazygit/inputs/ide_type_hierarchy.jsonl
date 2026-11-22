@@ -1,0 +1,4 @@
+{"id":"hier-sub-IBaseContext","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"pkg/gui/types/context.go","line":54}}
+{"id":"hier-sub-IController","tool":"ide_type_hierarchy","params":{"column":6,"direction":"subtypes","file":"pkg/gui/types/context.go","line":271}}
+{"id":"hier-super-Gui-byname","tool":"ide_type_hierarchy","params":{"className":"Gui","direction":"supertypes"}}
+{"id":"hier-super-LocalCommitsContext","tool":"ide_type_hierarchy","params":{"column":6,"direction":"supertypes","file":"pkg/gui/context/local_commits_context.go","line":20}}

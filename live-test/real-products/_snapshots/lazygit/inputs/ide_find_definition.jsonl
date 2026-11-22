@@ -1,0 +1,8 @@
+{"id":"canary-def-logrus.Entry-into-vendor","tool":"ide_find_definition","params":{"column":21,"file":"pkg/common/common.go","line":14}}
+{"id":"def-ChangesSet-via-alias","tool":"ide_find_definition","params":{"column":66,"file":"pkg/config/app_config.go","line":277}}
+{"id":"def-ListControllerTrait.withItem-promoted","tool":"ide_find_definition","params":{"column":18,"file":"pkg/gui/controllers/branches_controller.go","line":46}}
+{"id":"def-NewIntegrationTest-via-dot-import","tool":"ide_find_definition","params":{"column":18,"file":"pkg/integration/tests/cherry_pick/cherry_pick.go","line":8}}
+{"id":"def-NewTranslationSetFromConfig-cross-file","tool":"ide_find_definition","params":{"column":19,"file":"pkg/gui/gui.go","line":491}}
+{"id":"def-deadlock.Mutex-via-import-alias","tool":"ide_find_definition","params":{"column":34,"file":"pkg/gui/context/patch_explorer_context.go","line":18}}
+{"id":"def-tests-into-generated","tool":"ide_find_definition","params":{"column":3,"file":"pkg/integration/tests/tests.go","line":21}}
+{"id":"def-yaml.Unmarshal-into-vendor","tool":"ide_find_definition","params":{"column":18,"file":"pkg/config/app_config.go","line":215}}

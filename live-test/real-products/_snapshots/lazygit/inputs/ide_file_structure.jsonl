@@ -1,0 +1,4 @@
+{"id":"file-structure-common.go","tool":"ide_file_structure","params":{"file":"pkg/common/common.go"}}
+{"id":"file-structure-config.json","tool":"ide_file_structure","params":{"file":"schema/config.json"},"compare":"shape"}
+{"id":"file-structure-gocui-gui.go","tool":"ide_file_structure","params":{"file":"pkg/gocui/gui.go"}}
+{"id":"file-structure-test_list.go","tool":"ide_file_structure","params":{"file":"pkg/integration/tests/test_list.go"}}
