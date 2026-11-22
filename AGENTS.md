@@ -53,6 +53,9 @@ Each fact has one home: the file of its reader.
 | Maintainer | [docs/PRINCIPLES.md](docs/PRINCIPLES.md) | Goal, scope, design principles |
 | Maintainer | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Backing mechanisms, deviations from the IDE, platform contracts |
 | Maintainer | [live-test/README.md](live-test/README.md), [live-test/CONVENTIONS.md](live-test/CONVENTIONS.md) | The live-test harness: commands, IDE operation, row and fixture conventions |
+| Maintainer | [live-test/METHOD.md](live-test/METHOD.md) | The method of the four live-test instruments: the kinds of truth, the keys, the audit verdict, the agent batch, what a result can claim |
+| Maintainer | [live-test/keygen/README.md](live-test/keygen/README.md), [live-test/audit/README.md](live-test/audit/README.md), [live-test/bench/README.md](live-test/bench/README.md) | The key makers, the audit and the agent benchmark: commands, file formats, setup, procedures |
+| Another person who scores an agent | [live-test/bench/questions/README.md](live-test/bench/questions/README.md) | The questions and keys of the benchmark, and the score of an answer |
 | Maintainer | the `GROUND-TRUTH.md` files in `live-test/fixtures/_snapshots/` and `live-test/real-products/_snapshots/`, `live-test/real-products/_setup/<product>/notes.md` | Results that look wrong but that the IDE also returns, parked rows, the setup facts of a product |
 
 A new fact goes to the file of its reader. This file gets only a rule that an agent needs in

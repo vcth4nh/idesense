@@ -255,6 +255,12 @@ in that file and in [live-test/AGENTS.md](../live-test/AGENTS.md).
 After a live run, read `idea.log` of each IDE (see "A defect that no row shows" in
 [live-test/README.md](../live-test/README.md#troubleshooting)).
 
+The audit compares the answers of the tools with keys that no IDE made. Run it after a change of a
+usage, implementation or caller tool ([live-test/audit/README.md](../live-test/audit/README.md)).
+The agent batch measures a coding agent with and without the plugin, and it costs money
+([live-test/bench/README.md](../live-test/bench/README.md)). The method of each instrument is in
+[live-test/METHOD.md](../live-test/METHOD.md).
+
 ## Evidence for a platform claim
 
 A claim about the IntelliJ Platform, a language plugin or an IDE needs evidence (see "Cite, do
@@ -443,7 +449,8 @@ issue has only `component: source`. An issue about two parts gets one label for 
 | `component: skill` | The agent skill in `src/main/resources/skill/`. |
 | `component: docs` | `README.md`, `AGENTS.md`, `CHANGELOG.md` and `docs/`. |
 | `component: test` | The unit tests and the platform tests in `src/test/`. |
-| `component: live-test` | All of `live-test/`: the harness, the fixture suite, the real-product suite and its documents. |
+| `component: live-test` | The two snapshot suites in `live-test/`: the fixture suite, the real-product suite, their harness and their documents. |
+| `component: benchmark` | The audit and the agent benchmark in `live-test/audit/`, `live-test/bench/` and `live-test/keygen/`. |
 | `component: build` | The Gradle build, the GitHub workflows, the dependencies and the release. |
 
 ### Severity
