@@ -1,31 +1,56 @@
 {
+  "base-row-on-decoy-line": {
+    "text": "A limit of the audit, no difference of the tool. A usages row with the mark BASE is at a call of a library interface method, on a line that also holds another identifier with the same name, for example a composite literal key. The audit compares lines, not columns, so it counts the line as a marked false line.",
+    "issue": null,
+    "permitted": null
+  },
   "closure-node": {
     "text": "ide_call_hierarchy for Go: a call inside a function literal gives a CLOSURE node at the line of the literal, and the callers of the outer function are absent.",
     "issue": 223,
     "permitted": null
   },
+  "embedded-field-key": {
+    "text": "ide_find_usages on a Go type returns a composite literal key that names an embedded field of another type with the same name (the key `Context:` of a `caddy.Context` literal names the embedded `context.Context`). Find Usages of GoLand lists the same key (the note on the keys of an embedded field in live-test/real-products/_snapshots/caddy/GROUND-TRUTH.md).",
+    "issue": 321,
+    "permitted": null
+  },
   "interface-calls-option-off": {
-    "text": "ide_call_hierarchy shows no caller for a Go method that is called only through an interface value. The Hierarchy window of GoLand shows the same in its default state: its toggle \"Respecting Interface Calls\" is off by default, and the tool has no parameter for it (note \"No caller through an interface\" in live-test/real-products/_snapshots/caddy/GROUND-TRUTH.md).",
+    "text": "ide_call_hierarchy shows no caller that calls a Go method through an interface value. The Hierarchy window of GoLand shows the same in its default state: its toggle \"Respecting Interface Calls\" is off by default, and the tool has no parameter for it (note \"No caller through an interface\" in live-test/real-products/_snapshots/caddy/GROUND-TRUTH.md).",
     "issue": 218,
     "permitted": null
   },
   "other-build-configuration": {
-    "text": "A declaration in a file that only another OS build compiles: the build constraints exclude the file on the IDE host, and the declaration has no usage. GoLand says \"Nothing found\" and shows a banner about the OS mismatch (note \"Build constraints\" in live-test/real-products/_snapshots/caddy/GROUND-TRUTH.md).",
+    "text": "A Go declaration in a file that only another OS build compiles: the build constraints exclude the file on the IDE host. ide_find_usages returns no use in another excluded file, and ide_find_implementations returns no implementer of the project. The result is empty, or it has only the uses in the file of the declaration and the calls through a library interface. GoLand shows the same lines, and a banner about the OS mismatch in the editor (the notes on build constraints in live-test/real-products/_snapshots/caddy/GROUND-TRUTH.md).",
     "issue": 221,
     "permitted": null
   },
   "other-build-configuration-use": {
-    "text": "A use in a file that only another OS build compiles: the build constraints exclude the file on the IDE host, and ide_find_definition at the use gives the error \"Could not resolve symbol definition\". No observation of GoLand at such a use is recorded yet.",
+    "text": "A use in a file that only another OS build compiles: the build constraints exclude the file on the IDE host, and ide_find_definition at the use gives the error \"Could not resolve symbol definition\". Go to Declaration of GoLand shows the hint \"Cannot find declaration to go to\" at such a use (the notes on build constraints in live-test/real-products/_snapshots/caddy/GROUND-TRUTH.md).",
     "issue": null,
     "permitted": null
   },
+  "python-base-through-package-attribute": {
+    "text": "ide_find_implementations on a Python class does not return a subclass that names its base through an attribute of a package (`class PlaylistPlugin(beets.plugins.BeetsPlugin)` in a file that imports `beets` and does not import `beets.plugins`). Go to Implementation(s) of PyCharm does not list the class either (the notes on `PlaylistPlugin` in live-test/real-products/_snapshots/beets/GROUND-TRUTH.md).",
+    "issue": null,
+    "permitted": null
+  },
+  "python-call-not-resolved": {
+    "text": "PyCharm resolves a reference to a Python function or method (`<receiver>.<name>`, in most cases a call) to no declaration: Go to Declaration at the reference shows the hint \"Cannot find declaration to go to\". Then ide_find_usages and ide_call_hierarchy of the function do not have the reference, with no signal, and ide_find_definition at the reference gives the error \"Could not resolve symbol definition\". Find Usages of PyCharm does not list the reference either. Seen for a receiver with a known type that does not declare the method, for a `Mock` object, for `self` in a method with a decorator, and for a function of a module that comes from `pytest.importorskip` (the notes on #220 in live-test/real-products/_snapshots/beets/GROUND-TRUTH.md).",
+    "issue": 220,
+    "permitted": null
+  },
+  "python-definition-by-name": {
+    "text": "A defect of the tool: ide_find_definition gives the error \"Could not resolve symbol definition\" at a Python call where Go to Declaration of PyCharm jumps to the method. The receiver of the call has no type in the source, and the name of the method has one declaration in the project.",
+    "issue": 322,
+    "permitted": null
+  },
   "python-property-callers": {
-    "text": "ide_call_hierarchy in PyCharm on a property: the tree is empty, while ide_find_usages returns the reads of the property.",
+    "text": "ide_call_hierarchy in PyCharm on a property (the decorator `property` or `cached_property`): the tree is empty, while ide_find_usages returns the reads of the property.",
     "issue": 224,
     "permitted": null
   },
-  "receiver-type-does-not-declare": {
-    "text": "ide_find_usages and ide_call_hierarchy in PyCharm: a call on a receiver with a known type that does not declare the method is absent, with no signal.",
+  "python-usages-lack-resolved-call": {
+    "text": "ide_find_usages and ide_call_hierarchy of a Python method do not have a call that Go to Declaration of PyCharm resolves to the method, with no signal. Find Usages of PyCharm does not list the call either (the notes on #220 in live-test/real-products/_snapshots/beets/GROUND-TRUTH.md).",
     "issue": 220,
     "permitted": null
   }

@@ -595,12 +595,17 @@ class TrackedFilesTest(unittest.TestCase):
     def test_the_tracked_causes_wait_for_permission(self):
         with open(os.path.join(audit_verdict.ACCEPTED, "causes.json"), encoding="utf-8") as f:
             causes = json.load(f)
-        self.assertEqual({"closure-node", "interface-calls-option-off", "other-build-configuration",
-                          "other-build-configuration-use", "python-property-callers",
-                          "receiver-type-does-not-declare"}, set(causes))
-        self.assertEqual({"closure-node": 223, "interface-calls-option-off": 218, "other-build-configuration": 221,
-                          "other-build-configuration-use": None, "python-property-callers": 224,
-                          "receiver-type-does-not-declare": 220}, {n: c["issue"] for n, c in causes.items()})
+        self.assertEqual({"base-row-on-decoy-line", "closure-node", "embedded-field-key", "interface-calls-option-off",
+                          "other-build-configuration", "other-build-configuration-use",
+                          "python-base-through-package-attribute", "python-call-not-resolved",
+                          "python-definition-by-name", "python-property-callers",
+                          "python-usages-lack-resolved-call"}, set(causes))
+        self.assertEqual({"base-row-on-decoy-line": None, "closure-node": 223, "embedded-field-key": 321,
+                          "interface-calls-option-off": 218, "other-build-configuration": 221,
+                          "other-build-configuration-use": None, "python-base-through-package-attribute": None,
+                          "python-call-not-resolved": 220, "python-definition-by-name": 322,
+                          "python-property-callers": 224, "python-usages-lack-resolved-call": 220},
+                         {n: c["issue"] for n, c in causes.items()})
         for name, cause in causes.items():
             self.assertEqual({"text", "issue", "permitted"}, set(cause), name)
             self.assertIsNone(cause["permitted"], name)
