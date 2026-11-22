@@ -89,6 +89,18 @@ repository, and an entry here.
   call, and it keeps one match for each line. The `context` filter compares the label of the tool (`CODE`, `COMMENT`, `STRING_LITERAL`), and
   the index search runs with `UsageSearchContext.ANY`: the index puts plain text, HTML text and JSON
   strings in other contexts, so a context mask loses matches (#133) (`SearchTextTool`).
+- **The qualified name of a Go field or method.** The tool puts the package and the type before the
+  name: `package.Struct.field`, `package.Struct.Mutex` for an embedded `sync.Mutex`,
+  `package.Receiver.Method` and `package.Interface.method`. A field and an interface method get the
+  name of the nearest enclosing type declaration, also inside an anonymous struct. A field with no
+  enclosing type declaration (an anonymous struct of a `var`, a parameter or a literal) gets
+  `package.field`. The Go plugin registers no `qualifiedNameProvider`. Its own name,
+  `GoNamedElementImpl.getQualifiedName`, is different: a field gets `package.field`
+  (`GoPsiImplUtil.getFqn`), a method gets `Receiver.Method`, and an interface method gets the
+  presentation text of the enclosing `GoSpecType` and the name, with no package
+  (`plugins/go-plugin/lib/modules/intellij.go.impl.jar`, GO-263.7307.211). With these names, the
+  fields of one name in two structs of one package get one name, and so do the methods of two types
+  of one name in two packages (#136) (`QualifiedNameUtil.goFallback`).
 
 ## Project Structure
 
