@@ -175,8 +175,9 @@ symbol from the list by hand.
 1. Run all audits (see "Run all audits"). Read each `new` line.
 2. Decide for each new line: a defect of the plugin (write an issue), a behaviour that the IDE
    also shows (find the evidence: the rule "Mimic the IDE" in the root
-   [AGENTS.md](../../AGENTS.md)), or a limit of the audit (for example the cause
-   `base-row-on-decoy-line`).
+   [AGENTS.md](../../AGENTS.md)), or a limit of the audit. In a limit of the audit, the answer of
+   the tool is correct, and the audit counts it as a disagreement. An example is the cause
+   `base-row-on-decoy-line`. Its evidence is in "Name the cause of a line".
 3. Run `propose` for the audit. It writes each found line into `accepted/<product>.jsonl`, and
    each new line has the cause null. Remove from the list each line that you do not accept, for
    example a defect with no issue. That line stays new, and the audit fails.
