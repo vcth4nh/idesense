@@ -7,13 +7,16 @@
 A disagreement line is one symbol and one tool for which the answer of the IDE differs from the key:
 
     {"audit": "caddy-symbols", "tool": "ide_find_usages", "symbol": "<key id>", "miss": [["f.go", 3]], "fp": [],
-     "errors": []}
+     "marked": [], "errors": []}
 
-`miss` and `fp` are `[file, line]` pairs, and `errors` the texts of the tool errors; each list is sorted. An error
-result is a disagreement as a missed line is. The lines come from the result of an audit:
+`miss`, `fp` and `marked` are `[file, line]` pairs, and `errors` the texts of the tool errors; each list is sorted
+and always present. `marked` holds the answer lines that the audit counts as marked: a marked false line of a usages
+result (`extra["marked_fp"]` of `results.jsonl`, the union over the repeats). The caller audits count no line as
+marked, so their `marked` list is empty. An error result is a disagreement as a missed line is. The lines come from
+the result of an audit:
 
 - `from_symbols`: `results.jsonl` of `audit.symbols run`, through `symbols.disagreements` (one line for each
-  record of `disagreements.jsonl`; a record with only marked lines has three empty lists).
+  record of `disagreements.jsonl`).
 - `from_callers`: a file of `audit.callers callers`, the `mapped` comparison: one line for each row with an error
   or with a `mapped` score that is not exact. The tool is `ide_call_hierarchy`.
 - `from_dyn`: a file of `audit.callers dyn`: `hierarchy` gives `ide_call_hierarchy`, `usages` gives
@@ -29,7 +32,7 @@ is the product of its tree (`caddy-plant-1` -> `caddy`). `cause` is the name of 
 `issue` is the number of the issue, or null; `permitted` is the date on which the owner of the repository
 permitted the cause, or null. A file that does not exist counts as an empty list.
 
-`verdict(found, accepted, causes)` compares the lines with no `cause`:
+`verdict(found, accepted, causes)` compares the whole lines with no `cause` (the order in a list does not count):
 - `new`: a line of `found` that the accepted list does not hold (a changed line is new). Any new line: `fail`.
 - `gone`: an accepted line that `found` does not hold. A maintainer can remove it; it never changes the result.
 - With no new line: an accepted line that stays and has no cause (`no_cause`), or a cause that `causes.json` does
@@ -50,8 +53,10 @@ is null for `symbols`), and the options `n`, `seed`, `repeats` and `ids` (null w
 `run` holds the lock of the benchmark IDEs (exit 2 when another holder has it, with no call to the IDE), and runs
 each audit of `audits.json` on the IDE of its product (GoLand for caddy, PyCharm for beets) at the slot path of
 its tree. A `symbols` audit writes the folder `<out>/<name>/`, another audit the file `<out>/<name>.jsonl`. Then
-`run` prints the verdict of each audit and one total line, and exits as `check` with the total: `fail` when an
-audit fails, else `wait` when an audit waits, else `pass`. `run` refuses an `-out` folder that exists and an input
+`run` prints the verdict of each audit and one total line, and writes `<out>/verdict.json`:
+`{"result": <total>, "audits": [{"name", "verdict": {"result", "new", "gone", "no_cause", "no_permission"}}, ...]}`.
+The total is `fail` when an audit fails, else `wait` when an audit waits, else `pass`; the exit code is that of
+`check` for the total. `run` refuses an `-out` folder that exists and an input
 that is absent (exit 2). When an audit stops before its end (the IDE stays in dumb mode, or the server version
 changes during a `symbols` audit), `run` exits 4 with no verdict.
 """
@@ -73,7 +78,7 @@ ACCEPTED = os.path.join(HERE, "accepted")
 HIERARCHY = callers.HIERARCHY
 USAGES = callers.USAGES
 DYN_TOOLS = (("hierarchy", HIERARCHY), ("usages", USAGES))
-LINE_FIELDS = ("audit", "tool", "symbol", "miss", "fp", "errors")
+LISTS = ("miss", "fp", "marked", "errors")
 KINDS = ("symbols", "callers", "dyn")
 FIELDS = ("name", "tree", "kind", "keys", "calls", "n", "seed", "repeats", "ids")
 OPTIONS = {"symbols": ("n", "seed", "repeats"), "callers": ("n", "seed"), "dyn": ()}
@@ -88,16 +93,14 @@ def _pair(entry) -> list:
     return [entry["file"], entry["line"]] if isinstance(entry, dict) else list(entry[:2])
 
 
-def _line(name: str, tool: str, symbol: str, miss=(), fp=(), errors=()) -> dict:
+def _line(name: str, tool: str, symbol: str, miss=(), fp=(), marked=(), errors=()) -> dict:
     return {"audit": name, "tool": tool, "symbol": symbol, "miss": sorted(_pair(m) for m in miss),
-            "fp": sorted(_pair(f) for f in fp), "errors": sorted(errors)}
+            "fp": sorted(_pair(f) for f in fp), "marked": sorted(_pair(m) for m in marked), "errors": sorted(errors)}
 
 
 def _key(line: dict) -> str:
-    """The line with no `cause`, as a text; the lists are sorted."""
-    bare = {k: line[k] for k in LINE_FIELDS}
-    for k in ("miss", "fp", "errors"):
-        bare[k] = sorted(bare[k])
+    """The whole line with no `cause`, as a text; the lists are sorted."""
+    bare = {k: sorted(v) if k in LISTS else v for k, v in line.items() if k != "cause"}
     return json.dumps(bare, sort_keys=True)
 
 
@@ -115,13 +118,17 @@ def _rows(path: str) -> list[dict]:
 
 
 def from_symbols(name: str, results_dir: str, keys_file: str, host_config: str = "linux") -> list[dict]:
-    """One line for each record and tool of `symbols.disagreements`."""
+    """One line for each record and tool of `symbols.disagreements`, with the marked false lines of the results."""
     results = _rows(os.path.join(results_dir, "results.jsonl"))
     by_id = {r["id"]: r for r in keys.load_keys(keys_file) if r["id"] != "_meta"}
     absent = sorted({res["id"] for res in results} - set(by_id))
     if absent:
         raise ValueError(f"{len(absent)} result ids are not in {keys_file}, for example {absent[0]}")
-    return [_line(name, d["tool"], d["id"], d["miss"], d["fp"], d["errors"])
+    marked: dict[tuple[str, str], set] = {}
+    for res in results:
+        for file, line, _ in res["extra"].get("marked_fp", []):
+            marked.setdefault((res["id"], res["tool"]), set()).add((file, line))
+    return [_line(name, d["tool"], d["id"], d["miss"], d["fp"], marked.get((d["id"], d["tool"]), ()), d["errors"])
             for d in symbols.disagreements(results, by_id, host_config)]
 
 
@@ -353,14 +360,18 @@ def _run(args) -> int:
         print(f"{e}. No call to the IDE.", file=sys.stderr)
         return EXIT_BUSY
     causes = read_causes(args.accepted)
-    results = []
+    audits = []
     for e in entries:
         found = _found_of(e, args.out, root)
         accepted = [line for line in read_lines(accepted_file(args.accepted, e["tree"])) if line["audit"] == e["name"]]
         v = verdict(found, accepted, causes)
         print(verdict_text(e["name"], found, v))
-        results.append(v["result"])
+        audits.append({"name": e["name"], "verdict": v})
+    results = [a["verdict"]["result"] for a in audits]
     total = "fail" if "fail" in results else "wait" if "wait" in results else "pass"
+    with open(os.path.join(args.out, "verdict.json"), "w", encoding="utf-8") as f:
+        json.dump({"result": total, "audits": audits}, f, ensure_ascii=False, indent=1)
+        f.write("\n")
     print(f"total: {total} | audits {len(results)}: pass {results.count('pass')}, fail {results.count('fail')}, "
           f"wait {results.count('wait')}")
     return EXIT[total]

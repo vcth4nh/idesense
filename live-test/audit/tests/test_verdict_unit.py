@@ -39,6 +39,11 @@ class VerdictTest(unittest.TestCase):
         two = {**A, "miss": [["f", 1], ["f", 2]]}
         self.assertEqual("pass", verdict([two], [{**two, "miss": [["f", 2], ["f", 1]], "cause": "c"}], OK)["result"])
 
+    def test_one_more_marked_pair_is_new(self):
+        one = {**A, "marked": [["f", 3]]}
+        v = verdict([{**one, "marked": [["f", 3], ["f", 4]]}], [{**one, "cause": "c"}], OK)
+        self.assertEqual(("fail", [{**one, "marked": [["f", 3], ["f", 4]]}]), (v["result"], v["new"]))
+
     def test_the_lists_of_the_verdict(self):
         v = verdict([A], [{**A, "cause": "zz"}, {**B, "cause": None}], OK)
         self.assertEqual({"result": "wait", "new": [], "gone": [{**B, "cause": None}], "no_cause": [],
@@ -60,10 +65,11 @@ SYMBOL = record([site("a.go", 3), site("a.go", 4), site("a.go", 9, "forbidden", 
 CLEAN = record([site("b.go", 3)], rid="go:m.B")
 SYMBOL_RESULTS = [
     {"id": "_meta", "version_start": "v", "version_end": "v"},
-    result("go:m.A", "ide_find_usages", fp=[("a.go", 9)], miss=[("a.go", 4)], fp_rows=[["a.go", 9, "REFERENCE"]]),
+    result("go:m.A", "ide_find_usages", fp=[("a.go", 9)], miss=[("a.go", 4)], fp_rows=[["a.go", 9, "REFERENCE"]],
+           marked_fp=[["a.go", 7, "BASE"]]),
     result("go:m.A", "ide_find_definition", miss=[("a.go", 4)],
            site_errors=[["a.go", 4, "tool_error: Could not resolve symbol definition"]]),
-    result("go:m.B", "ide_find_usages")]
+    result("go:m.B", "ide_find_usages", marked_fp=[["b.go", 8, "DYNAMIC"], ["b.go", 6, "BASE"]])]
 
 CALLER_ROWS = [
     {"id": "_meta", "version": "v", "project": "/p", "keys": "k", "n": 3},
@@ -100,10 +106,14 @@ class FromTest(unittest.TestCase):
         found = audit_verdict.from_symbols("caddy-symbols", os.path.join(self.dir, "res"),
                                            os.path.join(self.dir, "symbols.jsonl"))
         self.assertEqual([{"audit": "caddy-symbols", "tool": "ide_find_definition", "symbol": "go:m.A",
-                           "miss": [["a.go", 4]], "fp": [],
+                           "miss": [["a.go", 4]], "fp": [], "marked": [],
                            "errors": ["a.go:4: tool_error: Could not resolve symbol definition"]},
                           {"audit": "caddy-symbols", "tool": "ide_find_usages", "symbol": "go:m.A",
-                           "miss": [["a.go", 4]], "fp": [["a.go", 9]], "errors": []}], found)
+                           "miss": [["a.go", 4]], "fp": [["a.go", 9]], "marked": [["a.go", 7]], "errors": []},
+                          # Only marked lines: the line has the marked pairs.
+                          {"audit": "caddy-symbols", "tool": "ide_find_usages", "symbol": "go:m.B",
+                           "miss": [], "fp": [], "marked": [["b.go", 6], ["b.go", 8]], "errors": []}], found)
+        self.assertEqual(["audit", "tool", "symbol", "miss", "fp", "marked", "errors"], list(found[0]))
 
     def test_from_symbols_refuses_an_id_that_the_keys_do_not_hold(self):
         lines_file(os.path.join(self.dir, "res", "results.jsonl"), SYMBOL_RESULTS)
@@ -115,19 +125,19 @@ class FromTest(unittest.TestCase):
         path = os.path.join(self.dir, "callers.jsonl")
         lines_file(path, CALLER_ROWS)
         self.assertEqual([{"audit": "c", "tool": "ide_call_hierarchy", "symbol": "x", "miss": [], "fp": [],
-                           "errors": ["tool: symbol_not_found: No symbol"]},
+                           "marked": [], "errors": ["tool: symbol_not_found: No symbol"]},
                           {"audit": "c", "tool": "ide_call_hierarchy", "symbol": "z", "miss": [["b.go", 1], ["c.go", 9]],
-                           "fp": [["q.go", 2]], "errors": []}], audit_verdict.from_callers("c", path))
+                           "fp": [["q.go", 2]], "marked": [], "errors": []}], audit_verdict.from_callers("c", path))
 
     def test_from_dyn_gives_a_line_for_each_tool(self):
         path = os.path.join(self.dir, "dyn.jsonl")
         lines_file(path, DYN_ROWS)
         self.assertEqual([{"audit": "d", "tool": "ide_call_hierarchy", "symbol": "m", "miss": [["t.go", 1]], "fp": [],
-                           "errors": []},
-                          {"audit": "d", "tool": "ide_find_usages", "symbol": "m", "miss": [], "fp": [],
+                           "marked": [], "errors": []},
+                          {"audit": "d", "tool": "ide_find_usages", "symbol": "m", "miss": [], "fp": [], "marked": [],
                            "errors": ["tool: index_not_ready: x"]},
                           {"audit": "d", "tool": "ide_find_usages", "symbol": "n", "miss": [], "fp": [["u.go", 3]],
-                           "errors": []}], audit_verdict.from_dyn("d", path))
+                           "marked": [], "errors": []}], audit_verdict.from_dyn("d", path))
 
     def test_from_dyn_refuses_a_row_of_the_old_script(self):
         old = json.loads(json.dumps(DYN_ROWS))
@@ -241,15 +251,22 @@ class MainTest(unittest.TestCase):
         return ("run", "-url-goland", server.url, "-url-pycharm", server.url, "-out", os.path.join(self.dir, out),
                 "-accepted", self.accepted)
 
+    def verdict_file(self, out):
+        with open(os.path.join(self.dir, out, "verdict.json"), encoding="utf-8") as f:
+            return json.load(f)
+
     def test_run_with_one_symbols_audit(self):
         server = self.run_setup()
         code, out = self.main(*self.run_args(server, "run1"))
         self.assertEqual(1, code, out)
         self.assertTrue(os.path.exists(os.path.join(self.dir, "run1", "caddy-symbols", "results.jsonl")))
         line = {"audit": "caddy-symbols", "tool": "ide_find_usages", "symbol": "go:m.A", "miss": [["a.go", 4]],
-                "fp": [], "errors": []}
+                "fp": [], "marked": [], "errors": []}
         self.assertIn(json.dumps(line), out)
         self.assertIn("total: fail", out)
+        self.assertEqual({"result": "fail", "audits": [{"name": "caddy-symbols", "verdict": {
+            "result": "fail", "new": [line], "gone": [], "no_cause": [], "no_permission": []}}]},
+            self.verdict_file("run1"))
         self.assertEqual({"/bench/trees/caddy"}, {c["args"]["project_path"] for c in server.calls if "args" in c})
         lines_file(os.path.join(self.accepted, "caddy.jsonl"), [{**line, "cause": "c"}])
         with open(os.path.join(self.accepted, "causes.json"), "w", encoding="utf-8") as f:
@@ -258,6 +275,9 @@ class MainTest(unittest.TestCase):
         self.assertEqual(0, code, out)
         self.assertIn("caddy-symbols: pass", out)
         self.assertIn("total: pass", out)
+        self.assertEqual({"result": "pass", "audits": [{"name": "caddy-symbols", "verdict": {
+            "result": "pass", "new": [], "gone": [], "no_cause": [], "no_permission": []}}]},
+            self.verdict_file("run2"))
         # The folder run2 exists now: no second run into it.
         self.assertEqual(2, self.main(*self.run_args(server, "run2"))[0])
 
@@ -270,6 +290,7 @@ class MainTest(unittest.TestCase):
         self.assertEqual(4, code)
         self.assertIn("caddy-symbols: the audit stopped with exit code 4. No verdict.", out)
         self.assertNotIn("total:", out)
+        self.assertFalse(os.path.exists(os.path.join(self.dir, "run1", "verdict.json")))
 
     def test_run_refuses_an_absent_slot_and_a_fleet_port(self):
         server = self.run_setup()
@@ -296,6 +317,16 @@ class TrackedFilesTest(unittest.TestCase):
         entries = audit_verdict.load_audits(audit_verdict.AUDITS_FILE)
         self.assertEqual({"symbols", "callers", "dyn"}, {e["kind"] for e in entries})
 
+    def test_no_tracked_audit_repeats_another(self):
+        """No two entries with the same kind, tree, keys and ids. No entry with ids next to a full audit of the same
+        kind, tree and keys (ids null, and no sample `n`): the full audit covers the ids."""
+        entries = audit_verdict.load_audits(audit_verdict.AUDITS_FILE)
+        same = [(e["kind"], e["tree"], e["keys"], json.dumps(e["ids"])) for e in entries]
+        self.assertEqual(len(same), len(set(same)))
+        full = {(e["kind"], e["tree"], e["keys"]) for e in entries if e["ids"] is None and e["n"] is None}
+        self.assertEqual([], [e["name"] for e in entries
+                              if e["ids"] is not None and (e["kind"], e["tree"], e["keys"]) in full])
+
     def test_a_bad_entry_is_refused(self):
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d)
@@ -312,7 +343,11 @@ class TrackedFilesTest(unittest.TestCase):
         with open(os.path.join(audit_verdict.ACCEPTED, "causes.json"), encoding="utf-8") as f:
             causes = json.load(f)
         self.assertEqual({"closure-node", "interface-calls-option-off", "other-build-configuration",
-                          "python-property-callers", "receiver-type-does-not-declare"}, set(causes))
+                          "other-build-configuration-use", "python-property-callers",
+                          "receiver-type-does-not-declare"}, set(causes))
+        self.assertEqual({"closure-node": 223, "interface-calls-option-off": 218, "other-build-configuration": 221,
+                          "other-build-configuration-use": None, "python-property-callers": 224,
+                          "receiver-type-does-not-declare": 220}, {n: c["issue"] for n, c in causes.items()})
         for name, cause in causes.items():
             self.assertEqual({"text", "issue", "permitted"}, set(cause), name)
             self.assertIsNone(cause["permitted"], name)

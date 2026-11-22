@@ -10,7 +10,12 @@
     "permitted": null
   },
   "other-build-configuration": {
-    "text": "A use or a declaration in a file that only another OS build compiles: the build constraints exclude the file on the IDE host. For a declaration in such a file, GoLand says \"Nothing found\" and shows a banner about the OS mismatch (note \"Build constraints\" in live-test/real-products/_snapshots/caddy/GROUND-TRUTH.md).",
+    "text": "A declaration in a file that only another OS build compiles: the build constraints exclude the file on the IDE host, and the declaration has no usage. GoLand says \"Nothing found\" and shows a banner about the OS mismatch (note \"Build constraints\" in live-test/real-products/_snapshots/caddy/GROUND-TRUTH.md).",
+    "issue": 221,
+    "permitted": null
+  },
+  "other-build-configuration-use": {
+    "text": "A use in a file that only another OS build compiles: the build constraints exclude the file on the IDE host, and ide_find_definition at the use gives the error \"Could not resolve symbol definition\". No observation of GoLand at such a use is recorded yet.",
     "issue": null,
     "permitted": null
   },

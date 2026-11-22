@@ -234,27 +234,5 @@
     "seed": null,
     "repeats": null,
     "ids": null
-  },
-  {
-    "name": "caddy-dyncallers-calls2",
-    "tree": "caddy",
-    "kind": "dyn",
-    "keys": "caddy/dyncallers.jsonl",
-    "calls": "caddy/calls.jsonl",
-    "n": null,
-    "seed": null,
-    "repeats": null,
-    "ids": [
-      "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.App.Cleanup",
-      "go:github.com/caddyserver/caddy/v2/modules/caddyevents.App.Emit",
-      "go:github.com/caddyserver/caddy/v2/modules/caddyhttp/reverseproxy.FirstSelection.Select",
-      "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.MatchQuery.CELLibrary",
-      "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.StaticIPRange.GetIPRanges",
-      "go:github.com/caddyserver/caddy/v2.StdoutWriter.OpenWriter",
-      "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.baseRespWriter.Written",
-      "go:github.com/caddyserver/caddy/v2.mockRouter.Routes",
-      "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.responseRecorder.WriteResponse",
-      "go:github.com/caddyserver/caddy/v2/modules/caddytls.testClientCertificateVerifier.VerifyClientCertificate"
-    ]
   }
 ]
