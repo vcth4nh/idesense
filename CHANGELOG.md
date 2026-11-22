@@ -235,6 +235,18 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   anonymous struct gets the name of the nearest enclosing type declaration, and `package.field`
   when it has none. GoLand gives `package.field`: this name differs from GoLand on purpose (#136).
   The new name is no `symbol` anchor, as the name of a Go method (#139): use a position for a field.
+- `ide_sync_files` no longer logs two SEVERE entries ("Cannot run synchronous
+  submitTransactionAndWait" and "Write-unsafe context!") that name IdeSense as the plugin to blame.
+  Each request ran with the modality `ModalityState.any()`, and the platform permits no document
+  commit in that modality. Each request now runs with `ModalityState.nonModal()`. The same commit
+  also runs after a rename of `ide_refactor_rename`, and before a tool call when the setting "Sync
+  external file changes before operations" is on. While a modal dialog is open in the IDE, a tool
+  step that writes (for example this commit) waits until the dialog closes. The searches and
+  `ide_diagnostics` do not wait (#145).
+- `ide_restart` no longer logs SEVERE entries "Write-unsafe context!" when the IDE saves the
+  documents and the projects before the restart. The restart request ran with
+  `ModalityState.any()`, and it now runs with `ModalityState.nonModal()`. While a modal dialog is
+  open, the restart waits until the dialog closes (#147).
 
 ## [2.1.0] - 2026-11-09
 
