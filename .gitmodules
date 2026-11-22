@@ -103,3 +103,8 @@
 	url = https://github.com/webpack/webpack
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/backstage"]
+	path = live-test/real-products/backstage
+	url = https://github.com/backstage/backstage
+	shallow = true
+	ignore = dirty
