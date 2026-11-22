@@ -101,6 +101,19 @@ repository, and an entry here.
   (`plugins/go-plugin/lib/modules/intellij.go.impl.jar`, GO-263.7307.211). With these names, the
   fields of one name in two structs of one package get one name, and so do the methods of two types
   of one name in two packages (#136) (`QualifiedNameUtil.goFallback`).
+- **`ide_file_structure`: the name `{}`.** The JavaScript structure view gives no text to an object
+  literal that is not the right side of an assignment, for example an object in an array
+  (`JSStructureItemPresentation.buildPresentationForElement`,
+  `plugins/javascript-plugin/lib/modules/intellij.javascript.structureView.jar`, WS-263.7307.202).
+  The File Structure popup shows such a node with an icon and no text. A text tree has no icon, so
+  the tool gives the node the name `{}` and keeps its children (#198) (`FileStructureTool.nodeName`).
+- **`ide_file_structure`: a name of one line, cut at 80 characters when it had a line break and
+  is longer.** For an element with no name, the JavaScript structure view gives the source text of
+  the element, also over several lines. The popup shows the node in one row and cuts the text at the
+  width of the popup. The tool puts one space in place of each run of white space in a name of each
+  language. It cuts only a name that had a line break and is longer than 80 characters, after 79
+  characters, and adds `…`. A name with no line break stays complete, so a long function signature
+  stays whole (#199) (`FileStructureTool.nodeName`).
 
 ## Project Structure
 

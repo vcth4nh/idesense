@@ -179,6 +179,8 @@ class CommandHistoryService(private val project: Project) {
     }
 
     private fun notifyListeners(event: CommandHistoryEvent) {
+        // any(): the listeners only update the history list of the tool window (no model change),
+        // so the list shows a call also while a modal dialog is open.
         ApplicationManager.getApplication().invokeLater({
             when (event) {
                 is CommandHistoryEvent.CommandAdded -> {

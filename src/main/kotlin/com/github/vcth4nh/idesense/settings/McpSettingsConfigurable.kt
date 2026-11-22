@@ -281,6 +281,8 @@ class McpSettingsConfigurable : Configurable {
         // Auto-restart if host/port changed — or if the exposure acknowledgement did, since that
         // alone decides whether the configured host is honored or falls back to loopback.
         if (newHost != oldHost || newPort != oldPort || newAllowNonLoopback != oldAllowNonLoopback) {
+            // any(): this restarts the plugin's own HTTP server and shows a notification, no model
+            // change, so it runs while the settings dialog is still open.
             ApplicationManager.getApplication().invokeLater({
                 val mcpService = McpServerService.getInstance()
                 if (!mcpService.isInitialized) return@invokeLater
@@ -421,6 +423,7 @@ class McpSettingsConfigurable : Configurable {
                     // as we are showing the error message in the label next to the input
                     val info = if (isValid) null else ValidationInfo("", field)
 
+                    // any(): this updates the settings page inside the open settings dialog, no model change.
                     ApplicationManager.getApplication().invokeLater({
                         // Only update UI if the text hasn't changed since we started
                         if (field.text.trim() == host) {

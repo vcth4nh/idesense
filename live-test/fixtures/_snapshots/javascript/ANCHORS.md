@@ -86,6 +86,12 @@ fails when this file is stale.
 | 75:17 | usage-Circle-via-new-call-site | find_usages | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
 | 75:34 | def-Rectangle-via-new-call | find_definition | `return [new Circle(1.0), new Rectangle(2.0, 3.0), new Square(4.0)];` |
 
+## src/outline.js
+
+| line:col | probe id | tool | source |
+|---|---|---|---|
+| — | file-structure-outline | file_structure | — |
+
 ## src/probes.js
 
 | line:col | probe id | tool | source |

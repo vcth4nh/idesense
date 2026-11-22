@@ -4,6 +4,7 @@ import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScope
 import com.github.vcth4nh.idesense.handlers.BuiltInSearchScopeResolver
+import com.github.vcth4nh.idesense.handlers.FindUsagesHandlerSearch
 import com.github.vcth4nh.idesense.server.PaginationService
 import com.github.vcth4nh.idesense.server.ProjectResolver
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
@@ -227,7 +228,7 @@ class FindFileTool : AbstractMcpTool() {
                 throw e
             } catch (e: Exception) {
                 LOG.warn("Contributor ${contributor.javaClass.simpleName} failed for pattern '$pattern'", e)
-                val message = "File contributor ${contributor.javaClass.simpleName} threw mid-search; " +
+                val message = "File contributor ${FindUsagesHandlerSearch.warningClassName(contributor.javaClass)} threw mid-search; " +
                     "its remaining candidates were skipped — files may be incomplete."
                 if (message !in warnings) warnings.add(message)
             }

@@ -174,6 +174,8 @@ class McpServerService(
      * Notifies all listeners that the server status has changed.
      */
     private fun notifyStatusChanged() {
+        // any(): only the status panel of the tool window updates (no model change), also while the
+        // settings dialog that changed the port is open.
         ApplicationManager.getApplication().invokeLater({
             ApplicationManager.getApplication().messageBus
                 .syncPublisher(McpConstants.SERVER_STATUS_TOPIC)
@@ -273,6 +275,7 @@ class McpServerService(
      * on loopback, so local agents keep working — only the network exposure is withheld.
      */
     private fun showNonLoopbackBlockedNotification(requestedHost: String, effectiveHost: String) {
+        // any(): a notification only, no model change.
         ApplicationManager.getApplication().invokeLater({
             NotificationGroupManager.getInstance()
                 .getNotificationGroup(McpConstants.NOTIFICATION_GROUP_ID)
@@ -295,6 +298,7 @@ class McpServerService(
      * Shows an error notification with an action to open settings.
      */
     private fun showErrorNotification(title: String, content: String) {
+        // any(): a notification only, no model change.
         ApplicationManager.getApplication().invokeLater({
             NotificationGroupManager.getInstance()
                 .getNotificationGroup(McpConstants.NOTIFICATION_GROUP_ID)
