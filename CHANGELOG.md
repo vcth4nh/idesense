@@ -235,6 +235,17 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   anonymous struct gets the name of the nearest enclosing type declaration, and `package.field`
   when it has none. GoLand gives `package.field`: this name differs from GoLand on purpose (#136).
   The new name is no `symbol` anchor, as the name of a Go method (#139): use a position for a field.
+- `ide_file_structure` gives a node the line where the Structure window of the IDE goes: the line of
+  the navigation element of the node. In WebStorm, the node `default` of an `export default { ... }`
+  object had the line 1, because the IDE makes a node with no place in the source for it. It now has
+  the line of the first member of the object. When the navigation element is in another file, for
+  example the source of a compiled class, the line stays the line of the node in the file (#197).
+- `ide_file_structure` keeps a JavaScript or TypeScript object literal that the IDE shows with no
+  text, for example an object in an array, with its children. The node has the name `{}`. The
+  outline left out such a node and all its children (#198).
+- A node name of `ide_file_structure` is one line of at most 80 characters. Each run of white space
+  becomes one space, and a longer name is cut and ends with `…`. In WebStorm, the name of a spread
+  element over several lines had these lines, so the outline had lines that were no nodes (#199).
 
 ## [2.1.0] - 2026-11-09
 

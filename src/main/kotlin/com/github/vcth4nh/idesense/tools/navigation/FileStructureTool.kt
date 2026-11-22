@@ -134,6 +134,7 @@ class FileStructureTool : AbstractMcpTool() {
                 return walkAbstractTreeNode(
                     SmartTreeStructure(project, view.treeModel).rootElement as AbstractTreeNode<*>,
                     project,
+                    psiFile,
                 )
             } finally {
                 Disposer.dispose(view)
@@ -148,7 +149,7 @@ class FileStructureTool : AbstractMcpTool() {
             val wrappedModel = TreeModelWrapper(model, owner)
             val structure = SmartTreeStructure(project, wrappedModel)
             val root = structure.rootElement as? AbstractTreeNode<*> ?: return emptyList()
-            return walkAbstractTreeNode(root, project)
+            return walkAbstractTreeNode(root, project, psiFile)
         } finally {
             Disposer.dispose(model)
         }
@@ -217,37 +218,31 @@ class FileStructureTool : AbstractMcpTool() {
     private fun walkAbstractTreeNode(
         node: AbstractTreeNode<*>,
         project: Project,
+        psiFile: PsiFile,
     ): List<StructureNode> =
-        node.children.mapNotNull { walkChildNode(it, project) }
+        node.children.mapNotNull { walkChildNode(it, project, psiFile) }
 
     private fun walkChildNode(
         node: AbstractTreeNode<*>,
         project: Project,
+        psiFile: PsiFile,
     ): StructureNode? {
         val (rawValue, presentation, line) = when (val value = node.value) {
             is StructureViewTreeElement -> {
-                val l = (value.value as? PsiElement)?.let { lineOf(project, it) } ?: 1
+                val l = (value.value as? PsiElement)?.let { lineOf(project, it, psiFile) } ?: 1
                 Triple<Any?, _, _>(value.value, value.presentation, l)
             }
             is Group -> Triple<Any?, _, _>(value, value.presentation, 1)
             else -> return null
         }
-        val name = presentation.presentableText?.takeIf { it.isNotBlank() } ?: return null
+        val name = nodeName(presentation.presentableText, rawValue) ?: return null
         return StructureNode(
             name = name,
             modifiers = UniversalModifiers.extract(rawValue),
             signature = presentation.locationString?.takeIf { it.isNotBlank() },
             line = line,
-            children = walkAbstractTreeNode(node, project),
+            children = walkAbstractTreeNode(node, project, psiFile),
         )
-    }
-
-    private fun lineOf(project: Project, psi: PsiElement): Int {
-        val containingFile = psi.containingFile ?: return 1
-        val document = PsiDocumentManager.getInstance(project).getDocument(containingFile) ?: return 1
-        val offset = psi.textOffset
-        if (offset < 0 || offset > document.textLength) return 1
-        return document.getLineNumber(offset) + 1
     }
 
     private data class FilterCategoryMatcher(val normalized: String, val patterns: List<String>)
@@ -267,6 +262,43 @@ class FileStructureTool : AbstractMcpTool() {
     }
 
     companion object {
+        private const val MAX_NAME_LENGTH = 80
+        private val WHITE_SPACE = Regex("\\s+")
+
+        private val jsObjectLiteralClass: Class<*>? by lazy {
+            try { Class.forName("com.intellij.lang.javascript.psi.JSObjectLiteralExpression") } catch (_: ClassNotFoundException) { null }
+        }
+
+        /**
+         * The name of a node: one line of at most [MAX_NAME_LENGTH] characters. The JavaScript
+         * structure view gives the source text of an element that has no name, for example a spread
+         * element over several lines (#199). It gives no text to an object literal that is not the
+         * right side of an assignment, for example an object in an array; the node keeps its
+         * children under the name `{}` (#198). Another node with no text stays out of the outline.
+         */
+        internal fun nodeName(presentableText: String?, element: Any?): String? {
+            val text = presentableText?.takeIf { it.isNotBlank() }
+                ?: return "{}".takeIf { jsObjectLiteralClass?.isInstance(element) == true }
+            val name = text.replace(WHITE_SPACE, " ")
+            return if (name.length > MAX_NAME_LENGTH) name.take(MAX_NAME_LENGTH - 1) + "…" else name
+        }
+
+        /**
+         * The line of the navigation element of [psi], where the Structure window goes. The node
+         * `default` of a JavaScript `export default { ... }` object has a fake element with the
+         * text offset 0, and its navigation element is the first member of the object (#197).
+         * When the navigation element is not in [psiFile], for example the source of a compiled
+         * class, the line is the line of [psi] itself.
+         */
+        internal fun lineOf(project: Project, psi: PsiElement, psiFile: PsiFile): Int {
+            val target = psi.navigationElement.takeIf { it.containingFile?.viewProvider == psiFile.viewProvider } ?: psi
+            val containingFile = target.containingFile ?: return 1
+            val document = PsiDocumentManager.getInstance(project).getDocument(containingFile) ?: return 1
+            val offset = target.textOffset
+            if (offset < 0 || offset > document.textLength) return 1
+            return document.getLineNumber(offset) + 1
+        }
+
         // Keys are `psiFile.language.id.lowercase()` — language IDs vary in case across plugins
         // (`JAVA`, `Python`, `kotlin`, `JavaScript`, `PHP`, `go`, `Rust`) so we normalize on lookup.
         // Match-pattern lists are ordered: more-specific first (e.g., `inherited_from_object`
