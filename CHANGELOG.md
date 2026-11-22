@@ -234,6 +234,7 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `reverseproxy.handleResponseContext.handler`. An embedded field gets the same form. A field of an
   anonymous struct gets the name of the nearest enclosing type declaration, and `package.field`
   when it has none. GoLand gives `package.field`: this name differs from GoLand on purpose (#136).
+  The new name is no `symbol` anchor, as the name of a Go method (#139): use a position for a field.
 
 ## [2.1.0] - 2026-11-09
 
