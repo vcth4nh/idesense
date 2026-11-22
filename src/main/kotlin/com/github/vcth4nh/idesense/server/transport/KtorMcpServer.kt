@@ -62,6 +62,26 @@ class KtorMcpServer(
 
     companion object {
         private val LOG = logger<KtorMcpServer>()
+
+        /**
+         * Runs [block], the handling of one request, with the modality [ModalityState.nonModal].
+         * A step of a request that gives no modality itself (`invokeAndWait` without a modality,
+         * `TransactionGuard.submitTransactionAndWait`, `withContext(Dispatchers.EDT)`) takes this
+         * modality: it runs in a write-safe context, and it waits while a modal dialog is open.
+         * `ModalityState.any()` is not write-safe: a model change under it logs "Write-unsafe
+         * context" (#145, #147). A step that makes no model change and must not wait for a dialog
+         * sets `any()` itself (`DiagnosticsAnalysisService.invokeOnEdt`).
+         */
+        internal suspend fun <T> runWithIdeModality(block: suspend () -> T): T {
+            val application = ApplicationManager.getApplication()
+            return if (application == null) {
+                block()
+            } else {
+                withContext(ModalityState.nonModal().asContextElement()) {
+                    block()
+                }
+            }
+        }
     }
 
     private enum class StreamableBatchKind {
@@ -538,17 +558,6 @@ class KtorMcpServer(
     }
 
     private val json = Json { encodeDefaults = true; prettyPrint = false }
-
-    private suspend fun <T> runWithIdeModality(block: suspend () -> T): T {
-        val application = ApplicationManager.getApplication()
-        return if (application == null) {
-            block()
-        } else {
-            withContext(ModalityState.any().asContextElement()) {
-                block()
-            }
-        }
-    }
 
     private suspend fun handleCorsPreflight(call: ApplicationCall) {
         val origin = call.request.headers[HttpHeaders.Origin]

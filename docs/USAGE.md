@@ -971,7 +971,7 @@ copy the zip into that project first.
 
 Restart THIS IDE. Use after `ide_install_plugin` to load a freshly installed plugin build.
 
-The restart is scheduled after this tool's response is flushed (default 2 s delay) so the MCP client receives the result before the connection drops. In remote-dev / serverMode the backend relaunches and the thin client reconnects automatically.
+The restart is scheduled after this tool's response is flushed (default 2 s delay) so the MCP client receives the result before the connection drops. In remote-dev / serverMode the backend relaunches and the thin client reconnects automatically. If a modal dialog is open in the IDE, the restart waits until it closes; the server keeps answering meanwhile, and each further call queues one more restart.
 
 **Use when:**
 - Loading a freshly installed plugin build (pair with `ide_install_plugin`)

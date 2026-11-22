@@ -227,6 +227,19 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   call is still active, for example when the index is not ready after an IDE start. Then the
   client gets the same answer as before, and the log gets one warning line with no exception
   (#127).
+- `ide_sync_files` no longer logs two SEVERE entries ("Cannot run synchronous
+  submitTransactionAndWait" and "Write-unsafe context!") that name IdeSense as the plugin to blame.
+  Each request ran with the modality `ModalityState.any()`, and the platform permits no document
+  commit in that modality. Each request now runs with `ModalityState.nonModal()`. The same commit
+  also runs after a rename of `ide_refactor_rename`, and before a tool call when the setting "Sync
+  external file changes before operations" is on. While a modal dialog is open in the IDE, a tool
+  step that writes (for example this commit) waits until the dialog closes. The searches and
+  `ide_diagnostics` do not wait, unless the setting "Sync external file changes before operations"
+  is on: then each of these tools commits the documents first, and that step waits (#145).
+- `ide_restart` no longer logs SEVERE entries "Write-unsafe context!" when the IDE saves the
+  documents and the projects before the restart. The restart request ran with
+  `ModalityState.any()`, and it now runs with `ModalityState.nonModal()`. While a modal dialog is
+  open, the restart waits until the dialog closes (#147).
 - `ide_find_super_methods` no longer returns an empty `hierarchy` when a write action interrupts
   the search of the super methods. The provider of the language took the cancellation for a
   failure, so the IDE did not run the search again. `ide_find_usages` and `ide_explain_symbol` take

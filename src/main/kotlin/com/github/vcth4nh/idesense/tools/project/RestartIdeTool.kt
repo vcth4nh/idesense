@@ -44,7 +44,8 @@ class RestartIdeTool : AbstractMcpTool() {
         The restart fires after a short delay (default 2 s) so this response reaches the client
         before the connection drops. The MCP server goes down with the IDE; reconnect once the IDE
         is back. In remote-dev / serverMode, the backend relaunches and the thin client reconnects
-        automatically.
+        automatically. If a modal dialog is open in the IDE, the restart waits until it closes; the
+        server keeps answering meanwhile, and each further call queues one more restart.
 
         Returns: restarting flag and effective delaySeconds.
 
@@ -78,7 +79,7 @@ class RestartIdeTool : AbstractMcpTool() {
             RestartIdeResult(
                 restarting = true,
                 delaySeconds = delaySeconds,
-                message = "IDE will restart in ${delaySeconds}s. The MCP server stops during restart — reconnect after the IDE is back (serverMode backends relaunch and the thin client reconnects automatically)."
+                message = "IDE will restart in ${delaySeconds}s, or later if a modal dialog is open in the IDE. The MCP server stops during restart — reconnect after the IDE is back (serverMode backends relaunch and the thin client reconnects automatically)."
             )
         )
     }
