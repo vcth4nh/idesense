@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.docs
 import com.github.vcth4nh.idesense.constants.SchemaConstants
 import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.settings.McpSettings
+import com.github.vcth4nh.idesense.tools.AbstractMcpTool
 import com.github.vcth4nh.idesense.tools.McpTool
 import com.github.vcth4nh.idesense.tools.intelligence.ExplainSymbolTool
 import com.github.vcth4nh.idesense.tools.intelligence.GetDiagnosticsTool
@@ -190,6 +191,22 @@ class DocsDriftUnitTest : TestCase() {
             if (!body.contains("Returns", ignoreCase = true)) missing += name
         }
         assertTrue("tools-reference.md tools missing a Returns block: $missing", missing.isEmpty())
+    }
+
+    /** The documents name the wait limit for smart mode with the value of the constant (#267). */
+    fun testIndexWaitLimitMatchesTheConstant() {
+        val seconds = (AbstractMcpTool.INDEX_WAIT_LIMIT_MS / 1000).toString()
+        val inText = Regex("""`index_not_ready` when the wait comes to (\d+) seconds""")
+        val inArchitecture = Regex("""`INDEX_WAIT_LIMIT_MS` \((\d+) s\)""")
+        listOf(
+            "docs/USAGE.md" to inText.findAll(read("docs/USAGE.md")),
+            "SKILL.md" to inText.findAll(readSkill("SKILL.md")),
+            "docs/ARCHITECTURE.md" to inArchitecture.findAll(read("docs/ARCHITECTURE.md")),
+        ).forEach { (doc, matches) ->
+            val values = matches.map { it.groupValues[1] }.toList()
+            assertTrue("$doc names no wait limit", values.isNotEmpty())
+            assertEquals("The wait limit in $doc", values.map { seconds }, values)
+        }
     }
 
     /**

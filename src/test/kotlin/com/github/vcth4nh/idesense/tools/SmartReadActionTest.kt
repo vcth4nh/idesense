@@ -3,10 +3,13 @@ package com.github.vcth4nh.idesense.tools
 import com.github.vcth4nh.idesense.exceptions.IndexNotReadyException
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
+import com.github.vcth4nh.idesense.tools.models.CallElement
+import com.github.vcth4nh.idesense.tools.models.CallHierarchyResult
 import com.github.vcth4nh.idesense.tools.models.FileStructureResult
 import com.github.vcth4nh.idesense.tools.models.FindUsagesResult
 import com.github.vcth4nh.idesense.tools.models.ImplementationResult
 import com.github.vcth4nh.idesense.tools.models.ReadFileResult
+import com.github.vcth4nh.idesense.tools.navigation.CallHierarchyTool
 import com.github.vcth4nh.idesense.tools.navigation.FileStructureTool
 import com.github.vcth4nh.idesense.tools.navigation.FindImplementationsTool
 import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
@@ -42,10 +45,10 @@ import java.nio.file.Path
 import java.util.EnumSet
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
@@ -55,13 +58,13 @@ import kotlinx.serialization.json.put
 
 /**
  * Platform tests for #195 and #267: a tool checks for dumb mode one time (`requireSmartMode`), and
- * the IDE can enter dumb mode before its search runs. The search of such a tool waits for the end
- * of dumb mode (up to a limit) and gives the full result.
+ * the IDE can enter dumb mode or scan files before its search runs. The search of such a tool
+ * waits for smart mode (no dumb mode and no file scan), up to a limit, and gives the full result.
  *
  * The race tests stop the first search inside its read action, start dumb mode, and keep dumb
  * mode on for [DUMB_WINDOW_MS]. The write action that starts dumb mode interrupts the read action,
- * and the platform runs the read action again. With no test for dumb mode in it, the read action
- * runs again at once, in dumb mode.
+ * and the platform runs the read action again. A plain read action runs again at once, in dumb
+ * mode.
  */
 class SmartReadActionTest : BasePlatformTestCase() {
 
@@ -128,6 +131,25 @@ class SmartReadActionTest : BasePlatformTestCase() {
         assertEquals("Errors logged during the call", emptyList<String>(), race.errors)
     }
 
+    // The hierarchy walker takes an empty child list when the children of a node throw, and a
+    // search in dumb mode throws the platform IndexNotReadyException: 0 callers with no signal.
+    fun testCallHierarchyGivesTheFullTreeWhenDumbModeStartsAfterTheCheck() {
+        val args = buildJsonObject {
+            positionOf(SHAPE_FILE, "area").forEach { (key, value) -> put(key, value) }
+            put("direction", "callers")
+        }
+        val baseline = calls(runTool(CallHierarchyTool(), args))
+        assertTrue("Painter#total calls Shape#area: $baseline", baseline.any { it.contains("total") })
+
+        val trigger = DumbModeTrigger("race.Shape#area")
+        holdReferenceSearches(trigger)
+
+        val race = callAcrossDumbModeStart(trigger) { CallHierarchyTool().execute(project, args) }
+
+        assertEquals("The callers of a call that met dumb mode", baseline, calls(race.result))
+        assertEquals("Errors logged during the call", emptyList<String>(), race.errors)
+    }
+
     // A call with a cursor does not check for dumb mode. When its page needs more results than the
     // first call kept, it searches again (the search extender of the cursor), and that search waits
     // for the index too.
@@ -184,52 +206,103 @@ class SmartReadActionTest : BasePlatformTestCase() {
         assertWaitLimit(race)
     }
 
-    // The call waits only for dumb mode. While the IDE scans the files and is not in dumb mode, the
-    // call answers.
-    //
-    // The Java functional expression search of the platform needs the inSmartMode constraint, and
-    // that constraint is false during the scan. Inside a read action the search throws, and the
-    // query logs the error and goes on without the functional expressions. Shape#area has none.
-    fun testCallDoesNotWaitWhileTheIdeScansFiles() {
-        val args = positionOf(SHAPE_FILE, "area")
+    // The call also waits while the IDE scans the files with no dumb mode. The Java functional
+    // expression search of the platform needs the inSmartMode constraint, which is false during
+    // the scan: inside a read action that search throws, and the query logs the error and goes on
+    // without the lambdas and method references.
+    fun testCallWaitsForAFileScanAndGivesTheFullResult() {
+        val args = positionOf(FN_FILE, "apply")
         val baseline = implementations(runTool(FindImplementationsTool(), args))
-        val scan = HeldScan()
-        var future: Future<Result<ToolCallResult>>? = null
-        val errors = ConcurrentLinkedQueue<String>()
-        UnindexedFilesScanner(project, listOf(scan), "a held scan of the test").queue()
-        try {
-            PlatformTestUtil.waitWithEventsDispatching("The scan did not start", { scan.started.count == 0L }, 30)
-            assertEquals(SmartModeScheduler.SCANNING, scanMode())
-            assertFalse(DumbService.isDumb(project))
+        assertEquals("A lambda and a method reference implement Fn#apply: $baseline", 2, baseline.size)
 
-            var outcome: Result<ToolCallResult>? = null
+        val errors = ConcurrentLinkedQueue<String>()
+        var outcome: Result<ToolCallResult>? = null
+        var endedDuringTheScan = false
+        val scan = startHeldScan()
+        try {
             LoggedErrorProcessor.executeWith<Throwable>(collectInto(errors)) {
                 val call = ApplicationManager.getApplication().executeOnPooledThread<Result<ToolCallResult>> {
                     runCatching { runBlocking { FindImplementationsTool().execute(project, args) } }
                 }
-                future = call
-                outcome = try {
-                    call.get(5, TimeUnit.SECONDS)
+                endedDuringTheScan = try {
+                    call.get(SCAN_HOLD_MS, TimeUnit.MILLISECONDS)
+                    true
                 } catch (_: TimeoutException) {
-                    null
+                    false
                 }
+                scan.release.countDown()
+                PlatformTestUtil.waitWithEventsDispatching("The call did not end after the scan", { call.isDone }, 30)
+                outcome = call.get()
             }
-            assertNotNull("The call waited for the file scan", outcome)
-
-            assertEquals("The scan held during the call", SmartModeScheduler.SCANNING, scanMode())
-            assertEquals(baseline, implementations(outcome!!.getOrThrow()))
-            assertTrue(
-                "Errors logged during the call: $errors",
-                errors.all { it.contains("Constraint inSmartMode cannot be satisfied") }
-            )
         } finally {
-            scan.release.countDown()
-            future?.let { PlatformTestUtil.waitWithEventsDispatching("The call did not end", { it.isDone }, 30) }
-            IndexingTestUtil.waitUntilIndexesAreReady(project)
+            endHeldScan(scan)
         }
+
+        assertEquals("The implementations of a call that met a file scan", baseline.sorted(), implementations(outcome!!.getOrThrow()).sorted())
+        assertEquals("Errors logged during the call", emptyList<String>(), errors.toList())
+        assertFalse("The call ended during the file scan", endedDuringTheScan)
+    }
+
+    // The limit covers the wait for a file scan too, and the error names the scan: during a file
+    // scan ide_index_status shows isDumbMode: false.
+    fun testCallGivesIndexNotReadyWhenAFileScanOutlastsTheWaitLimit() {
+        val args = positionOf(SHAPE_FILE, "area")
+        var outcome: Result<ToolCallResult>? = null
+        var scanHeld = false
+        val scan = startHeldScan()
+        try {
+            withIndexWaitLimit {
+                val call = ApplicationManager.getApplication().executeOnPooledThread<Result<ToolCallResult>> {
+                    runCatching { runBlocking { FindImplementationsTool().execute(project, args) } }
+                }
+                outcome = call.get(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                scanHeld = scanMode() == SmartModeScheduler.SCANNING
+            }
+        } finally {
+            endHeldScan(scan)
+        }
+
+        val error = outcome!!.exceptionOrNull()
+        assertTrue("Expected index_not_ready, got $outcome", error is IndexNotReadyException)
+        assertTrue("The error names the file scan: ${error!!.message}", error.message!!.contains("file scan"))
+        assertTrue("The scan held until the end of the call", scanHeld)
+    }
+
+    // A cancel of the call from outside ends the wait: the call gets the cancellation, not index_not_ready.
+    fun testCancelOfACallThatWaitsForSmartModeEndsTheCall() {
+        val args = positionOf(SHAPE_FILE, "area")
+        // A first call loads the classes, so that a call that does not wait ends before the cancel.
+        assertEquals(2, implementations(runTool(FindImplementationsTool(), args)).size)
+        var outcome: Result<ToolCallResult>? = null
+        val scan = startHeldScan()
+        try {
+            val call = ApplicationManager.getApplication().executeOnPooledThread<Result<ToolCallResult>> {
+                runCatching { runBlocking { withTimeout(CANCEL_AFTER_MS) { FindImplementationsTool().execute(project, args) } } }
+            }
+            outcome = call.get(CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        } finally {
+            endHeldScan(scan)
+        }
+
+        assertTrue("Expected the cancellation, got $outcome", outcome!!.exceptionOrNull() is TimeoutCancellationException)
     }
 
     private fun scanMode(): Int = project.getService(SmartModeScheduler::class.java).getCurrentMode()
+
+    /** Starts a [HeldScan]: the IDE scans files and is not in dumb mode until [endHeldScan]. */
+    private fun startHeldScan(): HeldScan {
+        val scan = HeldScan()
+        UnindexedFilesScanner(project, listOf(scan), "a held scan of the test").queue()
+        PlatformTestUtil.waitWithEventsDispatching("The scan did not start", { scan.started.count == 0L }, 30)
+        assertEquals(SmartModeScheduler.SCANNING, scanMode())
+        assertFalse(DumbService.isDumb(project))
+        return scan
+    }
+
+    private fun endHeldScan(scan: HeldScan) {
+        scan.release.countDown()
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+    }
 
     /** A scan of no files that holds the scanner until [release], at most [HOLD_TIMEOUT_MS]. */
     private class HeldScan : IndexableFilesIterator {
@@ -434,6 +507,13 @@ class SmartReadActionTest : BasePlatformTestCase() {
     private fun implementations(result: ToolCallResult): List<String> =
         json.decodeFromString<ImplementationResult>(text(result)).implementations.map { it.qualifiedName ?: it.name }
 
+    /** The caller tree, one line for each node, with its depth. */
+    private fun calls(result: ToolCallResult): List<String> {
+        fun walk(nodes: List<CallElement>, depth: Int): List<String> =
+            nodes.flatMap { listOf("$depth ${it.qualifiedName ?: it.name}") + walk(it.children.orEmpty(), depth + 1) }
+        return walk(json.decodeFromString<CallHierarchyResult>(text(result)).calls, 1)
+    }
+
     private fun positionOf(file: String, needle: String): JsonObject {
         val source = SOURCES.getValue(file.substringAfterLast('/'))
         val offset = source.indexOf(needle)
@@ -450,11 +530,14 @@ class SmartReadActionTest : BasePlatformTestCase() {
         const val ROOT = "race-src"
         const val SHAPE_FILE = "$ROOT/race/Shape.java"
         const val COUNTER_FILE = "$ROOT/race/Counter.java"
+        const val FN_FILE = "$ROOT/race/Fn.java"
         const val TICKS = 520
         const val FIRST_PAGE = 100
         const val DUMB_WINDOW_MS = 1500L
         const val TEST_WAIT_LIMIT_MS = 500L
         const val LONG_DUMB_WINDOW_MS = 5000L
+        const val SCAN_HOLD_MS = 1500L
+        const val CANCEL_AFTER_MS = 300L
         const val HOLD_TIMEOUT_MS = 30_000L
         const val CALL_TIMEOUT_MS = 10_000L
 
@@ -491,6 +574,23 @@ class SmartReadActionTest : BasePlatformTestCase() {
                         sum += b.area();
                         return sum;
                     }
+                }
+            """.trimIndent(),
+            "Fn.java" to """
+                package race;
+
+                @FunctionalInterface
+                public interface Fn {
+                    int apply(int x);
+                }
+            """.trimIndent(),
+            "Fns.java" to """
+                package race;
+
+                public class Fns {
+                    static int twice(int x) { return 2 * x; }
+                    Fn lambda() { return x -> x + 1; }
+                    Fn reference() { return Fns::twice; }
                 }
             """.trimIndent(),
             "Counter.java" to """

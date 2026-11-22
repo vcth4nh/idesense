@@ -1709,4 +1709,4 @@ Before calling index-dependent tools, you can check the index status:
 
 If `isDumbMode` is `true`, wait and retry later.
 
-A tool that needs the index and meets dumb mode after the start of the call waits for the end of dumb mode, and it returns `index_not_ready` when the wait comes to 10 seconds.
+A tool that needs the index and meets dumb mode or a scan of the files after the start of the call waits for smart mode, and it returns `index_not_ready` when the wait comes to 10 seconds. During a scan of the files `isDumbMode` is `false`, but such a call can still return `index_not_ready`: wait and retry later.

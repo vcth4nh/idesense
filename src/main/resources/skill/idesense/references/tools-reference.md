@@ -150,7 +150,7 @@ Supports IDE undo (Ctrl+Z).
 ### ide_index_status
 Check if IDE is ready for code intelligence operations.
 
-**Returns**: `{ isDumbMode }` — `true` while the IDE is indexing (most tools fail); poll until `false`. Without `project_path` while several projects are open: `{ isDumbMode, projects: [{name, path, isDumbMode}] }`, where the top-level value is `true` when any project is indexing.
+**Returns**: `{ isDumbMode }` — `true` while the IDE is indexing (most tools fail); poll until `false`. During a scan of the files the value is `false`, but a tool can wait and then return `index_not_ready`. Without `project_path` while several projects are open: `{ isDumbMode, projects: [{name, path, isDumbMode}] }`, where the top-level value is `true` when any project is indexing.
 
 ### ide_sync_files
 Force sync IDE's virtual file system with external file changes.

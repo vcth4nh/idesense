@@ -24,6 +24,7 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.application.TransactionGuard
 import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.application.readAction as platformReadAction
+import com.intellij.openapi.application.smartReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.progress.ProgressManager
@@ -41,12 +42,18 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.util.concurrency.annotations.RequiresReadLock
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
@@ -233,9 +240,9 @@ abstract class AbstractMcpTool : McpTool {
 
     /**
      * The project whose index the read actions of one tool call need, and the time that the call
-     * waited for the end of dumb mode. [requireSmartMode] and [getPageFromCache] set the project,
-     * and from then on each [suspendingReadAction] of the call waits while the IDE is in dumb mode
-     * (#195, #267). [execute] gives each call its own instance.
+     * waited for smart mode. [requireSmartMode] and [getPageFromCache] set the project, and from
+     * then on each [suspendingReadAction] of the call is a smart read action (#195, #267).
+     * [execute] gives each call its own instance.
      */
     private class IndexAccess : AbstractCoroutineContextElement(IndexAccess) {
         companion object Key : CoroutineContext.Key<IndexAccess>
@@ -243,41 +250,73 @@ abstract class AbstractMcpTool : McpTool {
         @Volatile
         var project: Project? = null
 
+        /** The time of this call in which no block of its smart read actions ran, in total. */
         private val waitedNanos = AtomicLong()
 
         /**
-         * Waits [INDEX_POLL_MS] before the next test for dumb mode. Throws [IndexNotReadyException]
-         * when the waits of this call came to [indexWaitLimitMs].
+         * Runs [action] in a smart read action of [project]. A watchdog adds up the time before each
+         * run of the block: the wait for smart mode, and the wait after a write action interrupted
+         * the block. When the total of the call comes to [indexWaitLimitMs], the watchdog cancels
+         * the read action, and this function throws [IndexNotReadyException].
          */
-        suspend fun awaitIndex() {
-            if (waitedNanos.get() >= TimeUnit.MILLISECONDS.toNanos(indexWaitLimitMs)) {
-                throw IndexNotReadyException(INDEX_NOT_READY_MESSAGE)
+        suspend fun <T> smartRead(project: Project, action: () -> T): T = coroutineScope {
+            // The start of the current wait (System.nanoTime), or IN_BLOCK while the block runs.
+            val waitStart = AtomicLong(System.nanoTime())
+            val timedOut = AtomicBoolean()
+            val read = async {
+                smartReadAction(project) {
+                    waitedNanos.addAndGet(System.nanoTime() - waitStart.getAndSet(IN_BLOCK))
+                    try {
+                        action()
+                    } finally {
+                        waitStart.set(System.nanoTime())
+                    }
+                }
             }
-            val start = System.nanoTime()
-            delay(INDEX_POLL_MS)
-            waitedNanos.addAndGet(System.nanoTime() - start)
+            val watchdog = launch {
+                while (true) {
+                    val start = waitStart.get()
+                    val waiting = start != IN_BLOCK
+                    val left = TimeUnit.MILLISECONDS.toNanos(indexWaitLimitMs) - waitedNanos.get() -
+                        (if (waiting) System.nanoTime() - start else 0L)
+                    if (waiting && left <= 0) {
+                        timedOut.set(true)
+                        read.cancel()
+                        return@launch
+                    }
+                    // The wait cannot grow faster than the clock, so the total stays within the limit.
+                    delay(TimeUnit.NANOSECONDS.toMillis(left).coerceAtLeast(WATCHDOG_MIN_DELAY_MS))
+                }
+            }
+            try {
+                read.await()
+            } catch (e: CancellationException) {
+                ensureActive()
+                if (timedOut.get()) throw IndexNotReadyException(INDEX_WAIT_LIMIT_MESSAGE)
+                throw e
+            } finally {
+                watchdog.cancel()
+            }
         }
     }
 
-    /** The result of a read action that found the IDE in dumb mode. */
-    private object InDumbMode
-
     companion object {
-        /** The longest time that one call waits for the end of dumb mode, in total (#267). */
+        /** The longest time that one call waits for smart mode, in total (#267). */
         const val INDEX_WAIT_LIMIT_MS = 10_000L
 
         /** [INDEX_WAIT_LIMIT_MS]; a test can make it shorter. */
         @Volatile
         internal var indexWaitLimitMs = INDEX_WAIT_LIMIT_MS
 
-        /**
-         * The interval of the tests for the end of dumb mode. A call waits at most one interval
-         * longer than the dumb mode. A dumb mode after a small file change often takes less than
-         * 100 ms.
-         */
-        private const val INDEX_POLL_MS = 50L
+        private const val IN_BLOCK = Long.MIN_VALUE
+
+        private const val WATCHDOG_MIN_DELAY_MS = 10L
 
         private const val INDEX_NOT_READY_MESSAGE = "IDE is in dumb mode, indexes not available"
+
+        private const val INDEX_WAIT_LIMIT_MESSAGE =
+            "IDE indexes not ready after a wait of ${INDEX_WAIT_LIMIT_MS / 1000} seconds: the IDE is in dumb mode " +
+                "or runs a file scan (during a file scan, ide_index_status shows isDumbMode: false). Try again later."
     }
 
     /**
@@ -297,9 +336,10 @@ abstract class AbstractMcpTool : McpTool {
      * Call this at the start of [doExecute] if your tool requires index access.
      * Tools that don't need the index (e.g., file operations) don't need to call this.
      *
-     * The IDE can enter dumb mode after this check. So each later [suspendingReadAction] of the
-     * call runs its action only while the IDE is not in dumb mode, and it waits for the end of
-     * dumb mode, at most [INDEX_WAIT_LIMIT_MS] in total for the call (#195, #267).
+     * The IDE can enter dumb mode or scan files after this check. So each later
+     * [suspendingReadAction] of the call is a smart read action: it runs its action only in smart
+     * mode, and it waits for smart mode, at most [INDEX_WAIT_LIMIT_MS] in total for the call
+     * (#195, #267).
      *
      * @param project The project to check
      * @throws IndexNotReadyException if indexes are not available
@@ -336,10 +376,10 @@ abstract class AbstractMcpTool : McpTool {
      * Use this instead of [readAction] for long-running PSI operations to avoid
      * blocking write actions and causing UI freezes.
      *
-     * After [requireSmartMode] in the same call, the read action runs [action] only while the IDE
-     * is not in dumb mode. In dumb mode it leaves the read lock, waits, and tries again; after
-     * [INDEX_WAIT_LIMIT_MS] of waits in the call it throws [IndexNotReadyException]. It does not
-     * wait for a scan of the files with no dumb mode, as a smart read action of the platform does.
+     * After [requireSmartMode] in the same call, this is a smart read action: the platform tests
+     * smart mode (no dumb mode and no file scan) inside the read lock before each run of [action],
+     * and it waits for smart mode. After [INDEX_WAIT_LIMIT_MS] of waits in the call it throws
+     * [IndexNotReadyException].
      *
      * @param action The action to execute
      * @return The result of the action
@@ -347,14 +387,7 @@ abstract class AbstractMcpTool : McpTool {
     protected suspend fun <T> suspendingReadAction(action: () -> T): T {
         val access = currentCoroutineContext()[IndexAccess]
         val project = access?.project ?: return platformReadAction { action() }
-        while (true) {
-            // Dumb mode starts in a write action, and a write action cancels this read action and
-            // runs the block again: the test at the start of the block holds for the whole block.
-            val result = platformReadAction { if (DumbService.isDumb(project)) InDumbMode else action() }
-            @Suppress("UNCHECKED_CAST")
-            if (result !== InDumbMode) return result as T
-            access.awaitIndex()
-        }
+        return access.smartRead(project, action)
     }
 
     /**

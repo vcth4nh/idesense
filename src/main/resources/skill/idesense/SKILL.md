@@ -46,9 +46,10 @@ Before using any IDE tool that requires smart mode, check IDE readiness:
 
 ```
 ide_index_status -> if isDumbMode: true, wait a few seconds and retry
+index_not_ready  -> wait a few seconds and retry, also when isDumbMode is false (the IDE scans files)
 ```
 
-Most tools require smart mode (IDE finished indexing). Tools that work in dumb mode: `ide_index_status`, `ide_sync_files`. A tool that meets dumb mode after the start of the call waits for the index, and it returns `index_not_ready` when the wait comes to 10 seconds.
+Most tools require smart mode (IDE finished indexing). Tools that work in dumb mode: `ide_index_status`, `ide_sync_files`. A tool that meets dumb mode or a scan of the files after the start of the call waits for the index, and it returns `index_not_ready` when the wait comes to 10 seconds. During a long scan of the files `ide_index_status` shows `isDumbMode: false`.
 
 ## File Sync Rule
 
