@@ -189,6 +189,12 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   delete (#169).
 - The descriptions of `ide_file_structure` and `ide_find_symbol` no longer say "disabled by
   default". Both tools are on by default (#168).
+- `ide_file_structure` no longer puts parts of an annotation or a decorator into the modifiers of a
+  declaration. When the arguments had white space, parts of them stayed at the start of the line.
+  For example, `@Deprecated(since = "3.9")` gave
+  `= "3.9") static public loadDataAndPrepareJob(...)`. The line now starts with the keywords only:
+  `static public loadDataAndPrepareJob(...)`. Java and Kotlin annotations and JavaScript and
+  TypeScript decorators had this defect (#173).
 - A cancelled tool call no longer writes error entries to the IDE log. The server logged the
   cancellation with its exception, and the platform logger wrote "Control-flow exceptions ...
   should never be logged" in place of the exception. When the IDE stopped the MCP server during a
