@@ -1,0 +1,4 @@
+{"id":"find-symbol-Arr.get-qualified","tool":"ide_find_symbol","params":{"query":"Arr::get"}}
+{"id":"find-symbol-accessible","tool":"ide_find_symbol","params":{"query":"accessible"}}
+{"id":"find-symbol-getStub","tool":"ide_find_symbol","params":{"pageSize":100,"query":"getStub"}}
+{"id":"find-symbol-handle-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"handle"},"compare":"shape"}

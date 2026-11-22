@@ -1,0 +1,8 @@
+{"id":"canary-def-Finder-into-dependency","result":{"column":7,"enclosingScope":null,"file":"vendor/symfony/finder/Finder.php","kind":"CLASS","line":42,"name":"Finder","qualifiedName":"\\Symfony\\Component\\Finder\\Finder"}}
+{"id":"def-Cache.remember-via-facade","result":{"column":25,"enclosingScope":null,"file":"src/Illuminate/Support/Facades/Cache.php","kind":"METHOD","line":41,"name":"remember","qualifiedName":"\\Illuminate\\Support\\Facades\\Cache::remember"}}
+{"id":"def-Collection-split-package","result":{"column":21,"enclosingScope":null,"file":"src/Illuminate/Collections/Collection.php","kind":"METHOD","line":43,"name":"__construct","qualifiedName":"\\Illuminate\\Support\\Collection::__construct"}}
+{"id":"def-Container-cross-file","result":{"column":7,"enclosingScope":null,"file":"src/Illuminate/Container/Container.php","kind":"CLASS","line":26,"name":"Container","qualifiedName":"\\Illuminate\\Container\\Container"}}
+{"id":"def-ContainerContract-via-alias","result":{"column":11,"enclosingScope":null,"file":"src/Illuminate/Contracts/Container/Container.php","kind":"INTERFACE","line":8,"name":"Container","qualifiedName":"\\Illuminate\\Contracts\\Container\\Container"}}
+{"id":"def-addSelect-via-mixin","result":{"column":21,"enclosingScope":null,"file":"src/Illuminate/Database/Query/Builder.php","kind":"METHOD","line":468,"name":"addSelect","qualifiedName":"\\Illuminate\\Database\\Query\\Builder::addSelect"}}
+{"id":"def-array_map-into-stubs","result":{"counts":{}}}
+{"id":"def-everyXMinutes-macro","result":{"error":"tool_error","message":"Could not resolve symbol definition"}}

@@ -1,0 +1,9 @@
+{"id":"usage-Arr.accessible","tool":"ide_find_usages","params":{"column":28,"file":"src/Illuminate/Collections/Arr.php","line":28,"pageSize":100},"parked":307}
+{"id":"usage-Arr.accessible-production-scope","tool":"ide_find_usages","params":{"column":28,"file":"src/Illuminate/Collections/Arr.php","line":28,"pageSize":100,"scope":"project_production_files"},"parked":307}
+{"id":"usage-Arr.accessible-test-scope","tool":"ide_find_usages","params":{"column":28,"file":"src/Illuminate/Collections/Arr.php","line":28,"pageSize":100,"scope":"project_test_files"},"parked":307}
+{"id":"usage-Cache.remember-method-tag","tool":"ide_find_usages","params":{"column":25,"file":"src/Illuminate/Support/Facades/Cache.php","line":41,"pageSize":100},"parked":307}
+{"id":"usage-Collection-page1","tool":"ide_find_usages","params":{"column":7,"file":"src/Illuminate/Collections/Collection.php","line":24,"pageSize":100},"compare":"shape"}
+{"id":"usage-Collection-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-Collection-page1"}
+{"id":"usage-FileStore.setDirectory-empty","tool":"ide_find_usages","params":{"column":21,"file":"src/Illuminate/Cache/FileStore.php","line":513,"pageSize":100}}
+{"id":"usage-Macroable","tool":"ide_find_usages","params":{"column":7,"file":"src/Illuminate/Macroable/Traits/Macroable.php","line":12,"pageSize":500}}
+{"id":"usage-Repository-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"Repository"}}

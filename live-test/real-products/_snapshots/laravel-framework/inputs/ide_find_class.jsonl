@@ -1,0 +1,6 @@
+{"id":"canary-find-class-Repository","tool":"ide_find_class","params":{"query":"Repository"}}
+{"id":"find-class-Application","tool":"ide_find_class","params":{"query":"Application"}}
+{"id":"find-class-Arrayable","tool":"ide_find_class","params":{"query":"Arrayable"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-ShQu-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"ShQu"}}
+{"id":"find-class-Uuid-libraries-scope","tool":"ide_find_class","params":{"query":"Uuid","scope":"project_and_libraries"},"compare":"shape"}

@@ -1,0 +1,4 @@
+{"id":"super-Application.make","tool":"ide_find_super_methods","params":{"column":21,"file":"src/Illuminate/Foundation/Application.php","line":1061}}
+{"id":"super-Arr.get-negative","tool":"ide_find_super_methods","params":{"column":28,"file":"src/Illuminate/Collections/Arr.php","line":487}}
+{"id":"super-Repository.get-into-psr","tool":"ide_find_super_methods","params":{"column":21,"file":"src/Illuminate/Cache/Repository.php","line":128}}
+{"id":"super-Repository.remember","tool":"ide_find_super_methods","params":{"column":21,"file":"src/Illuminate/Cache/Repository.php","line":568}}

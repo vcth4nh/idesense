@@ -1,0 +1,8 @@
+{"id":"canary-def-Finder-into-dependency","tool":"ide_find_definition","params":{"column":18,"file":"src/Illuminate/Session/FileSessionHandler.php","line":113}}
+{"id":"def-Cache.remember-via-facade","tool":"ide_find_definition","params":{"column":25,"file":"tests/Integration/Cache/FileCacheLockTest.php","line":109}}
+{"id":"def-Collection-split-package","tool":"ide_find_definition","params":{"column":21,"file":"src/Illuminate/Console/GeneratorCommand.php","line":270}}
+{"id":"def-Container-cross-file","tool":"ide_find_definition","params":{"column":27,"file":"src/Illuminate/Foundation/Application.php","line":39}}
+{"id":"def-ContainerContract-via-alias","tool":"ide_find_definition","params":{"column":41,"file":"src/Illuminate/Container/Container.php","line":26}}
+{"id":"def-addSelect-via-mixin","tool":"ide_find_definition","params":{"column":23,"file":"src/Illuminate/Database/Eloquent/Relations/BelongsToMany.php","line":996}}
+{"id":"def-array_map-into-stubs","tool":"ide_find_definition","params":{"column":22,"file":"src/Illuminate/Collections/Arr.php","line":858},"compare":"shape"}
+{"id":"def-everyXMinutes-macro","tool":"ide_find_definition","params":{"column":56,"file":"tests/Console/Scheduling/FrequencyTest.php","line":234}}
