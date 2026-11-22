@@ -912,14 +912,15 @@ Searches for code symbols (classes, interfaces, methods, fields, and functions) 
 - `ANNOTATION` - Annotation type
 - `RECORD` - Record class (Java 16+)
 - `METHOD` - Method
-- `FIELD` - Field or constant
+- `FIELD` - Field, for example a Rust struct field or a Python class attribute
 - `FUNCTION` - Function
 - `SYMBOL` - Generic symbol when the IDE contributor does not expose a more specific kind
 - `DATA_CLASS`, `SEALED_CLASS`, `OBJECT` - Kotlin data class, sealed class, object
 - `STRUCT` - Go or Rust struct
 - `TRAIT` - PHP or Rust trait
 - `ENUM_VARIANT`, `IMPL`, `MACRO`, `MODULE` - Rust enum variant, impl block, macro, module
-- `PROPERTY`, `VARIABLE`, `CONSTANT`, `TYPE_ALIAS`, `TYPE`, `PARAMETER`, `CONSTRUCTOR`, `PACKAGE`, `LABEL` - Other declarations
+- `CONSTANT` - Constant, for example a Rust `const` or a PHP class constant
+- `PROPERTY`, `VARIABLE`, `TYPE_ALIAS`, `TYPE`, `PARAMETER`, `CONSTRUCTOR`, `PACKAGE`, `LABEL` - Other declarations
 
 The list is open, and other values can occur. When the plugin does not map the IDE's name for an element type, `kind` is that name in upper case, with `_` for each space.
 

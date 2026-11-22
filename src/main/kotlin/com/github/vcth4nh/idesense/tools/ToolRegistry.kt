@@ -62,8 +62,8 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * ### Universal Refactoring Tools
  *
- * - `ide_refactor_rename` - Rename symbol (works across ALL languages via RenameProcessor)
- * - `ide_move_file` - Move file to a new directory using the IDE move backend appropriate for that file type
+ * - `ide_refactor_rename` - Rename symbol (works across ALL languages via RenameProcessor; disabled by default)
+ * - `ide_move_file` - Move file to a new directory using the IDE move backend appropriate for that file type (disabled by default)
  *
  * ## Custom Tool Registration
  *

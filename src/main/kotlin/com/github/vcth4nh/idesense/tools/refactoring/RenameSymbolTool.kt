@@ -71,7 +71,7 @@ class RenameSymbolTool : AbstractMcpTool() {
             "Strategy when renaming a method that overrides a base method. " +
                 "'rename_base' (default): rename the base method and all overrides automatically. " +
                 "'rename_only_current': rename only the current method. " +
-                "'ask': show the IDE dialog for interactive choice.",
+                "'ask': show an IDE dialog; the call waits until a person answers it at the IDE.",
             listOf("rename_base", "rename_only_current", "ask")
         )
         .enumProperty(
@@ -80,7 +80,7 @@ class RenameSymbolTool : AbstractMcpTool() {
                 "'all' (default): automatically rename all related symbols. " +
                 "'none': rename only the targeted symbol, skip all automatic related renames. " +
                 "'accessors_and_tests': only rename getters/setters and test classes/methods. " +
-                "'ask': show the IDE dialog for each related rename for interactive choice.",
+                "'ask': show an IDE dialog for each related rename; the call waits until a person answers it at the IDE.",
             listOf("all", "none", "accessors_and_tests", "ask")
         )
         .build()
