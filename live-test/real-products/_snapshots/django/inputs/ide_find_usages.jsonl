@@ -1,0 +1,11 @@
+{"id":"canary-usage-filepath_to_uri-production-scope","tool":"ide_find_usages","params":{"column":5,"file":"django/utils/encoding.py","line":233,"pageSize":100,"scope":"project_production_files"}}
+{"id":"canary-usage-filepath_to_uri-test-scope","tool":"ide_find_usages","params":{"column":5,"file":"django/utils/encoding.py","line":233,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-MapWidget","tool":"ide_find_usages","params":{"column":7,"file":"django/contrib/gis/static/gis/js/OLMapWidget.js","line":47,"pageSize":100}}
+{"id":"usage-TestCase-page1","tool":"ide_find_usages","params":{"column":7,"file":"django/test/testcases.py","line":1378,"pageSize":100},"compare":"shape"}
+{"id":"usage-TestCase-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-TestCase-page1"}
+{"id":"usage-duration_string-production-scope","tool":"ide_find_usages","params":{"column":5,"file":"django/utils/duration.py","line":18,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-duration_string-test-scope","tool":"ide_find_usages","params":{"column":5,"file":"django/utils/duration.py","line":18,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-get_valid_filename","tool":"ide_find_usages","params":{"column":5,"file":"django/utils/text.py","line":265,"pageSize":100},"parked":186}
+{"id":"usage-gettext-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"gettext"}}
+{"id":"usage-reset-js","tool":"ide_find_usages","params":{"column":14,"file":"django/contrib/admin/static/admin/js/actions.js","line":32,"pageSize":100}}
+{"id":"usage-reset_cache-empty","tool":"ide_find_usages","params":{"column":5,"file":"django/utils/translation/trans_real.py","line":63,"pageSize":100}}

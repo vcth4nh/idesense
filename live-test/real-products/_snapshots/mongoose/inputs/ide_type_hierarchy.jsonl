@@ -1,0 +1,4 @@
+{"id":"hier-sub-MissingSchemaError-byname","tool":"ide_type_hierarchy","params":{"className":"MissingSchemaError","direction":"subtypes"},"parked":269}
+{"id":"hier-sub-MongooseError-d.ts","tool":"ide_type_hierarchy","params":{"column":16,"direction":"subtypes","file":"types/error.d.ts","line":9}}
+{"id":"hier-sub-SchemaTypeOptions","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"lib/options/schemaTypeOptions.js","line":17}}
+{"id":"hier-super-Collection-d.ts-into-dependency","tool":"ide_type_hierarchy","params":{"column":9,"direction":"supertypes","file":"types/collection.d.ts","line":37}}

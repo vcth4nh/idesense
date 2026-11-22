@@ -1,0 +1,8 @@
+{"id":"canary-def-logrus.Entry-into-vendor","result":{"column":6,"enclosingScope":null,"file":"vendor/github.com/sirupsen/logrus/entry.go","kind":"STRUCT","line":46,"name":"Entry","qualifiedName":"logrus.Entry"}}
+{"id":"def-ChangesSet-via-alias","result":{"column":6,"enclosingScope":null,"file":"pkg/config/app_config.go","kind":"TYPE_ALIAS","line":230,"name":"ChangesSet","qualifiedName":"config.ChangesSet"}}
+{"id":"def-ListControllerTrait.withItem-promoted","result":{"column":37,"enclosingScope":null,"file":"pkg/gui/controllers/list_controller_trait.go","kind":"METHOD","line":108,"name":"withItem","qualifiedName":"controllers.ListControllerTrait[T].withItem"}}
+{"id":"def-NewIntegrationTest-via-dot-import","result":{"column":6,"enclosingScope":null,"file":"pkg/integration/components/test.go","kind":"FUNCTION","line":119,"name":"NewIntegrationTest","qualifiedName":"components.NewIntegrationTest"}}
+{"id":"def-NewTranslationSetFromConfig-cross-file","result":{"column":6,"enclosingScope":null,"file":"pkg/i18n/i18n.go","kind":"FUNCTION","line":18,"name":"NewTranslationSetFromConfig","qualifiedName":"i18n.NewTranslationSetFromConfig"}}
+{"id":"def-deadlock.Mutex-via-import-alias","result":{"column":6,"enclosingScope":null,"file":"vendor/github.com/sasha-s/go-deadlock/deadlock.go","kind":"STRUCT","line":95,"name":"Mutex","qualifiedName":"deadlock.Mutex"}}
+{"id":"def-tests-into-generated","result":{"column":5,"enclosingScope":null,"file":"pkg/integration/tests/test_list.go","kind":"VARIABLE","line":37,"name":"tests","qualifiedName":"tests.tests"}}
+{"id":"def-yaml.Unmarshal-into-vendor","result":{"column":6,"enclosingScope":null,"file":"vendor/gopkg.in/yaml.v3/yaml.go","kind":"FUNCTION","line":88,"name":"Unmarshal","qualifiedName":"yaml.Unmarshal"}}

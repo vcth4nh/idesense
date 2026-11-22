@@ -1,0 +1,4 @@
+{"id":"impls-Archive64-empty","tool":"ide_find_implementations","params":{"column":13,"file":"app/Actions/Album/Archive64.php","line":13,"pageSize":100}}
+{"id":"impls-DiagnosticPipe","tool":"ide_find_implementations","params":{"column":11,"file":"app/Contracts/DiagnosticPipe.php","line":19,"pageSize":500}}
+{"id":"impls-DiagnosticPipe.handle","tool":"ide_find_implementations","params":{"column":18,"file":"app/Contracts/DiagnosticPipe.php","line":27,"pageSize":500}}
+{"id":"impls-Migration-paged","tool":"ide_find_implementations","params":{"column":28,"file":"database/migrations/2014_10_12_000000_create_users_table.php","line":13,"pageSize":100},"compare":"shape"}

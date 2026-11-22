@@ -1,0 +1,6 @@
+{"id":"find-symbol-QuerySet.filter-qualified","tool":"ide_find_symbol","params":{"query":"QuerySet.filter"}}
+{"id":"find-symbol-as_sql-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"as_sql"},"compare":"shape"}
+{"id":"find-symbol-get_internal_type","tool":"ide_find_symbol","params":{"pageSize":100,"query":"get_internal_type"},"compare":"ordered"}
+{"id":"find-symbol-reset","tool":"ide_find_symbol","params":{"pageSize":25,"query":"reset"}}
+{"id":"find-symbol-reset-lang-javascript","tool":"ide_find_symbol","params":{"language":"JavaScript","pageSize":25,"query":"reset"}}
+{"id":"find-symbol-reset-lang-python","tool":"ide_find_symbol","params":{"language":"Python","pageSize":25,"query":"reset"}}

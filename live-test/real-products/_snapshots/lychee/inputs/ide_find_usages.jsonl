@@ -1,0 +1,7 @@
+{"id":"usage-Album-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"Album"},"compare":"shape","parked":269}
+{"id":"usage-AlbumService.clearCache","tool":"ide_find_usages","params":{"column":2,"file":"resources/js/services/album-service.ts","line":92,"pageSize":200}}
+{"id":"usage-getValueAsBool-page1","tool":"ide_find_usages","params":{"column":18,"file":"app/Repositories/ConfigManager.php","line":108,"pageSize":100},"compare":"shape"}
+{"id":"usage-getValueAsBool-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-getValueAsBool-page1"}
+{"id":"usage-getValueAsByteSize","tool":"ide_find_usages","params":{"column":18,"file":"app/Repositories/ConfigManager.php","line":122,"pageSize":100}}
+{"id":"usage-getValueAsByteSize-production-scope","tool":"ide_find_usages","params":{"column":18,"file":"app/Repositories/ConfigManager.php","line":122,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-getValueAsByteSize-test-scope","tool":"ide_find_usages","params":{"column":18,"file":"app/Repositories/ConfigManager.php","line":122,"pageSize":100,"scope":"project_test_files"}}

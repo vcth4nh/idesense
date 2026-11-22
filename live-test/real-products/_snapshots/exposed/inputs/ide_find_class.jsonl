@@ -1,0 +1,5 @@
+{"id":"find-class-CurrentDateTime","tool":"ide_find_class","params":{"query":"CurrentDateTime"}}
+{"id":"find-class-EntityClass","tool":"ide_find_class","params":{"query":"EntityClass"}}
+{"id":"find-class-LoggerFactory-libraries-scope","tool":"ide_find_class","params":{"query":"LoggerFactory","scope":"project_and_libraries"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-SprTraMan-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"pageSize":25,"query":"SprTraMan"}}

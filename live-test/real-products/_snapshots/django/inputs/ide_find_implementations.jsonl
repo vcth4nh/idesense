@@ -1,0 +1,5 @@
+{"id":"impls-BaseDatabaseOperations","tool":"ide_find_implementations","params":{"column":7,"file":"django/db/backends/base/operations.py","line":21,"pageSize":500}}
+{"id":"impls-Field","tool":"ide_find_implementations","params":{"column":7,"file":"django/db/models/fields/__init__.py","line":128,"pageSize":500},"parked":176}
+{"id":"impls-Operation.database_forwards","tool":"ide_find_implementations","params":{"column":9,"file":"django/db/migrations/operations/base.py","line":87,"pageSize":100}}
+{"id":"impls-SimpleTestCase-paged","tool":"ide_find_implementations","params":{"column":7,"file":"django/test/testcases.py","line":196,"pageSize":100},"compare":"shape"}
+{"id":"impls-filepath_to_uri-empty","tool":"ide_find_implementations","params":{"column":5,"file":"django/utils/encoding.py","line":233,"pageSize":100}}

@@ -1,0 +1,5 @@
+{"id":"hier-callee-CastError.init-d1","tool":"ide_call_hierarchy","params":{"column":3,"direction":"callees","file":"lib/error/cast.js","line":49,"maxDepth":1}}
+{"id":"hier-caller-ValidationError.addError-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"ValidationError.addError"},"parked":269}
+{"id":"hier-caller-isBsonType-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"isBsonType"},"compare":"shape"}
+{"id":"hier-caller-isBsonType-d1","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callers","file":"lib/helpers/isBsonType.js","line":8,"maxDepth":1}}
+{"id":"hier-caller-isBsonType-d2","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callers","file":"lib/helpers/isBsonType.js","line":8,"maxDepth":2},"compare":"shape"}

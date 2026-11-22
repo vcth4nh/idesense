@@ -1,0 +1,5 @@
+{"id":"find-symbol-ConfigManager.getValueAsBool-qualified","tool":"ide_find_symbol","params":{"query":"ConfigManager::getValueAsBool"}}
+{"id":"find-symbol-clearCache-lang-typescript","tool":"ide_find_symbol","params":{"language":"TypeScript","query":"clearCache"}}
+{"id":"find-symbol-getValueAs-fuzzy","tool":"ide_find_symbol","params":{"fuzzySearch":true,"pageSize":50,"query":"getValueAs"}}
+{"id":"find-symbol-getValueAsBool","tool":"ide_find_symbol","params":{"query":"getValueAsBool"}}
+{"id":"find-symbol-rules-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"rules"},"compare":"shape"}

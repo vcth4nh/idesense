@@ -1,0 +1,3 @@
+{"id":"super-BranchesController.GetKeybindings","tool":"ide_find_super_methods","params":{"column":33,"file":"pkg/gui/controllers/branches_controller.go","line":42}}
+{"id":"super-BranchesController.press-negative","tool":"ide_find_super_methods","params":{"column":33,"file":"pkg/gui/controllers/branches_controller.go","line":407}}
+{"id":"super-IController.GetOnFocus","tool":"ide_find_super_methods","params":{"column":2,"file":"pkg/gui/types/context.go","line":276}}

@@ -1,0 +1,7 @@
+{"id":"canary-find-class-BindingMagicString-rust-and-ts","tool":"ide_find_class","params":{"query":"BindingMagicString"}}
+{"id":"canary-find-class-LinkStage","tool":"ide_find_class","params":{"query":"LinkStage"}}
+{"id":"find-class-Chunk-rust-and-ts","tool":"ide_find_class","params":{"query":"Chunk"}}
+{"id":"find-class-LiSta-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"LiSta"}}
+{"id":"find-class-ModuleIdx-macro","tool":"ide_find_class","params":{"query":"ModuleIdx"},"parked":188}
+{"id":"find-class-NoSuchTypeXyz","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-PlainObjectLike-ts","tool":"ide_find_class","params":{"query":"PlainObjectLike"}}

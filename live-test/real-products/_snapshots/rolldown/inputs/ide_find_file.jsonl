@@ -1,0 +1,5 @@
+{"id":"find-file-_config.json-paged","tool":"ide_find_file","params":{"pageSize":50,"query":"_config.json"},"compare":"shape"}
+{"id":"find-file-binding.d.cts","tool":"ide_find_file","params":{"query":"binding.d.cts"}}
+{"id":"find-file-hook_usage.rs","tool":"ide_find_file","params":{"query":"hook_usage.rs"}}
+{"id":"find-file-main.js-paged","tool":"ide_find_file","params":{"pageSize":50,"query":"main.js"},"compare":"shape"}
+{"id":"find-file-nosuchfile","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
