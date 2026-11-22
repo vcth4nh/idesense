@@ -1,0 +1,3 @@
+{"id":"explain-BeanFactory-name","tool":"ide_explain_symbol","params":{"symbol":"BeanFactory"},"compare":"shape"}
+{"id":"explain-ListableBeanFactory.getBeansOfType-pos","tool":"ide_explain_symbol","params":{"column":21,"file":"spring-beans/src/main/java/org/springframework/beans/factory/ListableBeanFactory.java","line":327}}
+{"id":"explain-getBean-kotlin-ext-pos","tool":"ide_explain_symbol","params":{"column":42,"file":"spring-beans/src/main/kotlin/org/springframework/beans/factory/BeanFactoryExtensions.kt","line":29}}

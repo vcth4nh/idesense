@@ -26,7 +26,10 @@ when they are absent. The product ignores `.idea` and `vendor` in its own `.giti
   roots excluded (36 folders, read from `vendor/composer/installed.json` of each root). A
   restore adds no exclusion by itself.
 - At each open, the composer sync of PhpStorm puts the same package folders on the PHP
-  include path (`IncludePathApplier` in `idea.log`). So they are library roots.
+  include path (`IncludePathApplier` in `idea.log`, one line for each of the three composer
+  roots). So they are library roots. In 1 of 20 opens of 2026-11-22 the line of the root
+  `vendor` folder did not come. The three rows that expect a file below the root `vendor`
+  then failed, and the canary rows passed. See "Troubleshooting" in `live-test/README.md`.
 - The composer sync sets the language level from `composer.json` (8.4). At a first open, the
   check of the used language features of PhpStorm can set 8.5 before the sync, because one
   test file uses the pipe operator. `php.xml` fixes 8.4 and turns that check off.

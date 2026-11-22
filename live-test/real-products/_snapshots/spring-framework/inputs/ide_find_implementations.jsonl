@@ -1,0 +1,6 @@
+{"id":"impls-AbstractApplicationContext.getBeanFactory","tool":"ide_find_implementations","params":{"column":50,"file":"spring-context/src/main/java/org/springframework/context/support/AbstractApplicationContext.java","line":1649,"pageSize":100}}
+{"id":"impls-ApplicationContextInitializer-page1","tool":"ide_find_implementations","params":{"column":18,"file":"spring-context/src/main/java/org/springframework/context/ApplicationContextInitializer.java","line":43,"pageSize":25},"compare":"shape"}
+{"id":"impls-ApplicationContextInitializer-page2","tool":"ide_find_implementations","params":{"pageSize":25},"compare":"shape","cursorFrom":"impls-ApplicationContextInitializer-page1"}
+{"id":"impls-BeanPostProcessor","tool":"ide_find_implementations","params":{"column":18,"file":"spring-beans/src/main/java/org/springframework/beans/factory/config/BeanPostProcessor.java","line":67,"pageSize":100},"parked":277}
+{"id":"impls-ConfigurableApplicationContext.refresh","tool":"ide_find_implementations","params":{"column":7,"file":"spring-context/src/main/java/org/springframework/context/ConfigurableApplicationContext.java","line":222,"pageSize":100}}
+{"id":"impls-HandlerMapping-webmvc","tool":"ide_find_implementations","params":{"column":18,"file":"spring-webmvc/src/main/java/org/springframework/web/servlet/HandlerMapping.java","line":58,"pageSize":100},"parked":277}

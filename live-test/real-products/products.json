@@ -38,6 +38,10 @@
      "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900,
      "ideOwnedFiles": [".idea/misc.xml"]},
     {"folder": "lexical", "ide": "webstorm", "repo": "meta/lexical", "pin": "v0.50.0",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "spring-framework", "ide": "intellij", "repo": "spring-projects/spring-framework", "pin": "v7.0.9",
+     "license": "Apache-2.0", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "webpack", "ide": "webstorm", "repo": "webpack/webpack", "pin": "v5.112.2",
      "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
   ]
 }

@@ -1,0 +1,5 @@
+{"id":"file-structure-BannerPlugin.check.js","tool":"ide_file_structure","params":{"file":"schemas/plugins/BannerPlugin.check.js"},"compare":"shape"}
+{"id":"file-structure-BannerPlugin.json","tool":"ide_file_structure","params":{"file":"schemas/plugins/BannerPlugin.json"},"compare":"shape"}
+{"id":"file-structure-Dependency.js","tool":"ide_file_structure","params":{"file":"lib/graph/Dependency.js"}}
+{"id":"file-structure-ModuleFactory.js","tool":"ide_file_structure","params":{"file":"lib/module/ModuleFactory.js"}}
+{"id":"file-structure-module.d.ts","tool":"ide_file_structure","params":{"file":"module.d.ts"}}

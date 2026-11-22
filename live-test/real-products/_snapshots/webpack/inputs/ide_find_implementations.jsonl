@@ -1,0 +1,5 @@
+{"id":"impls-Dependency.updateHash","tool":"ide_find_implementations","params":{"column":2,"file":"lib/graph/Dependency.js","line":486,"pageSize":500}}
+{"id":"impls-Module-types.d.ts","tool":"ide_find_implementations","params":{"column":15,"file":"types.d.ts","line":20700}}
+{"id":"impls-Module.identifier","tool":"ide_find_implementations","params":{"column":2,"file":"lib/module/Module.js","line":1057,"pageSize":500}}
+{"id":"impls-ModuleFactory.create","tool":"ide_find_implementations","params":{"column":2,"file":"lib/module/ModuleFactory.js","line":55}}
+{"id":"impls-getCompilationHooks-negative","tool":"ide_find_implementations","params":{"column":9,"file":"lib/module/NormalModule.js","line":742}}

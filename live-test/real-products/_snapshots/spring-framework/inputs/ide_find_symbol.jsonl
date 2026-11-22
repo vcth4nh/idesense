@@ -1,0 +1,4 @@
+{"id":"find-symbol-BeanFactory.getBean-qualified","tool":"ide_find_symbol","params":{"pageSize":50,"query":"BeanFactory.getBean"}}
+{"id":"find-symbol-getBean-lang-java","tool":"ide_find_symbol","params":{"language":"Java","pageSize":50,"query":"getBean"}}
+{"id":"find-symbol-getBean-lang-kotlin","tool":"ide_find_symbol","params":{"language":"Kotlin","pageSize":50,"query":"getBean"}}
+{"id":"find-symbol-getBeansOfType","tool":"ide_find_symbol","params":{"pageSize":50,"query":"getBeansOfType"}}

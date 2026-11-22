@@ -552,7 +552,11 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   repeats the typed column and does not prove the caret. Prove the caret by the word at it:
   Extend Selection (`ctrl+w`) selects the name, and the status bar shows its length, for
   example `47:12 (15 chars)` for `SetGlobalStatus`. Then press Escape, and go to the line
-  again before the action.
+  again before the action. The width of a tab is not the same in each project: WebStorm 2026.3
+  counted a tab as 2 columns in webpack, whose `.editorconfig` has `indent_size = 2`. There
+  add 1 to the column of the tool call for each tab. With the column of the tool call, the
+  caret was on another token, and the IDE showed no navigation (seen at a line of
+  `NormalModule.js` with an indent of tabs).
 - **Shortcuts differ** with the IDE and the copied keymap. Seen in 2026.2: Find Usages was
   `alt+F7` in IntelliJ IDEA, `alt+shift+7` in RustRover and WebStorm, and either key in
   different starts of GoLand and PyCharm. For most actions, Find Action (`ctrl+shift+a`) with
@@ -588,6 +592,13 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   tree as text (Export to Text File, `alt+o`, seen in 2026.2): for a comparison of line sets,
   the text is better. By default the window shows two usages on one line as one row (seen on
   WebStorm 2026.2).
+- **Structure.** The File Structure popup (`ctrl+F12`) and the Structure tool window (`alt+7`)
+  can show two orders for one file. The popup had "Alphabetically" on (the gear button of the
+  popup shows it), and the tool window showed the order of the file. Seen on WebStorm 2026.3
+  with a JSON file of webpack: `anyOf`, `definitions`, `title` in the popup, and `definitions`,
+  `title`, `anyOf` in the tool window and in the result of `ide_file_structure`. Before you
+  compare an order, read the sort setting of the view, and record which of the two views you
+  read.
 - **Questions.** Some IDEs ask a question before a search, for example if Find Usages must
   search the base method (seen on WebStorm, PyCharm and RustRover 2026.2; not on IntelliJ IDEA
   for a Java or Kotlin override). Record the answer with the result. GoLand 2026.3 asked no
@@ -601,6 +612,19 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   window start can load other features than a `serverMode` start (seen on PyCharm 2026.2:
   `Disabled plugins: JetBrains Ultimate` in `idea.log` of the window start). For a case that
   the fixtures do not have, add probe files to the fixture copy: no fixture change, no bless.
+- **A product.** For a look at a product, open a copy of its checkout, never the checkout. A
+  key that goes into an editor changes a file of the copy (seen on IntelliJ IDEA 2026.3: key
+  presses emptied one file and changed two others). After each session, compare the tracked
+  files of the copy with the checkout. When a file differs, repeat each observation that read
+  it.
+- **A Gradle project.** The first open of a copy of a Gradle project runs a Gradle sync, with
+  a Gradle daemon. The sync is a Gradle build (see "One Gradle build" in
+  [AGENTS.md](AGENTS.md)). `idea.log` of the throwaway IDE has the lines `Execution
+  RESOLVE_PROJECT:0 is started` and `Execution RESOLVE_PROJECT:0 is finished` (seen on
+  IntelliJ IDEA 2026.3 with a copy of spring-framework: 43.7 s between the two lines, with the
+  Gradle caches of earlier syncs in place). Make the first observation after the second line.
+  Record the PID of the Gradle daemon that the sync starts. At the end, stop the IDE, and then
+  stop that daemon by its PID if it still runs: another IDE can have a daemon of its own.
 - **Dialogs.** A license, agreement or trial dialog is for the owner to answer. Do not
   click it: stop the throwaway IDE, and ask the owner.
 
@@ -670,6 +694,15 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   Then the canary row that resolves into a dependency differs: the gate tries again for the
   readiness time and prints `MISCONFIGURED`. Close the product with `--close-products`, open
   it again, and run again.
+- **`MISCONFIGURED`, or rows that lose their library entries, at a later open of a product**
+  — an open that is not the first one can also end with a wrong project model, with no error
+  and with `isDumbMode: false` (issue #205). Seen in IntelliJ IDEA: no file of a Maven product
+  was in the project, and a file search for `pom.xml` gave nothing. Seen in PhpStorm: the
+  Composer sync put no package of the root `vendor` folder on the include path, the canary
+  rows passed, and three later rows lost their `vendor` entries. A wait does not repair such
+  an open: the gate uses its full readiness time. Run the product again, which opens it
+  again. Before you blame a row, read `idea.log` of the failed open and compare it with a
+  good open of the same product. Never bless in this state.
 - **`<id> met dumb mode: waited <n> s, the row runs again`** — the IDE went to dumb mode
   again after the canary rows matched (a build tool sync, then a refresh). The row waited
   until the IDE was ready and then ran one more time. All waits of a product run share the

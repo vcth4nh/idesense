@@ -1,0 +1,5 @@
+{"id":"find-symbol-ModuleFactory.create-qualified","tool":"ide_find_symbol","params":{"query":"ModuleFactory.create"}}
+{"id":"find-symbol-apply-lang-typescript-paged","tool":"ide_find_symbol","params":{"language":"typescript","pageSize":25,"query":"apply"},"compare":"shape"}
+{"id":"find-symbol-apply-paged","tool":"ide_find_symbol","params":{"pageSize":25,"query":"apply"},"compare":"shape"}
+{"id":"find-symbol-getCompilationHooks","tool":"ide_find_symbol","params":{"pageSize":100,"query":"getCompilationHooks"}}
+{"id":"find-symbol-zzqNoSuchSymbolXyz-no-match","tool":"ide_find_symbol","params":{"query":"zzqNoSuchSymbolXyz"}}

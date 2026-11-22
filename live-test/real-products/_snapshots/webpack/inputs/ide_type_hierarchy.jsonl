@@ -1,0 +1,4 @@
+{"id":"hier-sub-Module-types.d.ts","tool":"ide_type_hierarchy","params":{"column":15,"direction":"subtypes","file":"types.d.ts","line":20700}}
+{"id":"hier-super-ESMImportSpecifierDependency","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"lib/dependencies/esm/ESMImportSpecifierDependency.js","line":82}}
+{"id":"hier-super-Module-byname","tool":"ide_type_hierarchy","params":{"className":"Module","direction":"supertypes"},"parked":269}
+{"id":"hier-super-NormalModule","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"lib/module/NormalModule.js","line":737}}

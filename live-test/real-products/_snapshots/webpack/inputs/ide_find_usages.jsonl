@@ -1,0 +1,8 @@
+{"id":"usage-Dependency-page1","tool":"ide_find_usages","params":{"column":7,"file":"lib/graph/Dependency.js","line":208,"pageSize":100},"compare":"shape"}
+{"id":"usage-Dependency-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-Dependency-page1"}
+{"id":"usage-ModuleFactory","tool":"ide_find_usages","params":{"column":7,"file":"lib/module/ModuleFactory.js","line":46}}
+{"id":"usage-ModuleFactory-bysymbol","tool":"ide_find_usages","params":{"symbol":"ModuleFactory"},"parked":269}
+{"id":"usage-ModuleFactory-production-scope","tool":"ide_find_usages","params":{"column":7,"file":"lib/module/ModuleFactory.js","line":46,"scope":"project_production_files"}}
+{"id":"usage-ModuleFactory-test-scope","tool":"ide_find_usages","params":{"column":7,"file":"lib/module/ModuleFactory.js","line":46,"scope":"project_test_files"}}
+{"id":"usage-getNumberOfWarnings-no-usage","tool":"ide_find_usages","params":{"column":2,"file":"lib/module/Module.js","line":833}}
+{"id":"usage-getRuntimeKey-destructured-require","tool":"ide_find_usages","params":{"column":7,"file":"lib/util/runtime.js","line":93}}
