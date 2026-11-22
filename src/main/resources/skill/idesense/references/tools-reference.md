@@ -101,7 +101,7 @@ Get the IDE Structure-view outline for a source file.
 
 **Returns**: `{ file, language, structure }` — `structure` is a two-space-indented text tree beginning with the file name; each node renders modifiers, name, optional signature, and line number. Empty or no-structure files return a plain-text success message instead.
 
-A name is one line: each run of white space becomes one space. A name that had a line break (source text of several lines) is cut at 80 characters and ends with `…`; a name with no line break stays complete, so a long signature stays whole. A JavaScript/TypeScript object literal with no text in the IDE (for example an object in an array) has the name `{}`.
+A name is one line: each run of white space becomes one space. A name that had a line break (source text of several lines) and is longer than 80 characters is cut at 80 characters and ends with `…`; a name with no line break stays complete, so a long signature stays whole. A JavaScript/TypeScript object literal with no text in the IDE (for example an object in an array) has the name `{}`.
 
 **Go note**: defaults include `package_structure`, so output can include declarations from other files in the same package; pass an explicit `show` list that omits `package_structure` to scope to the single file.
 

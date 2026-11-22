@@ -31,6 +31,10 @@ class FileStructureToolUnitTest : TestCase() {
     fun testNameWithACarriageReturnLongerThan80IsCut() =
         assertEquals("a".repeat(50) + " " + "b".repeat(28) + "…", name("a".repeat(50) + "\r\n" + "b".repeat(50)))
 
+    // Character 79 is the first half of a surrogate pair: the cut keeps no half of the pair.
+    fun testCutKeepsNoHalfOfASurrogatePair() =
+        assertEquals("a".repeat(78) + "…", name("a".repeat(78) + "😀\n" + "b".repeat(10)))
+
     fun testNameWithALineBreakOf80CharactersAfterTheWhiteSpaceRuleIsNotCut() {
         val text = "a".repeat(40) + "\n" + " ".repeat(40) + "b".repeat(39)
         assertEquals("a".repeat(40) + " " + "b".repeat(39), name(text))

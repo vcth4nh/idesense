@@ -28,11 +28,16 @@ class FileStructureToolTest : BasePlatformTestCase() {
         val file = myFixture.configureByText("A.java", "class A {\n    void m() {}\n}\n")
         val m = PsiTreeUtil.findChildOfType(file, PsiMethod::class.java)!!
 
-        assertEquals(1, FileStructureTool.lineOf(project, NavigatesTo(target = n, parent = m), file))
+        assertEquals(2, FileStructureTool.lineOf(project, NavigatesTo(target = n, parent = m, offset = m.textOffset), file))
     }
 
-    private class NavigatesTo(private val target: PsiElement, private val parent: PsiElement) : FakePsiElement() {
+    private class NavigatesTo(
+        private val target: PsiElement,
+        private val parent: PsiElement,
+        private val offset: Int = 0,
+    ) : FakePsiElement() {
         override fun getParent(): PsiElement = parent
         override fun getNavigationElement(): PsiElement = target
+        override fun getTextOffset(): Int = offset
     }
 }

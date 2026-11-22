@@ -283,7 +283,7 @@ class FileStructureTool : AbstractMcpTool() {
                 ?: return "{}".takeIf { jsObjectLiteralClass?.isInstance(element) == true }
             val name = text.replace(WHITE_SPACE, " ")
             val cut = ('\n' in text || '\r' in text) && name.length > MAX_NAME_LENGTH
-            return if (cut) name.take(MAX_NAME_LENGTH - 1) + "…" else name
+            return if (cut) name.take(MAX_NAME_LENGTH - 1).let { if (it.last().isHighSurrogate()) it.dropLast(1) else it } + "…" else name
         }
 
         /**

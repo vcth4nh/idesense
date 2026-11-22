@@ -238,8 +238,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - `ide_file_structure` gives a node the line where the Structure window of the IDE goes: the line of
   the navigation element of the node. In WebStorm, the node `default` of an `export default { ... }`
   object had the line 1, because the IDE makes a node with no place in the source for it. It now has
-  the line of the first member of the object. When the navigation element is in another file, for
-  example the source of a compiled class, the line stays the line of the node in the file (#197).
+  the line of the first member of the object. The node `exports` of `module.exports = { ... }` also
+  had the line 1, and it now has the line of its first member. When the navigation element is in
+  another file, for example the source of a compiled class, the line stays the line of the node in
+  the file (#197).
 - `ide_file_structure` keeps a JavaScript or TypeScript object literal that the IDE shows with no
   text, for example an object in an array, with its children. The node has the name `{}`. The
   outline left out such a node and all its children (#198).
