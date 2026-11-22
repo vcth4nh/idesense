@@ -5,6 +5,7 @@ import com.github.vcth4nh.idesense.handlers.MethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.diagnostic.logger
@@ -168,6 +169,7 @@ class JavaScriptSuperMethodsProvider : SuperMethodsProvider {
         val supers = try {
             (getSupers.invoke(jsClass) as? Array<*>) ?: return emptyList()
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("JSClass.getSupers() invocation failed", t)
             return emptyList()
         }
@@ -203,6 +205,7 @@ class JavaScriptSuperMethodsProvider : SuperMethodsProvider {
             @Suppress("UNCHECKED_CAST")
             (m.invoke(null, jsFunction, onlyFunctions) as? Collection<PsiElement>)?.toList() ?: emptyList()
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("JSInheritanceUtil.findNearestOverriddenMembers invocation failed", t)
             emptyList()
         }
@@ -216,6 +219,7 @@ class JavaScriptSuperMethodsProvider : SuperMethodsProvider {
             @Suppress("UNCHECKED_CAST")
             (m.invoke(null, jsFunction) as? Collection<PsiElement>)?.toList() ?: emptyList()
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("JSInheritanceUtil.findImplementedMembers invocation failed", t)
             emptyList()
         }
@@ -240,7 +244,7 @@ class JavaScriptSuperMethodsProvider : SuperMethodsProvider {
 
     private fun getName(element: PsiElement): String? = runCatching {
         element.javaClass.getMethod("getName").invoke(element) as? String
-    }.getOrNull()
+    }.onFailure(::rethrowIfCancellation).getOrNull()
 
     private fun getRelativePath(project: Project, file: VirtualFile): String =
         ProjectUtils.getToolFilePath(project, file)

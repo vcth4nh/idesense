@@ -6,6 +6,7 @@ import com.github.vcth4nh.idesense.handlers.MethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.project.Project
@@ -157,7 +158,7 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
 
     private fun hasSignature(methodSpec: PsiElement): Boolean = runCatching {
         methodSpec.javaClass.getMethod("getSignature").invoke(methodSpec) != null
-    }.getOrDefault(false)
+    }.onFailure(::rethrowIfCancellation).getOrDefault(false)
 
     /**
      * Type anchor: caret on an interface/struct declaration -> the interfaces it structurally
@@ -216,7 +217,7 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
             }
             true
         }
-        runCatching { method.invoke(search, params, processor) }
+        runCatching { method.invoke(search, params, processor) }.onFailure(::rethrowIfCancellation)
         return results
     }
 
@@ -252,7 +253,7 @@ class GoSuperMethodsProvider : SuperMethodsProvider {
 
     private fun getName(element: PsiElement): String? = runCatching {
         element.javaClass.getMethod("getName").invoke(element) as? String
-    }.getOrNull()
+    }.onFailure(::rethrowIfCancellation).getOrNull()
 
     private fun getRelativePath(project: Project, file: VirtualFile): String =
         ProjectUtils.getToolFilePath(project, file)
