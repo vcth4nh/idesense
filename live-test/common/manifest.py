@@ -18,8 +18,8 @@ and this machine prints a warning line, and no instrument stops, fails or change
   each IDE of the apps folder; to update the section, copy the entries of the six fleet IDEs from its output.
 - `agent`, `image`: the build arguments of the product image (`bench.images.build`; `bench/image/Dockerfile` has no
   version default). `image.base` names the base image; with a digest (`ubuntu:24.04@sha256:<digest>`, from
-  `docker image inspect ubuntu:24.04 --format '{{index .RepoDigests 0}}'`) it pins one image. `node`, `go` and `uv`
-  are the versions and the SHA-256 of the archives that the build downloads.
+  `docker buildx imagetools inspect ubuntu:24.04 --format '{{json .Manifest.Digest}}'`) it pins one image. `node`,
+  `go` and `uv` are the versions and the SHA-256 of the archives that the build downloads.
 - `models`: the models of the tracked plans.
 
 The manifest holds no plugin version (an instrument gets it from its option or from the IDE) and no product pin (the

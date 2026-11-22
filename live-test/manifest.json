@@ -30,7 +30,7 @@
     "version": "2.1.326"
   },
   "image": {
-    "base": "ubuntu:24.04",
+    "base": "ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289",
     "node": {
       "version": "24.16.0",
       "sha256": "2faf6a387e9b62b888e21c54f01249fb27537ffecf1842f29f4c919d0a59a0ff"
