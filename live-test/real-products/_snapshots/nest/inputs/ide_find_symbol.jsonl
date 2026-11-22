@@ -1,0 +1,6 @@
+{"id":"find-symbol-CatsService-lang-javascript","tool":"ide_find_symbol","params":{"language":"javascript","query":"CatsService"}}
+{"id":"find-symbol-CatsService-lang-typescript","tool":"ide_find_symbol","params":{"language":"typescript","query":"CatsService"}}
+{"id":"find-symbol-HttpException.getStatus-qualified","tool":"ide_find_symbol","params":{"query":"HttpException.getStatus"}}
+{"id":"find-symbol-getError","tool":"ide_find_symbol","params":{"query":"getError"}}
+{"id":"find-symbol-transform-paged","tool":"ide_find_symbol","params":{"pageSize":25,"query":"transform"},"compare":"shape"}
+{"id":"find-symbol-zzqNoSuchSymbolXyz-no-match","tool":"ide_find_symbol","params":{"query":"zzqNoSuchSymbolXyz"}}

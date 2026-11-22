@@ -1,0 +1,4 @@
+{"id":"file-structure-app.module.js","tool":"ide_file_structure","params":{"file":"sample/09-babel-example/src/app.module.js"}}
+{"id":"file-structure-http.exception.ts","tool":"ide_file_structure","params":{"file":"packages/common/exceptions/http.exception.ts"}}
+{"id":"file-structure-injector.ts","tool":"ide_file_structure","params":{"file":"packages/core/injector/injector.ts"}}
+{"id":"file-structure-kafka.interface.ts","tool":"ide_file_structure","params":{"file":"packages/microservices/external/kafka.interface.ts"}}

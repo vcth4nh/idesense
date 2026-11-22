@@ -1,0 +1,7 @@
+{"id":"impls-AbstractHttpAdapter","tool":"ide_find_implementations","params":{"column":23,"file":"packages/core/adapters/http-adapter.ts","line":12}}
+{"id":"impls-ExceptionsHandler-negative","tool":"ide_find_implementations","params":{"column":14,"file":"packages/core/exceptions/exceptions-handler.ts","line":11}}
+{"id":"impls-HttpException","tool":"ide_find_implementations","params":{"column":14,"file":"packages/common/exceptions/http.exception.ts","line":28}}
+{"id":"impls-PipeTransform","tool":"ide_find_implementations","params":{"column":18,"file":"packages/common/interfaces/features/pipe-transform.interface.ts","line":43}}
+{"id":"impls-PipeTransform.transform","tool":"ide_find_implementations","params":{"column":3,"file":"packages/common/interfaces/features/pipe-transform.interface.ts","line":50}}
+{"id":"impls-Server","tool":"ide_find_implementations","params":{"column":23,"file":"packages/microservices/server/server.ts","line":47},"parked":277}
+{"id":"impls-Server.listen","tool":"ide_find_implementations","params":{"column":19,"file":"packages/microservices/server/server.ts","line":102}}
