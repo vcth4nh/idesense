@@ -110,4 +110,3 @@ Project model facts that the probe rows rely on:
   jar of jackson-databind, the only library of the definition rows.
 - The Java outline of IntelliJ shows field initializers, which are source text, so the
   structure rows of Java files with initialized fields are `shape` rows.
-  The structure of `ImportingUtilities.java` also has annotation remnants in its modifiers (#173).
