@@ -288,17 +288,19 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   no longer returns a `usageCount` and `topUsages` that are too low, when the IDE enters dumb mode
   during the search. The result had the warning "Find-usages handler ... threw on
   findReferencesToHighlight; skipped a search target — usages may be incomplete", or the same
-  warning with `processElementUsages`. The search now waits for the index and returns the full
-  result (#195).
+  warning with `processElementUsages`. The search now waits for the end of dumb mode and returns
+  the full result. The wait of a call is at most 10 seconds in total; after that, the call gets
+  `index_not_ready` (#195).
 - `ide_find_implementations` and `ide_type_hierarchy` no longer return an empty list with no error
   when the IDE enters dumb mode after the dumb mode check of the tool. `ide_find_definition` gave
   `internal_error` with the text of the platform `IndexNotReadyException` in the same case. Each
-  tool that checks for dumb mode at the start now does its search only while the index is ready:
-  when dumb mode starts, the call waits for the index and returns the full result. The wait also
-  covers the scan of the files before an index pass. A call that starts in dumb mode still gets
-  `index_not_ready` at once, and a tool that does not need the index does not wait. A call with a
-  `cursor` does not check for dumb mode: when it must search again for its page, it waits for the
-  index too. Such a call gave the error "Search context invalidated due to file changes. Please
+  tool that checks for dumb mode at the start now does its search only while the IDE is not in
+  dumb mode: when dumb mode starts, the call waits for the end of dumb mode and returns the full
+  result. The wait of a call is at most 10 seconds in total; after that, the call gets
+  `index_not_ready`. A call that starts in dumb mode still gets `index_not_ready` at once, and a
+  tool that does not need the index does not wait. A call with a `cursor` does not check for dumb
+  mode: when it must search again for its page, it waits for the end of dumb mode too, with the
+  same limit. Such a call gave the error "Search context invalidated due to file changes. Please
   re-search." or a short page before. The search of the refactoring in `ide_refactor_rename` and
   `ide_move_file` does not wait (#267).
 

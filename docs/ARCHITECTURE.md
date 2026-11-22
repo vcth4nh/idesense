@@ -593,12 +593,21 @@ Each entry gives the contract, the consequence for the code, and the class that 
   that moment. A search in a later plain read action can run in dumb mode: the platform
   `IndexNotReadyException` then gives an empty result (platform code catches it, for example
   `ExecutorsQuery`), a find-usages warning, or `internal_error` (#195, #267). The start of dumb mode
-  is a write action (`DumbServiceImpl.incrementDumbCounter`, `app-client.jar`, ideaIC-2025.1.3), and
-  `smartReadAction` tests smart mode inside the read lock before each run of its block
-  (`InternalReadAction.insideReadAction`). So after `requireSmartMode`, `suspendingReadAction` of
-  the same call is a smart read action, also for the search extender of a cursor
-  (`getPageFromCache`). Its constraint also waits while the scanner of unindexed files runs
-  (`SmartModeScheduler.getCurrentMode`).
+  is a write action (`DumbServiceImpl.incrementDumbCounter`, `app-client.jar`, ideaIC-2025.1.3).
+  A write action cancels a coroutine `readAction` and runs its whole block again
+  (`InternalReadAction.tryReadCancellable` turns `ReadAction.CannotReadException` into
+  `ReadResult.WritePending`, and `readLoop` runs the block again; `app-client.jar` of
+  ideaIC-2025.1.3, `intellij.platform.ide.impl.jar` of IU-263.7307.200). So after
+  `requireSmartMode`, `suspendingReadAction` of the same call tests `DumbService.isDumb` at the
+  start of its block, inside the read lock. In dumb mode it leaves the read action, waits 50 ms and
+  tries again, also for the search extender of a cursor (`getPageFromCache`). The waits of one call
+  stop at `INDEX_WAIT_LIMIT_MS` (10 s) with `index_not_ready`. The call does not wait for a scan of
+  the files with no dumb mode; `smartReadAction` does, because its constraint tests
+  `SmartModeScheduler.getCurrentMode`, which includes the scanner. During such a scan a platform
+  search with the `inSmartMode` constraint throws "Constraint inSmartMode cannot be satisfied" inside
+  a read action (`NonBlockingReadActionImpl$Submission.attemptComputation`, both builds), and
+  `ExecutorsQuery` logs the error and goes on: `JavaFunctionalExpressionSearcher` then gives no
+  lambdas and method references.
 - **No exception may leave a search callback inside a stub index processor.** GoLand runs the
   callback of `DefinitionsScopedSearch` inside `StubIndexEx.processElements`, which takes an
   `IndexOutOfBoundsException` for index damage (`FileBasedIndexEx.extractCauseToRebuildIndex`) and

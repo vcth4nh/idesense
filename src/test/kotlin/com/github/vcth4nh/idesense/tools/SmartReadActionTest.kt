@@ -14,6 +14,10 @@ import com.github.vcth4nh.idesense.tools.navigation.ReadFileTool
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.extensions.LoadingOrder
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.project.DumbService
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.SmartModeScheduler
+import com.intellij.openapi.roots.ContentIterator
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiClass
@@ -28,13 +32,19 @@ import com.intellij.testFramework.LoggedErrorProcessor
 import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
+import com.intellij.openapi.vfs.VirtualFileFilter
 import com.intellij.util.QueryExecutor
+import com.intellij.util.indexing.UnindexedFilesScanner
+import com.intellij.util.indexing.roots.IndexableFilesIterator
+import com.intellij.util.indexing.roots.kind.IndexableSetOrigin
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.EnumSet
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Future
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -45,13 +55,13 @@ import kotlinx.serialization.json.put
 
 /**
  * Platform tests for #195 and #267: a tool checks for dumb mode one time (`requireSmartMode`), and
- * the IDE can enter dumb mode before its search runs. The search of such a tool runs in a smart
- * read action, so it waits for the index and gives the full result.
+ * the IDE can enter dumb mode before its search runs. The search of such a tool waits for the end
+ * of dumb mode (up to a limit) and gives the full result.
  *
  * The race tests stop the first search inside its read action, start dumb mode, and keep dumb
  * mode on for [DUMB_WINDOW_MS]. The write action that starts dumb mode interrupts the read action,
- * and the platform runs the read action again. A plain read action runs it again at once, in dumb
- * mode; a smart read action waits for the end of dumb mode.
+ * and the platform runs the read action again. With no test for dumb mode in it, the read action
+ * runs again at once, in dumb mode.
  */
 class SmartReadActionTest : BasePlatformTestCase() {
 
@@ -122,28 +132,17 @@ class SmartReadActionTest : BasePlatformTestCase() {
     // first call kept, it searches again (the search extender of the cursor), and that search waits
     // for the index too.
     fun testFindUsagesCursorGivesTheFullPageWhenDumbModeStartsBeforeTheSearchAgain() {
-        // The first call keeps 500 usages (the collection limit) and gives the first 100. A cursor
-        // call with a page of 500 needs the other usages, so it searches again.
-        val first = buildJsonObject {
-            positionOf(COUNTER_FILE, "tick").forEach { (key, value) -> put(key, value) }
-            put("pageSize", FIRST_PAGE)
-        }
-        fun cursorCall(cursor: String) = buildJsonObject {
-            put("cursor", cursor)
-            put("pageSize", 500)
-        }
-
-        val baselineFirst = usages(runTool(FindUsagesTool(), first))
-        val baselineNext = usages(runTool(FindUsagesTool(), cursorCall(baselineFirst.nextCursor!!)))
+        val baselineFirst = usages(runTool(FindUsagesTool(), firstTickPage()))
+        val baselineNext = usages(runTool(FindUsagesTool(), nextTickPage(baselineFirst.nextCursor!!)))
         assertEquals(FIRST_PAGE, baselineFirst.usages.size)
         assertEquals(TICKS - FIRST_PAGE, baselineNext.usages.size)
         assertEquals(TICKS, (baselineFirst.keys() + baselineNext.keys()).toSet().size)
 
-        val raceFirst = usages(runTool(FindUsagesTool(), first))
+        val raceFirst = usages(runTool(FindUsagesTool(), firstTickPage()))
         val trigger = DumbModeTrigger("race.Counter#tick")
         holdReferenceSearches(trigger)
 
-        val race = callAcrossDumbModeStart(trigger) { FindUsagesTool().execute(project, cursorCall(raceFirst.nextCursor!!)) }
+        val race = callAcrossDumbModeStart(trigger) { FindUsagesTool().execute(project, nextTickPage(raceFirst.nextCursor!!)) }
         val next = usages(race.result)
 
         assertEquals("The usages of a cursor page that met dumb mode", TICKS - FIRST_PAGE, next.usages.size)
@@ -153,6 +152,101 @@ class SmartReadActionTest : BasePlatformTestCase() {
             (raceFirst.keys() + next.keys()).sorted()
         )
         assertEquals("Errors logged during the call", emptyList<String>(), race.errors)
+    }
+
+    // The wait for the index has a limit. After it, the call gives index_not_ready.
+    fun testCallGivesIndexNotReadyAfterTheWaitLimit() {
+        val args = positionOf(SHAPE_FILE, "area")
+        val trigger = DumbModeTrigger("race.Shape#area")
+        DefinitionsScopedSearch.EP_NAME.point.registerExtension(
+            QueryExecutor { params, _ -> trigger.onSearch(params.element); true },
+            LoadingOrder.FIRST,
+            testRootDisposable
+        )
+
+        val race = withIndexWaitLimit {
+            callAcrossDumbModeStart(trigger, LONG_DUMB_WINDOW_MS) { FindImplementationsTool().execute(project, args) }
+        }
+
+        assertWaitLimit(race)
+    }
+
+    // A call with a cursor has the same limit.
+    fun testCursorCallGivesIndexNotReadyAfterTheWaitLimit() {
+        val first = usages(runTool(FindUsagesTool(), firstTickPage()))
+        val trigger = DumbModeTrigger("race.Counter#tick")
+        holdReferenceSearches(trigger)
+
+        val race = withIndexWaitLimit {
+            callAcrossDumbModeStart(trigger, LONG_DUMB_WINDOW_MS) { FindUsagesTool().execute(project, nextTickPage(first.nextCursor!!)) }
+        }
+
+        assertWaitLimit(race)
+    }
+
+    // The call waits only for dumb mode. While the IDE scans the files and is not in dumb mode, the
+    // call answers.
+    //
+    // The Java functional expression search of the platform needs the inSmartMode constraint, and
+    // that constraint is false during the scan. Inside a read action the search throws, and the
+    // query logs the error and goes on without the functional expressions. Shape#area has none.
+    fun testCallDoesNotWaitWhileTheIdeScansFiles() {
+        val args = positionOf(SHAPE_FILE, "area")
+        val baseline = implementations(runTool(FindImplementationsTool(), args))
+        val scan = HeldScan()
+        var future: Future<Result<ToolCallResult>>? = null
+        val errors = ConcurrentLinkedQueue<String>()
+        UnindexedFilesScanner(project, listOf(scan), "a held scan of the test").queue()
+        try {
+            PlatformTestUtil.waitWithEventsDispatching("The scan did not start", { scan.started.count == 0L }, 30)
+            assertEquals(SmartModeScheduler.SCANNING, scanMode())
+            assertFalse(DumbService.isDumb(project))
+
+            var outcome: Result<ToolCallResult>? = null
+            LoggedErrorProcessor.executeWith<Throwable>(collectInto(errors)) {
+                val call = ApplicationManager.getApplication().executeOnPooledThread<Result<ToolCallResult>> {
+                    runCatching { runBlocking { FindImplementationsTool().execute(project, args) } }
+                }
+                future = call
+                outcome = try {
+                    call.get(5, TimeUnit.SECONDS)
+                } catch (_: TimeoutException) {
+                    null
+                }
+            }
+            assertNotNull("The call waited for the file scan", outcome)
+
+            assertEquals("The scan held during the call", SmartModeScheduler.SCANNING, scanMode())
+            assertEquals(baseline, implementations(outcome!!.getOrThrow()))
+            assertTrue(
+                "Errors logged during the call: $errors",
+                errors.all { it.contains("Constraint inSmartMode cannot be satisfied") }
+            )
+        } finally {
+            scan.release.countDown()
+            future?.let { PlatformTestUtil.waitWithEventsDispatching("The call did not end", { it.isDone }, 30) }
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+        }
+    }
+
+    private fun scanMode(): Int = project.getService(SmartModeScheduler::class.java).getCurrentMode()
+
+    /** A scan of no files that holds the scanner until [release], at most [HOLD_TIMEOUT_MS]. */
+    private class HeldScan : IndexableFilesIterator {
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+
+        override fun getDebugName() = "held scan"
+        override fun getIndexingProgressText() = "held scan"
+        override fun getRootsScanningProgressText() = "held scan"
+        override fun getOrigin() = object : IndexableSetOrigin {}
+        override fun getRootUrls(project: Project) = emptySet<String>()
+
+        override fun iterateFiles(project: Project, fileIterator: ContentIterator, fileFilter: VirtualFileFilter): Boolean {
+            started.countDown()
+            release.await(HOLD_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            return true
+        }
     }
 
     // requireSmartMode stays: a call that starts in dumb mode gets index_not_ready at once.
@@ -230,43 +324,90 @@ class SmartReadActionTest : BasePlatformTestCase() {
         )
     }
 
-    /** The result of a call across a dumb mode start, and the errors that the IDE logged meanwhile. */
-    private class RaceCall(val result: ToolCallResult, val errors: List<String>)
+    /**
+     * The outcome of a call across a dumb mode start, and the errors that the IDE logged meanwhile.
+     * [endedInDumbModeAfterMs] is the time from the start of dumb mode to the end of the call, or
+     * null when the call ended after dumb mode.
+     */
+    private class RaceCall(val outcome: Result<ToolCallResult>, val errors: List<String>, val endedInDumbModeAfterMs: Long?) {
+        val result: ToolCallResult get() = outcome.getOrThrow()
+    }
 
     /**
      * Runs [call] on a pooled thread. When the search reaches [trigger], starts dumb mode, keeps it
-     * on for [DUMB_WINDOW_MS], ends it, and returns the result of the call.
+     * on for [dumbWindowMs] or until the call ends, ends it, and returns the outcome of the call.
      *
      * A search that runs in dumb mode can log an error (the Java functional expression search does).
      * The IDE writes such an error to its log and goes on. The test keeps each logged error in
      * [RaceCall.errors], so that the result of the call shows the effect first. A test asserts the
      * errors after the result.
      */
-    private fun callAcrossDumbModeStart(trigger: DumbModeTrigger, call: suspend () -> ToolCallResult): RaceCall {
-        var result: ToolCallResult? = null
+    private fun callAcrossDumbModeStart(
+        trigger: DumbModeTrigger,
+        dumbWindowMs: Long = DUMB_WINDOW_MS,
+        call: suspend () -> ToolCallResult
+    ): RaceCall {
+        var outcome: Result<ToolCallResult>? = null
+        var endedInDumbModeAfterMs: Long? = null
         val errors = ConcurrentLinkedQueue<String>()
-        LoggedErrorProcessor.executeWith<Throwable>(object : LoggedErrorProcessor() {
-            override fun processError(category: String, message: String, details: Array<out String>, t: Throwable?): Set<Action> {
-                errors.add("$category: $message${t?.let { " ($it)" } ?: ""}")
-                return EnumSet.of(Action.LOG)
+        LoggedErrorProcessor.executeWith<Throwable>(collectInto(errors)) {
+            val future = ApplicationManager.getApplication().executeOnPooledThread<Result<ToolCallResult>> {
+                runCatching { runBlocking { call() } }
             }
-        }) {
-            val future = ApplicationManager.getApplication().executeOnPooledThread<ToolCallResult> { runBlocking { call() } }
             PlatformTestUtil.waitWithEventsDispatching("The search did not reach the trigger", { trigger.reached.count == 0L }, 30)
             val token = DumbModeTestUtils.startEternalDumbModeTask(project)
+            val start = System.currentTimeMillis()
             try {
-                val end = System.currentTimeMillis() + DUMB_WINDOW_MS
-                while (!future.isDone && System.currentTimeMillis() < end) {
+                while (!future.isDone && System.currentTimeMillis() < start + dumbWindowMs) {
                     PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
                     Thread.sleep(5)
                 }
+                if (future.isDone) endedInDumbModeAfterMs = System.currentTimeMillis() - start
             } finally {
                 DumbModeTestUtils.endEternalDumbModeTaskAndWaitForSmartMode(project, token)
             }
             PlatformTestUtil.waitWithEventsDispatching("The call did not end after dumb mode", { future.isDone }, 60)
-            result = future.get()
+            outcome = future.get()
         }
-        return RaceCall(result!!, errors.toList())
+        return RaceCall(outcome!!, errors.toList(), endedInDumbModeAfterMs)
+    }
+
+    /** Keeps each error that the IDE logs, and lets the IDE write it to its log and go on. */
+    private fun collectInto(errors: MutableCollection<String>) = object : LoggedErrorProcessor() {
+        override fun processError(category: String, message: String, details: Array<out String>, t: Throwable?): Set<Action> {
+            errors.add("$category: $message${t?.let { " ($it)" } ?: ""}")
+            return EnumSet.of(Action.LOG)
+        }
+    }
+
+    private fun <T> withIndexWaitLimit(block: () -> T): T {
+        AbstractMcpTool.indexWaitLimitMs = TEST_WAIT_LIMIT_MS
+        try {
+            return block()
+        } finally {
+            AbstractMcpTool.indexWaitLimitMs = AbstractMcpTool.INDEX_WAIT_LIMIT_MS
+        }
+    }
+
+    /** The call ended with index_not_ready after the wait limit, while dumb mode was still on. */
+    private fun assertWaitLimit(race: RaceCall) {
+        assertTrue("Expected index_not_ready, got ${race.outcome}", race.outcome.exceptionOrNull() is IndexNotReadyException)
+        val after = race.endedInDumbModeAfterMs
+        assertNotNull("The call ended only after dumb mode", after)
+        assertTrue("The call ended $after ms after the start of dumb mode, before the limit", after!! >= TEST_WAIT_LIMIT_MS)
+        assertEquals("Errors logged during the call", emptyList<String>(), race.errors)
+    }
+
+    /** The first call keeps 500 usages of Counter#tick (the collection limit) and gives the first 100. */
+    private fun firstTickPage() = buildJsonObject {
+        positionOf(COUNTER_FILE, "tick").forEach { (key, value) -> put(key, value) }
+        put("pageSize", FIRST_PAGE)
+    }
+
+    /** A cursor call with a page of 500 needs the other usages, so it searches again. */
+    private fun nextTickPage(cursor: String) = buildJsonObject {
+        put("cursor", cursor)
+        put("pageSize", 500)
     }
 
     private fun inDumbMode(block: () -> Unit) {
@@ -312,6 +453,8 @@ class SmartReadActionTest : BasePlatformTestCase() {
         const val TICKS = 520
         const val FIRST_PAGE = 100
         const val DUMB_WINDOW_MS = 1500L
+        const val TEST_WAIT_LIMIT_MS = 500L
+        const val LONG_DUMB_WINDOW_MS = 5000L
         const val HOLD_TIMEOUT_MS = 30_000L
         const val CALL_TIMEOUT_MS = 10_000L
 

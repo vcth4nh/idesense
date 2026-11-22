@@ -1708,3 +1708,5 @@ Before calling index-dependent tools, you can check the index status:
 ```
 
 If `isDumbMode` is `true`, wait and retry later.
+
+A tool that needs the index and meets dumb mode after the start of the call waits for the end of dumb mode, and it returns `index_not_ready` when the wait comes to 10 seconds.

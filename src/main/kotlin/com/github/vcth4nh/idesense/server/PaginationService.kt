@@ -1,5 +1,6 @@
 package com.github.vcth4nh.idesense.server
 
+import com.github.vcth4nh.idesense.exceptions.IndexNotReadyException
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import kotlinx.coroutines.CoroutineScope
@@ -191,6 +192,9 @@ class PaginationService(private val coroutineScope: CoroutineScope) : Disposable
                         entry.seenKeys.add(result.key)
                     }
                 } catch (e: CancellationException) {
+                    throw e
+                } catch (e: IndexNotReadyException) {
+                    // The search waited for the index for the limit of the call (#267).
                     throw e
                 } catch (_: LinkageError) {
                     return@withLock GetPageResult.Error(
