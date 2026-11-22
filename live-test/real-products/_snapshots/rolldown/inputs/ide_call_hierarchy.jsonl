@@ -1,0 +1,6 @@
+{"id":"hier-callee-canonical_name_for-d1","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callees","file":"crates/rolldown/src/module_finalizers/mod.rs","line":144,"maxDepth":1}}
+{"id":"hier-caller-canonical_name_for-d1","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callers","file":"crates/rolldown/src/module_finalizers/mod.rs","line":144,"maxDepth":1}}
+{"id":"hier-caller-canonical_ref_for-d1","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callers","file":"crates/rolldown_common/src/types/symbol_ref_db.rs","line":370,"maxDepth":1}}
+{"id":"hier-caller-canonical_ref_for-d2","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callers","file":"crates/rolldown_common/src/types/symbol_ref_db.rs","line":370,"maxDepth":2},"compare":"shape"}
+{"id":"hier-caller-is_validate_identifier_name-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"is_validate_identifier_name"}}
+{"id":"hier-caller-unwrapBindingResult-ts-d1","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"packages/rolldown/src/utils/error.ts","line":4,"maxDepth":1}}

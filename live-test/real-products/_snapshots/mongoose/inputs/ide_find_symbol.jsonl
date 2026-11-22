@@ -1,0 +1,6 @@
+{"id":"find-symbol-CastError-lang-typescript","tool":"ide_find_symbol","params":{"language":"typescript","query":"CastError"}}
+{"id":"find-symbol-CastError.toJSON-qualified","tool":"ide_find_symbol","params":{"query":"CastError.toJSON"}}
+{"id":"find-symbol-cast-paged","tool":"ide_find_symbol","params":{"pageSize":25,"query":"cast"},"compare":"shape"}
+{"id":"find-symbol-isBsonType","tool":"ide_find_symbol","params":{"query":"isBsonType"}}
+{"id":"find-symbol-isBsonType-lang-typescript","tool":"ide_find_symbol","params":{"language":"typescript","query":"isBsonType"}}
+{"id":"find-symbol-zzqNoSuchSymbolXyz-no-match","tool":"ide_find_symbol","params":{"query":"zzqNoSuchSymbolXyz"}}

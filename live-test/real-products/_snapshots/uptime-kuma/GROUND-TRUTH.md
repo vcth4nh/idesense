@@ -46,8 +46,7 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   name of the computed property is `default.computed.startDateTime`, the same as Copy
   Reference of WebStorm.
 - **uptime-kuma: instruction files in the checkout.** The checkout has its own instruction
-  files for agents (see "Product checkouts" in [AGENTS.md](../../../AGENTS.md)). The agents of
-  the agent task do not get them.
+  files for agents (see "Product checkouts" in [AGENTS.md](../../../AGENTS.md)).
 - **uptime-kuma: the usages of `send` are dynamic usages (#196, #171).**
   `usage-NotificationProvider.send` and `usage-Discord.send` give the 10 calls, all with
   `match` `DYNAMIC`. Find Usages of WebStorm hides them by default ("0 of 10 usages") and lists

@@ -1,0 +1,6 @@
+{"id":"search-text-BindingMagicString-rust-and-ts","tool":"ide_search_text","params":{"pageSize":100,"query":"BindingMagicString"}}
+{"id":"search-text-mimalloc","tool":"ide_search_text","params":{"pageSize":100,"query":"mimalloc"}}
+{"id":"search-text-mimalloc-code","tool":"ide_search_text","params":{"context":"code","pageSize":100,"query":"mimalloc"}}
+{"id":"search-text-mimalloc-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"mimalloc"}}
+{"id":"search-text-mimalloc-strings","tool":"ide_search_text","params":{"context":"strings","pageSize":100,"query":"mimalloc"}}
+{"id":"search-text-rolldown-paged","tool":"ide_search_text","params":{"pageSize":100,"query":"rolldown"},"compare":"shape"}

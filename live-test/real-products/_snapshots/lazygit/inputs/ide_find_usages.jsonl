@@ -1,0 +1,9 @@
+{"id":"canary-usage-NewChangesSet","tool":"ide_find_usages","params":{"column":6,"file":"pkg/config/app_config.go","line":232,"pageSize":100}}
+{"id":"usage-GetWorkTreeEnv-empty","tool":"ide_find_usages","params":{"column":6,"file":"pkg/env/env.go","line":17,"pageSize":100}}
+{"id":"usage-NewChangesSet-production-scope","tool":"ide_find_usages","params":{"column":6,"file":"pkg/config/app_config.go","line":232,"pageSize":100,"scope":"project_production_files"}}
+{"id":"usage-NewChangesSet-test-scope","tool":"ide_find_usages","params":{"column":6,"file":"pkg/config/app_config.go","line":232,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-NewIntegrationTest-page1","tool":"ide_find_usages","params":{"column":6,"file":"pkg/integration/components/test.go","line":119,"pageSize":200},"compare":"shape"}
+{"id":"usage-NewIntegrationTest-page2","tool":"ide_find_usages","params":{"pageSize":200},"compare":"shape","cursorFrom":"usage-NewIntegrationTest-page1"}
+{"id":"usage-PatchExplorerContext.GetMutex-base","tool":"ide_find_usages","params":{"column":35,"file":"pkg/gui/context/patch_explorer_context.go","line":132,"pageSize":100}}
+{"id":"usage-Reset-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"Reset"}}
+{"id":"usage-logrus.Entry-from-vendor","tool":"ide_find_usages","params":{"column":6,"file":"vendor/github.com/sirupsen/logrus/entry.go","line":46,"pageSize":100}}

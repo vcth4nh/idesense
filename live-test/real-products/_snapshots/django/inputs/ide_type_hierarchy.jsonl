@@ -1,0 +1,5 @@
+{"id":"hier-sub-BaseCache-production-scope","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"django/core/cache/backends/base.py","line":58,"scope":"production"}}
+{"id":"hier-sub-BaseCommand-production-scope","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"django/core/management/base.py","line":193,"scope":"production"},"parked":176}
+{"id":"hier-sub-Field","tool":"ide_type_hierarchy","params":{"column":7,"direction":"subtypes","file":"django/db/models/fields/__init__.py","line":128},"parked":176}
+{"id":"hier-super-Node-byname","tool":"ide_type_hierarchy","params":{"className":"Node","direction":"supertypes"}}
+{"id":"hier-super-PositiveBigIntegerField","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"django/db/models/fields/__init__.py","line":2442}}

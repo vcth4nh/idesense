@@ -1,0 +1,5 @@
+{"id":"find-symbol-ExposedSQLException.causedByQueries-qualified","tool":"ide_find_symbol","params":{"query":"ExposedSQLException.causedByQueries"}}
+{"id":"find-symbol-getErrorCode-lang-java-empty","tool":"ide_find_symbol","params":{"language":"Java","query":"getErrorCode"}}
+{"id":"find-symbol-getErrorCode-lang-kotlin","tool":"ide_find_symbol","params":{"language":"Kotlin","query":"getErrorCode"}}
+{"id":"find-symbol-sqlType-paged","tool":"ide_find_symbol","params":{"pageSize":50,"query":"sqlType"}}
+{"id":"find-symbol-withDistinct","tool":"ide_find_symbol","params":{"pageSize":50,"query":"withDistinct"}}

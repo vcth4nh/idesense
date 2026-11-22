@@ -1,0 +1,4 @@
+{"id":"file-structure-Column.kt","tool":"ide_file_structure","params":{"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/Column.kt"}}
+{"id":"file-structure-EntityTests.kt","tool":"ide_file_structure","params":{"file":"exposed-tests/src/test/kotlin/org/jetbrains/exposed/v1/tests/shared/entities/EntityTests.kt"},"compare":"shape"}
+{"id":"file-structure-Table.kt","tool":"ide_file_structure","params":{"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/Table.kt"}}
+{"id":"file-structure-exposed-core.api","tool":"ide_file_structure","params":{"file":"exposed-core/api/exposed-core.api"}}

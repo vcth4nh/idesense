@@ -1,0 +1,3 @@
+{"id":"explain-Album-name","tool":"ide_explain_symbol","params":{"symbol":"Album"},"parked":269}
+{"id":"explain-ConfigManager-name","tool":"ide_explain_symbol","params":{"symbol":"ConfigManager"},"compare":"shape"}
+{"id":"explain-getValueAsByteSize-pos","tool":"ide_explain_symbol","params":{"column":18,"file":"app/Repositories/ConfigManager.php","line":122}}

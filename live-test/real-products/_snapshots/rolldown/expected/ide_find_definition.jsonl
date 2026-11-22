@@ -1,0 +1,5 @@
+{"id":"canary-def-ArcStr-into-dependency","result":{"enclosingScope":null,"file":"arc_str.rs","kind":"STRUCT","name":"ArcStr","qualifiedName":"arcstr::arc_str::ArcStr"}}
+{"id":"def-Arc-into-stdlib","result":{"enclosingScope":null,"file":"sync.rs","kind":"STRUCT","name":"Arc","qualifiedName":"alloc::sync::Arc"}}
+{"id":"def-BindingMagicString-ts-import-into-binding","result":{"column":22,"enclosingScope":null,"file":"packages/rolldown/src/binding.d.cts","kind":"CLASS","line":1594,"name":"BindingMagicString","qualifiedName":"BindingMagicString"}}
+{"id":"def-LinkStage-cross-crate-file","result":{"column":12,"enclosingScope":null,"file":"crates/rolldown/src/stages/link_stage/mod.rs","kind":"STRUCT","line":89,"name":"LinkStage","qualifiedName":"rolldown::stages::link_stage::LinkStage"}}
+{"id":"def-unwrapBindingResult-ts-call","result":{"column":17,"enclosingScope":null,"file":"packages/rolldown/src/utils/error.ts","kind":"FUNCTION","line":4,"name":"unwrapBindingResult","qualifiedName":"unwrapBindingResult"}}

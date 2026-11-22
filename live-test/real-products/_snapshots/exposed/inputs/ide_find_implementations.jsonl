@@ -1,0 +1,4 @@
+{"id":"impls-Column-empty","tool":"ide_find_implementations","params":{"column":7,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/Column.kt","line":12,"pageSize":100}}
+{"id":"impls-Expression-paged","tool":"ide_find_implementations","params":{"column":16,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/Expression.kt","line":146,"pageSize":100},"compare":"shape","parked":277}
+{"id":"impls-IColumnType","tool":"ide_find_implementations","params":{"column":11,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/ColumnType.kt","line":33,"pageSize":500},"parked":277}
+{"id":"impls-IColumnType.sqlType","tool":"ide_find_implementations","params":{"column":9,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/ColumnType.kt","line":38,"pageSize":500}}

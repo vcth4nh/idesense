@@ -1,0 +1,8 @@
+{"id":"canary-def-ArcStr-into-dependency","tool":"ide_find_definition","params":{"column":13,"file":"crates/rolldown/src/module_loader/resolve_utils.rs","line":3}}
+{"id":"def-Arc-into-stdlib","tool":"ide_find_definition","params":{"column":16,"file":"crates/rolldown/src/module_loader/resolve_utils.rs","line":1}}
+{"id":"def-BindingMagicString-ts-import-into-binding","tool":"ide_find_definition","params":{"column":10,"file":"packages/rolldown/src/binding-magic-string.ts","line":1}}
+{"id":"def-HookUsage-generated","tool":"ide_find_definition","params":{"column":36,"file":"crates/rolldown_plugin/src/plugin.rs","line":324},"parked":188}
+{"id":"def-HookUsage.Transform-bitflags","tool":"ide_find_definition","params":{"column":16,"file":"crates/rolldown_plugin_vite_transform/src/lib.rs","line":114},"parked":188}
+{"id":"def-LinkStage-cross-crate-file","tool":"ide_find_definition","params":{"column":7,"file":"crates/rolldown/src/bundle/bundle.rs","line":283}}
+{"id":"def-ModuleIdx-via-reexport-macro","tool":"ide_find_definition","params":{"column":27,"file":"crates/rolldown/src/stages/link_stage/mod.rs","line":61},"parked":188}
+{"id":"def-unwrapBindingResult-ts-call","tool":"ide_find_definition","params":{"column":5,"file":"packages/rolldown/src/api/experimental.ts","line":57}}
