@@ -284,6 +284,8 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   The new name is no `symbol` anchor, as the name of a Go method (#139): use a position for a field.
 - The warning of `ide_find_file` for a file contributor that failed names an anonymous contributor
   class by its class name without the package. The name was empty before.
+- `ide_file_structure` passes a cancellation on when the read of the modifiers of a node is
+  cancelled. Before, the walk went on with empty modifiers for that node.
 
 ## [2.1.0] - 2026-11-09
 
