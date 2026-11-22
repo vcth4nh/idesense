@@ -300,6 +300,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   class by its class name without the package. The name was empty before.
 - `ide_file_structure` passes a cancellation on when the read of the modifiers of a node is
   cancelled. Before, the walk went on with empty modifiers for that node.
+- The signature of a node of `ide_file_structure` is one line, as the name. Each run of white space
+  becomes one space, and the text is not cut. In WebStorm, the signature of a node of an OpenAPI
+  YAML file is the description of the node, which can have many lines. The outline had lines that
+  were no nodes (#335).
 - `ide_find_usages` no longer returns an empty or partial list of usages, and `ide_explain_symbol`
   no longer returns a `usageCount` and `topUsages` that are too low, when the IDE enters dumb mode
   during the search. The result had the warning "Find-usages handler ... threw on
