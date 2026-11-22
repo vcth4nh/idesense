@@ -500,6 +500,9 @@ fleet process, so the harness never restarts it. Run rows against it with `--url
    must find the new JVM, and `<throwaway root>/log/idea.log` must exist; else stop the new
    process at once. `initialize` on the new port must give the build under test, and a call
    with an unknown `project_path` must list only the throwaway project. Probe only that port.
+   An instance with no plugin zip has no server on its port, so `initialize` cannot run. The
+   proof is then the JVM by its config path and `idea.log`, and for an IDE with a window also
+   `DISPLAY` (see "Throwaway IDE with a display").
 8. **Stop and clean.** Find the JVM by its config path, never by the product name: the fleet
    instance has the same name. Send SIGTERM, wait until the process is gone, and delete
    `<throwaway root>`. Do not use `pkill -f` with a pattern that your own shell line holds: it
@@ -521,26 +524,67 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
 - **Display.** Start a virtual X server (for example Xvfb) on a display number of your own:
   on a shared display your keys can go into the windows of another session. Start the IDE as
   above, with `DISPLAY` set and with no `serverMode`: `<ide launcher> <project>`. Check
-  `DISPLAY` in `/proc/<pid>/environ` of the new JVM.
+  `DISPLAY` in `/proc/<pid>/environ` of the new JVM. Give the display to each command that
+  sends a key or takes a screenshot, for example through one wrapper script that sets
+  `DISPLAY`. A new shell does not keep a variable of an earlier command, and a command with no
+  display variable uses a default display, which can be a shared one (seen 2026-11-22: the 13
+  key presses of one loop went to the display of another session).
+- **Window.** With no window manager on the display, `xdotool windowactivate` did not work,
+  and `windowfocus`, `windowmove` and `windowsize` worked (seen with GoLand 2026.3). Move the
+  window to 0,0 and size it to the display: the window of GoLand 2026.3 opened at 1400x1000 on
+  a 1920x1080 display.
 - **Keyboard.** Drive the IDE by keyboard (for example `xdotool`), and focus its window first.
   Swing widgets are no X windows: click by pixel only from a screenshot that you read. Open
-  the file (`ctrl+shift+n`), then Go to Line (`ctrl+g`): type `line:column` of the tool call,
-  Return. Then start the action, for example Call Hierarchy (`ctrl+alt+h`) or Structure
-  (`alt+7`).
+  the file with Go to File (`ctrl+shift+n`). Its list shows a short location next to each
+  name, and its footer shows a longer path of the selected row: read the footer before Return
+  (seen on PyCharm 2026.3.0.1: `beets` in the list, `beets/ui/__init__.py` in the footer).
+  Open Go to Line (`ctrl+g`), type `line:column` (see "Columns"), and press Return. Then start
+  the action, for example Call Hierarchy (`ctrl+alt+h`) or Structure (`alt+7`).
+- **Columns.** A tool call counts a tab as one character (`getOffset` in
+  `tools/AbstractMcpTool.kt` of the plugin code). GoLand 2026.3 counts a tab of the indent as
+  4 columns, in Go to Line and in the status bar. So on a line with an indent of tabs, add 3
+  to the column of the tool call for each tab (seen on GoLand 2026.3: in `listen_test.go` of
+  caddy, `39:23` put the caret after the word `first`, and `39:26` on the name
+  `fakeCloseListener`). The status bar shows the column in the count of Go to Line, so it
+  repeats the typed column and does not prove the caret. Prove the caret by the word at it:
+  Extend Selection (`ctrl+w`) selects the name, and the status bar shows its length, for
+  example `47:12 (15 chars)` for `SetGlobalStatus`. Then press Escape, and go to the line
+  again before the action.
 - **Shortcuts differ** with the IDE and the copied keymap. Seen in 2026.2: Find Usages was
   `alt+F7` in IntelliJ IDEA, `alt+shift+7` in RustRover and WebStorm, and either key in
   different starts of GoLand and PyCharm. For most actions, Find Action (`ctrl+shift+a`) with
-  the action name and Return is a safe way.
+  the action name is a safe way, when you read the selected row before Return (see "Find
+  Action").
+- **Find Action.** Its list keeps a history: the order and the selected row change from one
+  call to the next. A key by position (`Down`, Return) ran a wrong action two times (seen on
+  PyCharm 2026.3.0.1: Find Usages in File, and Group declarations, which opened the Settings
+  dialog). Read a crop of the list before Return, or use the shortcut that the list shows next
+  to the action. The list has two declaration actions, "Go to Declaration or Usages" and "Go to
+  Declaration" (seen on GoLand 2026.3 and PyCharm 2026.3.0.1). For the text "Go to
+  Declaration", PyCharm selected "Go to Declaration or Usages" in one call and "Go to
+  Declaration" in a later call.
+- **Hints.** With no target, Go to Declaration and Go to Declaration or Usages show only a
+  hint above the caret, "Cannot find declaration to go to": no jump and no popup. Take a
+  screenshot about 0.7 s after the key. When the hint closes was not measured (seen on GoLand
+  2026.3 and PyCharm 2026.3.0.1: the hint showed 0.7 s and about 2.4 s after the key).
 - **Read the window.** Take a screenshot (for example with `xwd`), crop the tool window, scale
   the crop 2x, and read the image. For a whole tree, click one row, then expand all
-  (`ctrl+KP_Add`). The Find tool window can write its tree as text (Export to Text File,
+  (`ctrl+KP_Add`). For a long tree, maximize the tool window (Maximize Tool Window,
+  `ctrl+shift+apostrophe`) and collapse all (`ctrl+KP_Subtract`). Then select one group row
+  and expand only that group (`KP_Multiply`), and collapse it again with `Left`. Page Down
+  scrolls a group that is longer than the window (seen on GoLand 2026.3 with 345 results and
+  on PyCharm 2026.3.0.1). The Find tool window can write its tree as text (Export to Text File,
   `alt+o`, seen in 2026.2): for a comparison of line sets, the text is better. By default
   the window shows two usages on one line as one row (seen on WebStorm 2026.2).
 - **Questions.** Some IDEs ask a question before a search, for example if Find Usages must
   search the base method (seen on WebStorm, PyCharm and RustRover 2026.2; not on IntelliJ IDEA
-  for a Java or Kotlin override). Record the answer with the result. A copy of a Cargo
-  workspace asks to attach the Cargo projects, and it stays in dumb mode until the question
-  has an answer (seen on RustRover 2026.2).
+  for a Java or Kotlin override). Record the answer with the result. GoLand 2026.3 asked no
+  question for Find Usages on a method that implements an interface method (the method
+  `Accept` of `fakeCloseListener` in caddy, for `net.Listener.Accept`). It searched the
+  interface method and showed the balloon "Looking for usages of the interface methods" for a
+  few seconds. The Notifications tool window keeps the balloon. Record such a balloon with the
+  result. A copy of a Cargo workspace asks to attach the Cargo projects, and it stays in dumb
+  mode until the question has an answer (seen on RustRover 2026.2).
 - **The same instance.** Compare a tool result only with a window of the same instance. A
   window start can load other features than a `serverMode` start (seen on PyCharm 2026.2:
   `Disabled plugins: JetBrains Ultimate` in `idea.log` of the window start). For a case that
