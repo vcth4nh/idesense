@@ -274,14 +274,20 @@ class SmartReadActionTest : BasePlatformTestCase() {
         val reached = CountDownLatch(1)
         val armed = AtomicBoolean(true)
         val interrupted = AtomicBoolean(false)
+        val holdTimedOut = AtomicBoolean(false)
         DefinitionsScopedSearch.EP_NAME.point.registerExtension(
             QueryExecutor { params, _ ->
                 val element = params.element
                 if (element is PsiMethod && element.containingClass?.qualifiedName == "race.Fn" && armed.compareAndSet(true, false)) {
                     reached.countDown()
-                    // Hold the run until the scan starts. A write action interrupts the run here.
+                    // Hold the run until the scan starts, at most HOLD_TIMEOUT_MS. A write action interrupts the run here.
+                    val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(HOLD_TIMEOUT_MS)
                     try {
                         while (scan.started.count > 0L) {
+                            if (System.nanoTime() >= deadline) {
+                                holdTimedOut.set(true)
+                                break
+                            }
                             ProgressManager.checkCanceled()
                             Thread.sleep(5)
                         }
@@ -324,6 +330,7 @@ class SmartReadActionTest : BasePlatformTestCase() {
             endHeldScan(scan)
         }
 
+        assertFalse("The hold of the search ended after $HOLD_TIMEOUT_MS ms with no scan start", holdTimedOut.get())
         assertEquals("The implementations of a search that met a scan start", baseline.sorted(), implementations(outcome!!.getOrThrow()).sorted())
         assertEquals("Errors logged during the call", emptyList<String>(), errors.toList())
         assertFalse("The call ended during the file scan", endedDuringTheScan)
