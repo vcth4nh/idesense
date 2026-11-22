@@ -67,8 +67,13 @@ PyCharm 2026.3 (PY-263.7307.329), `-Xmx2048m`, plugin 2.1.1-dev.23, 2026-11-22.
 | Resident memory of PyCharm, `python` fixture plus `django`, after the open | 3279 MB |
 | Used heap after a full collection, after the open | 292 MB |
 | Product rows: first run after an open, next runs | 56 to 70 s, 6 to 15 s |
+| `ide_call_hierarchy`, callers of `force_str` (`django/utils/encoding.py:53`), `maxDepth` 2: first call after an open, next calls | 42 s, 3 to 6 s |
 
 The used heap stays far below 1200 MB (60% of the limit), so PyCharm keeps `-Xmx2048m`.
+
+No row has the callers of `force_str` at depth 2: with the first run after an open, that one
+call used most of the run time, and it met the request limit of 60 s one time when the
+machine had a high load (plugin 2.1.1-dev.24). The row `hier-caller-force_str-d1` has depth 1.
 
 Facts about the switch:
 

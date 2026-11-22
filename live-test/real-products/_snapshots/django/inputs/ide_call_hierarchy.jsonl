@@ -3,4 +3,3 @@
 {"id":"hier-caller-filepath_to_uri-d1","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"django/utils/encoding.py","line":233,"maxDepth":1}}
 {"id":"hier-caller-filepath_to_uri-production-scope","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"django/utils/encoding.py","line":233,"maxDepth":1,"scope":"production"}}
 {"id":"hier-caller-force_str-d1","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"django/utils/encoding.py","line":53,"maxDepth":1},"compare":"shape"}
-{"id":"hier-caller-force_str-d2","tool":"ide_call_hierarchy","params":{"column":5,"direction":"callers","file":"django/utils/encoding.py","line":53,"maxDepth":2},"compare":"shape"}

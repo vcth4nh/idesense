@@ -117,7 +117,6 @@ file is stale.
 | line:col | probe id | tool | identifier |
 |---|---|---|---|
 | 53:5 | hier-caller-force_str-d1 | call_hierarchy | `force_str` |
-| 53:5 | hier-caller-force_str-d2 | call_hierarchy | `force_str` |
 | 233:5 | canary-usage-filepath_to_uri-production-scope | find_usages | `filepath_to_uri` |
 | 233:5 | canary-usage-filepath_to_uri-test-scope | find_usages | `filepath_to_uri` |
 | 233:5 | hier-caller-filepath_to_uri-d1 | call_hierarchy | `filepath_to_uri` |
