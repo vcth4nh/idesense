@@ -220,7 +220,10 @@ symbols file) are exactly `interface`. The id is `<file>:<line>`, with the line 
 the copy of `gokeys trace`, each target logs its call stack, and no line of a file moves. `-depth`
 of `gokeys trace` (default 6) is the maximum count of frames in one trace line. `dynmake` looks
 for a library caller (`"why": "library"`) only in these frames, so `-depth` changes only these
-`dnc` sites and their count in `dynamic`. The stored key used the default.
+`dnc` sites and their count in `dynamic`. `dynamic` is a field of each record of
+`dyncallers.jsonl`: the count of the functions of each set of `dynmake` (`static`, `trace`,
+`possible`, `library`). Its format is in the module text of `callkeys.py`. The stored key used
+the default.
 
 The test run has these conditions:
 
@@ -241,9 +244,11 @@ The traced calls can also depend on the timing of the tests: the count of CPUs (
 the option `-p` of `go test` can change them. The first line of `test.log` is the Go version.
 `dynmake` exits 1 when a traced caller breaks its rule, after it wrote the other records.
 
-The files of the run that made the stored key are in `$B/scratch/calls/`: `caddy-dyn-targets.json`
-(the targets file), `caddy-trace/` (the copy), `caddy-trace.jsonl` (the trace) and
-`caddy-trace-test.log` (the test output).
+The files of the run that made the stored key are in `$B/scratch/calls/` on the machine that made
+the keys: `caddy-dyn-targets.json` (the targets file), `caddy-trace/` (the copy),
+`caddy-trace.jsonl` (the trace) and `caddy-trace-test.log` (the test output). `$B` is the data
+root of that machine, and the data root is not in the repository. A maintainer with no such files
+makes them again with the commands of this section: the targets file with `dyntargets`.
 
 **Repeat check.** A second run does not always give a file that is equal byte for byte, so
 compare the records. Each record is one line, in the order of `calls.jsonl`, so `diff` shows each
@@ -255,12 +260,18 @@ diff "$B/keys/caddy/dyncallers.jsonl" "$R/dyncallers.jsonl"
 
 - No answer changes when only the `proof` of a caller changes between `static` and
   `static+trace`.
-- A caller with the class `required` that only one file has changes an answer: it needs a
-  decision. A record that only one file has holds such callers.
+- A caller with the class `required` that only one file has: first run the trace one more time.
+  A traced call can be absent from one run, because the trace is a lower limit.
+- A record that only one file has: in the other run, the method had no required caller, or a
+  traced caller broke the rule of `dynmake` (then `dynmake` printed a line `rule:` and exited 1).
+  Each required caller of such a record is a caller that only one file has.
 
-The new file goes to `$B/keys/caddy/dyncallers.jsonl` only after this decision. Then
-`./live-test/run.py bench qfiles check -data` shows each tracked question whose answer differs
-from the new file.
+A difference that stays changes the answer of each tracked question of the family `dyncallers`
+whose `symbol` is the id of the record. The new file goes to `$B/keys/caddy/dyncallers.jsonl`
+only after a decision. Then `./live-test/run.py bench qfiles check -data` shows each tracked
+question whose answer differs from the new file. A changed key file of a tracked question goes
+into a commit that a maintainer reviews ([METHOD.md](../METHOD.md), section 6, and step 4 of "A
+new question" in [bench/README.md](../bench/README.md#a-new-question)).
 
 ## Tests
 

@@ -248,10 +248,13 @@ when the plugin version or the image of a product differs from the `manifest.jso
 start of the batch: use a new batch name for a new build or a new image.
 
 The limits of a run are in [METHOD.md](../METHOD.md), section 5.3. On the machine of the
-maintainers, a `smoke` batch (4 runs with `claude-haiku-5-5`) took about 26 s and cost about
-0.01 USD. In the batch of the ledger summary `ledger/2026-11-22-dev-2026-11-22.md`, a run took 9 s
-to 8 minutes, and it cost 0.002 to 0.31 USD with `claude-haiku-5-5` and 0.04 to 0.76 USD with
-`claude-opus-5-5`.
+maintainers, one `smoke` batch (4 runs with `claude-haiku-5-5`, the default of `-jobs`) took
+about 26 s and cost about 0.01 USD. This is one measurement: take it as an order of size, not as a
+limit. The batch of the ledger summary `ledger/2026-11-22-dev-2026-11-22.md` ran the plan `dev`:
+12 questions, the arms `C` and `PF`, the models `claude-haiku-5-5` and `claude-opus-5-5`, and one
+run for each question, arm and model: 48 runs, each with the outcome `ok`. Over these 48 runs, a
+run took 9 s to 8 minutes, and it cost 0.002 to 0.31 USD with `claude-haiku-5-5` and 0.04 to
+0.76 USD with `claude-opus-5-5`.
 
 ```
 <data root>/runs/<batch>/
@@ -321,7 +324,9 @@ Before a batch on a data root that exists, do these checks in this order:
    `0 problems`.
 4. Only after an image build (a change of a tree needs one, because the image holds the trees):
    `./live-test/run.py bench images gate <product>` exits 0. It runs the tests of each tree of the
-   product in containers: about 5 minutes for one product on the machine of the maintainers.
+   product in containers: the tree of the product and its three planted trees (`tree_names` in
+   `images.py`). One measurement on the machine of the maintainers took about 5 minutes for one
+   product.
 5. The proxy runs, and `./live-test/run.py bench runner handshake -product caddy` and
    `-product beets` exit 0 (step 8 of "Setup from zero").
 
