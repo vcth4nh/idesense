@@ -1,0 +1,10 @@
+{"id":"find-file-Module.js-directory-part","tool":"ide_find_file","params":{"pageSize":100,"query":"module/Module.js"},"parked":271}
+{"id":"find-file-ModuleFactory.js","tool":"ide_find_file","params":{"pageSize":100,"query":"ModuleFactory.js"}}
+{"id":"find-file-big.js-test-node-modules","tool":"ide_find_file","params":{"pageSize":100,"query":"big.js"}}
+{"id":"find-file-byDependency.js-test-node-modules","tool":"ide_find_file","params":{"query":"byDependency.js"}}
+{"id":"find-file-index.js-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"index.js"},"compare":"shape"}
+{"id":"find-file-index.js-production-scope","tool":"ide_find_file","params":{"query":"index.js","scope":"project_production_files"}}
+{"id":"find-file-package.json-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"package.json"},"compare":"shape"}
+{"id":"find-file-tapable.d.ts-libraries-scope","tool":"ide_find_file","params":{"query":"tapable.d.ts","scope":"project_and_libraries"}}
+{"id":"find-file-webpack.config.js-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"webpack.config.js"},"compare":"shape"}
+{"id":"find-file-zzqNoSuchFile.js-no-match","tool":"ide_find_file","params":{"query":"zzqNoSuchFile.js"}}

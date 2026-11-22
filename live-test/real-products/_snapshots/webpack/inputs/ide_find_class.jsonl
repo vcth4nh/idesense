@@ -1,0 +1,8 @@
+{"id":"canary-find-class-ChunkGraph","tool":"ide_find_class","params":{"query":"ChunkGraph"}}
+{"id":"find-class-Compilation","tool":"ide_find_class","params":{"query":"Compilation"},"parked":324}
+{"id":"find-class-Module","tool":"ide_find_class","params":{"query":"Module"},"parked":324}
+{"id":"find-class-Module-lang-javascript","tool":"ide_find_class","params":{"language":"javascript","query":"Module"},"parked":324}
+{"id":"find-class-Module-lang-typescript","tool":"ide_find_class","params":{"language":"typescript","query":"Module"}}
+{"id":"find-class-NorModFac-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"NorModFac"},"parked":324}
+{"id":"find-class-SyncHook-libraries-scope","tool":"ide_find_class","params":{"query":"SyncHook","scope":"project_and_libraries"},"parked":324}
+{"id":"find-class-zzqNoSuchClassXyz-no-match","tool":"ide_find_class","params":{"query":"zzqNoSuchClassXyz"}}

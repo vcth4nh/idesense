@@ -1,0 +1,15 @@
+{"id":"canary-def-Module-extends-require","tool":"ide_find_definition","params":{"column":28,"file":"lib/module/NormalModule.js","line":737}}
+{"id":"canary-def-SyncHook-into-tapable","tool":"ide_find_definition","params":{"column":20,"file":"lib/Compiler.js","line":198}}
+{"id":"def-AutomaticPrefetchPlugin-lazy-getter","tool":"ide_find_definition","params":{"column":24,"file":"test/watchCases/plugins/automatic-prefetch-plugin/webpack.config.js","line":7}}
+{"id":"def-Compilation-jsdoc-import-tag","tool":"ide_find_definition","params":{"column":13,"file":"lib/module/NormalModule.js","line":739},"parked":323}
+{"id":"def-Compiler-jsdoc-import-tag-root","tool":"ide_find_definition","params":{"column":13,"file":"test/configCases/loaders/pr-14384/PluginWithLoader.js","line":10},"parked":323}
+{"id":"def-Compiler-new-require","tool":"ide_find_definition","params":{"column":23,"file":"lib/webpack.js","line":167}}
+{"id":"def-Dependency-jsdoc-require","tool":"ide_find_definition","params":{"column":12,"file":"lib/module/NormalModule.js","line":303}}
+{"id":"def-LoaderRunnerLoaderContext-import-type","tool":"ide_find_definition","params":{"column":79,"file":"lib/module/NormalModule.js","line":295},"parked":323}
+{"id":"def-Module-jsdoc-generic","tool":"ide_find_definition","params":{"column":18,"file":"lib/Compiler.js","line":362},"parked":323}
+{"id":"def-NormalModule-jsdoc-generic","tool":"ide_find_definition","params":{"column":17,"file":"lib/module/NormalModule.js","line":374},"parked":323}
+{"id":"def-Rule-json-schema-ref","tool":"ide_find_definition","params":{"column":40,"file":"schemas/plugins/BannerPlugin.json","line":61},"parked":193}
+{"id":"def-WeakTupleMap-import-type-path","tool":"ide_find_definition","params":{"column":30,"file":"lib/Compiler.js","line":142}}
+{"id":"def-compilation-hook-into-types.d.ts","tool":"ide_find_definition","params":{"column":18,"file":"test/configCases/loaders/pr-14384/PluginWithLoader.js","line":13},"parked":178}
+{"id":"def-getCompilationHooks-package-self-require","tool":"ide_find_definition","params":{"column":17,"file":"test/configCases/loaders/pr-14384/PluginWithLoader.js","line":14},"parked":178}
+{"id":"def-tap-into-tapable","tool":"ide_find_definition","params":{"column":30,"file":"test/configCases/loaders/pr-14384/PluginWithLoader.js","line":13}}

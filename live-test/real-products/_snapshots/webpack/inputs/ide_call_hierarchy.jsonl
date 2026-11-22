@@ -1,0 +1,7 @@
+{"id":"hier-callee-compareRuntime-d1","tool":"ide_call_hierarchy","params":{"column":7,"direction":"callees","file":"lib/util/runtime.js","line":181,"maxDepth":1}}
+{"id":"hier-callee-keyToRuntime-d1","tool":"ide_call_hierarchy","params":{"column":7,"direction":"callees","file":"lib/util/runtime.js","line":104,"maxDepth":1},"compare":"shape"}
+{"id":"hier-caller-compareRuntime-d1","tool":"ide_call_hierarchy","params":{"column":7,"direction":"callers","file":"lib/util/runtime.js","line":181,"maxDepth":1}}
+{"id":"hier-caller-getCompilationHooks-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"NormalModule.getCompilationHooks"},"parked":269}
+{"id":"hier-caller-getCompilationHooks-d1","tool":"ide_call_hierarchy","params":{"column":9,"direction":"callers","file":"lib/module/NormalModule.js","line":742,"maxDepth":1}}
+{"id":"hier-caller-getRuntimeKey-d1","tool":"ide_call_hierarchy","params":{"column":7,"direction":"callers","file":"lib/util/runtime.js","line":93,"maxDepth":1}}
+{"id":"hier-caller-setLocWithIndex-d2","tool":"ide_call_hierarchy","params":{"column":2,"direction":"callers","file":"lib/graph/Dependency.js","line":335,"maxDepth":2},"compare":"shape"}

@@ -1,0 +1,4 @@
+{"id":"explain-ModuleFactory-pos","tool":"ide_explain_symbol","params":{"column":7,"file":"lib/module/ModuleFactory.js","line":46}}
+{"id":"explain-PluginWithLoader-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"PluginWithLoader"}}
+{"id":"explain-create-ambiguous","tool":"ide_explain_symbol","params":{"symbol":"create"},"compare":"shape"}
+{"id":"explain-getRuntimeKey-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"getRuntimeKey"}}
