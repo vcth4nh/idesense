@@ -215,6 +215,21 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `= "3.9") static public loadDataAndPrepareJob(...)`. The line now starts with the keywords only:
   `static public loadDataAndPrepareJob(...)`. Java and Kotlin annotations and JavaScript and
   TypeScript decorators had this defect (#173).
+- `ide_file_structure` gives a node the line where the Structure window of the IDE goes: the line of
+  the navigation element of the node. In WebStorm, the node `default` of an `export default { ... }`
+  object had the line 1, because the IDE makes a node with no place in the source for it. It now has
+  the line of the first member of the object. The node `exports` of `module.exports = { ... }` also
+  had the line 1, and it now has the line of its first member. When the navigation element is in
+  another file, for example the source of a compiled class, the line stays the line of the node in
+  the file (#197).
+- `ide_file_structure` keeps a JavaScript or TypeScript object literal that the IDE shows with no
+  text, for example an object in an array, with its children. The node has the name `{}`. The
+  outline left out such a node and all its children (#198).
+- A node name of `ide_file_structure` is one line. Each run of white space becomes one space. A name
+  that had a line break and is longer than 80 characters is cut and ends with `…`; a name with no
+  line break stays complete, so a long function signature stays whole. In WebStorm, the name of a
+  spread element over several lines had these lines, so the outline had lines that were no nodes
+  (#199).
 - A cancelled tool call no longer writes error entries to the IDE log. The server logged the
   cancellation with its exception, and the platform logger wrote "Control-flow exceptions ...
   should never be logged" in place of the exception. When the IDE stopped the MCP server during a
