@@ -816,7 +816,7 @@ class MainSetTest(unittest.TestCase):
             challenges.main_set(1, *roots)
 
     def test_overlap_go_family_members_are_no_candidates(self):
-        """Fix round 1, case 1: a Go method or interface method whose family holds a chosen record, or whose id
+        """Overlap case 1: a Go method or interface method whose family holds a chosen record, or whose id
         is in the family of a chosen record, is no candidate."""
         provision = dict(record(run(3), rid=PROVISION, name="Provision"), family=[f"{M}.I.Im2", PROVISION])
         im1 = record(run(3), rid=f"{M}.I.Im1", kind="iface_method", name="Im1", container="I")
@@ -829,7 +829,7 @@ class MainSetTest(unittest.TestCase):
             self.assertIn(pick, (f"{M}.I.Im3", f"{M}.R.Rh"))
 
     def test_overlap_impls_subclasses_and_base_classes_are_no_candidates(self):
-        """Fix round 1, case 2: an impls candidate that is an implementer of a chosen impls record, or that has a
+        """Overlap case 2: an impls candidate that is an implementer of a chosen impls record, or that has a
         chosen impls record as an implementer, is no candidate. This holds also inside one rule."""
         def with_impl(rec, rid, file="t.go"):
             return dict(rec, implementers=rec["implementers"] + [
@@ -851,7 +851,7 @@ class MainSetTest(unittest.TestCase):
             self.assertIn(classes, ({"py:beets.q.Edge", "py:beets.test.h.Big"}, {"py:beets.r.C3", "py:beets.test.h.Big"}))
 
     def test_overlap_natural_record_of_a_chosen_planted_method_is_no_candidate(self):
-        """Fix round 1, case 3: a record of beets/unique-used.jsonl with the container and the original name of a
+        """Overlap case 3: a record of beets/unique-used.jsonl with the container and the original name of a
         chosen planted record is no candidate, also of a rule of the most. A planted record that no rule chose
         excludes nothing."""
         extra = {"keys/beets/unique-used.jsonl": [prec("py:beets.p.Pb.x", "method", 30),
@@ -867,7 +867,7 @@ class MainSetTest(unittest.TestCase):
             self.assertFalse({"py:beets.p.Pb.x", "py:beets.p.Ra.y"} & {ch["key_id"] for ch in chs})
 
     def test_the_fixed_rename_survives_a_rule_that_comes_before_it_in_the_brief(self):
-        """Fix round 1: the rename rule runs before the decoys rule, so `App.Provision` is never excluded. A
+        """The rename rule runs before the decoys rule, so `App.Provision` is never excluded. A
         decoys method in its family is then no candidate."""
         dm1 = next(r for r in caddy_fixture() if r["id"] == f"{M}.D.Dm1")
         roots = main_fixture(os.path.join(self.d, "fixed"), replace={dm1["id"]: dict(dm1, family=[dm1["id"], PROVISION])})

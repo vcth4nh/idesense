@@ -330,7 +330,7 @@ def _reads_repo(call: dict, slug: str | None) -> bool:
 
 
 def flags(rec: dict, lines, proxy_lines, key, root: str | None = None, slug: str | None = None) -> dict:
-    """The flags of one run (spec 6.8; each value a count unless the name says more): `lines` are the transcript
+    """The flags of one run (each value a count unless the name says more): `lines` are the transcript
     lines, `proxy_lines` the proxy log lines (str, bytes or dicts), `key` the tracked key of the question, `root`
     the tree root of the question (None: no site path changes) and `slug` the slug of `repo_slug` (None: only
     REPO_TEXT counts for `repo_access`)."""

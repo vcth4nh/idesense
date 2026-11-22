@@ -226,9 +226,9 @@ def from_callers(name: str, results_file: str) -> list[dict]:
 
 
 def from_dyn(name: str, results_file: str) -> list[dict]:
-    """One line for each row and tool with an error or with a score that is not exact. ValueError for a row of
-    the old script, which wrote no missed lines (no `miss_sites`), and for a list that does not fit its count
-    (`_sites`)."""
+    """One line for each row and tool with an error or with a score that is not exact. ValueError for a row with
+    no `miss_sites` (an earlier form of the result file, which wrote no missed lines), and for a list that does not
+    fit its count (`_sites`)."""
     out = []
     for row in _rows(results_file):
         for label, tool in DYN_TOOLS:
@@ -236,8 +236,8 @@ def from_dyn(name: str, results_file: str) -> list[dict]:
                 out.append(_line(name, tool, row["id"], errors=[row[f"{label}_error"]]))
             elif not row[label]["exact"]:
                 if "miss_sites" not in row[label]:
-                    raise ValueError(f"{results_file}: the row {row['id']} has no {label}.miss_sites: a file of the "
-                                     f"old script, with no missed lines")
+                    raise ValueError(f"{results_file}: the row {row['id']} has no {label}.miss_sites: an earlier "
+                                     f"form of the result file, with no missed lines; run the audit again")
                 out.append(_line(name, tool, row["id"], *_sites(results_file, row, label)))
     return out
 

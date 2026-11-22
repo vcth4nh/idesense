@@ -29,8 +29,8 @@ reads it, and `bench.score.score` scores it.
 
 A text of the family `callers` is the head of the kind and the tail of the language in one paragraph, and a
 Python property (`"property": true`) takes the head CALLERS_PY_PROPERTY. The family `dyncallers` has one text,
-DYNCALLERS_GO, for a Go method. The root of a prompt is a parameter: the runner gives the slot path of the tree. For Go, the package name comes from the package clause of the declaration file in the master tree
-`TREES/<tree>`.
+DYNCALLERS_GO, for a Go method. The root of a prompt is a parameter: the runner gives the slot path of the tree.
+For Go, the package name comes from the package clause of the declaration file in the master tree `TREES/<tree>`.
 
 `show` prints for each challenge the id, the line counts of the view, the text scan (`text_scan`, `-` for a Go
 `impls` challenge and for a `callers` or `dyncallers` challenge) and the prompt. The prompt root is
@@ -431,8 +431,8 @@ def _off_linux(record: dict) -> tuple[int, int]:
 
 
 def _overlap(family: str, record: dict, chosen_family: str, chosen: dict) -> bool:
-    """True when a challenge of the record in `family` asks about the sites of a chosen challenge (fix round 1 of
-    the task): two Go methods or interface methods where one is in the `family` of the other; two `impls`
+    """True when a challenge of the record in `family` asks about the sites of a chosen challenge: two Go
+    methods or interface methods where one is in the `family` of the other; two `impls`
     challenges where one record is an implementer of the other; a natural record with the container and the
     original name of a chosen planted record."""
     if (record["lang"] == chosen["lang"] == "go" and record["kind"] in GO_MEMBERS and chosen["kind"] in GO_MEMBERS

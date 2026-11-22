@@ -147,7 +147,7 @@ class AuditDynTest(unittest.TestCase):
     def test_each_false_line_and_an_error(self):
         _, client = fake(self, dyn_answer)
         row = callers.audit_dyn(client, [DYN_FP], CALLS)[0]
-        # The script kept the first 8 false lines; the port keeps each one.
+        # The row keeps each false line, not only the first 8.
         self.assertEqual([["q.go", n] for n in range(1, 10)], row["hierarchy"]["fp_sites"])
         self.assertEqual(9, row["hierarchy"]["fp"])
         self.assertEqual("tool: index_not_ready: dumb mode", row["usages_error"])

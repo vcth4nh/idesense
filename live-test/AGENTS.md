@@ -85,9 +85,9 @@ under test" in [bench/README.md](bench/README.md#the-plugin-build-under-test)).
 
 - **No fleet IDE.** The benchmark code never calls, stops or starts a fleet IDE (ports 29170 to
   29178). The benchmark IDEs are GoLand on port 29374 and PyCharm on port 29372.
-- **The lock.** One user of the benchmark IDEs at a time. Each command that calls a benchmark
-  IDE holds the lock `<data root>/state/lock` (the lists are in "The lock" of
-  [bench/README.md](bench/README.md) and of [audit/README.md](audit/README.md)). When a command
+- **The lock.** One user of the benchmark IDEs at a time. Each command of the lists in
+  "The lock" of [bench/README.md](bench/README.md) and of [audit/README.md](audit/README.md)
+  holds the lock `<data root>/state/lock`. When a command
   says that the benchmark IDEs are in use, wait: never delete the lock file, and never stop its
   holder. Change the plugin build of the benchmark IDEs only with `bench build -start`:
   `bench-ide.sh` takes no lock.

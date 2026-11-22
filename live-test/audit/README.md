@@ -159,7 +159,10 @@ No cause of `causes.json` has a permission yet, so `wait` is the expected verdic
 no regression. An audit with no accepted line gives `fail` when it finds a disagreement, because
 each found line is new. Write the first list of the audit with the steps below before you read
 a `fail` as a regression. A result that did not audit each symbol of the list, for example a
-single `symbols run` with a small `-n`, gives `not audited` lines and `wait`.
+single `symbols run` with a small `-n`, gives `not audited` lines and `wait`. `propose` keeps a
+`not audited` line with its cause. When an audit no longer asks about a symbol (after a change
+of `n`, `seed` or `ids` in `audits.json`, or after a new key file), remove the lines of that
+symbol from the list by hand.
 
 1. Run all audits (see "Run all audits"). Read each `new` line.
 2. Decide for each new line: a defect of the plugin (write an issue), or a behaviour that the IDE
