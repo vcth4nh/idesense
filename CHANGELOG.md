@@ -48,6 +48,13 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   each base method that the search does not search (a method of the Python class `object`).
   `ide_explain_symbol` has the new optional field `notes` with the same entries; its `usageCount`
   and `topUsages` do not hold a usage that is left out.
+- The texts of `ide_find_usages`, `ide_find_implementations` and `ide_refactor_rename` say what a
+  caller sees: each cursor collects up to about 5,000 results, a find-usages failure of the IDE gives a
+  list that can be incomplete, and the value `ask` of `overrideStrategy` and
+  `relatedRenamingStrategy` waits until a person answers an IDE dialog. The skill file no longer
+  tells a caller to pass the sub-project root: the workspace root also selects the workspace
+  project, and only `ide_sync_files` with no `paths` syncs just the sub-project of its root. The
+  `kind` list of `ide_find_symbol` in `docs/USAGE.md` gives `FIELD` and `CONSTANT` their own lines.
 
 ### Removed
 - The default server name and port for JetBrains Aqua (`aqua-idesense`, port 29180). JetBrains
@@ -235,6 +242,8 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   anonymous struct gets the name of the nearest enclosing type declaration, and `package.field`
   when it has none. GoLand gives `package.field`: this name differs from GoLand on purpose (#136).
   The new name is no `symbol` anchor, as the name of a Go method (#139): use a position for a field.
+- The warning of `ide_find_file` for a file contributor that failed names an anonymous contributor
+  class by its class name without the package. The name was empty before.
 
 ## [2.1.0] - 2026-11-09
 
