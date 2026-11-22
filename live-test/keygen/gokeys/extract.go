@@ -18,7 +18,7 @@ import (
 	"golang.org/x/tools/refactor/satisfy"
 )
 
-// Record is one key record (the key model of Task 1, plus `external` and `coupled`). Each
+// Record is one key record, with the fields `external` and `coupled` too. Each
 // position is 1-based; the column counts UTF-16 code units. Coupled is set only for a method
 // and an interface method (see coupledFamily).
 type Record struct {

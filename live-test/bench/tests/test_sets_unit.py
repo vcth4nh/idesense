@@ -69,7 +69,7 @@ def dyncallers_record():
                 levels={"1": 2, "2": 0}, dynamic={"static": 1, "trace": 1, "possible": 1, "library": 0}, sites=sites)
 
 
-# One case for each prompt text of amendment A3: (family, lang, kind, container).
+# One case for each prompt text of `bench.sets`: (family, lang, kind, container).
 PROMPT_CASES = [("refs", "go", "method", "App"), ("refs", "go", "iface_method", "Runner"), ("refs", "go", "func", ""),
                 ("refs", "go", "type", ""), ("refs", "go", "interface", ""), ("refs", "python", "method", "App"),
                 ("refs", "python", "function", ""), ("refs", "python", "class", ""), ("rename", "go", "method", "App"),

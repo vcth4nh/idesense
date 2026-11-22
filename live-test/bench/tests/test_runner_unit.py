@@ -53,7 +53,7 @@ IMAGE = {"image": "idesense-bench-beets:p2", "id": "sha256:feed", "server_name":
          "slots": {"beets": {"slot": "0000", "path": ROOT}}}
 ROUTE_URL = r"http://172\.17\.0\.1:29380/r/[0-9a-f]{32}/mcp"
 INIT_SERVERS = '"mcp_servers":[{"name":"pycharm-idesense","status":"connected"}]'  # the init event of ok.jsonl
-# The container flags of the plan (Global Constraints), as text: the test does not trust the constant of the runner.
+# The container flags of each run, as text: the test does not trust the constant of the runner.
 FLAGS = ("--rm --user 1000:1000 --cap-drop ALL --security-opt no-new-privileges --memory 6g --cpus 4 "
          "--pids-limit 1024 --network bridge").split()
 

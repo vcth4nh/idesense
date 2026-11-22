@@ -5,9 +5,6 @@
     python3 -m audit.callers dyn -url <mcp url> -project <path> -keys <dyncallers.jsonl> -calls <calls.jsonl>
         -out <jsonl> [-ids FILE]
 
-A port of two local scripts of the call-chain work of 2026-11-20 (`audit_callers.py`, `audit_dyn.py`). The output
-lines have the fields of the scripts, with two changes in `dyn` (see below).
-
 `callers`: for each record, one call of `ide_call_hierarchy` at the `decl` position, `direction: callers`,
 `maxDepth: 2`. Each node of levels 1 and 2 is scored two times: `raw` (the line of the node as the tool gives it)
 and `mapped` (the declaration line of the outermost function of the calls file that holds the node line: a
@@ -39,9 +36,8 @@ it writes `<out without .jsonl>.manifest.json` next to the output (`common.manif
 - `dyn`: `{"id", "name", "dynamic", "hierarchy_nodes" | "hierarchy_error", "usage_rows", "usage_marks",
   "usage_notes" | "usages_error", "hierarchy", "usages"}`. `hierarchy` and `usages` are `{"tp", "fp", "miss",
   "ignored", "exact", "miss_proof": {proof: n}, "miss_sites": [[file, line], ...], "fp_sites": [[file, line],
-  ...]}`. The two changes from the script: `miss_sites` is new (the script wrote only the counts of
-  `miss_proof`), and `fp_sites` has each false line (the script kept the first 8). `audit.verdict` needs both
-  lists. The `-ids` file of `dyn` has one key id for each line, as for `callers` (the script read a challenge set).
+  ...]}`. `miss_sites` has each missed line and `fp_sites` has each false line: `audit.verdict` needs both lists.
+  The `-ids` file of `dyn` has one key id for each line, as for `callers`.
 """
 import argparse
 import collections
@@ -201,7 +197,7 @@ AUDITS = {"callers": audit_callers, "dyn": audit_dyn}
 
 
 def sample(records: list[dict], n: int, seed: int) -> list[dict]:
-    """The seeded sample of the script: the records sorted by id, shuffled with the seed, the first n, sorted by id."""
+    """The seeded sample: the records sorted by id, shuffled with the seed, the first n, sorted by id."""
     recs = sorted(records, key=lambda r: r["id"])
     random.Random(seed).shuffle(recs)
     return sorted(recs[:n], key=lambda r: r["id"])
@@ -257,7 +253,7 @@ def run_file(kind: str, client: McpClient, records: list[dict], calls: list[dict
 
 
 def callers_text(version: str, rows: list[dict]) -> str:
-    """The totals that the script printed. `empty tree` counts the trees with no node at level 1 or 2."""
+    """The text of the totals. `empty tree` counts the trees with no node at level 1 or 2."""
     ok = [r for r in rows if "error" not in r]
     lines = [f"plugin {version} | records {len(ok)} | errors {len(rows) - len(ok)} | empty tree "
              f"{sum(1 for r in ok if not r['kinds'])} | truncated {sum(1 for r in ok if r['truncated'])}"]
@@ -273,7 +269,7 @@ def callers_text(version: str, rows: list[dict]) -> str:
 
 
 def dyn_text(version: str, rows: list[dict]) -> str:
-    """The line of each record and the totals that the script printed (tp/fp/miss)."""
+    """The line of each record and the totals (tp/fp/miss)."""
     def tfm(row, label):
         return "ERR" if label not in row else "%d/%d/%d" % tuple(row[label][k] for k in ("tp", "fp", "miss"))
 
