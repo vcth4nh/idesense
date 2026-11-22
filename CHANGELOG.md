@@ -230,6 +230,17 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   line break stays complete, so a long function signature stays whole. In WebStorm, the name of a
   spread element over several lines had these lines, so the outline had lines that were no nodes
   (#199).
+- `ide_file_structure` writes the keyword `static` one time for a Java static initializer:
+  `static class initializer`, as the Structure tool window. The line was
+  `static static class initializer` (#326).
+- `ide_file_structure` leaves a comment between two modifier keywords out of the modifiers of a
+  Java or Kotlin declaration. For `public /* c */ static void m() {}` the line was
+  `public /* c */ static m(): void`, and a line comment also brought the next keyword after `//`.
+  The line is now `public static m(): void` (#282).
+- `ide_file_structure` gives a Python function no modifiers, as each other Python node. A static
+  method, a class method, `__new__`, `__init_subclass__` and `__class_getitem__` had the modifier
+  `STATICMETHOD` or `CLASSMETHOD`, the name of an enum constant of PyCharm and no keyword of the
+  source (#280).
 - A cancelled tool call no longer writes error entries to the IDE log. The server logged the
   cancellation with its exception, and the platform logger wrote "Control-flow exceptions ...
   should never be logged" in place of the exception. When the IDE stopped the MCP server during a
@@ -309,17 +320,6 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   "Search context invalidated due to file changes. Please re-search." or a short page before. The
   analysis of `ide_diagnostics` and the rename or move of `ide_refactor_rename` and `ide_move_file`
   do not wait; #295 tracks the refactorings (#267).
-- `ide_file_structure` writes the keyword `static` one time for a Java static initializer:
-  `static class initializer`, as the Structure tool window. The line was
-  `static static class initializer` (#326).
-- `ide_file_structure` leaves a comment between two modifier keywords out of the modifiers of a
-  Java or Kotlin declaration. For `public /* c */ static void m() {}` the line was
-  `public /* c */ static m(): void`, and a line comment also brought the next keyword after `//`.
-  The line is now `public static m(): void` (#282).
-- `ide_file_structure` gives a Python function no modifiers, as each other Python node. A static
-  method, a class method, `__new__`, `__init_subclass__` and `__class_getitem__` had the modifier
-  `STATICMETHOD` or `CLASSMETHOD`, the name of an enum constant of PyCharm and no keyword of the
-  source (#280).
 
 ## [2.1.0] - 2026-11-09
 
