@@ -1,0 +1,22 @@
+// Init script of bootstrap.sh: one task in each project that resolves the external modules of
+// the classpaths that the IntelliJ Gradle sync reads (compile and runtime classpath of each
+// source set, and the Kotlin compiler plugins). The IntelliJ Platform dependency is such a
+// module, so the task downloads and extracts the IDE archives of the build. The task builds no
+// project jar, runs no KSP task, and changes no file of the product.
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+
+allprojects {
+    tasks.register("resolveDependenciesForIde") {
+        def wanted = project.configurations.matching { c ->
+            c.canBeResolved && (c.name ==~ /(.*C|c)ompileClasspath|(.*R|r)untimeClasspath|kotlinCompilerPluginClasspath.*/)
+        }
+        doLast {
+            wanted.each { c ->
+                c.incoming.artifactView { v ->
+                    v.componentFilter { id -> id instanceof ModuleComponentIdentifier }
+                }.files.files
+            }
+            println "${project.path}: ${wanted.size()} configurations"
+        }
+    }
+}

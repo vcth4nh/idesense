@@ -1,0 +1,4 @@
+{"id":"file-structure-MotionActionHandler.kt","tool":"ide_file_structure","params":{"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/handler/MotionActionHandler.kt"}}
+{"id":"file-structure-PsiHelper.java","tool":"ide_file_structure","params":{"file":"src/main/java/com/maddyhome/idea/vim/helper/PsiHelper.java"}}
+{"id":"file-structure-VimChangeGroupBase.kt","tool":"ide_file_structure","params":{"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimChangeGroupBase.kt"}}
+{"id":"file-structure-VimEditor.kt","tool":"ide_file_structure","params":{"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimEditor.kt"}}

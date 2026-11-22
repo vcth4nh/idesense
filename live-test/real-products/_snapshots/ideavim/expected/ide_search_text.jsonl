@@ -1,0 +1,2 @@
+{"id":"search-text-editor-paged","result":{"counts":{"matches":50},"hasMore":true,"offset":0,"pageSize":50,"totalCollected":500}}
+{"id":"search-text-matchpairs-comments","result":{"hasMore":false,"matches":[{"column":22,"contextType":"COMMENT","file":"src/main/java/com/maddyhome/idea/vim/extension/argtextobj/VimArgTextObjExtension.kt","line":127},{"column":27,"contextType":"COMMENT","file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/options/OptionDeclaredScope.kt","line":59}],"offset":0,"pageSize":100,"query":"matchpairs","totalCollected":2}}

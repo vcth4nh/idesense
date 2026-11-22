@@ -1,0 +1,6 @@
+{"id":"canary-hier-super-VimShortcutKeyAction","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/main/java/com/maddyhome/idea/vim/action/VimShortcutKeyAction.kt","line":71}}
+{"id":"hier-sub-EditorActionHandlerBase","tool":"ide_type_hierarchy","params":{"column":16,"direction":"subtypes","file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/handler/EditorActionHandlerBase.kt","line":45},"compare":"shape"}
+{"id":"hier-sub-MotionActionHandler","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/handler/MotionActionHandler.kt","line":39}}
+{"id":"hier-super-KeyGroup-java","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"src/main/java/com/maddyhome/idea/vim/group/KeyGroup.java","line":53}}
+{"id":"hier-super-Mode-byname","tool":"ide_type_hierarchy","params":{"className":"Mode","direction":"supertypes"}}
+{"id":"hier-super-MotionLeftAction","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/action/motion/leftright/MotionLeftAction.kt","line":40}}

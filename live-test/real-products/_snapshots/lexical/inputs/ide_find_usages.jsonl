@@ -1,0 +1,10 @@
+{"id":"usage-$createImageNode","tool":"ide_find_usages","params":{"column":17,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":320}}
+{"id":"usage-$createImageNode-production-scope","tool":"ide_find_usages","params":{"column":17,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":320,"scope":"project_production_files"}}
+{"id":"usage-$createImageNode-test-scope","tool":"ide_find_usages","params":{"column":17,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":320,"scope":"project_test_files"}}
+{"id":"usage-$getRoot-page1","tool":"ide_find_usages","params":{"column":17,"file":"packages/lexical/src/LexicalUtils.ts","line":793,"pageSize":100},"compare":"shape"}
+{"id":"usage-$getRoot-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-$getRoot-page1"}
+{"id":"usage-ImageNode.setShowCaption-receiver-call","tool":"ide_find_usages","params":{"column":3,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":272},"parked":307}
+{"id":"usage-ImageResizer-jsx","tool":"ide_find_usages","params":{"column":25,"file":"packages/lexical-playground/src/ui/ImageResizer.tsx","line":25},"parked":307}
+{"id":"usage-KatexRenderer-jsx","tool":"ide_find_usages","params":{"column":25,"file":"packages/lexical-playground/src/ui/KatexRenderer.tsx","line":13},"parked":307}
+{"id":"usage-ParagraphNode-bysymbol","tool":"ide_find_usages","params":{"symbol":"ParagraphNode"},"compare":"shape","parked":269}
+{"id":"usage-addSwipeUpListener-no-usage","tool":"ide_find_usages","params":{"column":17,"file":"packages/lexical-playground/src/utils/swipe.ts","line":105}}

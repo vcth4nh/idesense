@@ -1,0 +1,9 @@
+{"id":"canary-def-AnAction-into-platform","tool":"ide_find_definition","params":{"column":30,"file":"src/main/java/com/maddyhome/idea/vim/action/VimShortcutKeyAction.kt","line":71}}
+{"id":"canary-def-VimInjectorKt.getInjector-from-java","tool":"ide_find_definition","params":{"column":40,"file":"src/main/java/com/maddyhome/idea/vim/VimPlugin.java","line":89}}
+{"id":"canary-def-VimscriptParser-into-generated","tool":"ide_find_definition","params":{"column":33,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/vimscript/parser/visitors/ScriptVisitor.kt","line":17}}
+{"id":"def-ApiJump-via-import-alias","tool":"ide_find_definition","params":{"column":29,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/thinapi/ThinApi.kt","line":62}}
+{"id":"def-AwtColor-via-import-alias-jdk","tool":"ide_find_definition","params":{"column":33,"file":"src/main/java/com/maddyhome/idea/vim/thinapi/IjVimHighlightingService.kt","line":28}}
+{"id":"def-EditorHelper.getVirtualFile-from-kotlin","tool":"ide_find_definition","params":{"column":27,"file":"src/main/java/com/maddyhome/idea/vim/newapi/IjVimEditor.kt","line":304}}
+{"id":"def-EngineMode-via-import-alias","tool":"ide_find_definition","params":{"column":5,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/thinapi/Modes.kt","line":14}}
+{"id":"def-VimEditor-cross-file","tool":"ide_find_definition","params":{"column":13,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/action/motion/leftright/MotionLeftAction.kt","line":28}}
+{"id":"def-VimRcFileState-via-delegation","tool":"ide_find_definition","params":{"column":58,"file":"src/main/java/com/maddyhome/idea/vim/ui/VimRcFileStateService.kt","line":18}}

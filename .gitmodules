@@ -83,3 +83,13 @@
 	url = https://github.com/astral-sh/ruff
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/ideavim"]
+	path = live-test/real-products/ideavim
+	url = https://github.com/JetBrains/ideavim
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/lexical"]
+	path = live-test/real-products/lexical
+	url = https://github.com/meta/lexical
+	shallow = true
+	ignore = dirty

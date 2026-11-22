@@ -1,0 +1,9 @@
+{"id":"usage-EditorHelper.scrollVertically-java","tool":"ide_find_usages","params":{"column":25,"file":"src/main/java/com/maddyhome/idea/vim/helper/EditorHelper.java","line":64,"pageSize":100}}
+{"id":"usage-MappingMode.NV-empty","tool":"ide_find_usages","params":{"column":9,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/command/MappingMode.kt","line":84,"pageSize":100}}
+{"id":"usage-Mode-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"Mode"}}
+{"id":"usage-VimEditor-page1","tool":"ide_find_usages","params":{"column":11,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimEditor.kt","line":65,"pageSize":100},"compare":"shape"}
+{"id":"usage-VimEditor-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-VimEditor-page1"}
+{"id":"usage-VimEditor.fileSize-production-scope","tool":"ide_find_usages","params":{"column":7,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimEditor.kt","line":73,"pageSize":200,"scope":"project_production_files"}}
+{"id":"usage-VimEditor.fileSize-test-scope","tool":"ide_find_usages","params":{"column":7,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimEditor.kt","line":73,"pageSize":200,"scope":"project_test_files"}}
+{"id":"usage-VimEditor.lineCount-test-scope","tool":"ide_find_usages","params":{"column":7,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/api/VimEditor.kt","line":94,"pageSize":100,"scope":"project_test_files"}}
+{"id":"usage-initInjector-from-java","tool":"ide_find_usages","params":{"column":5,"file":"src/main/java/com/maddyhome/idea/vim/newapi/IjVimInjector.kt","line":98,"pageSize":100}}

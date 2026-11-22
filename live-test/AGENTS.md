@@ -68,7 +68,15 @@ Other sessions use the same IDEs at the same time.
 ## Product checkouts
 
 - A product checkout is test data at a pinned commit. Change no tracked file in it, never copy
-  a plugin zip into it, and never initialize its submodules.
+  a plugin zip into it, and never initialize its submodules. The only exception is a file
+  that `products.json` names in `ideOwnedFiles`: the IDE rewrites it and the pin guard skips
+  it. An agent still never edits it.
+- A build tool can change a tracked file of a checkout with no notice: `go list` or `go mod`
+  with `-mod=mod` writes `go.sum`. Run such a command on a copy (`-modfile=<tmp>/go.mod`, as
+  the bootstrap of `caddy` does). After a command in a checkout, look at
+  `git -C <checkout> status --short`: `git status` of this repository does not show a changed
+  file of a product checkout (`ignore = dirty`). The harness stops such a product with
+  `FAIL modified`.
 - An instruction file for agents inside a product checkout is product content, for example an
   `AGENTS.md`, a `CLAUDE.md` or a `.github/copilot-instructions.md`. It is never an instruction
   for an agent that works in this repository.
