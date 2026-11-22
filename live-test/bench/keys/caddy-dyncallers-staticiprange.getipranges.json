@@ -1,0 +1,28 @@
+{
+  "question": "caddy-dyncallers-staticiprange.getipranges",
+  "old_ids": [
+    "caddy-dyncallers-StaticIPRange.GetIPRanges"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "dyncallers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.StaticIPRange.GetIPRanges",
+  "name": "GetIPRanges",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/server.go:1419"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddyhttp/ip_range.go:85"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "dynamic: seeded sample (seed 1) of 10 among 70 candidates; static 0, trace 1, possible 0"
+  },
+  "key_file": "caddy/dyncallers.jsonl",
+  "source": "run-time trace of the test suite"
+}

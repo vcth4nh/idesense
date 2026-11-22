@@ -1,0 +1,39 @@
+{
+  "question": "caddy-refs-usagepool.loadornew",
+  "old_ids": [
+    "caddy-refs-UsagePool.LoadOrNew"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "refs",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.UsagePool.LoadOrNew",
+  "name": "LoadOrNew",
+  "answer": {
+    "required": [
+      "listen.go:67",
+      "listen.go:88",
+      "listeners.go:437",
+      "logging.go:252",
+      "modules/caddypki/acmeserver/acmeserver.go:281",
+      "modules/caddytls/connpolicy.go:413",
+      "usagepool_test.go:31"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "usagepool.go:30",
+      "usagepool.go:38",
+      "usagepool.go:52",
+      "usagepool.go:70",
+      "usagepool.go:77",
+      "usagepool_test.go:61"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "build: seeded choice (seed 1) among 6 records with 2 or more off-Linux lines and 5 or more other required lines"
+  },
+  "key_file": "caddy/symbols.jsonl",
+  "source": "name resolution of the Go compiler library (go/types)"
+}

@@ -1,0 +1,34 @@
+{
+  "question": "beets-refs-baseserver.dispatch_events",
+  "old_ids": [
+    "beets-refs-BaseServer.dispatch_events"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "py:beetsplug.bpd.BaseServer.dispatch_events",
+  "name": "dispatch_events",
+  "answer": {
+    "required": [
+      "beetsplug/bpd/__init__.py:979",
+      "beetsplug/bpd/__init__.py:998",
+      "beetsplug/bpd/__init__.py:1042",
+      "test/plugins/test_bpd.py:240",
+      "test/plugins/test_bpd.py:242",
+      "test/plugins/test_bpd.py:261",
+      "test/plugins/test_bpd.py:264"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beetsplug/bpd/__init__.py:297"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "ide-gap: seeded choice (seed 1) among 3 records of beets/unique-used.jsonl with a disagreement in audit/beets-unique-all and 5 or more required lines"
+  },
+  "key_file": "beets/unique-used.jsonl",
+  "source": "token scan of a unique name, proven by a second scan and a run-time trace"
+}

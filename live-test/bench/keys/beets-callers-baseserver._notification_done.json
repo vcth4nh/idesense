@@ -1,0 +1,29 @@
+{
+  "question": "beets-callers-baseserver._notification_done",
+  "old_ids": [
+    "beets-callers-BaseServer._notification_done"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "callers",
+  "lang": "python",
+  "symbol": "py:beetsplug.bpd.BaseServer._notification_done",
+  "name": "_notification_done",
+  "answer": {
+    "required": [
+      "beetsplug/bpd/__init__.py:297",
+      "beetsplug/bpd/__init__.py:304"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beetsplug/bpd/__init__.py:312"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "nested: seeded choice (seed 1) among 1 candidates with a lit level-1 caller and 1 or more level-2 callers; levels 1: 1, 2: 1"
+  },
+  "key_file": "beets/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

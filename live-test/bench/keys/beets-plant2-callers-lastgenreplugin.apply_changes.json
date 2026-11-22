@@ -1,0 +1,32 @@
+{
+  "question": "beets-plant2-callers-lastgenreplugin.apply_changes",
+  "old_ids": [
+    "beets-plant2-callers-LastGenrePlugin.apply_changes"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets-plant-2",
+  "family": "callers",
+  "lang": "python",
+  "symbol": "plant:python:beets-plant-2:LastGenrePlugin._fetch_va_genres",
+  "name": "apply_changes",
+  "answer": {
+    "required": [
+      "beetsplug/lastgenre/__init__.py:543",
+      "beetsplug/lastgenre/__init__.py:582",
+      "test/plugins/test_lastgenre.py:163",
+      "test/plugins/test_lastgenre.py:184",
+      "test/plugins/test_lastgenre.py:196"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beetsplug/lastgenre/__init__.py:520"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "plant: most required lines (5); levels 1: 4, 2: 1"
+  },
+  "key_file": "beets-plant-2/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

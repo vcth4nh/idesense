@@ -1,0 +1,30 @@
+{
+  "question": "caddy-callers-provider.rotatekeys",
+  "old_ids": [
+    "caddy-callers-Provider.rotateKeys"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "callers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddytls/distributedstek.Provider.rotateKeys",
+  "name": "rotateKeys",
+  "answer": {
+    "required": [
+      "modules/caddytls/distributedstek/distributedstek.go:96",
+      "modules/caddytls/distributedstek/distributedstek.go:150",
+      "modules/caddytls/distributedstek/distributedstek.go:207"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddytls/distributedstek/distributedstek.go:184"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded sample (seed 1) of 4 among 175 candidates with 2 or more level-2 callers, 40 or fewer required lines and no test declaration; levels 1: 1, 2: 2"
+  },
+  "key_file": "caddy/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

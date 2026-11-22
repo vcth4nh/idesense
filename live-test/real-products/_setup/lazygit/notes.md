@@ -33,11 +33,17 @@ Facts about the project model, seen on GoLand 2026.3 (263.7307.211):
   cache it downloads these files and the checksum database tiles, but no module source.
   GoLand runs no `go mod download` for this product ("No new dependencies downloaded" in
   `idea.log`). The bootstrap runs the same command, so the open needs no network.
-- **The library part depends on the module cache.** External Libraries → Go Modules lists
-  each module of the graph that the module cache of the host holds. On 2026-11-22 these were
-  26 modules: 17 vendored modules at the vendored version, and 9 modules of the graph that
-  `vendor/` does not have. So a result in the scope `project_and_libraries` changes with the
-  module cache, which no lockfile pins. No row uses that scope.
+- **The module cache is not indexed.** GoLand puts each module of the graph that has a folder
+  in the module cache into its model (`Summary for VgoDependencyEntity: ...
+  fromGoModulesRoot=<n>` in `idea.log`), and External Libraries → Go Modules lists these
+  modules. With a `vendor/` folder, GoLand marks each of these dependencies as internal
+  (`VgoWorkspaceModelUpdater`: `VgoStandaloneModule.hasVendor` gives `setInternal(true)`), and
+  `VgoDependencyWorkspaceFileIndexContributor` registers no file set for an internal
+  dependency. The indexing diagnostics agree: a scan covers the module `lazygit`, `vendor/`
+  and the Go SDK, and no folder of the module cache. So no search finds a declaration in the
+  module cache, also not Go to Super. A module that another product puts into the shared
+  module cache cannot change a row. With all 124 modules of the graph in the module cache,
+  each row gave the same result as with fewer.
 - **`vendor/` is outside the project scope of a search.** Go to Class and Go to File with the
   scope "Project Files" show no vendored type and no vendored file. The tools give the same.
 - **IDE files.** GoLand 2026.3 wrote a module file with the component `Go` and no component

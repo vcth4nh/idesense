@@ -1,0 +1,14 @@
+{"type":"system","subtype":"init","cwd":"/work/s1/proj","tools":["Bash","Grep","Read","ToolSearch","StructuredOutput"],"mcp_servers":[{"name":"demo-ide","status":"connected"}],"model":"claude-opus-5-5"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"First a text search."},{"type":"tool_use","id":"toolu_01","name":"Grep","input":{"pattern":"Widget"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_01","content":"pkg/a.go\npkg/c.go"}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_02","name":"mcp__demo-ide__ide_find_usages","input":{"file":"pkg/a.go","line":3,"column":6,"pageSize":2}},{"type":"tool_use","id":"toolu_03","name":"mcp__demo-ide__ide_find_definition","input":{"file":"pkg/b.go","line":8,"column":2}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_03","content":[{"type":"text","text":"{\"file\":\"pkg/b.go\",\"line\":8,\"column\":2,\"name\":\"Widget\"}"}]},{"type":"tool_result","tool_use_id":"toolu_02","content":"{\"usages\":[{\"file\":\"pkg/a.go\",\"line\":3,\"column\":6,\"usageType\":\"REFERENCE\"},{\"file\":\"pkg/c.go\",\"line\":12,\"column\":4,\"usageType\":\"COMMENT\"}],\"totalCount\":3,\"hasMore\":true,\"nextCursor\":\"c1\"}"}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_04","name":"Bash","input":{"command":"grep -rn Widget pkg"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_04","content":"pkg/a.go:3\npkg/c.go:12","is_error":false}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_05","name":"mcp__demo-ide__ide_find_usages","input":{"cursor":"c1"}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_05","content":"{\"usages\":[{\"file\":\"/work/s1/proj/pkg/e.go\",\"line\":2,\"column\":9,\"usageType\":\"REFERENCE\"}],\"totalCount\":3,\"hasMore\":false}"}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_06","name":"mcp__demo-ide__ide_find_definition","input":{"file":"pkg/a.go","line":30,"column":1}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_06","is_error":true,"content":"{\"error\":\"tool_error\",\"message\":\"No named element at position. Named elements on line 30: 'Widget' at column 6.\"}"}]}}
+{"type":"assistant","message":{"content":[{"type":"tool_use","id":"toolu_07","name":"StructuredOutput","input":{"sites":["pkg/a.go:3","pkg/c.go:12"]}}]}}
+{"type":"user","message":{"content":[{"type":"tool_result","tool_use_id":"toolu_07","content":"Structured output provided successfully"}]}}
+{"type":"result","subtype":"success","is_error":false,"num_turns":6,"total_cost_usd":0.05,"structured_output":{"sites":["pkg/a.go:3","pkg/c.go:12"]}}

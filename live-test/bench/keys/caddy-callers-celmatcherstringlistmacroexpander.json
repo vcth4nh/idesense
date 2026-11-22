@@ -1,0 +1,41 @@
+{
+  "question": "caddy-callers-celmatcherstringlistmacroexpander",
+  "old_ids": [
+    "caddy-callers-celMatcherStringListMacroExpander"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "callers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.celMatcherStringListMacroExpander",
+  "name": "celMatcherStringListMacroExpander",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/celmatcher.go:391",
+      "modules/caddyhttp/ip_matchers.go:101",
+      "modules/caddyhttp/ip_matchers.go:214",
+      "modules/caddyhttp/matchers.go:374",
+      "modules/caddyhttp/matchers.go:763",
+      "modules/caddyhttp/matchers.go:831",
+      "modules/caddyhttp/matchers.go:926",
+      "modules/caddyhttp/matchers.go:1033",
+      "modules/caddyhttp/matchers.go:1117",
+      "modules/caddyhttp/matchers.go:1297",
+      "modules/caddyhttp/matchers.go:1415",
+      "modules/caddyhttp/urlpatternmatcher.go:156",
+      "modules/caddyhttp/vars.go:241",
+      "modules/caddyhttp/vars.go:383"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddyhttp/celmatcher.go:592"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded sample (seed 1) of 4 among 175 candidates with 2 or more level-2 callers, 40 or fewer required lines and no test declaration; levels 1: 1, 2: 13"
+  },
+  "key_file": "caddy/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

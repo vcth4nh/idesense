@@ -34,7 +34,7 @@ the scope and the design principles are in [docs/PRINCIPLES.md](docs/PRINCIPLES.
   `./gradlew buildPlugin -PpluginVersion=<version>-dev.NN`. No `-dev.NN` value lands on `main`.
   Details: [CONTRIBUTING.md](docs/CONTRIBUTING.md#dev-builds), "Dev builds".
 - **Live tests use shared IDEs.** Read [live-test/AGENTS.md](live-test/AGENTS.md) before a live
-  run, a bless, or a change of a row or of a fixture file.
+  run, a bless, a change of a row or of a fixture file, an audit, or an agent batch.
 - **Docs are pinned to the code.** After an edit of `README.md`, `docs/USAGE.md`,
   `docs/ARCHITECTURE.md` or the skill files, run the docs drift test
   ([CONTRIBUTING.md](docs/CONTRIBUTING.md), "Editing docs").
@@ -53,6 +53,9 @@ Each fact has one home: the file of its reader.
 | Maintainer | [docs/PRINCIPLES.md](docs/PRINCIPLES.md) | Goal, scope, design principles |
 | Maintainer | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Backing mechanisms, deviations from the IDE, platform contracts |
 | Maintainer | [live-test/README.md](live-test/README.md), [live-test/CONVENTIONS.md](live-test/CONVENTIONS.md) | The live-test harness: commands, IDE operation, row and fixture conventions |
+| Maintainer | [live-test/METHOD.md](live-test/METHOD.md) | The method of the four live-test instruments: the kinds of truth, the keys, the audit verdict, the agent batch, what a result can claim |
+| Maintainer | [live-test/keygen/README.md](live-test/keygen/README.md), [live-test/audit/README.md](live-test/audit/README.md), [live-test/bench/README.md](live-test/bench/README.md) | The key makers, the audit and the agent benchmark: commands, file formats, setup, procedures |
+| Another person who scores an agent | [live-test/bench/questions/README.md](live-test/bench/questions/README.md) | The questions and keys of the benchmark, and the score of an answer |
 | Maintainer | the `GROUND-TRUTH.md` files in `live-test/fixtures/_snapshots/` and `live-test/real-products/_snapshots/`, `live-test/real-products/_setup/<product>/notes.md` | Results that look wrong but that the IDE also returns, parked rows, the setup facts of a product |
 
 A new fact goes to the file of its reader. This file gets only a rule that an agent needs in

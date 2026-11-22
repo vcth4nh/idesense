@@ -1,0 +1,38 @@
+{
+  "question": "caddy-refs-listenreusable",
+  "old_ids": [
+    "caddy-refs-listenReusable"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "refs",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.listenReusable",
+  "name": "listenReusable",
+  "answer": {
+    "required": [
+      "listen_test.go:35",
+      "listen_test.go:41",
+      "listen_unix_test.go:180",
+      "listen_unix_test.go:251",
+      "listen_unix_test.go:282",
+      "listeners.go:182"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "listen.go:33",
+      "listen_unix.go:107",
+      "listen_unix.go:108",
+      "listen_unix_test.go:182",
+      "listen_unix_test.go:253",
+      "listen_unix_test.go:284"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded choice (seed 1) among 214 `func` records with 3 or more required lines"
+  },
+  "key_file": "caddy/symbols.jsonl",
+  "source": "name resolution of the Go compiler library (go/types)"
+}

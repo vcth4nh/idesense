@@ -1,0 +1,30 @@
+{
+  "question": "caddy-callers-newsharedquicstate",
+  "old_ids": [
+    "caddy-callers-newSharedQUICState"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "callers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.newSharedQUICState",
+  "name": "newSharedQUICState",
+  "answer": {
+    "required": [
+      "listeners.go:434",
+      "listeners_test.go:179",
+      "modules/caddyhttp/server.go:1052"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "listeners.go:531"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "closure: seeded choice (seed 1) among 62 candidates with a lit level-1 caller, 1 or more level-2 callers, 40 or fewer required lines and no test declaration; levels 1: 2, 2: 1"
+  },
+  "key_file": "caddy/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

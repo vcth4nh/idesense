@@ -1,0 +1,96 @@
+{
+  "caddy": {
+    "product": "caddy",
+    "manifest_sha256": "d7a82babd54e07b349750a1eaa431592b7bf16b177be59f3b5f59000b5eafa61",
+    "plant": null
+  },
+  "caddy-plant-1": {
+    "product": "caddy",
+    "manifest_sha256": "8cb4db5edf0a9463c0122eca3d5e1ce0b97d96b534f9ce7b38fe54a4b8a14068",
+    "plant": {
+      "lang": "go",
+      "names": [
+        "RootCertificate",
+        "CountRemainingArgs",
+        "PortRangeSize",
+        "Healthy"
+      ],
+      "shared": "Evaluate"
+    }
+  },
+  "caddy-plant-2": {
+    "product": "caddy",
+    "manifest_sha256": "a18c4ad1eb82f7f7203e2b16eb007f97f16439c6573399e3dfdce6244340474a",
+    "plant": {
+      "lang": "go",
+      "names": [
+        "ShouldEmit",
+        "AppIfConfigured",
+        "GetString",
+        "Manage"
+      ],
+      "shared": "Resolve"
+    }
+  },
+  "caddy-plant-3": {
+    "product": "caddy",
+    "manifest_sha256": "833eb006680aa4273f587c01800030615fca8b7bfb41eaf02add6ebce1cf728b",
+    "plant": {
+      "lang": "go",
+      "names": [
+        "addForwardedHeaders",
+        "setHealthy",
+        "hostsFromKeys",
+        "getTracerProvider"
+      ],
+      "shared": "refreshState"
+    }
+  },
+  "beets": {
+    "product": "beets",
+    "manifest_sha256": "61d01fa36ad90bcdc3a464bf0cc9183dd8c0c89743696e57cabcfd10a6b65869",
+    "plant": null
+  },
+  "beets-plant-1": {
+    "product": "beets",
+    "manifest_sha256": "8cf04d5573c0a284b0e398557c972384881a0ded4f3ed5c0e63a4fa99c70e971",
+    "plant": {
+      "lang": "python",
+      "names": [
+        "get_album_info",
+        "get_tracks_from_listens",
+        "the_template_func",
+        "set_global_level"
+      ],
+      "shared": "process_entry"
+    }
+  },
+  "beets-plant-2": {
+    "product": "beets",
+    "manifest_sha256": "16b92be13bbfdfc734dbb5af3aa5e1bcefe94b6ba89284b580ce07867bfb5494",
+    "plant": {
+      "lang": "python",
+      "names": [
+        "handle_created",
+        "_fetch_va_genres",
+        "update_playlists",
+        "titlecase_fields"
+      ],
+      "shared": "apply_changes"
+    }
+  },
+  "beets-plant-3": {
+    "product": "beets",
+    "manifest_sha256": "2c293fef7a71d21b682fc5fb925be6ad7944e5931a31242b25aa48735a1df75e",
+    "plant": {
+      "lang": "python",
+      "names": [
+        "migration_exists",
+        "_filter_valid",
+        "evaluate_template",
+        "_match_library_tracks"
+      ],
+      "shared": "merge_values"
+    }
+  }
+}

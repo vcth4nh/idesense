@@ -1,0 +1,10 @@
+{
+  "python": {
+    "ide_find_usages": "This list can be incomplete: a call on a value with no known type is absent. A text search for the name finds such calls.",
+    "ide_find_implementations": "This list can be incomplete: a subclass whose base class expression does not resolve is absent. A text search for the class name finds such classes.",
+    "ide_type_hierarchy": "This list can be incomplete: a subclass whose base class expression does not resolve is absent. A text search for the class name finds such classes."
+  },
+  "go": {
+    "ide_find_usages": "This list can be incomplete: a usage in a file that the build constraints exclude on this machine is absent. A text search for the name finds such usages."
+  }
+}

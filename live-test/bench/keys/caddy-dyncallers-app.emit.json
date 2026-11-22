@@ -1,0 +1,36 @@
+{
+  "question": "caddy-dyncallers-app.emit",
+  "old_ids": [
+    "caddy-dyncallers-App.Emit"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "dyncallers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddyevents.App.Emit",
+  "name": "Emit",
+  "answer": {
+    "required": [
+      "context.go:290",
+      "modules/caddyevents/app_test.go:57",
+      "modules/caddyevents/app_test.go:80",
+      "modules/caddyevents/app_test.go:145",
+      "modules/caddyevents/app_test.go:158",
+      "modules/caddyevents/app_test.go:173",
+      "modules/caddyevents/handshake_bench_test.go:105",
+      "modules/caddyhttp/reverseproxy/healthchecks.go:391",
+      "modules/caddytls/tls.go:1087"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddyevents/app.go:219"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "dynamic: seeded sample (seed 1) of 10 among 70 candidates; static 8, trace 1, possible 0"
+  },
+  "key_file": "caddy/dyncallers.jsonl",
+  "source": "run-time trace of the test suite"
+}

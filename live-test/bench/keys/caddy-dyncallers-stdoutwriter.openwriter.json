@@ -1,0 +1,29 @@
+{
+  "question": "caddy-dyncallers-stdoutwriter.openwriter",
+  "old_ids": [
+    "caddy-dyncallers-StdoutWriter.OpenWriter"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "dyncallers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.StdoutWriter.OpenWriter",
+  "name": "OpenWriter",
+  "answer": {
+    "required": [
+      "logging.go:250"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "logging.go:682",
+      "logging.go:710"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "dynamic: seeded sample (seed 1) of 10 among 70 candidates; static 0, trace 1, possible 1"
+  },
+  "key_file": "caddy/dyncallers.jsonl",
+  "source": "run-time trace of the test suite"
+}

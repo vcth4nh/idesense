@@ -20,8 +20,16 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   has 21 methods. Three types get the method from an embedded type, and that method is
   already in the list. With the library scope the two anchors gave 1,947 types and 1,933
   methods at v2.11.7; the `shape` rows pin only the first pages.
-- **Library supertypes.** The supertypes of a Go struct include library interfaces that it
-  satisfies by structure (`hier-super-caddyhttp.App-byname`).
+- **Library supertypes.** The supertypes of a Go struct include each library interface that
+  it satisfies by structure (`hier-super-caddyhttp.App-byname`). Go to Super of GoLand
+  searches each module of the graph that has a folder in the module cache. This includes a
+  module that no package of caddy imports, and the `testdata` folders of a module. GoLand
+  excludes the `testdata` folders of the Go SDK (registry key
+  `go.sdk.exclude.testdata.directories`, default true). At v2.11.7 the row has 11 supertypes: 5
+  interfaces of caddy and 6 library interfaces. `ca.Stopper` declares only `Stop() error`, and
+  each of the 5 others declares only `Validate() error`. The Go type checker
+  (`types.Implements` on `*caddyhttp.App`) confirms each one. The row needs the full module
+  graph in the module cache (see [notes.md](../../_setup/caddy/notes.md)).
 - **Usage scopes in Go.** `ide_find_usages` with `project_production_files` or
   `project_test_files` gives `scope_matches_no_files`: a Go project has no source roots, and
   the Find Usages dialog of GoLand has no such scope. The Go fixture pins the same
@@ -40,11 +48,14 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 - **Go SDK methods.** `super-responseRecorder.Write` lists interface methods of the Go SDK.
   The row depends on the SDK version of the IDE host.
 - **caddy: the usages of `APIError.Error` are the calls of `error.Error`.**
-  `usage-APIError.Error-library-base` gives 89 usages, all with `match` `BASE`. The base
-  declaration is `builtin.error.Error` of the Go SDK (`builtin.go, library` in the note). Each
-  usage is a call of `Error()` on a value of the type `error`. The 3 text matches that are no
-  usage: `admin.go:1396` (a comment), `caddyconfig/configadapters.go:74` and
-  `modules/caddyhttp/vars_test.go:170` (calls on a type with its own `Error` method).
+  `usage-APIError.Error-library-base` gives 89 usages, all with `match` `BASE`. The note of
+  the row names 3 base declarations: `builtin.error.Error` of the Go SDK (`builtin.go,
+  library`), and two interfaces in the testdata of the module `github.com/uudashr/iface`
+  (`i.MyError` in `i.go`, `j.error` in `j.go`). Each of the two declares only
+  `Error() string`. Each usage is a call of `Error()` on a value of the type `error`. The row
+  has the default scope `project_files`, so the result has no usage in a library. The 3 text
+  matches that are no usage: `admin.go:1396` (a comment), `caddyconfig/configadapters.go:74`
+  and `modules/caddyhttp/vars_test.go:170` (calls on a type with its own `Error` method).
 - **caddy: 3 literal keys are no usages of the interface `CA` (#213).**
   `usage-caddytls.CA-field-keys` (`modules/caddytls/capools.go:37:6`) gives 36 usages: 18
   code usages and 18 `COMMENT` usages. The search of GoLand also returns 3 composite literal
