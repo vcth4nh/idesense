@@ -1,0 +1,12 @@
+{"id":"canary-usage-Objenesis-from-repack","tool":"ide_find_usages","params":{"column":41,"file":"spring-core/src/main/java/org/springframework/objenesis/SpringObjenesis.java","line":35,"pageSize":100}}
+{"id":"usage-AbstractApplicationContext.refresh-paged","tool":"ide_find_usages","params":{"column":14,"file":"spring-context/src/main/java/org/springframework/context/support/AbstractApplicationContext.java","line":581,"pageSize":100},"compare":"shape"}
+{"id":"usage-Assert.notNull-paged","tool":"ide_find_usages","params":{"column":21,"file":"spring-core/src/main/java/org/springframework/util/Assert.java","line":180,"pageSize":100},"compare":"shape"}
+{"id":"usage-BeanFactory-paged","tool":"ide_find_usages","params":{"column":18,"file":"spring-beans/src/main/java/org/springframework/beans/factory/BeanFactory.java","line":122,"pageSize":100},"compare":"shape"}
+{"id":"usage-BeanPostProcessor-page1","tool":"ide_find_usages","params":{"column":18,"file":"spring-beans/src/main/java/org/springframework/beans/factory/config/BeanPostProcessor.java","line":67,"pageSize":100},"compare":"shape"}
+{"id":"usage-BeanPostProcessor-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-BeanPostProcessor-page1"}
+{"id":"usage-ClassUtils.getQualifiedMethodName","tool":"ide_find_usages","params":{"column":23,"file":"spring-core/src/main/java/org/springframework/util/ClassUtils.java","line":1151,"pageSize":100}}
+{"id":"usage-ClassUtils.getShortName-class-production-scope","tool":"ide_find_usages","params":{"column":23,"file":"spring-core/src/main/java/org/springframework/util/ClassUtils.java","line":1078,"pageSize":200,"scope":"project_production_files"}}
+{"id":"usage-ClassUtils.getShortName-class-test-scope","tool":"ide_find_usages","params":{"column":23,"file":"spring-core/src/main/java/org/springframework/util/ClassUtils.java","line":1078,"pageSize":200,"scope":"project_test_files"}}
+{"id":"usage-Indexed-annotation","tool":"ide_find_usages","params":{"column":19,"file":"spring-context/src/main/java/org/springframework/stereotype/Indexed.java","line":90,"pageSize":100}}
+{"id":"usage-ListableBeanFactory.getBeansOfType-from-kotlin","tool":"ide_find_usages","params":{"column":21,"file":"spring-beans/src/main/java/org/springframework/beans/factory/ListableBeanFactory.java","line":327,"pageSize":200}}
+{"id":"usage-getBean-kotlin-ext","tool":"ide_find_usages","params":{"column":42,"file":"spring-beans/src/main/kotlin/org/springframework/beans/factory/BeanFactoryExtensions.kt","line":29,"pageSize":100}}

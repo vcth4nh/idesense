@@ -1,0 +1,4 @@
+{"id":"search-text-AnnotationTransactionAspect","tool":"ide_search_text","params":{"pageSize":100,"query":"AnnotationTransactionAspect"}}
+{"id":"search-text-AnnotationTransactionAspect-code","tool":"ide_search_text","params":{"context":"code","pageSize":100,"query":"AnnotationTransactionAspect"}}
+{"id":"search-text-AnnotationTransactionAspect-comments","tool":"ide_search_text","params":{"context":"comments","pageSize":100,"query":"AnnotationTransactionAspect"}}
+{"id":"search-text-BeanPostProcessor-paged","tool":"ide_search_text","params":{"pageSize":50,"query":"BeanPostProcessor"},"compare":"shape","parked":328}

@@ -1,0 +1,6 @@
+{"id":"find-file-AbstractApplicationContext.java","tool":"ide_find_file","params":{"query":"AbstractApplicationContext.java"}}
+{"id":"find-file-AnnotationTransactionAspect.aj","tool":"ide_find_file","params":{"query":"AnnotationTransactionAspect.aj"}}
+{"id":"find-file-VirtualThreadDelegate.java","tool":"ide_find_file","params":{"query":"VirtualThreadDelegate.java"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-package-info.java-paged","tool":"ide_find_file","params":{"pageSize":10,"query":"package-info.java"},"compare":"shape"}
+{"id":"find-file-spring-core.gradle","tool":"ide_find_file","params":{"query":"spring-core.gradle"}}

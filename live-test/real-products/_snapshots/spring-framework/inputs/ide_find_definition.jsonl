@@ -1,0 +1,9 @@
+{"id":"canary-def-FlightType-into-xjc","tool":"ide_find_definition","params":{"column":3,"file":"spring-oxm/src/test/java/org/springframework/oxm/jaxb/Jaxb2UnmarshallerTests.java","line":75}}
+{"id":"canary-def-Mono-into-reactor","tool":"ide_find_definition","params":{"column":30,"file":"spring-core/src/main/java/org/springframework/core/ReactiveAdapterRegistry.java","line":38}}
+{"id":"def-BeanFactory.getBean-from-kotlin","tool":"ide_find_definition","params":{"column":3,"file":"spring-beans/src/main/kotlin/org/springframework/beans/factory/BeanFactoryExtensions.kt","line":41}}
+{"id":"def-ClassFile-jdk-from-java24","tool":"ide_find_definition","params":{"column":11,"file":"spring-core/src/main/java24/org/springframework/core/type/classreading/ClassFileMetadataReader.java","line":50}}
+{"id":"def-Nullable-into-jspecify","tool":"ide_find_definition","params":{"column":31,"file":"spring-beans/src/main/java/org/springframework/beans/factory/BeanFactory.java","line":194}}
+{"id":"def-StringUtils.cleanPath-from-jmh","tool":"ide_find_definition","params":{"column":27,"file":"spring-core/src/jmh/java/org/springframework/util/StringUtilsBenchmark.java","line":76}}
+{"id":"def-TestBean-into-testfixtures","tool":"ide_find_definition","params":{"column":35,"file":"spring-context/src/test/java/org/springframework/context/support/StaticApplicationContextTests.java","line":48}}
+{"id":"def-Thread.ofVirtual-jdk-from-java21","tool":"ide_find_definition","params":{"column":54,"file":"spring-core/src/main/java21/org/springframework/core/task/VirtualThreadDelegate.java","line":31}}
+{"id":"def-getBean-kotlin-ext-from-kotlin","tool":"ide_find_definition","params":{"column":11,"file":"spring-context/src/test/kotlin/org/springframework/context/support/GenericApplicationContextExtensionsTests.kt","line":34}}
