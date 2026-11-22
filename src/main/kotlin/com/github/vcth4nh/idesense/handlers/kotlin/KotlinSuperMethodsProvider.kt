@@ -5,6 +5,7 @@ import com.github.vcth4nh.idesense.handlers.MethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsData
 import com.github.vcth4nh.idesense.handlers.SuperMethodsProvider
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.find.findUsages.FindUsagesHandler
@@ -185,6 +186,7 @@ class KotlinSuperMethodsProvider : SuperMethodsProvider {
         val rawSupers: List<Any> = try {
             invoker.invoke(instance, declaration) as? List<Any> ?: return emptyList()
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("SuperDeclarationProvider.findSuperDeclarations failed", t)
             return emptyList()
         }
@@ -224,6 +226,7 @@ class KotlinSuperMethodsProvider : SuperMethodsProvider {
             }
             null
         } catch (t: Throwable) {
+            rethrowIfCancellation(t)
             LOG.debug("Failed to extract PSI from SuperDeclaration $superDecl", t)
             null
         }

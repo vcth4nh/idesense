@@ -1,15 +1,22 @@
 package com.github.vcth4nh.idesense.server.transport
 
 import com.github.vcth4nh.idesense.McpConstants
+import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.server.JsonRpcHandler
+import com.github.vcth4nh.idesense.testutil.LogRecorder
 import com.github.vcth4nh.idesense.tools.ToolRegistry
 import io.ktor.http.HttpStatusCode
 import junit.framework.TestCase
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.job
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -20,6 +27,8 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class KtorMcpServerUnitTest : TestCase() {
 
@@ -259,10 +268,140 @@ class KtorMcpServerUnitTest : TestCase() {
         assertEquals(HttpStatusCode.OK.value, response.statusCode())
     }
 
-    private fun createServer(port: Int): KtorMcpServer {
+    // A cancellation from the IDE while the call is active: the client gets the error answer of
+    // the JSON-RPC handler, and the log gets no error and no throwable (#127). The cancellation
+    // comes from the tool gate, because a unit test has no project for the call of a tool.
+    fun testACancellationInAnActiveStreamableRequestGetsTheErrorAnswer() {
+        useToolGate { throw CancellationException("cancelled") }
+
+        val log = LogRecorder()
+        var response: HttpResponse<String>? = null
+        log.record {
+            response = sendRequest("POST", McpConstants.STREAMABLE_HTTP_ENDPOINT_PATH, cancelledCallBody(id = 1))
+        }
+
+        assertEquals(response!!.body(), HttpStatusCode.OK.value, response!!.statusCode())
+        assertCancelledCallAnswer(json.parseToJsonElement(response!!.body()).jsonObject, id = "1")
+        assertEquals(emptyList<String>(), log.errorsAndThrowables())
+    }
+
+    fun testACancellationInAnActiveStreamableNotificationGetsAccepted() {
+        useToolGate { throw CancellationException("cancelled") }
+
+        val log = LogRecorder()
+        var response: HttpResponse<String>? = null
+        log.record {
+            response = sendRequest("POST", McpConstants.STREAMABLE_HTTP_ENDPOINT_PATH, cancelledCallBody(id = null))
+        }
+
+        assertEquals(HttpStatusCode.Accepted.value, response!!.statusCode())
+        assertEquals(emptyList<String>(), log.errorsAndThrowables())
+    }
+
+    fun testACancellationInAnActiveStreamableBatchMessageGetsTheErrorAnswer() {
+        useToolGate { throw CancellationException("cancelled") }
+
+        val log = LogRecorder()
+        var response: HttpResponse<String>? = null
+        log.record {
+            response = sendRequest(
+                "POST",
+                McpConstants.STREAMABLE_HTTP_ENDPOINT_PATH,
+                "[${cancelledCallBody(id = 1)},{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"ping\"}]"
+            )
+        }
+
+        assertEquals(response!!.body(), HttpStatusCode.OK.value, response!!.statusCode())
+        val answers = json.parseToJsonElement(response!!.body()).jsonArray.map { it.jsonObject }
+        assertEquals(listOf("1", "2"), answers.map { it["id"]?.jsonPrimitive?.content })
+        assertCancelledCallAnswer(answers[0], id = "1")
+        assertEquals(emptyList<String>(), log.errorsAndThrowables())
+    }
+
+    fun testACancellationInAnActiveLegacyStatelessRequestGetsTheErrorAnswer() {
+        useToolGate { throw CancellationException("cancelled") }
+
+        val log = LogRecorder()
+        var response: HttpResponse<String>? = null
+        log.record {
+            response = sendRequest("POST", McpConstants.MCP_ENDPOINT_PATH, cancelledCallBody(id = 1))
+        }
+
+        assertEquals(response!!.body(), HttpStatusCode.OK.value, response!!.statusCode())
+        assertCancelledCallAnswer(json.parseToJsonElement(response!!.body()).jsonObject, id = "1")
+        assertEquals(emptyList<String>(), log.errorsAndThrowables())
+    }
+
+    fun testACancellationInAnActiveSseRequestGetsTheErrorEvent() {
+        useToolGate { throw CancellationException("cancelled") }
+
+        val log = LogRecorder()
+        log.record {
+            val stream = openSseStream(McpConstants.SSE_ENDPOINT_PATH)
+            stream.body().use {
+                val reader = it.bufferedReader()
+                val endpointPath = readSseEvent(reader).data()
+
+                assertEquals(HttpStatusCode.Accepted.value, sendRequest("POST", endpointPath, cancelledCallBody(id = 1)).statusCode())
+
+                assertCancelledCallAnswer(json.parseToJsonElement(readSseEvent(reader).data()).jsonObject, id = "1")
+            }
+            runBlocking { coroutineScope.coroutineContext.job.children.forEach { it.join() } }
+        }
+
+        assertEquals(emptyList<String>(), log.errorsAndThrowables())
+    }
+
+    // A cancellation of the call itself (the scope of the server stops) leaves the SSE request
+    // with no log entry and no event (#127).
+    fun testACancellationOfTheSseCallLeavesWithNoLogAndNoEvent() {
+        val reached = CountDownLatch(1)
+        useToolGate {
+            reached.countDown()
+            coroutineScope.cancel()
+            throw CancellationException("The server stops")
+        }
+        val sessionId = sseSessionManager.createSession()
+        val events = Channel<String>(Channel.UNLIMITED)
+        sseSessionManager.registerChannel(sessionId, events)
+
+        val log = LogRecorder()
+        log.record {
+            val path = "${McpConstants.MCP_ENDPOINT_PATH}?${McpConstants.SESSION_ID_PARAM}=$sessionId"
+            assertEquals(HttpStatusCode.Accepted.value, sendRequest("POST", path, cancelledCallBody(id = 1)).statusCode())
+            assertTrue("The call must reach the tool gate", reached.await(5, TimeUnit.SECONDS))
+            runBlocking { coroutineScope.coroutineContext.job.join() }
+        }
+
+        assertEquals(emptyList<String>(), log.entries)
+        assertNull("No event after the cancellation of the call", events.tryReceive().getOrNull())
+    }
+
+    /** Starts the server again with a JSON-RPC handler that uses [isToolEnabled] as its tool gate. */
+    private fun useToolGate(isToolEnabled: (String) -> Boolean) {
+        server.stop()
+        port = findFreePort()
+        server = createServer(port, JsonRpcHandler(toolRegistry, isToolEnabled = isToolEnabled))
+        assertEquals(KtorMcpServer.StartResult.Success, server.start())
+    }
+
+    /** The answer of `JsonRpcHandler.handleRequest` to a call that a cancellation stops. */
+    private fun assertCancelledCallAnswer(answer: JsonObject, id: String) {
+        assertEquals(id, answer["id"]?.jsonPrimitive?.content)
+        val error = answer["error"]?.jsonObject
+        assertEquals("-32603", error?.get("code")?.jsonPrimitive?.content)
+        assertEquals("cancelled", error?.get("message")?.jsonPrimitive?.content)
+    }
+
+    private fun cancelledCallBody(id: Int?): String {
+        val idField = if (id == null) "" else "\"id\":$id,"
+        return """{"jsonrpc":"2.0",$idField"method":"tools/call","params":{"name":"${ToolNames.INDEX_STATUS}","arguments":{}}}"""
+    }
+
+    private fun createServer(port: Int, jsonRpcHandler: JsonRpcHandler = JsonRpcHandler(toolRegistry)): KtorMcpServer {
         return KtorMcpServer(
             port = port,
-            jsonRpcHandler = JsonRpcHandler(toolRegistry),
+            jsonRpcHandler = jsonRpcHandler,
             sseSessionManager = sseSessionManager,
             coroutineScope = coroutineScope
         )
