@@ -5,7 +5,7 @@
     "permitted": null
   },
   "closure-node": {
-    "text": "ide_call_hierarchy for Go: a call inside a function literal gives a CLOSURE node at the line of the literal, and the callers of the outer function are absent.",
+    "text": "ide_call_hierarchy for Go: a call inside a function literal gives a CLOSURE node at the line of the literal, and the callers of the outer function are absent. The Hierarchy window of GoLand shows the same (the note on the closure node in live-test/real-products/_snapshots/caddy/GROUND-TRUTH.md).",
     "issue": 223,
     "permitted": null
   },
@@ -45,7 +45,7 @@
     "permitted": null
   },
   "python-property-callers": {
-    "text": "ide_call_hierarchy in PyCharm on a property (the decorator `property` or `cached_property`): the tree is empty, while ide_find_usages returns the reads of the property.",
+    "text": "ide_call_hierarchy in PyCharm on a property (the decorator `property` or `cached_property`): the tree is empty, while ide_find_usages returns the reads of the property. The Hierarchy window of PyCharm shows the same (the note on the callers of a property in live-test/real-products/_snapshots/beets/GROUND-TRUTH.md).",
     "issue": 224,
     "permitted": null
   },
