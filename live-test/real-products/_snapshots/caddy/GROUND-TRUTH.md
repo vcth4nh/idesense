@@ -22,9 +22,11 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   off, shows two rows of level 1: `TestSharedQUICStateGetEncryptedClientHelloKeys`
   (`listeners_test.go`) and `func() (Destructor, error)` (`listeners.go`), the function
   literal that holds the call at `listeners.go:462`. Neither row has children. No function of
-  `modules/caddyhttp/server.go` is in the tree, although `ListenQUIC`, the function that holds
-  the literal, has a caller there by the key file of the audit (`*Server.serveHTTP3`,
-  `server.go:1052`). The tool (`maxDepth` 2, the same instance) gives the same two rows and no
+  `modules/caddyhttp/server.go` is in the tree. The answer key `callers.jsonl` of the audit (see
+  the cause `closure-node` in
+  [live-test/audit/README.md](../../../audit/README.md#name-the-cause-of-a-line)) has a caller
+  of level 2 there: `*Server.serveHTTP3` (`server.go:1052`), which calls `ListenQUIC`, the
+  function that holds the literal. The tool (`maxDepth` 2, the same instance) gives the same two rows and no
   children: the literal has the kind `CLOSURE` at `listeners.go:437:63` and the
   `enclosingScope` `["ListenQUIC"]`.
 - **Build constraints.** The declaration `FastAbs` in a file that the build constraints

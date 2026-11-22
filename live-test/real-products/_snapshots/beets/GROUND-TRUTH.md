@@ -98,10 +98,11 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   probable usage of `BeetsPlugin` in the bullet "173 usages of `BeetsPlugin`".
 - **beets: no callers of a property (#224).** In PyCharm 2026.3.0.1 (build 263.7307.329,
   2026-11-22, a development build of the plugin code of main @ 2b4c071 in the same instance),
-  the Call Hierarchy window (callers) of a property shows only the root, with no row and no
-  message under it. Seen at `beets/autotag/match.py:130:9` (`disambig_string`, the decorator
+  the Call Hierarchy window (callers) of a property shows only the root, with no caller under
+  it and no message. Seen at `beets/autotag/match.py:130:9` (`disambig_string`, the decorator
   `@property`) and at `beetsplug/musicbrainz.py:247:9` (`genres_field`, the decorator
-  `@cached_property`), no row. `ide_call_hierarchy` gives no caller for both.
+  `@cached_property`). Neither position has a row of the suite. `ide_call_hierarchy` gives no
+  caller for both.
   `ide_find_usages` gives the 2 reads of each: `beets/ui/commands/import_/display.py:89` and
   `beets/ui/commands/import_/session.py:481` for `disambig_string`, and
   `beetsplug/musicbrainz.py:512` and `:513` for `genres_field`. The code vision of each
