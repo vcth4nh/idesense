@@ -515,6 +515,21 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         assertFalse("A call in code is not a COMMENT usage", callType == "COMMENT")
     }
 
+    fun testFindFileMatchesWithoutCase() = runBlocking {
+        // #255: the name matcher ignores case, as the Go to File popup does.
+        myFixture.addFileToProject("CaseProbe.txt", "probe")
+
+        val result = FindFileTool().execute(project, buildJsonObject { put("query", "caseprobe") })
+
+        val text = (result.content.first() as ContentBlock.Text).text
+        assertFalse("Search should not fail: $text", result.isError)
+        val payload = Json { ignoreUnknownKeys = true }.decodeFromString<FindFileResult>(text)
+        assertTrue(
+            "A query in lower case should find CaseProbe.txt, got: ${payload.files}",
+            payload.files.any { it.name == "CaseProbe.txt" }
+        )
+    }
+
     fun testFindFileSurfacesContributorFailureAsWarning() = runBlocking {
         // #87: a file contributor throwing mid-search must not abort the whole search
         // silently — remaining contributors still run and the response carries a

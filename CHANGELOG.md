@@ -55,6 +55,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   tells a caller to pass the sub-project root: the workspace root also selects the workspace
   project, and only `ide_sync_files` with no `paths` syncs just the sub-project of its root. The
   `kind` list of `ide_find_symbol` in `docs/USAGE.md` gives `FIELD` and `CONSTANT` their own lines.
+- `ide_find_file` builds its name matcher with `NameUtil.buildMatcher(pattern).build()`, not with the
+  overload that takes `NameUtil.MatchingCaseSensitivity`. JetBrains scheduled that overload for
+  removal. The matcher is the same: it ignores case (#255).
 
 ### Removed
 - The default server name and port for JetBrains Aqua (`aqua-idesense`, port 29180). JetBrains
