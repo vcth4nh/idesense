@@ -1,0 +1,4 @@
+{"id":"explain-NewLiteralBinary-pos","tool":"ide_explain_symbol","params":{"column":6,"file":"go/vt/vtgate/evalengine/api_literal.go","line":174}}
+{"id":"explain-Primitive.TryExecute-pos","tool":"ide_explain_symbol","params":{"column":3,"file":"go/vt/vtgate/engine/primitive.go","line":262},"compare":"shape"}
+{"id":"explain-Route-name","tool":"ide_explain_symbol","params":{"symbol":"Route"}}
+{"id":"explain-yyParsePooled-name","tool":"ide_explain_symbol","params":{"symbol":"yyParsePooled"}}
