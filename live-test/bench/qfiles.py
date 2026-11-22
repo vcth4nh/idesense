@@ -31,13 +31,16 @@ other fields come from the last challenge of the group (the newest choice). Two 
 `check` with no data root: each question has a key and each key has a question, each file name matches NAME, no two
 file names of a folder are equal in lowercase, each key has the fields KEY_FIELDS, its `question` is its file name
 and its `pin` is the pin of the product in products.json. Its `answer` is an object with the three lists
-`required`, `forbidden` and `not_counted`; each entry matches ENTRY, and each list is sorted by path and line (the
-line as a number), as `export` writes it. A file README.md in the question folder is no question. With
+`required`, `forbidden` and `not_counted`; each entry matches ENTRY, each list is sorted by path and line (the
+line as a number), as `export` writes it, and no line is in more than one list (`score.line_classes` keeps only one
+class of a line). Each question holds the placeholder `{root}` and ends with the answer paragraph `sets.TAIL` (the
+runner puts the sentence of the PF arm before it). A file README.md in the question folder is no question. With
 `data` (the data root): each `answer` equals `sets.answer` of a fresh key record of `key_file`, and each answer
 entry that matches ENTRY is a line of its file in the master tree `TREES/<tree>/`. The command prints each problem
 and the count, and exits 0 only with no problem.
 
-`rescore` reads each stored `run.json` of each batch folder below the runs folder (BENCH/runs). A set-aside try
+`rescore` reads each stored `run.json` of each batch folder below the runs folder (BENCH/runs), or of one batch
+folder only (`rescore(runs_root, batch)`; the ledger of `bench.triage` reads its batch only). A set-aside try
 (`<run id>.invalid-<k>`, `<run id>.api-error-<k>`) is not read, and a folder with no run folder is no batch. The
 question of a run is its field `question`, or for an old record the question whose `old_ids` hold its `challenge`.
 A run with no `answer` is `no_answer`; a run whose question has no tracked key is `unknown`. For each other run,
@@ -236,6 +239,22 @@ def _answer_problems(label: str, answer: dict) -> list[str]:
             lines = [(path, int(line)) for path, _, line in (entry.rpartition(":") for entry in answer[field])]
             if lines != sorted(lines):
                 out.append(f"{label}: the list `{field}` of the answer is not sorted by path and line")
+    lists: dict[str, list[str]] = {}
+    for field in ANSWER_LISTS:
+        for entry in dict.fromkeys(e for e in answer[field] if isinstance(e, str) and ENTRY.fullmatch(e)):
+            lists.setdefault(entry, []).append(field)
+    out += [f"{label}: the line {entry} is in more than one answer list: {', '.join(fields)}"
+            for entry, fields in lists.items() if len(fields) > 1]
+    return out
+
+
+def _question_problems(label: str, text: str) -> list[str]:
+    """What the runner needs of a question: the placeholder `{root}` and `sets.TAIL` as the last paragraph."""
+    out = []
+    if "{root}" not in text:
+        out.append(f"{label}: the question has no placeholder {{root}}")
+    if text.rpartition("\n\n")[2] != sets.TAIL:
+        out.append(f"{label}: the last paragraph is not the answer paragraph (sets.TAIL)")
     return out
 
 
@@ -256,6 +275,8 @@ def check(data: bool = False, questions_dir: str = QUESTIONS, keys_dir: str = KE
     where_q, where_k = os.path.basename(questions_dir), os.path.basename(keys_dir)
     problems += [f"{where_q}/{stem}.md: no key" for stem in questions if stem not in keys]
     problems += [f"{where_k}/{stem}.json: no question" for stem in keys if stem not in questions]
+    for stem in questions:
+        problems += _question_problems(f"{where_q}/{stem}.md", load_question(stem, questions_dir))
     pin = pins()
     for stem in keys:
         label = f"{where_k}/{stem}.json"
@@ -282,10 +303,12 @@ def check(data: bool = False, questions_dir: str = QUESTIONS, keys_dir: str = KE
     return problems
 
 
-def _rescored(runs_root: str):
-    """(batch, run folder, question, status, stored score, new score) of each stored run (module text)."""
+def _rescored(runs_root: str, batch: str | None = None):
+    """(batch, run folder, question, status, stored score, new score) of each stored run (module text); with
+    `batch`, of the runs of that batch only."""
     old, keys, files = by_old_id(KEYS), {}, {}
-    for batch in sorted(os.listdir(runs_root)):
+    batches = sorted(os.listdir(runs_root)) if batch is None else [batch]
+    for batch in batches:
         folder = os.path.join(runs_root, batch)
         if not os.path.isdir(folder):
             continue
@@ -327,9 +350,10 @@ def _counts(results) -> dict:
     return out
 
 
-def rescore(runs_root: str) -> dict:
-    """{batch: {"equal": n, "different": n, "unknown": n, "no_answer": n}} of the stored runs (module text)."""
-    return _counts(_rescored(runs_root))
+def rescore(runs_root: str, batch: str | None = None) -> dict:
+    """{batch: {"equal": n, "different": n, "unknown": n, "no_answer": n}} of the stored runs (module text); with
+    `batch`, of that batch only."""
+    return _counts(_rescored(runs_root, batch))
 
 
 def _compared(s: dict) -> str:

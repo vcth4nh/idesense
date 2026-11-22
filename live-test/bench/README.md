@@ -52,8 +52,10 @@ The settings come from environment variables. No tracked file holds a value of o
 | `BENCH_IDE_XMX` | `bench-ide.sh start`: the heap of a benchmark IDE | `4096m` |
 | `BENCH_TRACE_OUT` | The trace file of a copy of `gokeys trace` | |
 
-A path must be absolute. The runner sets `BENCH_SLOT` and `BENCH_AID` in a container. `BENCH_PORT`
-and `BENCH_INIT` are for the tests only.
+A path must be absolute. The data root and the slots root are used as real paths: a symbolic link
+in them is resolved. No message shows the value of `BENCH_SECRET_FILE` or of `BENCH_LOGIN`. The
+runner sets `BENCH_SLOT` and `BENCH_AID` in a container. `BENCH_PORT` and `BENCH_INIT` are for the
+tests only.
 
 The data root is outside the repository: it is large, the worktrees share it, and it holds product
 source.
@@ -77,8 +79,9 @@ A slot is a copy of a master tree at a neutral path, `<slots root>/<slot id>/<pr
 id comes from the name of the tree. The agent in the container and the benchmark IDE see the same
 slot path.
 
-**The lock.** One user of the benchmark IDEs at a time: `runner batch`, a single `runner run`, the
-`run` commands of the audit and `bench build -start` hold the lock `<data root>/state/lock`. A
+**The lock.** One user of the benchmark IDEs at a time: `runner batch`, a single `runner run`,
+`runner handshake`, the `run` commands of the audit and `bench build -start` hold the lock
+`<data root>/state/lock`. A
 second user stops at once with a message that names the holder. On a machine that more than one
 person or agent uses, only one Gradle build runs at a time.
 
@@ -111,9 +114,9 @@ also needs the checkouts of caddy and beets in `live-test/real-products/` (see "
    ./live-test/run.py bench images gate beets
    ```
 
-   The build reads the pins of [`live-test/manifest.json`](../manifest.json) and stops when a pin
-   is absent. `gate` prints one line with PASS or FAIL for each check, and exits 0 only when each
-   check passes.
+   The build reads the pins of [`live-test/manifest.json`](../manifest.json) and stops when the
+   file or a pin is absent. `gate` prints one line with PASS or FAIL for each check, and exits 0
+   only when each check passes.
 5. **Benchmark IDEs.** Build the plugin and start the benchmark IDEs with it:
    `./live-test/run.py bench build -start` (see "The plugin build under test").
 6. **Proxy.** Start the proxy in a terminal of its own, then check the connection of each image:
@@ -162,7 +165,7 @@ key records of the data root, and the fields `family` and `coupled` of a Go key 
 "Go keys" in [keygen/README.md](../keygen/README.md#go-keys).
 
 ```bash
-./live-test/run.py bench qfiles check          # each question has a key, the names, the fields, the pins
+./live-test/run.py bench qfiles check          # the pairs, names, fields, pins, answer lists, {root}, answer paragraph
 ./live-test/run.py bench qfiles check -data    # also: each answer equals a fresh view of the full key file
 ./live-test/run.py bench qfiles rescore "$B/runs"   # the stored runs, scored again with the present keys
 ```
@@ -212,7 +215,12 @@ The arms and their meaning are in [METHOD.md](../METHOD.md), section 5.2. The op
 
 A plugin arm needs the proxy. A run that is not a dry run needs the secret file. A batch reads its
 plan, refuses a batch folder that holds another plan, and skips a run that has a record: a batch
-that stopped continues at its next start. Use a new batch name for a new plan.
+that stopped continues at its next start. Use a new batch name for a new plan. Before its first
+run, a batch reads the plugin version of the IDE of each product with a run to do, also with
+`-plugin-version`. It stops with exit 2, before any write, when an IDE gives no version, when the
+version is not the option, or when the plugin version or the image of a product differs from the
+`manifest.json` of an earlier start of the batch: use a new batch name for a new build or a new
+image.
 
 ```
 <data root>/runs/<batch>/
@@ -261,9 +269,10 @@ The arms `PFR` and `PFL` read their rows from `$B/additions.json` (format in the
 ```
 
 `summary.md` has the tables "Batch", "By question, model and arm", "Paired differences",
-"Adoption" and "Flags". The ledger summary holds the plan, the recorded versions and these tables,
-and no path and no transcript text. A maintainer compares two batches by reading their summaries:
-[METHOD.md](../METHOD.md), section 6, says what must be equal.
+"Adoption" and "Flags". The ledger summary holds the plan, the recorded versions (with the agent
+version of each image), the plugin versions and the image ids of the run records, and these
+tables, and no path and no transcript text. A maintainer compares two batches by reading their
+summaries: [METHOD.md](../METHOD.md), section 6, says what must be equal.
 
 ## Procedures
 

@@ -18,7 +18,7 @@ A key file `BENCH/keys/<product>/<set>.jsonl` has one key record for each line:
 - Paths are relative to the tree root.
 
 A Go record of a method or an interface method also has `coupled`: the sorted ids of the family members that a
-rename must change with the record (see `live-test/bench/README.md`). A use of a family member outside
+rename must change with the record (see `live-test/keygen/README.md`). A use of a family member outside
 `coupled` is `dnc` with `"optional": true` and keeps its `rel`: a rename can change it, and need not. A question
 about the uses of a symbol (the refs view, the audit) reads the record through `structural_view`, where such a
 use is `required` again.

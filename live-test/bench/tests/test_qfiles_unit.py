@@ -229,7 +229,7 @@ class CheckTest(DataRoot):
                          qfiles.check(True, self.questions, self.keys))
 
     def test_check_reports_an_answer_entry_of_another_form_and_a_list_out_of_order(self):
-        self.edit_key("caddy-refs-ca", answer={"required": ["a.go:9", "a.go:10"], "forbidden": ["a.go:10", "a.go:9"],
+        self.edit_key("caddy-refs-ca", answer={"required": ["a.go:9", "a.go:10"], "forbidden": ["a.go:12", "a.go:11"],
                                                "not_counted": ["/abs/a.go:8", "a.go:0", "a.go", "a.go:8:2", 7]})
         label, pattern = "keys/caddy-refs-ca.json", qfiles.ENTRY.pattern
         self.assertEqual([f"{label}: the list `forbidden` of the answer is not sorted by path and line"]
@@ -248,6 +248,20 @@ class CheckTest(DataRoot):
                           f"{label}: the answer differs from the view of caddy/symbols.jsonl",
                           f"{label}: a.go/x.go:1 is no file of the tree caddy"],
                          qfiles.check(True, self.questions, self.keys))
+
+    def test_check_reports_what_the_runner_needs_of_a_question_and_a_key(self):
+        with open(os.path.join(self.questions, "caddy-refs-ca.md"), encoding="utf-8") as f:
+            text = f.read()
+        write(os.path.join(self.questions, "caddy-refs-ca.md"), text.replace("{root}", "/srv/ws/caddy"))
+        write(os.path.join(self.questions, "caddy-refs-app.run.md"), text.replace(challenges.TAIL, "Answer in JSON."))
+        key = read_json(self.key_path("caddy-refs-ca"))
+        self.edit_key("caddy-refs-ca", answer=dict(key["answer"], not_counted=["a.go:5", "a.go:8"]))
+        self.assertEqual(["questions/caddy-refs-app.run.md: the last paragraph is not the answer paragraph "
+                          "(sets.TAIL)",
+                          "questions/caddy-refs-ca.md: the question has no placeholder {root}",
+                          "keys/caddy-refs-ca.json: the line a.go:5 is in more than one answer list: "
+                          "required, not_counted"],
+                         qfiles.check(False, self.questions, self.keys))
 
     def test_check_and_names_ignore_the_readme_of_the_questions(self):
         names = qfiles.names(self.keys)
@@ -315,6 +329,16 @@ class RescoreTest(DataRoot):
         self.assertIn("different b1/r2 (caddy-refs-app.run): stored tp=1 fp=0 miss=0 ignored=0 exact=True "
                       "outside=1 listed=2; now tp=1 fp=1 miss=0 ignored=0 exact=False outside=1 listed=2", lines)
         self.assertIn("unknown b1/r4 (caddy-refs-gone)", lines)
+
+    def test_rescore_of_one_batch_reads_no_other_batch(self):
+        now = score.score(self.key, {("a.go", 4)}, {"a.go", "b.go"}, [])
+        self.put("b1", "r1", {"question": "caddy-refs-app.run", "answer": ["a.go:4"], "invalid": [], "score": now})
+        write(os.path.join(self.runs, "b2", "r1", "run.json"), "{not json")
+        with self.assertRaises(ValueError):
+            qfiles.rescore(self.runs)
+        self.assertEqual({"b1": {"equal": 1, "different": 0, "unknown": 0, "no_answer": 0}},
+                         qfiles.rescore(self.runs, batch="b1"))
+        self.assertEqual({}, qfiles.rescore(self.runs, batch="absent"))
 
 
 if __name__ == "__main__":

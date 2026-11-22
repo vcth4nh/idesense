@@ -14,9 +14,10 @@ A plan is a JSON object with the fields FIELDS, for example
 `runner.ARMS`) and can have `aid` (of `runner.AIDS`) and `variant` (of `runner.VARIANTS`). `problems` gives each
 problem of a plan: a missing or unknown key, a `rule` with no text, a list (`questions`, `arms`, `models`) that is
 empty or holds an item two times, a question that is not in `qfiles.names()`, a bad arm entry, a model that is no
-text, and `runs` that is no whole number of 1 or more. A bad arm entry is also an entry whose options do not fit
-together, for example arm `PS` with no `aid`, `aid` on another arm, or `variant` on an arm that takes none: the
-argument check of `runner run` (`runner.plan_args` and `runner._check_args`) on one run line of the entry. `expand`
+text or that no run id can hold (the rule `proxy.RUN_ID` of a run id, which holds the model name), and `runs` that
+is no whole number of 1 or more. A bad arm entry is also an entry whose options do not fit together, for example
+arm `PS` with no `aid`, `aid` on another arm, or `variant` on an arm that takes none: the argument check of `runner
+run` (`runner.plan_args` and `runner._check_args`) on one run line of the entry. `expand`
 gives the run lines of a valid plan: question x model x arm entry x run number `n` in 1..`runs`, in this order. A run
 line is `{"question", "arm", "model", "n"}` and the other keys of the arm entry: the options of `runner run` (`runner
 batch` runs them).
@@ -29,7 +30,7 @@ import json
 import os
 import sys
 
-from bench import qfiles, runner
+from bench import proxy, qfiles, runner
 
 PLANS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plans")
 FIELDS = ("rule", "questions", "arms", "models", "runs")
@@ -87,7 +88,12 @@ def problems(plan: dict) -> list[str]:
         elif field == "arms":
             out += [problem for entry in items for problem in _arm_problems(entry)]
         else:
-            out += [f"models: {m!r} is no model name" for m in items if not isinstance(m, str) or not m]
+            for m in items:
+                if not isinstance(m, str) or not m:
+                    out.append(f"models: {m!r} is no model name")
+                elif not proxy.RUN_ID.fullmatch(m):
+                    out.append(f"models: {m!r} is no model name: use only the characters A-Z a-z 0-9 . _ - (first: "
+                               "a letter or digit)")
     runs = plan.get("runs", 1)
     if not isinstance(runs, int) or isinstance(runs, bool) or runs < 1:
         out.append(f"runs {runs!r}: use a whole number of 1 or more")

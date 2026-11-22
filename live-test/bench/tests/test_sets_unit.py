@@ -9,6 +9,7 @@ import tempfile
 import unittest
 from unittest import mock
 
+from bench import score
 from bench import sets as challenges
 from common import keyrecord as keys
 
@@ -190,13 +191,13 @@ class AnswerTest(MasterTree):
         read = ["a.go:12", "./a.go:12", f"{ROOT}/a.go:12", "a.go:12:5", " b/c.go:7 ", "b/./c.go:8"]
         bad = ["a.go", "a.go:0", "a.go:3-9", "/etc/passwd:1", "7", "../caddy-plant-1/a.go:3",
                f"{ROOT}-plant-1/a.go:3", f"{ROOT}:3", "a.go:12 (call)", ":12"]
-        sites, invalid = challenges.parse_sites({"sites": read + bad + [7, None]}, ROOT)
+        sites, invalid = score.parse_sites({"sites": read + bad + [7, None]}, ROOT)
         self.assertEqual({("a.go", 12), ("b/c.go", 7), ("b/c.go", 8)}, sites)
         self.assertEqual(bad + ["7", "null"], invalid)
-        self.assertEqual(({("a.go", 12)}, []), challenges.parse_sites({"sites": [f"{ROOT}/a.go:12"]}, ROOT + "/"))
+        self.assertEqual(({("a.go", 12)}, []), score.parse_sites({"sites": [f"{ROOT}/a.go:12"]}, ROOT + "/"))
         for obj in ({}, {"sites": "a.go:12"}, ["a.go:12"], None):
             with self.assertRaises(ValueError):
-                challenges.parse_sites(obj, ROOT)
+                score.parse_sites(obj, ROOT)
 
     def test_answer_gives_the_lines_of_the_view_by_class(self):
         """A line with a decoy is only required; a dnc line is not counted; each list is sorted by path and line."""
@@ -204,39 +205,6 @@ class AnswerTest(MasterTree):
                       site(5, rel="sibling"), site(6, "forbidden", "decoy"), site(2, "dnc", "comment", file="b/c.go")])
         self.assertEqual({"required": ["a.go:9", "a.go:10"], "forbidden": ["a.go:6"],
                           "not_counted": ["a.go:5", "b/c.go:2"]}, challenges.answer(challenge("refs"), rec))
-
-    def test_score_answer_counts_invalid(self):
-        rec = record([site(3, rel="self"), site(4, rel="self"), site(5, rel="sibling"), site(6, "forbidden", "decoy")])
-        sites, invalid = challenges.parse_sites(
-            {"sites": ["a.go:3", "./a.go:3:9", "a.go:5", "a.go:6", "a.go:3-4", "/etc/passwd:1"]}, ROOT)
-        s = challenges.score_answer(challenge("refs"), rec, sites, invalid)
-        self.assertEqual({"tp": 1, "fp": 1, "miss": 1, "ignored": 1, "precision": 0.5, "recall": 0.5,
-                          "exact": False, "invalid": 2, "outside": 0, "listed": 3}, s)
-        empty = challenges.score_answer(challenge("refs"), rec, set(), ["x"])
-        self.assertEqual((0, 2, 1, 0, 0),
-                         (empty["tp"], empty["miss"], empty["invalid"], empty["outside"], empty["listed"]))
-
-    def test_score_answer_moves_non_manifest_paths_to_outside(self):
-        rec = record([site(3), site(9, "forbidden", "decoy", file="b/c.go")])
-        sites = {("a.go", 3), ("b/c.go", 9), (".venv/lib/x.py", 1), ("new.go", 2), ("b", 1)}
-        s = challenges.score_answer(challenge("refs"), rec, sites, ["a.go:3-4"])
-        self.assertEqual({"tp": 1, "fp": 1, "miss": 0, "ignored": 0, "precision": 0.5, "recall": 1.0,
-                          "exact": False, "invalid": 1, "outside": 3, "listed": 2}, s)
-
-    def test_score_answer_of_a_callers_challenge(self):
-        """An exact answer, an answer with an absent line, with a line of another function, and with the line of
-        the target (a dnc line: no error)."""
-        rec, ch = callers_record(), challenge("callers")
-        exact = {("a.go", 5), ("a.go", 9), ("b/c.go", 3)}
-
-        def score(sites):
-            s = challenges.score_answer(ch, rec, sites, [])
-            return s["tp"], s["fp"], s["miss"], s["ignored"], s["exact"]
-
-        self.assertEqual((3, 0, 0, 0, True), score(exact))
-        self.assertEqual((2, 0, 1, 0, False), score(exact - {("b/c.go", 3)}))
-        self.assertEqual((3, 1, 0, 0, False), score(exact | {("a.go", 20)}))
-        self.assertEqual((3, 0, 0, 1, True), score(exact | {("a.go", 1)}))
 
 
 class PromptTest(MasterTree):

@@ -238,6 +238,26 @@ class BuildTest(unittest.TestCase):
                 self.assertEqual((2, f"live-test/manifest.json: {field} is absent or empty\n", []),
                                  (code, err.getvalue(), calls))
 
+    def test_an_absent_or_bad_manifest_stops_the_build_with_one_line_before_the_context(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        path = os.path.join(tmp, "manifest.json")
+        for what, text in (("absent", None), ("no JSON", "{not json"), ("no object", "[1]")):
+            with self.subTest(what):
+                if text is not None:
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(text)
+                calls = []
+                err = io.StringIO()
+                with mock.patch.object(manifest, "PATH", path), \
+                        mock.patch.object(image, "image_slots", lambda product: calls.append("slots") or {}), \
+                        mock.patch.object(image, "make_context", lambda product, slots: calls.append("ctx")), \
+                        mock.patch.object(image.subprocess, "run", lambda cmd, **kw: calls.append(cmd)), \
+                        contextlib.redirect_stderr(err):
+                    code = image.main(["build", "caddy"])
+                self.assertEqual((2, 1, []), (code, len(err.getvalue().splitlines()), calls), err.getvalue())
+                self.assertTrue(err.getvalue().startswith("live-test/manifest.json: no manifest ("), err.getvalue())
+
     def test_an_empty_agent_version_fails_the_dockerfile(self):
         run = next(part for part in "\n".join(dockerfile_code()).split("\nRUN ") if "claude-code@" in part)
         self.assertTrue(run.startswith('test -n "${CLAUDE_CODE_VERSION}" \\\n && npm install -g '), run)

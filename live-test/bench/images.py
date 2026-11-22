@@ -15,8 +15,9 @@ one commit in each tree and warms the caches) and writes BENCH/images/<product>.
 arguments are the product, the slots root and the pins of `live-test/manifest.json` (`common.manifest`): the
 base image, the versions and SHA-256 values of Node, Go and uv, and the version of Claude Code. The Dockerfile
 has no version default. A pin that is absent or empty stops `build` before the build context, with one line
-(`live-test/manifest.json: image.uv.sha256 is absent or empty`) and exit 2. `claude_version` is the agent version
-of `live-test/manifest.json`.
+(`live-test/manifest.json: image.uv.sha256 is absent or empty`) and exit 2. An absent file or a file that is no
+JSON object stops `build` in the same way (`live-test/manifest.json: no manifest (...)`). `claude_version` is the
+agent version of `live-test/manifest.json`.
 
 `gate` starts containers with the container flags of a run (no API key) and prints one line with PASS or
 FAIL for each check. It exits 0 only when each check passes. The check `claude --version` compares with the
@@ -50,7 +51,7 @@ SERVER_NAMES = {"caddy": "goland-idesense", "beets": "pycharm-idesense"}
 # McpToolWindowPanel.getAgentRuleText, with `serverName` of the IDE.
 RULE = "IMPORTANT: When applicable, prefer using {server} MCP tools for code navigation and refactoring."
 
-# The container flags of each run (plan, Global Constraints).
+# The container flags of each run.
 CONTAINER_FLAGS = ["--rm", "--user", "1000:1000", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                    "--memory", "6g", "--cpus", "4", "--pids-limit", "1024", "--network", "bridge"]
 
@@ -61,7 +62,7 @@ LANGUAGE_SERVERS = ("gopls", "pyright", "pylsp", "jedi-language-server", "rust-a
 INSTRUCTION_NAMES = ("CLAUDE.md", "AGENTS.md", "GEMINI.md", ".cursorrules", ".claude", ".cursor", ".idea")
 LEAK_WORDS = ("bench", "plant", "idesense")
 
-# The baseline test commands of docs/reviews/real-products/_bench/baselines.md, with the XDG folders below /tmp.
+# The test commands of the baseline of each product, with the XDG folders below /tmp.
 XDG = "XDG_CONFIG_HOME=/tmp/xdg/config XDG_DATA_HOME=/tmp/xdg/data"
 TEST_COMMANDS = {
     "caddy": f"{XDG} go test -count=1 -p 1 ./...",
@@ -69,7 +70,7 @@ TEST_COMMANDS = {
 }
 # caddy: the host result. A package that fails runs one more time in the same container (so with the
 # caddy storage of the first run); when it passes then, it counts as `ok`. The flaky product test
-# TestReverseProxySNIPlaceHolder fails mostly when its local CA storage is new (see the task 3 record).
+# TestReverseProxySNIPlaceHolder fails mostly when its local CA storage is new.
 CADDY_EXPECTED = {"ok": 30, "FAIL": 0}
 # beets: the image baseline. The host gives 2680 passed, 1 failed, 164 skipped. The image has 15 more skips:
 # 13 tests need `ffprobe` (test_embedart 2, test_importer 11), 1 test needs `libgio-2.0` (test_thumbnails),
@@ -217,12 +218,16 @@ PIN_ARGS = {"BASE_IMAGE": ("image", "base"), "NODE_VERSION": ("image", "node", "
 
 
 class PinError(Exception):
-    """A pin of live-test/manifest.json is absent or empty."""
+    """live-test/manifest.json cannot be read, or a pin of it is absent or empty."""
 
 
 def build_pins() -> dict[str, str]:
-    """{build argument: pin} from live-test/manifest.json. PinError when a pin is no string or is empty."""
-    pins = manifest.load()
+    """{build argument: pin} from live-test/manifest.json. PinError when the file cannot be read or is no JSON
+    object, and when a pin is no string or is empty."""
+    try:
+        pins = manifest.load()
+    except (OSError, ValueError) as e:
+        raise PinError(f"live-test/manifest.json: no manifest ({type(e).__name__}: {e})") from None
     args = {}
     for arg, field in PIN_ARGS.items():
         value = pins

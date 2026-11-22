@@ -794,7 +794,7 @@ class ReportTest(unittest.TestCase):
         counts = {"b1": dict(dict.fromkeys(qfiles.STATUSES, 0), equal=3, **statuses), "other": {"different": 5}}
         with mock.patch.object(qfiles, "rescore", return_value=counts) as rescore:
             path = triage.ledger(self.batch, self.ledger_dir)
-        rescore.assert_called_once_with(self.runs)
+        rescore.assert_called_once_with(self.runs, batch="b1")
         with open(path, encoding="utf-8") as f:
             return path, f.read()
 
@@ -850,14 +850,25 @@ class ReportTest(unittest.TestCase):
         write(os.path.join(self.batch, "manifest.json"), json.dumps(record, indent=1))
         _, text = self.ledger()
         self.assertIn("```json\n" + json.dumps(plan, indent=2) + "\n```", text)
-        for line in ("| plugin version (demo) | 2.2.0-dev.07 |", "| agent | claude-code 2.1.326 |",
+        manifest_part, records_part = text.split("The values of the run records")
+        for line in ("| plugin version (demo) | 2.2.0-dev.07 |",
+                     "| agent (pin at the batch start) | claude-code 2.1.326 |",
                      f"| models | {OPUS} |", "| image (demo) | sha256:bb |", "| repository commit | 0123abc (dirty) |",
                      "| login | subscription |", "| IDE goland | 2026.3 (build 263.7307.211) |",
                      "| IDE pycharm | 2026.3.0.1 (build 263.7307.329) |"):
-            self.assertIn(line, text)
+            self.assertIn(line, manifest_part)
+        # The run records give the plugin versions and the image ids that the runs had.
+        for line in ("| plugin version (demo) | 2.2.0-dev.01, 2.2.0-dev.02 |", "| image (demo) | sha256:aa |",
+                     f"| models | {OPUS} |"):
+            self.assertIn(line, records_part.split("## ")[0])
         for absent in ("webstorm", "/home/", "someone", "q" * 64, "no stored plan", "no recorded manifest",
-                       "sha256:aa", "claude-haiku-5-5", "ubuntu"):
+                       "claude-haiku-5-5", "ubuntu"):
             self.assertNotIn(absent, text)
+        # The agent version of each image record.
+        write(os.path.join(self.batch, "manifest.json"), json.dumps(dict(record, claude_versions={"demo": "2.1.400"})))
+        _, text = self.ledger()
+        self.assertIn("| agent (demo) | claude-code 2.1.400 |", text)
+        self.assertNotIn("2.1.326", text)
         # A plugin version for each product (the option -plugin-version), a clean tree, an unknown login and no
         # benchmark IDE on the machine.
         record.update(plugin="2.2.0-dev.08", repository={"commit": "0123abc", "dirty": False},

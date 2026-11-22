@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 import unittest
 from unittest import mock
 
@@ -48,6 +50,31 @@ class SettingsTest(unittest.TestCase):
             self.assertEqual(settings.slots_root(), "/h/x/dev/ws")
             self.assertEqual(settings.login(), "api-key")
             with self.assertRaisesRegex(ValueError, "BENCH_SECRET_FILE"): settings.secret_file()
+
+    def test_no_message_shows_the_value_of_the_secret_file_or_the_login(self):
+        # A person can set the secret itself in place of the path of its file.
+        secret = "sk-ant-FAKE-value"
+        with mock.patch.dict(os.environ, {"BENCH_SECRET_FILE": secret}):
+            with self.assertRaises(ValueError) as e:
+                settings.secret_file()
+        self.assertIn("BENCH_SECRET_FILE", str(e.exception))
+        self.assertNotIn(secret, str(e.exception))
+        with mock.patch.dict(os.environ, {"BENCH_LOGIN": secret}):
+            with self.assertRaises(ValueError) as e:
+                settings.login()
+        self.assertIn("BENCH_LOGIN", str(e.exception))
+        self.assertIn("api-key, subscription", str(e.exception))
+        self.assertNotIn(secret, str(e.exception))
+
+    def test_the_data_root_and_the_slots_root_are_real_paths(self):
+        d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, d)
+        for name in ("bench", "ws"):
+            os.makedirs(os.path.join(d, "real", name))
+            os.symlink(os.path.join(d, "real", name), os.path.join(d, name))
+        with mock.patch.dict(os.environ, {"BENCH_ROOT": os.path.join(d, "bench"), "BENCH_SLOTS": os.path.join(d, "ws")}):
+            self.assertEqual(os.path.join(os.path.realpath(d), "real", "bench"), settings.data_root())
+            self.assertEqual(os.path.join(os.path.realpath(d), "real", "ws"), settings.slots_root())
 
     def test_roots_come_from_the_place_of_the_file(self):
         here = os.path.dirname(os.path.abspath(__file__))

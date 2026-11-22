@@ -35,7 +35,7 @@ the suite call it at their start.
 `repository` (`commit`: HEAD of the repository, `dirty`: a tracked file differs from HEAD) and the values of the
 caller. `write(path, **extra)` writes it as JSON:
 - `runner batch`: `<batch folder>/manifest.json` at each start with a run to do, with `plugin`, `plan_models`,
-  `image_ids`, `slots_root`, `login` and `questions` (see `bench.runner`). A later start of the batch with a run to
+  `image_ids`, `claude_versions`, `slots_root`, `login` and `questions` (see `bench.runner`). A later start of the batch with a run to
   do writes it again with the values of that start: the record describes the last start that ran.
 - `audit.symbols run`: `<out>/manifest.json`; `audit.callers callers` and `dyn`: `<out without .jsonl>.manifest.json`
   next to the result file; `audit.verdict run`: one `<out>/manifest.json` for all its audits. Each has `plugin`

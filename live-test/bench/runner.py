@@ -32,11 +32,12 @@ with PFS_SENTENCE after PF_SENTENCE in the same paragraph, and its route has no 
 gives the route the text GUIDE_INSTRUCTIONS and changes no other part of the run. `-stop-after-tools N` kills the
 container after the N-th `tool_use` block that is not a block of `StructuredOutput` (the adoption probe).
 `-env-scrub` (each arm; default off) sets `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`: Claude Code removes credentials
-such as ANTHROPIC_API_KEY from the environment of Bash. Claude Code 2.1.326 needs bubblewrap for it.
+such as ANTHROPIC_API_KEY from the environment of Bash. The version of Claude Code of `live-test/manifest.json`
+needs bubblewrap for it.
 
-The root of a run is the slot path of the tree (`trees.load_slots()`, plan amendment A4): the root of the prompt,
+The root of a run is the slot path of the tree (`trees.load_slots()`): the root of the prompt,
 the project of the route and the slot that the entry script keeps (`BENCH_SLOT`). The image is the image id of
-`IMAGES/<product>.json` (amendment A2: `id`, `server_name`, `slots`); its slot of the tree must equal the slot of
+`IMAGES/<product>.json` (`id`, `server_name`, `slots`); its slot of the tree must equal the slot of
 `slots.json`. The docker command: `docker run` with CONTAINER_FLAGS, `--name run-<hex>`, `-e BENCH_SLOT=<slot id>`,
 `-e BENCH_AID=<aid or none>`, `-e <the variable of the secret>` (`claude_code.secret_env` by the login kind
 `settings.login()`: ANTHROPIC_API_KEY for `api-key`, CLAUDE_CODE_OAUTH_TOKEN for `subscription`; the name only: the
@@ -55,9 +56,9 @@ proxy log lines of the route of the run; empty for arm C) and `run.json` (RUN_FI
 login kind (`login`, `settings.login()`; a record of an older runner has no `login`).
 `run.json` comes last: a folder with `run.json` holds a finished run, and `run` refuses it.
 
-A single `run` (not `-dry-run`) and `batch` hold the lock of the benchmark IDEs (`common.lock.ide_lock`) while they
-run; `batch` takes it one time for all its runs. When another holder has the lock, they print its message and exit 2,
-before any route or container exists.
+A single `run` (not `-dry-run`), `batch` and `handshake` hold the lock of the benchmark IDEs (`common.lock.ide_lock`)
+while they run; `batch` takes it one time for all its runs. When another holder has the lock, they print its message
+and exit 2, before any route or container exists.
 
 Guards of each run, in this order:
 - a plugin arm needs an answer from the proxy at HEALTH_URL; with no answer `run` exits 2 and starts nothing;
@@ -78,7 +79,7 @@ Guards of each run, in this order:
   `stderr.txt`, `proxy.jsonl` and the text of `run.json`. A hit deletes the three files, sets the outcome
   `key_leak`, keeps only metadata (also `login`), cost and turns in `run.json`, and exits 9. No message names the
   key;
-- the leak words LEAK_WORDS in `transcript.jsonl` (amendment A4): `leak_words` holds the count of each one. A hit
+- the leak words LEAK_WORDS in `transcript.jsonl`: `leak_words` holds the count of each one. A hit
   is no failure.
 
 Outcome: `key_leak`; `invalid` (see above); `timeout`; `stopped` (`-stop-after-tools`); `api_error` (the result
@@ -110,15 +111,20 @@ before the first run. When the batch folder holds a `plan.json` with another pla
 prints the warnings of `live-test/manifest.json` (`common.manifest.warn`); a difference from this machine never
 stops a batch. Next to `plan.json`, the batch folder gets `manifest.json` (`common.manifest.write`): the pins, the
 IDEs of this machine, the commit of the repository, and `plugin` (the option `-plugin-version`, else {product: the
-version that the batch read}), `plan_models`, `image_ids` ({product: `id` of the image record}), `slots_root`,
-`login` and `questions` ({question: {`question_sha256`, `key_sha256`}}). A later start with a run to do writes it
-again: it describes the last start that ran. A start with no run to do keeps it. Each run of the batch
-gets the option `-plugin-version` of the batch. With no option, `batch` reads the version of the IDE of each product
-one time before its first run (`ide_version`), and each run of the product gets it as its expected version; an IDE
-that gives no version exits 2 before the first run. The runs of one
+version that the batch read}), `plan_models`, `image_ids` ({product: `id` of the image record}), `claude_versions`
+({product: `claude_version` of the image record}), `slots_root`, `login` and `questions` ({question:
+{`question_sha256`, `key_sha256`}}). A later start with a run to do writes it again: it describes the last start that
+ran. A start with no run to do keeps it. Each run of the batch gets the option `-plugin-version` of the batch.
+`batch` reads the version of the IDE of each product with a run to do one time before its first run
+(`ide_version`), also with the option; with no option, each run of the product gets it as its expected version. An
+IDE that gives no version, or with the option a version that is not the option, exits 2 before the first run and
+before any write. When the batch folder has a `manifest.json` of an earlier start, a plugin version or an image id
+of a product with a run to do that differs from the stored `plugin` or `image_ids` value of that product also exits
+2 before any write: the runs of one batch have one build and one image, so use a new batch name. The runs of one
 question and one model are neighbours, in a random order (`-seed`); the groups keep the order of their first run
 line. A run whose folder has `run.json` is skipped, except
-a record with the outcome `api_error` that a single `run` left: that folder moves to `<run id>.api-error-<k>/`. A run
+a record with the outcome `api_error` that a single `run` left: after the start checks, that folder moves to
+`<run id>.api-error-<k>/`. A run
 with the outcome `invalid` moves to `<run id>.invalid-<k>/` and runs again one time (a second `invalid` run stays). A
 run with the exit code 3 (`api_error`) moves to `<run id>.api-error-<k>/` and runs again one time; when the second
 try also gives 3, its folder moves too and the batch stops with 3. So an `api_error` run never leaves `run.json` in
@@ -127,11 +133,11 @@ starts, for example the proxy is down) stops the batch too. A stop means: no new
 run of another worker ends normally. The exit code of the batch: 9 before 3, 3 before 2. `-jobs` runs go at the
 same time.
 
-`handshake`: with no secret (no read of the secret file, and the environment of the docker process has no variable of
-`claude_code.SECRET_VARS`), a container of the product image runs the shell text of `claude_code.handshake_script`
-(`claude mcp add --transport http <server name> <route url>` and `claude mcp list`; the entry point is `/bin/bash`,
-so the entry script does not run). It prints
-the output and the proxy log lines of the route, and exits 0 when the log has an `initialize` with the status 200.
+`handshake` (with the lock): with no secret (no read of the secret file, and the environment of the docker process
+has no variable of `claude_code.SECRET_VARS`), a container of the product image runs the shell text of
+`claude_code.handshake_script` (`claude mcp add --transport http <server name> <route url>` and `claude mcp list`;
+the entry point is `/bin/bash`, so the entry script does not run). It prints the output and the proxy log lines of
+the route, and exits 0 when the log has an `initialize` with the status 200.
 """
 import argparse
 import datetime
@@ -148,8 +154,7 @@ import threading
 import time
 import urllib.parse
 
-from bench import claude_code, planfile, proxy, qfiles, score
-from bench import sets as challenges
+from bench import claude_code, planfile, proxy, qfiles, score, sets
 from common import manifest, mcp, settings, trees
 from common.lock import Busy, ide_lock
 
@@ -185,7 +190,7 @@ ADDITION_NOTES = {
 }
 AIDS = ("skill", "rule")
 VARIANTS = ("instructions", "no-tool-search", "guide")
-# The container flags of the plan (Global Constraints). No mount, no volume, no host network, no Docker socket.
+# The container flags of each run. No mount, no volume, no host network, no Docker socket.
 CONTAINER_FLAGS = ["--rm", "--user", "1000:1000", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
                    "--memory", "6g", "--cpus", "4", "--pids-limit", "1024", "--network", "bridge"]
 DOCKER_ERRORS = (125, 126, 127)  # docker run: the daemon failed, the command cannot run, the command is absent
@@ -335,10 +340,10 @@ def load_image(product: str) -> dict:
 
 
 def image_problem(image: dict, tree: str, slot: dict) -> str | None:
-    """Why the image does not hold the slot of the tree (amendment A2), or None."""
+    """Why the image does not hold the slot of the tree, or None."""
     slots = image.get("slots")
     if not isinstance(slots, dict):
-        return "the image record has no `slots` (amendment A2)"
+        return "the image record has no `slots`"
     entry = slots.get(tree)
     if not isinstance(entry, dict) or entry.get("slot") != slot["slot"] or entry.get("path") != slot["path"]:
         return f"the image slot of {tree} is {entry!r}, slots.json has {slot!r}"
@@ -401,7 +406,7 @@ def pf_prompt(text: str, server: str, after: str | None = None) -> str:
     """The prompt with PF_SENTENCE as its own paragraph before the answer paragraph. With `after`, the paragraph is
     PF_SENTENCE, a space and `after`."""
     head, sep, tail = text.rpartition("\n\n")
-    if not sep or tail != challenges.TAIL:
+    if not sep or tail != sets.TAIL:
         raise SetupError("the last paragraph of the prompt is not the answer paragraph")
     paragraph = PF_SENTENCE.format(server=server) + (" " + after if after else "")
     return f"{head}\n\n{paragraph}\n\n{tail}"
@@ -444,7 +449,7 @@ def prepare(args) -> dict:
     if args.env_scrub:
         env += ["-e", claude_code.ENV_SCRUB]
     cmd = ["docker", "run", *CONTAINER_FLAGS, "--name", name, *env, image["id"],
-           *claude_code.flags(text, args.model, challenges.schema(key))]
+           *claude_code.flags(text, args.model, sets.schema(key))]
     if plugin:
         config = claude_code.mcp_config(server, proxy.route_url(token))
         cmd += [claude_code.MCP_CONFIG_FLAG, json.dumps(config, separators=(",", ":"))]
@@ -778,9 +783,10 @@ def _retry_part(code: int, rec: dict | None) -> str | None:
     return "invalid" if code == 0 and rec and rec["outcome"] == "invalid" else None
 
 
-def _finished(folder: str) -> bool:
-    """True when the run folder has a `run.json`. A record with the outcome `api_error` (a single `run` leaves it)
-    is no finished run: its folder is set aside, and the batch does the run again."""
+def _finished(folder: str) -> bool | None:
+    """True when the run folder has a `run.json`. None for a record with the outcome `api_error` (a single `run`
+    leaves it): it is no finished run, and the batch sets its folder aside after the start checks and does the run
+    again. Reads only."""
     try:
         with open(os.path.join(folder, "run.json"), encoding="utf-8") as f:
             rec = json.load(f)
@@ -789,8 +795,7 @@ def _finished(folder: str) -> bool:
     except (OSError, ValueError):
         return True
     if isinstance(rec, dict) and rec.get("outcome") == "api_error":
-        _set_aside(folder, "api-error")
-        return False
+        return None
     return True
 
 
@@ -807,20 +812,48 @@ def _batch_manifest(path: str, runs: list, plugin) -> None:
     """Write the recorded manifest of a batch (module text). It never stops the batch."""
     first = {a.question: a for a in runs}  # one run of each question
     products = sorted({p for p in map(_product_of, first.values()) if p})
-    image_ids = {}
+    image_ids, claude_versions = {}, {}
     for product in products:
         try:
-            image_ids[product] = load_image(product)["id"]
+            image = load_image(product)
+            image_ids[product], claude_versions[product] = image["id"], image.get("claude_version")
         except SetupError:
-            image_ids[product] = None
+            image_ids[product], claude_versions[product] = None, None
     try:
         login = settings.login()
-    except ValueError as e:
+    except ValueError as e:  # the message names the variable, never its value
         login = f"unknown ({e})"
     questions = {q: {"question_sha256": manifest.file_sha256(qfiles.question_path(q, qfiles.QUESTIONS)),
                      "key_sha256": manifest.file_sha256(qfiles.key_path(q, qfiles.KEYS))} for q in sorted(first)}
     manifest.write(path, plugin=plugin, plan_models=sorted({a.model for a in runs}), image_ids=image_ids,
-                   slots_root=trees.SLOTS_ROOT, login=login, questions=questions)
+                   claude_versions=claude_versions, slots_root=trees.SLOTS_ROOT, login=login, questions=questions)
+
+
+def _start_problems(path: str, versions: dict) -> list[str]:
+    """The differences of this start from the recorded manifest `path` of an earlier start: a plugin version or an
+    image id of a product with a run to do (`versions`: {product: plugin version}). No record, or one that cannot be
+    read, gives []."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            record = json.load(f)
+    except (OSError, ValueError):
+        return []
+    if not isinstance(record, dict):
+        return []
+    out = []
+    plugin, images = record.get("plugin"), record.get("image_ids")
+    for product, version in sorted(versions.items()):
+        before = plugin if isinstance(plugin, str) else plugin.get(product) if isinstance(plugin, dict) else None
+        if before is not None and before != version:
+            out.append(f"the plugin version {version} of {product} is not the version {before} of an earlier start")
+        before = images.get(product) if isinstance(images, dict) else None
+        try:
+            image = load_image(product)["id"]
+        except SetupError:
+            image = None
+        if before is not None and before != image:
+            out.append(f"the image {image} of {product} is not the image {before} of an earlier start")
+    return out
 
 
 def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_version: str | None = None) -> int:
@@ -855,11 +888,12 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_versio
         if not same:
             print(f"runner: batch {batch}: {stored} holds another plan; use a new batch name", file=sys.stderr)
             return 2
-    todo = [a for a in batch_order(runs, seed) if not _finished(os.path.join(RUNS, batch, run_id_of(a)))]
+    finished = {run_id_of(a): _finished(os.path.join(RUNS, batch, run_id_of(a))) for a in runs}
+    todo = [a for a in batch_order(runs, seed) if not finished[run_id_of(a)]]
     print(f"batch {batch}: {len(runs)} runs, {len(runs) - len(todo)} finished before, {len(todo)} to run", flush=True)
     versions = {}  # product -> the version of its IDE before the first run
     for a in todo:
-        product = None if plugin_version else _product_of(a)
+        product = _product_of(a)
         if product in IDE_URLS and product not in versions:
             try:
                 versions[product] = ide_version(IDE_URLS[product])
@@ -868,12 +902,25 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_versio
                       file=sys.stderr)
                 return 2
             print(f"batch {batch}: plugin version {versions[product]} of the IDE of {product}", flush=True)
+            if plugin_version and versions[product] != plugin_version:
+                print(f"runner: batch {batch}: the IDE of {product} has the plugin version {versions[product]}, "
+                      f"not {plugin_version}; no run starts", file=sys.stderr)
+                return 2
         a.plugin_version = plugin_version or versions.get(product)
+    record = os.path.join(RUNS, batch, "manifest.json")
+    problems = _start_problems(record, versions)
+    for problem in problems:
+        print(f"runner: batch {batch}: {problem} ({record}); use a new batch name", file=sys.stderr)
+    if problems:
+        return 2
+    for run_id, done in finished.items():
+        if done is None:
+            _set_aside(os.path.join(RUNS, batch, run_id), "api-error")
     os.makedirs(os.path.join(RUNS, batch), exist_ok=True)
     with open(os.path.join(RUNS, batch, "plan.json"), "w", encoding="utf-8") as f:
         f.write(json.dumps(spec, indent=2, ensure_ascii=False) + "\n")
     if todo:  # a start with no run to do keeps the record of the start that ran
-        _batch_manifest(os.path.join(RUNS, batch, "manifest.json"), runs, plugin_version or versions)
+        _batch_manifest(record, runs, plugin_version or versions)
     queue, lock, stop, codes, api_reasons = iter(todo), threading.Lock(), threading.Event(), [], []
 
     def worker():
@@ -1019,11 +1066,14 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             with ide_lock(f"bench.runner batch {args.batch}"):
                 return run_batch(args.plan, args.batch, args.jobs, args.seed, args.plugin_version)
+        with ide_lock(f"bench.runner handshake {args.product}"):
+            return handshake(args.product)
     except Busy as e:
         print(f"runner: {e}; no run starts", file=sys.stderr)
         return 2
-    return handshake(args.product)
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # The main of the imported module: `planfile` imports `bench.runner`, so one copy of the module state exists.
+    from bench import runner
+    sys.exit(runner.main())

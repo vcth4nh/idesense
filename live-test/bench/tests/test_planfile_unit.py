@@ -59,6 +59,9 @@ class ProblemsTest(unittest.TestCase):
             ("runs true", dict(SAMPLE, runs=True), "runs True: use a whole number of 1 or more"),
             ("no model", dict(SAMPLE, models=[]), "models: no list of one or more model names"),
             ("a model that is no text", dict(SAMPLE, models=[HAIKU, ""]), "models: '' is no model name"),
+            ("a model that no run id can hold", dict(SAMPLE, models=["claude opus/5"]),
+             "models: 'claude opus/5' is no model name: use only the characters A-Z a-z 0-9 . _ - (first: a letter "
+             "or digit)"),
             ("an unknown key", dict(SAMPLE, note="x"), "unknown key 'note'"),
             ("a missing key", {k: v for k, v in SAMPLE.items() if k != "runs"}, "no key 'runs'"),
             ("no rule", dict(SAMPLE, rule=" "), "rule: no sentence"),

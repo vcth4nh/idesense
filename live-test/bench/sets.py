@@ -24,15 +24,12 @@ The score uses a view of the key record (`view`). In the rename view, a forbidde
 use and no required site is `dnc`. The callers view is the key record itself; a key record whose `source` is not
 `calls` is a ValueError there. The dyncallers view is also the key record itself; a key record whose `source` is
 not `calls+trace` is a ValueError there. `answer` gives the lines of the view by class, in the form of the
-`answer` of a tracked key (`bench.score`). The answer is the JSON object of `schema`, and `parse_sites`
-(`bench.score.parse_sites`) reads it. `score_answer` is `bench.score.score` with the tree files of the master
-manifest `TREES/<tree>.manifest`: an answer line whose path is no file of it counts in `outside`.
+`answer` of a tracked key (`bench.score`). The answer is the JSON object of `schema`; `bench.score.parse_sites`
+reads it, and `bench.score.score` scores it.
 
-The prompt texts are those of the plan, amendment A3. The texts of the family `callers` come from the plan of the
-call chains (task 3): the head of the kind and the tail of the language in one paragraph, and a Python property
-(`"property": true`) takes the head CALLERS_PY_PROPERTY. The family `dyncallers` has one text, DYNCALLERS_GO, for a
-Go method (plan of the call chains, task 6). The root of a prompt is a parameter: the runner gives the slot path of
-the tree. For Go, the package name comes from the package clause of the declaration file in the master tree
+A text of the family `callers` is the head of the kind and the tail of the language in one paragraph, and a
+Python property (`"property": true`) takes the head CALLERS_PY_PROPERTY. The family `dyncallers` has one text,
+DYNCALLERS_GO, for a Go method. The root of a prompt is a parameter: the runner gives the slot path of the tree. For Go, the package name comes from the package clause of the declaration file in the master tree
 `TREES/<tree>`.
 
 `show` prints for each challenge the id, the line counts of the view, the text scan (`text_scan`, `-` for a Go
@@ -50,7 +47,6 @@ import random
 import re
 import sys
 
-from bench import score
 from common import keyrecord as keys
 from common import trees
 from common.keyrecord import IMPLEMENTER_CLASSES, REQUIRED, RELS, rel_of
@@ -70,8 +66,7 @@ GO_MEMBERS = ("method", "iface_method")  # the Go kinds with a `family` of metho
 KIND_WORDS = {"func": "function", "function": "function", "type": "type", "interface": "interface",
               "class": "class"}
 
-# The prompt texts (plan, amendment A3, with the fix round 2 sentences of RENAME and IMPLS_GO). `{build}` is BUILD
-# for Go and empty for Python.
+# The prompt texts. `{build}` is BUILD for Go and empty for Python.
 HEAD = "The repository at {root} is a checkout of the project {product}. Work only with this checkout."
 TAIL = 'Answer with JSON only: {"sites": ["<path relative to the repository root>:<line number>", ...]}'
 BUILD = " A file counts also when the build for this machine does not compile it."
@@ -98,8 +93,8 @@ IMPLS_GO = ("Find each type of this repository that implements the interface `{n
             "Test code counts. Answer with the line that holds the name of each type in its declaration.")
 IMPLS_PY = ("Find each class of this repository that is a direct or indirect subclass of the class `{name}`, which "
             "is declared at {decl}. Test code counts. Answer with the line of each class statement.")
-# The family `callers` (plan of the call chains, task 3): a head for the kind and a tail for the language, in one
-# paragraph. A Python property takes CALLERS_PY_PROPERTY.
+# The family `callers`: a head for the kind and a tail for the language, in one paragraph. A Python property takes
+# CALLERS_PY_PROPERTY.
 CALLERS_GO_FUNC = ("Find each function or method of this repository that calls the function `{name}` of the package "
                    "`{package}`, which is declared at {decl}.")
 CALLERS_METHOD = ("Find each function or method of this repository that calls the method `{name}` of {owner}, which "
@@ -117,7 +112,7 @@ CALLERS_TAIL_PY = (" Find also each function or method that calls one of these c
                    "method that holds it. A read of a property is a call of the property. Test code counts. Answer "
                    "with the line of the `def` statement of each such function or method. Do not list `{name}` "
                    "itself.")
-# The family `dyncallers` (plan of the call chains, task 6): one level, also through an interface value.
+# The family `dyncallers`: one level, also through an interface value.
 DYNCALLERS_GO = ("Find each function or method of this repository that calls the method `{name}` of {owner}, which "
                  "is declared at {decl}. A call counts when it names this method. A call of an interface method "
                  "counts too, when the interface value can hold a value of this type. List only the direct "
@@ -278,23 +273,11 @@ def prompt(ch: dict, record: dict, root: str) -> str:
     return "\n\n".join([HEAD.format(root=root, product=ch["product"]), text, TAIL])
 
 
-def schema(ch: dict) -> dict:
-    """The JSON schema of the answer (the same for each family)."""
+def schema(question: dict) -> dict:
+    """The JSON schema of the answer of a question (a challenge or a tracked key; the same for each family, so the
+    function does not read it)."""
     return {"type": "object", "properties": {"sites": {"type": "array", "items": {"type": "string"}}},
             "required": ["sites"], "additionalProperties": False}
-
-
-def parse_sites(obj, root: str) -> tuple[set[tuple[str, int]], list[str]]:
-    """`bench.score.parse_sites`."""
-    return score.parse_sites(obj, root)
-
-
-def score_answer(ch: dict, record: dict, sites: set[tuple[str, int]], invalid: list[str]) -> dict:
-    """`bench.score.score` against the answer of the view, for the files of the manifest `TREES/<tree>.manifest`.
-    `outside` counts the other answer lines (for example below `.venv/`, or in a file that the agent made); they
-    are not in the score. `invalid` counts the entries that cannot be read, `listed` the scored answer lines."""
-    files = set(_manifest_paths(os.path.join(TREES, ch["tree"] + ".manifest")))
-    return score.score({"answer": answer(ch, record)}, sites, files, invalid)
 
 
 def _manifest_paths(path: str) -> list[str]:
@@ -463,9 +446,9 @@ def _overlap(family: str, record: dict, chosen_family: str, chosen: dict) -> boo
 
 
 def main_set(seed: int, keys_root: str = KEYS, audit_root: str = AUDIT, trees_root: str = TREES) -> list[dict]:
-    """The 30 challenges of the main run (plan of phase 3, task 3): for caddy and for beets 9 `hard` and 6
-    `random` challenges. The rules run in the order of the plan, except that `caddy rename` runs right after
-    `caddy structure`: so no earlier pick can exclude the fixed `App.Provision`. A record that an earlier pick
+    """The 30 challenges of the main run: for caddy and for beets 9 `hard` and 6 `random` challenges. The rules run
+    in a fixed order, and `caddy rename` runs right after `caddy structure`: so no earlier pick can exclude the fixed
+    `App.Provision`. A record that an earlier pick
     chose is no candidate of a later pick, and neither is a record that overlaps an earlier pick of the same
     product (`_overlap`). A seeded pick is `_seeded` over the candidates; a pick of the most or the fewest takes
     the lowest id on a tie. So the set depends only on the seed and the files, not on the order of the records.
@@ -857,8 +840,8 @@ def _number(value: float | None) -> str:
 
 
 def _slot_roots() -> dict[str, str]:
-    """The slot path of each tree (plan, amendment A1): `trees.load_slots()`. While `common.trees` has no
-    `load_slots` (Task 3a), the file `TREES/slots.json` of the same form."""
+    """The slot path of each tree: `trees.load_slots()`. While `common.trees` has no `load_slots`, the file
+    `TREES/slots.json` of the same form."""
     from common import trees
     if hasattr(trees, "load_slots"):
         slots = trees.load_slots()

@@ -12,6 +12,7 @@ import hashlib
 import io
 import json
 import os
+import runpy
 import shutil
 import stat
 import sys
@@ -1573,18 +1574,99 @@ class BatchTest(CaddyCase):
                              "each planned run gets the version of its product, after the reads")
             self.assertIn("plugin version 9.9.9-bench.beets of the IDE of beets", out)
             self.assertIn("plugin version 9.9.9-bench.caddy of the IDE of caddy", out)
-            # With the option, the batch reads no version and each run gets the option.
+            # With the option, the batch reads the version of each IDE too, and each run gets the option.
             runs.clear()
             reads.clear()
+            versions.update({url: "1.2.3" for url in versions})
             code, _, err = self.main("batch", "-plan", plan, "-batch", "b2", "-jobs", "1", "-plugin-version", "1.2.3")
             self.assertEqual(0, code, err)
-            self.assertEqual(([("beets", "1.2.3", 0)] * 3 + [("caddy", "1.2.3", 0)] * 3, []), (runs, reads))
+            self.assertEqual(([("beets", "1.2.3", 2)] * 3 + [("caddy", "1.2.3", 2)] * 3,
+                              [runner.IDE_URLS["beets"], runner.IDE_URLS["caddy"]]), (runs, reads))
         runs.clear()
         with mock.patch.object(runner, "run_one", run_one), mock.patch.object(runner, "ide_version", no_version):
             code, _, err = self.main("batch", "-plan", plan, "-batch", "b3", "-jobs", "1")
         self.assertEqual(2, code)
         self.assertIn("gives no plugin version", err)
         self.assertEqual([], runs, "no run starts")
+
+    def test_with_the_option_an_ide_with_no_version_or_another_version_starts_no_run(self):
+        self.caddy_args("C")  # the tracked question of caddy
+        plan = self.plan({"arm": "C"}, questions=(KEY["question"], self.GO_KEY["question"]))
+        caddy = runner.IDE_URLS["caddy"]
+
+        def no_version(url):
+            if url == caddy:
+                raise mcp.McpError("transport", "transport_error: connection refused")
+            return "1.2.3"
+
+        for what, version, text in (
+                ("another version", lambda url: "9.9.9" if url == caddy else "1.2.3",
+                 "runner: batch b1: the IDE of caddy has the plugin version 9.9.9, not 1.2.3; no run starts"),
+                ("no version", no_version, "runner: batch b1: the IDE of caddy gives no plugin version")):
+            with self.subTest(what):
+                calls, fake = self.fake_run([])
+                with mock.patch.object(runner, "run_one", fake), mock.patch.object(runner, "ide_version", version):
+                    code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1",
+                                               "-plugin-version", "1.2.3")
+                self.assertEqual((2, []), (code, calls), err)
+                self.assertIn(text, err)
+                self.assertFalse(os.path.exists(os.path.join(self.runs, "b1")), "no write")
+
+    def test_a_new_start_refuses_another_plugin_version_or_another_image(self):
+        plan = self.plan({"arm": "C"}, {"arm": "PF"})
+        calls, fake = self.fake_run([])
+        with mock.patch.object(runner, "run_one", fake):
+            code, _, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
+        self.assertEqual((0, 2), (code, len(calls)), err)
+        record = os.path.join(self.runs, "b1", "manifest.json")
+        with open(record, encoding="utf-8") as f:
+            stored = f.read()
+        self.assertEqual(({"beets": VERSION}, {"beets": IMAGE["id"]}),
+                         (json.loads(stored)["plugin"], json.loads(stored)["image_ids"]))
+        # A single run left an api_error record: a start that goes on moves its folder, a refused start does not.
+        write(os.path.join(self.folder("PF"), "run.json"), json.dumps({"outcome": "api_error", "reason": "r"}))
+        listing = self.listing()
+        image_file = os.path.join(self.tmp, "images", "beets.json")
+        for what, option, version, image, text in (
+                ("another build", (), "9.9.9", IMAGE, "the plugin version 9.9.9 of beets"),
+                ("another build in the option", ("-plugin-version", "9.9.9"), "9.9.9", IMAGE,
+                 "the plugin version 9.9.9 of beets"),
+                ("another image", (), VERSION, dict(IMAGE, id="sha256:other"), "the image sha256:other of beets")):
+            with self.subTest(what):
+                write(image_file, json.dumps(image))
+                calls.clear()
+                with mock.patch.object(runner, "run_one", fake), \
+                        mock.patch.object(runner, "ide_version", lambda url: version):
+                    code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1", *option)
+                self.assertEqual((2, []), (code, calls), err)
+                self.assertIn(text, err)
+                self.assertIn("use a new batch name", err)
+                with open(record, encoding="utf-8") as f:
+                    self.assertEqual(stored, f.read(), "no write")
+                self.assertEqual(listing, self.listing())
+        # The same build and the same image: the start runs the run that is left.
+        write(image_file, json.dumps(IMAGE))
+        calls.clear()
+        with mock.patch.object(runner, "run_one", fake):
+            code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1", "-plugin-version", VERSION)
+        self.assertEqual((0, [f"{CHALLENGE['id']}__PF__{MODEL}__1"]), (code, calls), err)
+        self.assertIn(os.path.basename(self.folder("PF")) + ".api-error-1", self.listing())
+
+    def test_the_manifest_of_a_batch_has_the_agent_version_of_each_image(self):
+        os.environ["FAKE_DOCKER_FIXTURE"] = self.c_ok()
+        write(os.path.join(self.tmp, "images", "beets.json"), json.dumps(dict(IMAGE, claude_version="2.1.400")))
+        code, _, err = self.main("batch", "-plan", self.plan({"arm": "C"}), "-batch", "b1", "-jobs", "1")
+        self.assertEqual(0, code, err)
+        with open(os.path.join(self.runs, "b1", "manifest.json"), encoding="utf-8") as f:
+            self.assertEqual({"beets": "2.1.400"}, json.load(f)["claude_versions"])
+
+    def test_the_module_run_as_main_uses_the_imported_module(self):
+        """`python3 -m bench.runner` and `planfile` share one copy of the module state of the runner."""
+        with mock.patch.object(runner, "main", return_value=0) as main, \
+                mock.patch.object(sys, "argv", ["bench.runner"]), self.assertRaises(SystemExit) as e:
+            runpy.run_module("bench.runner", run_name="__main__")
+        main.assert_called_once_with()
+        self.assertEqual(0, e.exception.code)
 
     def test_a_manifest_difference_warns_and_changes_no_exit_code(self):
         """A run with the fake docker in a batch: with a manifest that equals the machine, and with one that does
@@ -1663,6 +1745,15 @@ class HandshakeTest(RunnerCase):
         self.assertEqual({}, self.routes_now())
         self.assertIn("handshake beets: PASS", out)
         self.assertIn('"method": "initialize"', out)
+
+    def test_handshake_refuses_a_busy_lock(self):
+        with lock.ide_lock("audit.verdict run x"):
+            code, out, err = self.main("handshake", "-product", "beets")
+        self.assertEqual((2, ""), (code, out))
+        self.assertEqual(1, len(err.splitlines()), err)
+        self.assertIn("audit.verdict run x", err)
+        self.assertEqual([], self.docker_calls())
+        self.assertEqual({}, self.routes_now())
 
     def test_handshake_has_neither_secret_variable(self):
         os.environ.update({"ANTHROPIC_API_KEY": FAKE_KEY, "CLAUDE_CODE_OAUTH_TOKEN": LoginTest.TOKEN,

@@ -62,6 +62,38 @@ class ScoreTest(unittest.TestCase):
                                                         "not_counted": []}}))
 
 
+class AgreementTest(unittest.TestCase):
+    """The audit scores with `common.keyrecord.score` (a key record), the benchmark with `bench.score.score` (the
+    answer of a tracked key, `sets.answer`). Both formulas give the same counts for the same key and answer."""
+
+    def test_the_two_score_formulas_agree(self):
+        from bench import sets
+        from common import keyrecord
+
+        def site(file, line, cls="required", why="caller"):
+            return {"file": file, "line": line, "col": 6, "class": cls, "why": why}
+
+        # A key record whose view is the record itself (the family `callers`): required, required+decoy, forbidden
+        # and dnc lines.
+        record = {"id": "go:example.com/m.Run", "lang": "go", "kind": "func", "name": "Run", "container": "",
+                  "decl": {"file": "a.go", "line": 1, "col": 6}, "family": ["go:example.com/m.Run"],
+                  "implementers": [], "source": "calls",
+                  "sites": [site("a.go", 1, "dnc", "decl"), site("a.go", 5), site("a.go", 9), site("b/c.go", 3),
+                            site("b/c.go", 3, "forbidden", "decoy"), site("b/c.go", 7, "forbidden", "decoy")]}
+        ch = {"id": "c1", "product": "caddy", "tree": "caddy", "family": "callers", "keys": "caddy/callers.jsonl",
+              "key_id": record["id"], "sample": "hard", "note": ""}
+        key = {"answer": sets.answer(ch, record)}
+        exact = {("a.go", 5), ("a.go", 9), ("b/c.go", 3)}
+        for what, answer in (("exact", exact), ("a miss", exact - {("a.go", 9)}),
+                             ("a false line", exact | {("d.go", 2)}), ("a forbidden line", exact | {("b/c.go", 7)}),
+                             ("a not counted line", exact | {("a.go", 1)}), ("no line", set()),
+                             ("each kind", {("a.go", 5), ("d.go", 2), ("b/c.go", 7), ("a.go", 1)})):
+            with self.subTest(what):
+                bench_score = score.score(key, answer)
+                self.assertEqual(keyrecord.score(answer, record), {k: bench_score[k] for k in (
+                    "tp", "fp", "miss", "ignored", "precision", "recall", "exact")})
+
+
 class CliTest(unittest.TestCase):
     def setUp(self):
         tmp = tempfile.TemporaryDirectory()

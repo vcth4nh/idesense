@@ -33,6 +33,14 @@ class KeyTest(unittest.TestCase):
         with self.assertRaises(claude_code.KeyFileError):
             claude_code.read_key(os.path.join(self.tmp, "absent"))
 
+    def test_a_message_of_the_default_key_file_names_the_variable_and_not_its_value(self):
+        value = os.path.join(self.tmp, "sk-ant-FAKE-value")
+        with mock.patch.dict(os.environ, {"BENCH_SECRET_FILE": value}):
+            with self.assertRaises(claude_code.KeyFileError) as e:
+                claude_code.read_key()
+        self.assertIn("BENCH_SECRET_FILE", str(e.exception))
+        self.assertNotIn("sk-ant", str(e.exception))
+
 
 class SecretEnvTest(unittest.TestCase):
     """`secret_env` by the login kind (BENCH_LOGIN), with a temporary secret file (BENCH_SECRET_FILE)."""

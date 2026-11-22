@@ -33,12 +33,14 @@ of a run is the tracked key of its question (`qfiles.load_key`), and its line cl
   the order of `runner.ARMS` (C, P, PS, PF, PFN, PFR, PFL, PFG, PFI, PFS). Numbers: 3 decimals for scores and
   shares, 4 for USD, 1 for seconds and the means of counts, 0 for tokens; `-` for None.
 
-The flag `repo_access` is true when the input of a tool use of REPO_TOOLS (`Bash`, `WebFetch`, `WebSearch`) holds,
-with no case, the text REPO_TEXT (`bench/keys`) or the slug `<owner>/<repository>` of the remote `origin` of this
-repository. The tracked keys are public, so such a run can read its key. `repo_slug` reads the slug at run time
-(`git remote get-url origin` in `settings.repo_root()`) from a URL `https://github.com/<owner>/<repository>[.git]` or
-`git@github.com:<owner>/<repository>[.git]`; with no git, no remote or another URL there is no slug, and only
-REPO_TEXT counts. No file holds the slug.
+The flag `repo_access` is true when the input of a tool use of `claude_code.REPO_TOOLS` (`Bash`, `WebFetch`,
+`WebSearch`) holds, with no case, the text REPO_TEXT (`bench/keys`) or the slug `<owner>/<repository>` of the remote
+`origin` of this repository. The tracked keys are public, so such a run can read its key. `repo_slug` reads the slug
+at run time (`git remote get-url origin` in `settings.repo_root()`) from a URL
+`https://github.com/<owner>/<repository>[.git]` or `git@github.com:<owner>/<repository>[.git]`; with no git, no
+remote or another URL there is no slug, and only REPO_TEXT counts. No file holds the slug. The names of the tools of
+Claude Code (the text search, edit and shell tools, the prefix of an MCP tool, the answer tool) are in
+`bench.claude_code`.
 
 `table` prints one line for each run: question, arm label, model, n, outcome, tp, fp, miss, exact, USD, turns,
 seconds, tool calls, IDE calls.
@@ -47,12 +49,14 @@ seconds, tool calls, IDE calls.
 the batch. A maintainer compares batches by reading these files; the run folders stay in the data root. `<date>` is
 the date of the earliest `started` of the runs (UTC, as the runner writes it); a batch whose runs have no `started`
 is a ValueError. A second call writes the file again. The summary holds, in this order: the batch name and the date;
-a note when `qfiles.rescore` gives `different` runs for the batch (the runner scored them with an earlier key; the
-tables keep the stored scores); the plan (`plan.json` of the batch, or a sentence that there is no stored plan); the
-versions of the recorded manifest (`manifest.json`: the plugin version of each product, the agent, `plan_models`,
-`image_ids`, the repository commit with the word `dirty`, the login kind, and the IDEs BENCH_IDES of
-`machine_ides`), or for a batch with no recorded manifest the plugin versions and the image ids of each product and
-the models of the run records; the sections of summary.md after its batch folder line; the total cost of the runs
+a note when `qfiles.rescore` of this batch only (no other batch is read) gives `different` runs (the runner scored
+them with an earlier key; the tables keep the stored scores); the plan (`plan.json` of the batch, or a sentence that
+there is no stored plan); the versions of the recorded manifest (`manifest.json`: the plugin version of each
+product, the agent version of each image record (`claude_versions`; an older record without it gives the agent pin
+of `live-test/manifest.json` at the batch start), `plan_models`, `image_ids`, the repository commit with the word
+`dirty`, the login kind, and the IDEs BENCH_IDES of `machine_ides`), then, also for a batch with no recorded
+manifest, the plugin versions and the image ids of each product and the models of the run records (the values that
+the runs had); the sections of summary.md after its batch folder line; the total cost of the runs
 and, when the batch has set-aside tries, of the tries (`cost_usd` of their `run.json`). It holds no path and no text
 of a transcript: no table of summary.md holds a free text field of a run (the flag `ide_error_texts` shows the run
 count and the run ids). `ledger` writes nothing else.
@@ -86,11 +90,8 @@ FAILED = ("timeout", "budget", "no_answer", "error")   # a run of the agent with
 # `stopped` runs are only in the adoption table.
 ANCHOR_PHRASES = ("No named element at position", "Could not resolve symbol", "Symbol not found in project files",
                   "File not found")
-TEXT_TOOLS = ("Grep",)            # plus a Bash call whose command has the word grep, rg, ag or ack
-EDIT_TOOLS = ("Edit", "Write", "NotebookEdit")
 TEXT_COMMAND = re.compile(r"(?<![\w.-])(?:grep|rg|ag|ack)(?![\w.-])")
 SYNC_TOOL = "ide_sync_files"
-IDE_PREFIX = "mcp__"
 SET_ASIDE = re.compile(r"\.(?:invalid|api-error)-[0-9]+$")
 TOKEN_FIELDS = ("input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
 TEXT_CHARS = 200     # the characters of `text` of an IDE result
@@ -101,7 +102,6 @@ FLAGS = ("no_plugin_call", "ide_calls", "ide_tools", "ide_error", "anchor_error"
          "has_more_no_cursor", "ide_forbidden_lines", "answer_repeats_ide_forbidden", "ide_missed_required",
          "answer_miss_not_in_ide", "text_after_ide", "edit_then_ide_no_sync", "repo_access",
          "plugin_wrong_control_right")
-REPO_TOOLS = ("Bash", "WebFetch", "WebSearch")
 REPO_TEXT = "bench/keys"
 SLUG = re.compile(r"(?:https://github\.com/|git@github\.com:)([^/\s]+/[^/\s]+?)(?:\.git)?")
 MEANS = ("f1", "precision", "recall", "cost_usd", "seconds", "turns", "tool_calls", "ide_calls", "tokens")
@@ -170,8 +170,8 @@ def measures(rec: dict) -> dict:
         out.update(f1=0.0, precision=0.0, recall=0.0, exact=False)
     tools, usage = rec.get("tools"), rec.get("usage")
     out.update(cost_usd=rec.get("cost_usd"), turns=rec.get("turns"), seconds=rec.get("seconds"),
-               tool_calls=_count(tools, lambda name: name != "StructuredOutput"),
-               ide_calls=_count(tools, lambda name: name.startswith(IDE_PREFIX)),
+               tool_calls=_count(tools, lambda name: name != claude_code.ANSWER_TOOL),
+               ide_calls=_count(tools, lambda name: name.startswith(claude_code.IDE_PREFIX)),
                tokens=sum(usage.get(k) or 0 for k in TOKEN_FIELDS) if isinstance(usage, dict) else None)
     return out
 
@@ -265,7 +265,7 @@ def ide_results(lines) -> list[dict]:
     result), `sites` (the raw `(file, line)` of the result JSON), `has_more`, `text` (the first TEXT_CHARS characters
     of a result that is no JSON, is an error or has a str `error` in its JSON; else None), `index` (among all tool
     uses, 0-based) and `error` (the str `error` of the result JSON, or None)."""
-    return [_ide_result(call) for call in _calls(lines) if call["name"].startswith(IDE_PREFIX)]
+    return [_ide_result(call) for call in _calls(lines) if call["name"].startswith(claude_code.IDE_PREFIX)]
 
 
 # ---------------------------------------------------------------- flags
@@ -286,18 +286,19 @@ def _answer(rec: dict) -> set[tuple[str, int]]:
 
 
 def _text_search(call: dict) -> bool:
-    if call["name"] in TEXT_TOOLS:
+    if call["name"] in claude_code.TEXT_TOOLS:
         return True
     command = call["input"].get("command") if isinstance(call["input"], dict) else None
-    return call["name"] == "Bash" and isinstance(command, str) and TEXT_COMMAND.search(command) is not None
+    return (call["name"] == claude_code.SHELL_TOOL and isinstance(command, str)
+            and TEXT_COMMAND.search(command) is not None)
 
 
 def _edit_then_ide(calls: list[dict]) -> int:
     count, edited = 0, False
     for call in calls:
-        if call["name"] in EDIT_TOOLS:
+        if call["name"] in claude_code.EDIT_TOOLS:
             edited = True
-        elif call["name"].startswith(IDE_PREFIX):
+        elif call["name"].startswith(claude_code.IDE_PREFIX):
             if _tool(call["name"]) == SYNC_TOOL:
                 edited = False
             elif edited:
@@ -321,8 +322,8 @@ def repo_slug() -> str | None:
 
 
 def _reads_repo(call: dict, slug: str | None) -> bool:
-    """True when the input of a tool use of REPO_TOOLS holds REPO_TEXT or the slug, with no case."""
-    if call["name"] not in REPO_TOOLS:
+    """True when the input of a tool use of `claude_code.REPO_TOOLS` holds REPO_TEXT or the slug, with no case."""
+    if call["name"] not in claude_code.REPO_TOOLS:
         return False
     text = json.dumps(call["input"], ensure_ascii=False).lower()
     return REPO_TEXT in text or (bool(slug) and slug.lower() in text)
@@ -334,7 +335,7 @@ def flags(rec: dict, lines, proxy_lines, key, root: str | None = None, slug: str
     the tree root of the question (None: no site path changes) and `slug` the slug of `repo_slug` (None: only
     REPO_TEXT counts for `repo_access`)."""
     calls = _calls(lines)
-    ide = [_ide_result(call) for call in calls if call["name"].startswith(IDE_PREFIX)]
+    ide = [_ide_result(call) for call in calls if call["name"].startswith(claude_code.IDE_PREFIX)]
     prefix = root.rstrip("/") + "/" if root else None
     listed = {_site_of(site, prefix) for result in ide for site in result["sites"]}
     classes = score.line_classes(key)
@@ -342,7 +343,7 @@ def flags(rec: dict, lines, proxy_lines, key, root: str | None = None, slug: str
     ide_calls = measures(rec)["ide_calls"] or 0
     tools = collections.Counter()
     for name, n in (rec.get("tools") or {}).items():
-        if name.startswith(IDE_PREFIX):
+        if name.startswith(claude_code.IDE_PREFIX):
             tools[_tool(name)] += n
     errors = [result for result in ide if result["is_error"]]
     refused = sum(1 for line in _events(proxy_lines)
@@ -476,7 +477,8 @@ def adoption_rows(records) -> list[dict]:
             groups.setdefault((arm_label(rec), rec["model"]), []).append(rec)
     rows = []
     for (label, model), recs in sorted(groups.items(), key=lambda g: (_arm_order(g[0][0]), g[0][1])):
-        hits = sum(1 for rec in recs if any(str(name).startswith(IDE_PREFIX) for name in rec.get("first_tools") or []))
+        hits = sum(1 for rec in recs
+                   if any(str(name).startswith(claude_code.IDE_PREFIX) for name in rec.get("first_tools") or []))
         rows.append({"arm_label": label, "model": model, "runs": len(recs), "ide_first": hits,
                      "share": hits / len(recs)})
     return rows
@@ -651,7 +653,12 @@ def _manifest_rows(record: dict) -> list[list[str]]:
     else:
         rows = [["plugin version (each product)", _raw(plugin)]]
     agent = record.get("agent") or {}
-    rows.append(["agent", " ".join(str(agent[k]) for k in ("name", "version") if agent.get(k)) or "-"])
+    if isinstance(record.get("claude_versions"), dict):
+        rows += [[f"agent ({product})", " ".join(str(part) for part in (agent.get("name"), version) if part) or "-"]
+                 for product, version in sorted(record["claude_versions"].items())]
+    else:  # an older record: the pin of live-test/manifest.json at the start, not the agent of the images
+        rows.append(["agent (pin at the batch start)",
+                     " ".join(str(agent[k]) for k in ("name", "version") if agent.get(k)) or "-"])
     rows.append(["models", ", ".join(record.get("plan_models") or []) or "-"])
     rows += [[f"image ({product})", _raw(image)] for product, image in sorted((record.get("image_ids") or {}).items())]
     repo = record.get("repository") or {}
@@ -687,7 +694,9 @@ def _versions_section(batch_dir: str, runs: list[dict], keys: dict) -> str:
         return ("The batch has no recorded manifest (`manifest.json`). The values of the run records:\n\n"
                 + _md(["item", "value"], _record_rows(runs, keys)))
     return ("The recorded manifest of the batch (`manifest.json`, the values of the last start with a run to do):\n\n"
-            + _md(["item", "value"], _manifest_rows(record)))
+            + _md(["item", "value"], _manifest_rows(record))
+            + "\n\nThe values of the run records (the plugin versions and the image ids that the runs had):\n\n"
+            + _md(["item", "value"], _record_rows(runs, keys)))
 
 
 def _set_aside_cost(batch_dir: str) -> float:
@@ -720,7 +729,8 @@ def ledger(batch_dir: str, out_dir: str) -> str:
     if not started:
         raise ValueError(f"{batch_dir}: no run of the batch has a start time")
     date = min(started)[:10]  # the runner writes UTC times of one form (`runner._now`)
-    different = (qfiles.rescore(os.path.dirname(os.path.normpath(batch_dir))).get(name) or {}).get("different", 0)
+    runs_root = os.path.dirname(os.path.normpath(batch_dir))
+    different = (qfiles.rescore(runs_root, batch=name).get(name) or {}).get("different", 0)
     parts = [
         f"# Batch `{name}`",
         f"The summary of the benchmark batch `{name}`. The command `python3 -m bench.triage ledger -batch {name}` "
