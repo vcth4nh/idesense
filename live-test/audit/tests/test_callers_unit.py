@@ -199,8 +199,8 @@ class MainTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as out:
             self.assertEqual(0, callers.main(self.args(server, "callers", "-ids", ids)))
         lines = self.lines()
-        self.assertEqual({"id": "_meta", "version": "2.1.1-dev.12", "project": "/p", "keys": self.keys, "n": 2},
-                         lines[0])
+        self.assertEqual({"id": "_meta", "version_start": "2.1.1-dev.12", "version_end": "2.1.1-dev.12",
+                          "project": "/p", "keys": self.keys, "n": 2}, lines[0])
         self.assertEqual(["z", "x"], [r["id"] for r in lines[1:]])
         self.assertIn("plugin 2.1.1-dev.12 | records 2 | errors 0", out.getvalue())
         self.assertIn("mapped: exact 2 of 2", out.getvalue())
@@ -220,8 +220,27 @@ class MainTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(0, callers.main(self.args(server, "dyn")))
         lines = self.lines()
-        self.assertEqual({"id": "_meta", "version": "2.1.1-dev.12", "project": "/p", "n": 1}, lines[0])
+        self.assertEqual({"id": "_meta", "version_start": "2.1.1-dev.12", "version_end": "2.1.1-dev.12",
+                          "project": "/p", "n": 1}, lines[0])
         self.assertEqual(["m"], [r["id"] for r in lines[1:]])
+
+    def test_a_changed_server_version_stops_with_exit_4(self):
+        for command, answer, more in (("callers", hierarchy_answer, ("-n", "2")), ("dyn", dyn_answer, ())):
+            with self.subTest(command):
+                if command == "dyn":
+                    keys.save_keys(self.keys, [DYN, DYN_FP])
+                server = FakeMcp(answer)
+                self.addCleanup(server.close)
+                server.versions = ["2.1.1-dev.12", "2.1.1-dev.13"]
+                out, err = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    self.assertEqual(4, callers.main(self.args(server, command, *more)))
+                self.assertEqual("The server version changed during the audit: 2.1.1-dev.12 at the start, "
+                                 "2.1.1-dev.13 at the end.\n", err.getvalue())
+                self.assertEqual("", out.getvalue(), "no totals")
+                meta = self.lines()[0]
+                self.assertEqual(("2.1.1-dev.12", "2.1.1-dev.13"), (meta["version_start"], meta["version_end"]))
+                self.assertEqual(2 if command == "callers" else 1, len(self.lines()) - 1)
 
     def test_a_busy_lock_makes_no_call(self):
         server = FakeMcp(hierarchy_answer)

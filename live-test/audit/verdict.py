@@ -22,6 +22,10 @@ the result of an audit:
 - `from_dyn`: a file of `audit.callers dyn`: `hierarchy` gives `ide_call_hierarchy`, `usages` gives
   `ide_find_usages`.
 
+`from_callers` and `from_dyn` refuse a row (ValueError) when the length of its list `miss_sites` or `fp_sites`
+differs from its count `miss` or `fp`: the audit left a line out of the list (a `forbidden` site, or two sites on
+one line), and the line of the row would hide a change.
+
 The accepted list of a product is `<accepted>/<product>.jsonl` (default: the folder `accepted/` next to this file):
 one disagreement line with a `cause` for each line, sorted by (`audit`, `tool`, `symbol`). The product of an audit
 is the product of its tree (`caddy-plant-1` -> `caddy`). `cause` is the name of an entry of
@@ -40,8 +44,9 @@ permitted the cause, or null. A file that does not exist counts as an empty list
 
 `check` prints the verdict of one audit and exits 0 (pass), 1 (fail) or 3 (wait). `propose` writes the accepted
 list of the product: the lines of the other audits stay, and the lines of this audit become the found lines. A line
-that stays keeps its cause; a new line gets the cause null. Both exit 2 for an unknown name, an input of another
-kind, or an input that they cannot read.
+that stays keeps its cause; a new line gets the cause null. Both print one line and exit 2 for an unknown name, an
+input of another kind, or an input that they cannot read: also a result row that the readers refuse, an accepted
+file with a line that is no JSON object, and a causes file that is no JSON object of objects.
 
 `audits.json` (next to this file) is the list of the audits of a full run. Each entry has the fields `name`,
 `tree`, `kind` (`symbols`, `callers` or `dyn`), `keys` and `calls` (paths relative to `<data root>/keys/`; `calls`
@@ -58,7 +63,8 @@ its tree. A `symbols` audit writes the folder `<out>/<name>/`, another audit the
 The total is `fail` when an audit fails, else `wait` when an audit waits, else `pass`; the exit code is that of
 `check` for the total. `run` refuses an `-out` folder that exists and an input
 that is absent (exit 2). When an audit stops before its end (the IDE stays in dumb mode, or the server version
-changes during a `symbols` audit), `run` exits 4 with no verdict.
+changes during an audit), `run` exits 4 with no verdict. When `run` cannot read a result, the accepted list or the
+causes file (see `check`), it prints one line and exits 2 with no verdict.
 """
 import argparse
 import json
@@ -105,11 +111,23 @@ def _key(line: dict) -> str:
 
 
 def read_lines(path: str) -> list[dict]:
-    """The JSON lines of a file; [] when the file does not exist."""
+    """The JSON object lines of a file; [] when the file does not exist. ValueError for a line that is no JSON
+    object."""
     if not os.path.exists(path):
         return []
+    lines = []
     with open(path, encoding="utf-8") as f:
-        return [json.loads(line) for line in f if line.strip()]
+        for n, text in enumerate(f, 1):
+            if not text.strip():
+                continue
+            try:
+                line = json.loads(text)
+            except ValueError as e:
+                raise ValueError(f"{path}:{n}: no JSON ({e})") from None
+            if not isinstance(line, dict):
+                raise ValueError(f"{path}:{n}: the line is no JSON object")
+            lines.append(line)
+    return lines
 
 
 def _rows(path: str) -> list[dict]:
@@ -132,31 +150,44 @@ def from_symbols(name: str, results_dir: str, keys_file: str, host_config: str =
             for d in symbols.disagreements(results, by_id, host_config)]
 
 
+def _sites(results_file: str, row: dict, label: str) -> tuple[list, list]:
+    """The missed and the false sites of the part `label` of a row. ValueError when the length of a list differs
+    from its count (`miss`, `fp`): the audit left a line out of the list (a `forbidden` site, or two sites on one
+    line), and the line of the row would hide a change."""
+    part = row[label]
+    for count in ("miss", "fp"):
+        if len(part[f"{count}_sites"]) != part[count]:
+            raise ValueError(f"{results_file}: the row {row['id']} has {len(part[f'{count}_sites'])} lines in "
+                             f"{label}.{count}_sites and {label}.{count} {part[count]}")
+    return part["miss_sites"], part["fp_sites"]
+
+
 def from_callers(name: str, results_file: str) -> list[dict]:
-    """One line for each row with an error or with a `mapped` score that is not exact."""
+    """One line for each row with an error or with a `mapped` score that is not exact. ValueError for a list that
+    does not fit its count (`_sites`)."""
     out = []
     for row in _rows(results_file):
         if "error" in row:
             out.append(_line(name, HIERARCHY, row["id"], errors=[row["error"]]))
         elif not row["mapped"]["exact"]:
-            out.append(_line(name, HIERARCHY, row["id"], row["mapped"]["miss_sites"], row["mapped"]["fp_sites"]))
+            out.append(_line(name, HIERARCHY, row["id"], *_sites(results_file, row, "mapped")))
     return out
 
 
 def from_dyn(name: str, results_file: str) -> list[dict]:
     """One line for each row and tool with an error or with a score that is not exact. ValueError for a row of
-    the old script, which wrote no missed lines (no `miss_sites`)."""
+    the old script, which wrote no missed lines (no `miss_sites`), and for a list that does not fit its count
+    (`_sites`)."""
     out = []
     for row in _rows(results_file):
         for label, tool in DYN_TOOLS:
             if f"{label}_error" in row:
                 out.append(_line(name, tool, row["id"], errors=[row[f"{label}_error"]]))
             elif not row[label]["exact"]:
-                part = row[label]
-                if "miss_sites" not in part:
+                if "miss_sites" not in row[label]:
                     raise ValueError(f"{results_file}: the row {row['id']} has no {label}.miss_sites: a file of the "
                                      f"old script, with no missed lines")
-                out.append(_line(name, tool, row["id"], part["miss_sites"], part["fp_sites"]))
+                out.append(_line(name, tool, row["id"], *_sites(results_file, row, label)))
     return out
 
 
@@ -187,11 +218,19 @@ def accepted_file(folder: str, tree: str) -> str:
 
 
 def read_causes(folder: str) -> dict:
+    """`<folder>/causes.json`; {} when the file does not exist. ValueError for a file that is no JSON object of
+    objects."""
     path = os.path.join(folder, "causes.json")
     if not os.path.exists(path):
         return {}
     with open(path, encoding="utf-8") as f:
-        return json.load(f)
+        try:
+            causes = json.load(f)
+        except ValueError as e:
+            raise ValueError(f"{path}: no JSON ({e})") from None
+    if not isinstance(causes, dict) or not all(isinstance(cause, dict) for cause in causes.values()):
+        raise ValueError(f"{path}: the file is no JSON object of cause objects")
+    return causes
 
 
 def _relative(entry: dict, field: str) -> None:
@@ -265,13 +304,14 @@ def _check_or_propose(args) -> int:
             raise ValueError(f"{args.name}: no such audit in {AUDITS_FILE}")
         entry = entries[args.name]
         found = _found(args, entry)
+        path = accepted_file(args.accepted, entry["tree"])
+        accepted = read_lines(path)
+        causes = read_causes(args.accepted) if args.command == "check" else {}
     except (ValueError, OSError) as e:
         print(e, file=sys.stderr)
         return EXIT_INPUT
-    path = accepted_file(args.accepted, entry["tree"])
-    accepted = read_lines(path)
     if args.command == "check":
-        v = verdict(found, [line for line in accepted if line["audit"] == args.name], read_causes(args.accepted))
+        v = verdict(found, [line for line in accepted if line["audit"] == args.name], causes)
         print(verdict_text(args.name, found, v))
         return EXIT[v["result"]]
     lines = propose(found, accepted, args.name)
@@ -321,9 +361,9 @@ def _run_audits(args, root: str, entries: list[dict], slots: dict, records: dict
         key_file = os.path.join(root, "keys", e["keys"])
         print(f"== {e['name']} ({e['kind']}, {e['tree']})", file=sys.stderr)
         if e["kind"] == "symbols":
-            code = symbols._run(argparse.Namespace(keys=key_file, url=url, project=project, n=e["n"], seed=e["seed"],
-                                                   repeats=e["repeats"], outside=",".join(symbols.OUTSIDE),
-                                                   out=os.path.join(args.out, e["name"])))
+            code = symbols.run_folder(keys_file=key_file, url=url, project=project, n=e["n"], seed=e["seed"],
+                                      repeats=e["repeats"], outside=symbols.OUTSIDE,
+                                      out=os.path.join(args.out, e["name"]))
         else:
             calls = keys.load_keys(os.path.join(root, "keys", e["calls"]))
             done = callers.run_file(e["kind"], McpClient(url, project), records[e["name"]], calls,
@@ -359,14 +399,21 @@ def _run(args) -> int:
     except Busy as e:
         print(f"{e}. No call to the IDE.", file=sys.stderr)
         return EXIT_BUSY
-    causes = read_causes(args.accepted)
-    audits = []
-    for e in entries:
-        found = _found_of(e, args.out, root)
-        accepted = [line for line in read_lines(accepted_file(args.accepted, e["tree"])) if line["audit"] == e["name"]]
-        v = verdict(found, accepted, causes)
-        print(verdict_text(e["name"], found, v))
-        audits.append({"name": e["name"], "verdict": v})
+    try:
+        causes = read_causes(args.accepted)
+        audits, texts = [], []
+        for e in entries:
+            found = _found_of(e, args.out, root)
+            accepted = [line for line in read_lines(accepted_file(args.accepted, e["tree"]))
+                        if line["audit"] == e["name"]]
+            v = verdict(found, accepted, causes)
+            texts.append(verdict_text(e["name"], found, v))
+            audits.append({"name": e["name"], "verdict": v})
+    except (ValueError, OSError) as e:
+        print(f"{e}. No verdict.", file=sys.stderr)
+        return EXIT_INPUT
+    for text in texts:
+        print(text)
     results = [a["verdict"]["result"] for a in audits]
     total = "fail" if "fail" in results else "wait" if "wait" in results else "pass"
     with open(os.path.join(args.out, "verdict.json"), "w", encoding="utf-8") as f:

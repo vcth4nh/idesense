@@ -4,7 +4,8 @@
     python3 -m audit.symbols disagreements -results <dir> -keys <jsonl> [-host-config linux]
 
 `run` holds the lock of the benchmark IDEs (`common.lock.ide_lock`) while it runs. When another holder
-has the lock, it prints its message and exits 2, with no call to the IDE. `run` refuses a folder that
+has the lock, it prints its message and exits 2, with no call to the IDE. `run_folder` is one `run` with no
+lock: `audit.verdict run` calls it and holds the lock itself. `run` refuses a folder that
 has `results.jsonl` or `results.jsonl.part` (exit code 2, no call to the IDE). It waits until the IDE
 is in smart mode (exit code 4 after `READY_TIMEOUT` seconds, with no result file). It reads
 `serverInfo.version` before the first probe and after the last one. It writes `results.jsonl` and
@@ -622,44 +623,45 @@ def _write_lines(path: str, records: list[dict]) -> None:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
-def _run(args) -> int:
-    path = os.path.join(args.out, "results.jsonl")
+def run_folder(keys_file: str, url: str, project: str, n: int, seed: int, repeats: int, outside: tuple[str, ...],
+               out: str) -> int:
+    """One `run` into the folder `out`, with no lock (the caller holds it). The exit code of `run`."""
+    path = os.path.join(out, "results.jsonl")
     for old in (path, path + ".part"):
         if os.path.exists(old):
             print(f"{old} exists. Use a new -out folder, or move the old results away.", file=sys.stderr)
             return EXIT_OLD_RESULTS
-    records = [r for r in keys.load_keys(args.keys) if r["id"] != "_meta"]
-    chosen = sample(records, args.n, args.seed)
-    outside = tuple(prefix for prefix in args.outside.split(",") if prefix)
-    client = McpClient(args.url, args.project)
+    records = [r for r in keys.load_keys(keys_file) if r["id"] != "_meta"]
+    chosen = sample(records, n, seed)
+    client = McpClient(url, project)
     reason = wait_ready(client, READY_TIMEOUT, READY_POLL)
     if reason is not None:
         print(f"The IDE is not in smart mode after {READY_TIMEOUT:.0f} s ({reason}). No result file.", file=sys.stderr)
         return EXIT_NOT_READY
     version_start = client.server_version()
-    os.makedirs(args.out, exist_ok=True)
+    os.makedirs(out, exist_ok=True)
     # The results go to a part file during the run; the _meta record needs the version at the end.
-    with open(path + ".part", "w", encoding="utf-8") as out:
-        results = run_audit(chosen, client, args.repeats, out, lambda msg: print(msg, file=sys.stderr), outside)
+    with open(path + ".part", "w", encoding="utf-8") as part:
+        results = run_audit(chosen, client, repeats, part, lambda msg: print(msg, file=sys.stderr), outside)
     try:
         version_end = client.server_version()
     except McpError as e:
         version_end = f"unknown ({e})"
-    meta = {"id": "_meta", "version_start": version_start, "version_end": version_end, "url": args.url,
-            "project": args.project, "seed": args.seed, "n": args.n, "repeats": args.repeats}
+    meta = {"id": "_meta", "version_start": version_start, "version_end": version_end, "url": url,
+            "project": project, "seed": seed, "n": n, "repeats": repeats}
     _write_lines(path, [meta] + results)
     os.remove(path + ".part")
     changed = version_start != version_end
     warning = (f"**The server version changed during the run: {version_start} at the start, {version_end} at "
                f"the end.**") if changed else None
     rows = summary_rows(results, {r["id"]: hardness(r) for r in chosen})
-    header = [f"- keys: `{args.keys}`", f"- project: `{args.project}`", f"- url: `{args.url}`",
+    header = [f"- keys: `{keys_file}`", f"- project: `{project}`", f"- url: `{url}`",
               f"- server version: {version_start} at the start, {version_end} at the end",
-              f"- symbols: {len(chosen)} of {len(records)} (n {args.n}, seed {args.seed}), repeats {args.repeats}",
+              f"- symbols: {len(chosen)} of {len(records)} (n {n}, seed {seed}), repeats {repeats}",
               f"- outside prefixes: {', '.join(outside) or '-'}"]
-    with open(os.path.join(args.out, "summary.md"), "w", encoding="utf-8") as f:
+    with open(os.path.join(out, "summary.md"), "w", encoding="utf-8") as f:
         f.write(summary_text(rows, header, warning, marks_table(results)))
-    print(f"{len(results)} results in {args.out}", file=sys.stderr)
+    print(f"{len(results)} results in {out}", file=sys.stderr)
     if changed:
         print(warning.strip("*"), file=sys.stderr)
         return EXIT_VERSION_CHANGED
@@ -707,7 +709,9 @@ def main(argv: list[str] | None = None) -> int:
         return _disagreements(args)
     try:
         with ide_lock(f"audit.symbols run {args.out}"):
-            return _run(args)
+            return run_folder(keys_file=args.keys, url=args.url, project=args.project, n=args.n, seed=args.seed,
+                              repeats=args.repeats, outside=tuple(p for p in args.outside.split(",") if p),
+                              out=args.out)
     except Busy as e:
         print(f"{e}. No call to the IDE.", file=sys.stderr)
         return EXIT_BUSY

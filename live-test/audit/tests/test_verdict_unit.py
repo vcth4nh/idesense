@@ -147,6 +147,21 @@ class FromTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "miss_sites"):
             audit_verdict.from_dyn("d", path)
 
+    def test_a_list_that_does_not_fit_its_count_is_refused(self):
+        """A forbidden answer line counts in `fp` and is not in `fp_sites`; two sites on one line can hide a missed
+        line from `miss_sites`. The line of such a row would hide a change."""
+        path = os.path.join(self.dir, "rows.jsonl")
+        for rows, index, label, count, reader in ((CALLER_ROWS, 3, "mapped", "fp", audit_verdict.from_callers),
+                                                  (CALLER_ROWS, 3, "mapped", "miss", audit_verdict.from_callers),
+                                                  (DYN_ROWS, 2, "usages", "fp", audit_verdict.from_dyn),
+                                                  (DYN_ROWS, 1, "hierarchy", "miss", audit_verdict.from_dyn)):
+            with self.subTest(label=label, count=count):
+                bad = json.loads(json.dumps(rows))
+                bad[index][label][count] += 1
+                lines_file(path, bad)
+                with self.assertRaisesRegex(ValueError, f"the row {bad[index]['id']} .*{label}.{count}_sites"):
+                    reader("a", path)
+
 
 class ProposeTest(unittest.TestCase):
     def test_propose_keeps_a_cause_and_writes_null_for_a_new_line(self):
@@ -230,6 +245,46 @@ class MainTest(unittest.TestCase):
         code, out = self.main("check", "-name", "caddy-symbols", "-symbols", self.dir)
         self.assertEqual((2, True), (code, "-keys" in out))
 
+    def test_check_refuses_a_row_whose_list_does_not_fit_its_count(self):
+        bad = json.loads(json.dumps(CALLER_ROWS))
+        bad[3]["mapped"]["fp"] += 1
+        lines_file(self.callers, bad)
+        code, out = self.check()
+        self.assertEqual(2, code)
+        self.assertEqual(1, len(out.splitlines()), out)
+        self.assertIn("the row z ", out)
+
+    def test_a_bad_accepted_file_or_causes_file_is_a_one_line_error(self):
+        path = os.path.join(self.accepted, "caddy.jsonl")
+        causes = os.path.join(self.accepted, "causes.json")
+        good_line = {**A, "audit": "caddy-plant-1-callers", "cause": "c"}
+        for what, accepted, causes_text, name in (
+                ("an accepted file with no JSON", "{not json\n", None, "caddy.jsonl:1"),
+                ("an accepted line that is no object", json.dumps(good_line) + "\n[1, 2]\n", None, "caddy.jsonl:2"),
+                ("a causes file with no JSON", json.dumps(good_line) + "\n", "{not json", "causes.json"),
+                ("a causes file that is no object", json.dumps(good_line) + "\n", "[1]", "causes.json"),
+                ("a cause that is no object", json.dumps(good_line) + "\n", '{"c": "text"}', "causes.json")):
+            with self.subTest(what):
+                os.makedirs(self.accepted, exist_ok=True)
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(accepted)
+                if causes_text is None:
+                    if os.path.exists(causes):
+                        os.remove(causes)
+                else:
+                    with open(causes, "w", encoding="utf-8") as f:
+                        f.write(causes_text)
+                code, out = self.check()
+                self.assertEqual(2, code, out)
+                self.assertEqual(1, len(out.splitlines()), out)
+                self.assertIn(name, out)
+                if causes_text is None:
+                    code, out = self.main("propose", "-name", "caddy-plant-1-callers", "-callers", self.callers,
+                                          "-accepted", self.accepted)
+                    self.assertEqual((2, 1), (code, len(out.splitlines())), out)
+                    with open(path, encoding="utf-8") as f:
+                        self.assertEqual(accepted, f.read(), "propose writes nothing")
+
     def run_setup(self):
         keys.save_keys(os.path.join(self.root, "keys", "caddy", "symbols.jsonl"), [SYMBOL])
         os.makedirs(os.path.join(self.root, "trees"))
@@ -280,6 +335,25 @@ class MainTest(unittest.TestCase):
             self.verdict_file("run2"))
         # The folder run2 exists now: no second run into it.
         self.assertEqual(2, self.main(*self.run_args(server, "run2"))[0])
+
+    def test_run_calls_the_public_symbols_run_with_no_second_lock(self):
+        server = self.run_setup()
+        with mock.patch.object(audit_symbols, "run_folder", wraps=audit_symbols.run_folder) as run_folder:
+            code, out = self.main(*self.run_args(server, "run1"))
+        self.assertEqual(1, code, out)
+        run_folder.assert_called_once_with(
+            keys_file=os.path.join(self.root, "keys", "caddy", "symbols.jsonl"), url=server.url,
+            project="/bench/trees/caddy", n=10, seed=1, repeats=1, outside=audit_symbols.OUTSIDE,
+            out=os.path.join(self.dir, "run1", "caddy-symbols"))
+
+    def test_run_gives_exit_2_and_no_verdict_for_a_result_that_it_cannot_read(self):
+        server = self.run_setup()
+        with mock.patch.object(audit_verdict, "from_symbols", side_effect=ValueError("the row r has 1 fp_sites")):
+            code, out = self.main(*self.run_args(server, "run1"))
+        self.assertEqual(2, code, out)
+        self.assertIn("the row r has 1 fp_sites", out)
+        self.assertNotIn("Traceback", out)
+        self.assertFalse(os.path.exists(os.path.join(self.dir, "run1", "verdict.json")))
 
     def test_run_stops_with_exit_4_in_dumb_mode(self):
         server = self.run_setup()

@@ -21,9 +21,10 @@ function is no answer line: it counts in `usage_marks["in no function"]`.
 
 The score is `keyrecord.score`: a `dnc` line is ignored. A node or a row with an absolute path is outside the tree.
 Both commands hold the lock of the benchmark IDEs (exit 2 when another holder has it, with no call to the IDE),
-and wait until the IDE is in smart mode (exit 4 after `READY_TIMEOUT` seconds, with no result file). The first
-line of the output is `{"id": "_meta", "version", "project", "keys", "n"}` (`dyn`: no `keys`). Each other line is
-the row of one record:
+and wait until the IDE is in smart mode (exit 4 after `READY_TIMEOUT` seconds, with no result file). They read
+`serverInfo.version` before the first call and after the last row. When the two versions differ, the command
+writes the file, prints one line and exits 4. The first line of the output is `{"id": "_meta", "version_start",
+"version_end", "project", "keys", "n"}` (`dyn`: no `keys`). Each other line is the row of one record:
 
 - `callers`: `{"id", "levels", "property", "truncated", "kinds", "deeper", "notes", "warnings", "raw", "mapped"}`,
   or `{"id", "levels", "property", "error"}` when the tool gave no tree. `raw` and `mapped` are `{"tp", "fp",
@@ -216,20 +217,30 @@ def traced(records: list[dict]) -> list[dict]:
 def run_file(kind: str, client: McpClient, records: list[dict], calls: list[dict], path: str,
              keys_file: str) -> tuple[str, list[dict]] | None:
     """Wait for smart mode, run the audit `kind` (`callers` or `dyn`) and write its file. Return the server
-    version and the rows, or None with no file when the IDE is not in smart mode after `READY_TIMEOUT` seconds."""
+    version and the rows. None when the audit stops: the IDE is not in smart mode after `READY_TIMEOUT` seconds
+    (no file), or the server version after the last row differs from the version at the start (the file has
+    both versions)."""
     reason = wait_ready(client, READY_TIMEOUT, READY_POLL)
     if reason is not None:
         print(f"The IDE is not in smart mode after {READY_TIMEOUT:.0f} s ({reason}). No result file.", file=sys.stderr)
         return None
     version = client.server_version()
-    meta = {"id": "_meta", "version": version, "project": client.project_path}
+    rows = AUDITS[kind](client, records, calls)
+    try:
+        version_end = client.server_version()
+    except McpError as e:
+        version_end = f"unknown ({e})"
+    meta = {"id": "_meta", "version_start": version, "version_end": version_end, "project": client.project_path}
     if kind == "callers":
         meta["keys"] = keys_file
     meta["n"] = len(records)
-    rows = AUDITS[kind](client, records, calls)
     with open(path, "w", encoding="utf-8") as out:
         for line in [meta] + rows:
             out.write(json.dumps(line) + "\n")
+    if version_end != version:
+        print(f"The server version changed during the audit: {version} at the start, {version_end} at the end.",
+              file=sys.stderr)
+        return None
     return version, rows
 
 

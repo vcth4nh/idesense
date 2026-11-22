@@ -668,6 +668,21 @@ class RunTest(unittest.TestCase):
         self.assertEqual(0, server.requests)
         self.assertFalse(os.path.exists(out))
 
+    def test_run_folder_is_one_run_with_no_lock(self):
+        d, path = self.keyfile([record([site("a.go", 3)])])
+        server, _ = fake(self, lambda tool, args: definition("a.go", 1) if tool == "ide_find_definition"
+                         else page([usage("a.go", 3)]))
+        out = os.path.join(d, "audit")
+        with lock.ide_lock("audit.verdict run x"), contextlib.redirect_stderr(io.StringIO()):
+            code = audit.run_folder(keys_file=path, url=server.url, project="/bench/trees/caddy", n=10, seed=1,
+                                    repeats=1, outside=(".venv/", "gen/"), out=out)
+        self.assertEqual(0, code)
+        with open(os.path.join(out, "results.jsonl"), encoding="utf-8") as f:
+            meta = json.loads(f.readline())
+        self.assertEqual(("/bench/trees/caddy", 10, 1), (meta["project"], meta["n"], meta["repeats"]))
+        with open(os.path.join(out, "summary.md"), encoding="utf-8") as f:
+            self.assertIn("- outside prefixes: .venv/, gen/", f.read())
+
     def keyfile(self, records):
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d)
