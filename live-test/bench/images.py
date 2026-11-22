@@ -11,10 +11,14 @@ the product and minus `.idea`, `.venv` and `.git` (see `left_out`), and each cop
 manifest. Then it builds the image idesense-bench-<product>:p2 (image/Dockerfile makes a new repository with
 one commit in each tree and warms the caches) and writes BENCH/images/<product>.json with the fields
 `image`, `id`, `built`, `claude_version`, `go_version` (caddy) or `python_version` and `uv_version` (beets),
-`server_name`, `trees` and `slots` (`{"<tree>": {"slot": "<id>", "path": "<slot path>"}}`).
+`server_name`, `trees` and `slots` (`{"<tree>": {"slot": "<id>", "path": "<slot path>"}}`). The build
+arguments are the product, the slots root and the pins of `live-test/manifest.json` (`common.manifest`): the
+base image, the versions and SHA-256 values of Node, Go and uv, and the version of Claude Code. The Dockerfile
+has no version default. `claude_version` is the agent version of `live-test/manifest.json`.
 
 `gate` starts containers with the container flags of a run (no API key) and prints one line with PASS or
-FAIL for each check. It exits 0 only when each check passes. The test output of each tree goes to
+FAIL for each check. It exits 0 only when each check passes. The check `claude --version` compares with the
+agent version of `live-test/manifest.json`. The test output of each tree goes to
 BENCH/scratch/image-gate/<product>/<tree>-tests.log.
 """
 import datetime
@@ -27,7 +31,7 @@ import shutil
 import subprocess
 import sys
 
-from common import trees
+from common import manifest, trees
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 IMAGE_SRC = os.path.normpath(os.path.join(HERE, "image"))
@@ -38,7 +42,6 @@ IMAGES = os.path.join(trees.BENCH, "images")
 INIT_IN_IMAGE = "/home/ubuntu/.init"
 ENTRY_IN_IMAGE = INIT_IN_IMAGE + "/entry.sh"
 GO_MODULE_CACHE = "/home/ubuntu/go/pkg/mod"
-CLAUDE_CODE_VERSION = "2.1.326"
 
 # product -> `serverName` of the IDE of the product (IdeProductInfo.IdeProduct GOLAND and PYCHARM).
 SERVER_NAMES = {"caddy": "goland-idesense", "beets": "pycharm-idesense"}
@@ -208,8 +211,16 @@ def build(product: str) -> dict:
     slots = image_slots(product)
     ctx = make_context(product, slots=slots)
     name = image_name(product)
-    subprocess.run(["docker", "build", "--progress=plain", "--build-arg", f"PRODUCT={product}",
-                    "--build-arg", f"SLOTS_ROOT={trees.SLOTS_ROOT}", "-t", name, ctx], check=True)
+    pins = manifest.load()
+    tools = pins["image"]
+    args = {"PRODUCT": product, "SLOTS_ROOT": trees.SLOTS_ROOT, "BASE_IMAGE": tools["base"],
+            "NODE_VERSION": tools["node"]["version"], "NODE_SHA256": tools["node"]["sha256"],
+            "CLAUDE_CODE_VERSION": pins["agent"]["version"],
+            "GO_VERSION": tools["go"]["version"], "GO_SHA256": tools["go"]["sha256"],
+            "UV_VERSION": tools["uv"]["version"], "UV_SHA256": tools["uv"]["sha256"]}
+    subprocess.run(["docker", "build", "--progress=plain",
+                    *[part for key, value in args.items() for part in ("--build-arg", f"{key}={value}")],
+                    "-t", name, ctx], check=True)
     image_id = subprocess.run(["docker", "image", "inspect", "-f", "{{.Id}}", name], check=True,
                               capture_output=True, text=True).stdout.strip()
 
@@ -223,7 +234,7 @@ def build(product: str) -> dict:
         "image": name,
         "id": image_id,
         "built": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "claude_version": version("claude", "--version").split()[0],
+        "claude_version": pins["agent"]["version"],
     }
     if product == "caddy":
         record["go_version"] = version("go", "version").split()[2].removeprefix("go")
@@ -403,8 +414,9 @@ def gate(product: str) -> int:
                   + (f"; failed: {', '.join(failed)}" if failed else ""))
 
     r = run_container(name, ["--version"], env={"BENCH_SLOT": slots[product]["slot"]})
-    check("claude --version", r.returncode == 0 and r.stdout.split()[:1] == [CLAUDE_CODE_VERSION],
-          f"exit {r.returncode}, {_first_line(r.stdout or r.stderr)!r} (through the entry point)")
+    agent = manifest.load()["agent"]["version"]
+    check("claude --version", r.returncode == 0 and r.stdout.split()[:1] == [agent],
+          f"exit {r.returncode}, {_first_line(r.stdout or r.stderr)!r} (through the entry point; manifest {agent})")
 
     r = bash(name, "id -u")
     check("id -u", r.stdout.strip() == "1000", repr(r.stdout.strip()))

@@ -106,7 +106,13 @@ path of a plan file. A plan with a problem (`planfile.problems`) exits 2 before 
 `{"question": "caddy-refs-ca", "arm": "PS", "model": "claude-opus-5-5", "n": 1, "aid": "skill"}` (`plan_args`). The
 batch folder gets `plan.json`, the plan as JSON with 2 spaces of indent (a later start of the batch writes it again),
 before the first run. When the batch folder holds a `plan.json` with another plan (another JSON value, or no JSON),
-`batch` exits 2 before any run and any write: a batch is one plan, so use a new batch name. Each run of the batch
+`batch` exits 2 before any run and any write: a batch is one plan, so use a new batch name. At its start, `batch`
+prints the warnings of `live-test/manifest.json` (`common.manifest.warn`); a difference from this machine never
+stops a batch. Next to `plan.json`, the batch folder gets `manifest.json` (`common.manifest.write`): the pins, the
+IDEs of this machine, the commit of the repository, and `plugin` (the option `-plugin-version`, else {product: the
+version that the batch read}), `plan_models`, `image_ids` ({product: `id` of the image record}), `slots_root`,
+`login` and `questions` ({question: {`question_sha256`, `key_sha256`}}). A later start writes it again: it
+describes the last start. Each run of the batch
 gets the option `-plugin-version` of the batch. With no option, `batch` reads the version of the IDE of each product
 one time before its first run (`ide_version`), and each run of the product gets it as its expected version; an IDE
 that gives no version exits 2 before the first run. The runs of one
@@ -144,7 +150,7 @@ import urllib.parse
 
 from bench import claude_code, planfile, proxy, qfiles, score
 from bench import sets as challenges
-from common import mcp, settings, trees
+from common import manifest, mcp, settings, trees
 from common.lock import Busy, ide_lock
 
 RUNS = os.path.join(trees.BENCH, "runs")
@@ -797,8 +803,29 @@ def _product_of(args) -> str | None:
         return None
 
 
+def _batch_manifest(path: str, runs: list, plugin) -> None:
+    """Write the recorded manifest of a batch (module text). It never stops the batch."""
+    first = {a.question: a for a in runs}  # one run of each question
+    products = sorted({p for p in map(_product_of, first.values()) if p})
+    image_ids = {}
+    for product in products:
+        try:
+            image_ids[product] = load_image(product)["id"]
+        except SetupError:
+            image_ids[product] = None
+    try:
+        login = settings.login()
+    except ValueError as e:
+        login = f"unknown ({e})"
+    questions = {q: {"question_sha256": manifest.file_sha256(qfiles.question_path(q, qfiles.QUESTIONS)),
+                     "key_sha256": manifest.file_sha256(qfiles.key_path(q, qfiles.KEYS))} for q in sorted(first)}
+    manifest.write(path, plugin=plugin, plan_models=sorted({a.model for a in runs}), image_ids=image_ids,
+                   slots_root=trees.SLOTS_ROOT, login=login, questions=questions)
+
+
 def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_version: str | None = None) -> int:
     """The runs of the plan (a plan name or the path of a plan file; module text) in the batch folder."""
+    manifest.warn()
     try:
         spec = planfile.load(plan)
     except (OSError, ValueError) as e:
@@ -845,6 +872,7 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_versio
     os.makedirs(os.path.join(RUNS, batch), exist_ok=True)
     with open(os.path.join(RUNS, batch, "plan.json"), "w", encoding="utf-8") as f:
         f.write(json.dumps(spec, indent=2, ensure_ascii=False) + "\n")
+    _batch_manifest(os.path.join(RUNS, batch, "manifest.json"), runs, plugin_version or versions)
     queue, lock, stop, codes, api_reasons = iter(todo), threading.Lock(), threading.Event(), [], []
 
     def worker():

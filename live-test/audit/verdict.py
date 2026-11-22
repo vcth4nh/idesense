@@ -57,7 +57,10 @@ is null for `symbols`), and the options `n`, `seed`, `repeats` and `ids` (null w
 
 `run` holds the lock of the benchmark IDEs (exit 2 when another holder has it, with no call to the IDE), and runs
 each audit of `audits.json` on the IDE of its product (GoLand for caddy, PyCharm for beets) at the slot path of
-its tree. A `symbols` audit writes the folder `<out>/<name>/`, another audit the file `<out>/<name>.jsonl`. Then
+its tree. At its start, `run` prints the warnings of `live-test/manifest.json` (`common.manifest.warn`; a
+difference never stops it). It writes one `<out>/manifest.json` before the first audit (`common.manifest.write`,
+with `plugin`: {product: `serverInfo.version` of its IDE}, and `files`: {path below `<data root>/keys/`:
+SHA-256}). A `symbols` audit writes the folder `<out>/<name>/`, another audit the file `<out>/<name>.jsonl`. Then
 `run` prints the verdict of each audit and one total line, and writes `<out>/verdict.json`:
 `{"result": <total>, "audits": [{"name", "verdict": {"result", "new", "gone", "no_cause", "no_permission"}}, ...]}`.
 The total is `fail` when an audit fails, else `wait` when an audit waits, else `pass`; the exit code is that of
@@ -74,9 +77,9 @@ import sys
 from audit import callers
 from audit import symbols
 from common import keyrecord as keys
-from common import settings, trees
+from common import manifest, settings, trees
 from common.lock import Busy, ide_lock
-from common.mcp import McpClient
+from common.mcp import McpClient, McpError
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 AUDITS_FILE = os.path.join(HERE, "audits.json")
@@ -352,9 +355,20 @@ def _prepare(args, root: str) -> tuple[list[dict], dict, dict]:
     return entries, slots, records
 
 
+def _ide_version(url: str) -> str:
+    try:
+        return McpClient(url, "").server_version()
+    except McpError as e:
+        return f"unknown ({e})"
+
+
 def _run_audits(args, root: str, entries: list[dict], slots: dict, records: dict) -> bool:
     """Run each audit. False when one stops before its end."""
     os.makedirs(args.out)
+    files = sorted({e[field] for e in entries for field in ("keys", "calls") if e[field] is not None})
+    manifest.write(os.path.join(args.out, "manifest.json"),
+                   plugin={product: _ide_version(getattr(args, option)) for product, option in URL_OPTIONS.items()},
+                   files={f: manifest.file_sha256(os.path.join(root, "keys", f)) for f in files})
     for e in entries:
         url = getattr(args, URL_OPTIONS[trees.product_of(e["tree"])])
         project = slots[e["tree"]]["path"]
@@ -383,6 +397,7 @@ def _found_of(entry: dict, out: str, root: str) -> list[dict]:
 
 
 def _run(args) -> int:
+    manifest.warn()
     root = settings.data_root()
     try:
         entries, slots, records = _prepare(args, root)

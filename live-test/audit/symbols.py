@@ -9,8 +9,10 @@ lock: `audit.verdict run` calls it and holds the lock itself. `run` refuses a fo
 has `results.jsonl` or `results.jsonl.part` (exit code 2, no call to the IDE). It waits until the IDE
 is in smart mode (exit code 4 after `READY_TIMEOUT` seconds, with no result file). It reads
 `serverInfo.version` before the first probe and after the last one. It writes `results.jsonl` and
-`summary.md` into the folder. When the two versions differ, the first line of
-`summary.md` says so and the exit code is 3. `disagreements` reads `results.jsonl` and the key file,
+`summary.md` into the folder. When the two versions differ, the first line of `summary.md` says so and the
+exit code is 3. At its start, `run` prints the warnings of `live-test/manifest.json` (`common.manifest.warn`;
+a difference never stops it), and after the first version read it writes `manifest.json` into the folder
+(`common.manifest.write`, with `plugin` and `files`). `disagreements` reads `results.jsonl` and the key file,
 and writes `disagreements.jsonl` and `disagreements.md` (see `disagreements`).
 
 The first line of `results.jsonl` is
@@ -66,6 +68,7 @@ import random
 import sys
 
 from common import keyrecord as keys
+from common import manifest
 from common.keyrecord import IMPLEMENTER_CLASSES, REQUIRED, RELS, rel_of
 from common.lock import Busy, ide_lock
 from common.mcp import READY_POLL, READY_TIMEOUT, McpClient, McpError, wait_ready
@@ -624,8 +627,9 @@ def _write_lines(path: str, records: list[dict]) -> None:
 
 
 def run_folder(keys_file: str, url: str, project: str, n: int, seed: int, repeats: int, outside: tuple[str, ...],
-               out: str) -> int:
-    """One `run` into the folder `out`, with no lock (the caller holds it). The exit code of `run`."""
+               out: str, manifest_path: str | None = None) -> int:
+    """One `run` into the folder `out`, with no lock (the caller holds it). The exit code of `run`. With
+    `manifest_path`, the recorded manifest goes there when the run starts (after the version read)."""
     path = os.path.join(out, "results.jsonl")
     for old in (path, path + ".part"):
         if os.path.exists(old):
@@ -640,6 +644,8 @@ def run_folder(keys_file: str, url: str, project: str, n: int, seed: int, repeat
         return EXIT_NOT_READY
     version_start = client.server_version()
     os.makedirs(out, exist_ok=True)
+    if manifest_path:
+        manifest.write(manifest_path, plugin=version_start, files={keys_file: manifest.file_sha256(keys_file)})
     # The results go to a part file during the run; the _meta record needs the version at the end.
     with open(path + ".part", "w", encoding="utf-8") as part:
         results = run_audit(chosen, client, repeats, part, lambda msg: print(msg, file=sys.stderr), outside)
@@ -707,11 +713,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command != "run":
         return _disagreements(args)
+    manifest.warn()
     try:
         with ide_lock(f"audit.symbols run {args.out}"):
             return run_folder(keys_file=args.keys, url=args.url, project=args.project, n=args.n, seed=args.seed,
                               repeats=args.repeats, outside=tuple(p for p in args.outside.split(",") if p),
-                              out=args.out)
+                              out=args.out, manifest_path=os.path.join(args.out, "manifest.json"))
     except Busy as e:
         print(f"{e}. No call to the IDE.", file=sys.stderr)
         return EXIT_BUSY

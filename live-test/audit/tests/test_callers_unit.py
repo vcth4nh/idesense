@@ -11,7 +11,8 @@ from unittest import mock
 from audit import callers
 from audit.tests.test_symbols_unit import FakeMcp, ToolError, fake
 from common import keyrecord as keys
-from common import lock
+from common import lock, manifest
+from common.tests.test_manifest_unit import GOLAND, OTHER, PYCHARM, fake_machine, manifest_file
 
 CONFIGS = ["linux", "windows", "darwin"]
 
@@ -241,6 +242,26 @@ class MainTest(unittest.TestCase):
                 meta = self.lines()[0]
                 self.assertEqual(("2.1.1-dev.12", "2.1.1-dev.13"), (meta["version_start"], meta["version_end"]))
                 self.assertEqual(2 if command == "callers" else 1, len(self.lines()) - 1)
+
+    def test_a_manifest_difference_warns_and_changes_no_exit_code(self):
+        machine = fake_machine(self, self.dir)
+        seen = []
+        for goland in (GOLAND, OTHER):
+            manifest_file(machine, {"goland": goland, "pycharm": PYCHARM})
+            server = FakeMcp(hierarchy_answer)
+            self.addCleanup(server.close)
+            err = io.StringIO()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                code = callers.main(self.args(server, "callers", "-n", "2"))
+            seen.append((code, [line for line in err.getvalue().splitlines() if line.startswith("manifest: ")]))
+        self.assertEqual([(0, []), (0, seen[1][1])], seen)
+        self.assertEqual(1, len(seen[1][1]), seen[1][1])
+        # The record is next to the result file.
+        with open(os.path.join(self.dir, "out.manifest.json"), encoding="utf-8") as f:
+            rec = json.load(f)
+        self.assertEqual(("2.1.1-dev.12", {self.keys: manifest.file_sha256(self.keys),
+                                           self.calls: manifest.file_sha256(self.calls)}, OTHER),
+                         (rec["plugin"], rec["files"], rec["ides"]["goland"]))
 
     def test_a_busy_lock_makes_no_call(self):
         server = FakeMcp(hierarchy_answer)

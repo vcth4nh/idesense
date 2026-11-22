@@ -2,15 +2,18 @@
 # check=skip=InvalidDefaultArgInFrom
 # Product image of the agent benchmark (idesense-bench-<product>:p2).
 # `python3 -m bench.images build <product>` makes the build context (this file, entry.sh, aids/,
-# ws/<slot id>/<product>/) and builds with `--build-arg PRODUCT=<caddy|beets>` and
-# `--build-arg SLOTS_ROOT=<the slots root of the host>`. The trees come from their master manifests, with no
-# agent instruction file of the product, no .idea, no .venv and no .git. In the image each tree is at its slot
-# path SLOTS_ROOT/<slot id>/<product>, as on the host.
-# PRODUCT has no default on purpose (so the check above is off): a build without it fails.
+# ws/<slot id>/<product>/) and builds with `--build-arg PRODUCT=<caddy|beets>`,
+# `--build-arg SLOTS_ROOT=<the slots root of the host>` and a `--build-arg` for each pin of
+# live-test/manifest.json (BASE_IMAGE and the versions and SHA-256 values below). The trees come from their
+# master manifests, with no agent instruction file of the product, no .idea, no .venv and no .git. In the image
+# each tree is at its slot path SLOTS_ROOT/<slot id>/<product>, as on the host.
+# PRODUCT, BASE_IMAGE and the pins have no default on purpose (so the check above is off): a build without them
+# fails.
 ARG PRODUCT
+ARG BASE_IMAGE
 ARG SLOTS_ROOT=/home/ubuntu/dev/ws
 
-FROM ubuntu:24.04 AS base
+FROM ${BASE_IMAGE} AS base
 ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl git jq ripgrep less file unzip \
@@ -18,10 +21,10 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 ENV LANG=C.UTF-8
 
-# Node 24 from the official archive; the SHA-256 is that of
-# https://nodejs.org/dist/v24.16.0/SHASUMS256.txt.
-ARG NODE_VERSION=24.16.0
-ARG NODE_SHA256=2faf6a387e9b62b888e21c54f01249fb27537ffecf1842f29f4c919d0a59a0ff
+# Node from the official archive; the SHA-256 is that of
+# https://nodejs.org/dist/v<NODE_VERSION>/SHASUMS256.txt.
+ARG NODE_VERSION
+ARG NODE_SHA256
 RUN curl -fsSLo /tmp/node.tar.gz "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.gz" \
  && echo "${NODE_SHA256}  /tmp/node.tar.gz" | sha256sum -c - \
  && mkdir /opt/node \
@@ -29,7 +32,7 @@ RUN curl -fsSLo /tmp/node.tar.gz "https://nodejs.org/dist/v${NODE_VERSION}/node-
  && rm /tmp/node.tar.gz
 ENV PATH=/opt/node/bin:$PATH
 
-ARG CLAUDE_CODE_VERSION=2.1.326
+ARG CLAUDE_CODE_VERSION
 RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
  && npm cache clean --force
 ENV DISABLE_AUTOUPDATER=1
@@ -40,8 +43,8 @@ RUN mkdir -p "${SLOTS_ROOT}" \
 
 # caddy: Go from the official archive; the SHA-256 is that of https://go.dev/dl/?mode=json&include=all.
 FROM base AS caddy-tools
-ARG GO_VERSION=1.26.3
-ARG GO_SHA256=2b2cfc7148493da5e73981bffbf3353af381d5f93e789c82c79aff64962eb556
+ARG GO_VERSION
+ARG GO_SHA256
 RUN curl -fsSLo /tmp/go.tar.gz "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
  && echo "${GO_SHA256}  /tmp/go.tar.gz" | sha256sum -c - \
  && tar -xzf /tmp/go.tar.gz -C /usr/local --no-same-owner \
@@ -51,8 +54,8 @@ ENV PATH=/usr/local/go/bin:/home/ubuntu/go/bin:$PATH
 # beets: uv from its GitHub release; the SHA-256 is that of the release file
 # uv-x86_64-unknown-linux-gnu.tar.gz.sha256.
 FROM base AS beets-tools
-ARG UV_VERSION=0.11.17
-ARG UV_SHA256=0017ccecaeb4d431d7f93b583ebff0c5c38e00eb734fcf13d05f72ca419125fe
+ARG UV_VERSION
+ARG UV_SHA256
 RUN curl -fsSLo /tmp/uv.tar.gz "https://github.com/astral-sh/uv/releases/download/${UV_VERSION}/uv-x86_64-unknown-linux-gnu.tar.gz" \
  && echo "${UV_SHA256}  /tmp/uv.tar.gz" | sha256sum -c - \
  && tar -xzf /tmp/uv.tar.gz -C /usr/local/bin --strip-components=1 --no-same-owner \

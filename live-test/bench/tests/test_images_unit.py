@@ -9,7 +9,7 @@ from unittest import mock
 
 from bench import images as image
 from bench import qfiles
-from common import trees
+from common import manifest, trees
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ENTRY = os.path.join(HERE, "..", "image", "entry.sh")
@@ -137,8 +137,13 @@ class ContextTest(TmpTestCase):
                                   or os.path.basename(rel) in key_files], product)
 
 
+def dockerfile_code():
+    with open(os.path.join(image.IMAGE_SRC, "Dockerfile"), encoding="utf-8") as f:
+        return [line for line in f.read().splitlines() if not line.startswith("#")]
+
+
 class BuildTest(unittest.TestCase):
-    def test_build_gives_the_slots_root_to_the_image(self):
+    def build_command(self):
         calls = []
 
         def run(cmd, **kwargs):
@@ -151,12 +156,61 @@ class BuildTest(unittest.TestCase):
                 mock.patch.object(image.subprocess, "run", run):
             with self.assertRaisesRegex(RuntimeError, "the test stops"):
                 image.build("caddy")
-        self.assertEqual([["docker", "build", "--progress=plain", "--build-arg", "PRODUCT=caddy",
-                           "--build-arg", "SLOTS_ROOT=/srv/ws", "-t", "idesense-bench-caddy:p2", "/ctx"]], calls)
+        self.assertEqual(1, len(calls))
+        return calls[0]
+
+    def test_build_gives_the_slots_root_and_the_pins_of_the_manifest_to_the_image(self):
+        pins = manifest.load()
+        tools = pins["image"]
+        args = ["PRODUCT=caddy", "SLOTS_ROOT=/srv/ws", f"BASE_IMAGE={tools['base']}",
+                f"NODE_VERSION={tools['node']['version']}", f"NODE_SHA256={tools['node']['sha256']}",
+                f"CLAUDE_CODE_VERSION={pins['agent']['version']}",
+                f"GO_VERSION={tools['go']['version']}", f"GO_SHA256={tools['go']['sha256']}",
+                f"UV_VERSION={tools['uv']['version']}", f"UV_SHA256={tools['uv']['sha256']}"]
+        self.assertEqual(["docker", "build", "--progress=plain"]
+                         + [part for arg in args for part in ("--build-arg", arg)]
+                         + ["-t", "idesense-bench-caddy:p2", "/ctx"], self.build_command())
+        self.assertIn("--build-arg CLAUDE_CODE_VERSION=2.1.326", " ".join(self.build_command()))
+
+    def test_dockerfile_has_no_version_default_and_declares_each_build_argument(self):
+        code = dockerfile_code()
+        args = [line.split()[1] for line in code if line.startswith("ARG ")]
+        self.assertEqual(["SLOTS_ROOT", "DEBIAN_FRONTEND"], [arg.split("=", 1)[0] for arg in args if "=" in arg],
+                         "no version has a default")
+        command = self.build_command()
+        passed = {command[i + 1].split("=", 1)[0] for i, part in enumerate(command) if part == "--build-arg"}
+        self.assertEqual(set(), passed - {arg.split("=", 1)[0] for arg in args}, "each build argument has an ARG")
+        self.assertEqual(set(), {arg for arg in args if "=" not in arg} - passed, "each ARG with no default is passed")
+        first = next(i for i, line in enumerate(code) if line.startswith("FROM "))
+        self.assertIn("ARG BASE_IMAGE", code[:first])
+        self.assertEqual("FROM ${BASE_IMAGE} AS base", code[first])
+
+    def test_the_image_record_takes_the_agent_version_of_the_manifest(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        containers = []
+
+        def run(cmd, **kwargs):
+            return subprocess.CompletedProcess(cmd, 0, "sha256:feed\n" if cmd[:3] == ["docker", "image", "inspect"]
+                                               else "", "")
+
+        def run_container(name, args, env=None, entrypoint=None, **kwargs):
+            containers.append(entrypoint)
+            return subprocess.CompletedProcess([], 0, "go version go1.26.3 linux/amd64\n", "")
+
+        with mock.patch.object(image, "image_slots", lambda product: {}), \
+                mock.patch.object(image, "make_context", lambda product, slots: "/ctx"), \
+                mock.patch.object(image.subprocess, "run", run), \
+                mock.patch.object(image, "run_container", run_container), \
+                mock.patch.object(image, "IMAGES", tmp):
+            record = image.build("caddy")
+        self.assertEqual((manifest.load()["agent"]["version"], "1.26.3", "sha256:feed"),
+                         (record["claude_version"], record["go_version"], record["id"]))
+        self.assertEqual(["go"], containers, "no container for the agent version")
+        self.assertFalse(hasattr(image, "CLAUDE_CODE_VERSION"))
 
     def test_dockerfile_takes_the_slots_root_from_the_build_argument(self):
-        with open(os.path.join(image.IMAGE_SRC, "Dockerfile"), encoding="utf-8") as f:
-            code = [line for line in f.read().splitlines() if not line.startswith("#")]
+        code = dockerfile_code()
         self.assertEqual(["ARG SLOTS_ROOT=/home/ubuntu/dev/ws"], [line for line in code if "/dev/ws" in line])
         self.assertIn("ENV BENCH_SLOTS_ROOT=${SLOTS_ROOT}", code)
         # A stage sees a global ARG only when it declares the ARG again.

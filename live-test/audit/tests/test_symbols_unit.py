@@ -13,8 +13,9 @@ from unittest import mock
 
 from audit import symbols as audit
 from common import keyrecord as keys
-from common import lock
+from common import lock, manifest
 from common.mcp import McpClient
+from common.tests.test_manifest_unit import GOLAND, OTHER, PYCHARM, fake_machine, manifest_file
 
 
 class ToolError:
@@ -683,6 +684,27 @@ class RunTest(unittest.TestCase):
         with open(os.path.join(out, "summary.md"), encoding="utf-8") as f:
             self.assertIn("- outside prefixes: .venv/, gen/", f.read())
 
+    def test_run_warns_for_a_manifest_difference_and_records_the_manifest(self):
+        d, path = self.keyfile([record([site("a.go", 3)])])
+        server, _ = fake(self, lambda tool, args: definition("a.go", 1) if tool == "ide_find_definition"
+                         else page([usage("a.go", 3)]))
+        machine = fake_machine(self, d)
+        seen = []
+        for out, goland in (("same", GOLAND), ("other", OTHER)):
+            manifest_file(machine, {"goland": goland, "pycharm": PYCHARM})
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                code = audit.main(["run", "-keys", path, "-url", server.url, "-project", "/bench/trees/caddy",
+                                   "-n", "10", "-seed", "1", "-repeats", "1", "-out", os.path.join(d, out)])
+            seen.append((code, [line for line in err.getvalue().splitlines() if line.startswith("manifest: ")]))
+        self.assertEqual([(0, []), (0, seen[1][1])], seen)
+        self.assertEqual(1, len(seen[1][1]), seen[1][1])
+        with open(os.path.join(d, "other", "manifest.json"), encoding="utf-8") as f:
+            rec = json.load(f)
+        self.assertEqual(("2.1.1-dev.12", {path: manifest.file_sha256(path)}), (rec["plugin"], rec["files"]))
+        self.assertEqual(({"goland": OTHER, "pycharm": PYCHARM}, {"goland": GOLAND, "pycharm": PYCHARM}),
+                         (rec["ides"], rec["machine_ides"]))
+
     def keyfile(self, records):
         d = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, d)
@@ -724,6 +746,7 @@ class RunTest(unittest.TestCase):
                 self.assertEqual("old\n", f.read())
             os.remove(old)
         self.assertEqual(0, server.requests)
+        self.assertEqual([], os.listdir(out), "no manifest.json")
 
     def test_wait_ready_polls_until_smart_mode(self):
         server, client = fake(self, lambda tool, args: {})

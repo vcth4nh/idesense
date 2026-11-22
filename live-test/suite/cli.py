@@ -1311,6 +1311,11 @@ def main() -> int:
         print(f"ALL: {failures} issues")
         return 0 if failures == 0 else 1
 
+    try:  # a warning line on stderr for a difference from live-test/manifest.json; it never stops the run
+        from common import manifest
+        manifest.warn()
+    except Exception:
+        pass
     total_pass = total_fail = 0
     if with_fixtures:
         for lang in langs:

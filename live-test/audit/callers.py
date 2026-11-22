@@ -23,8 +23,11 @@ The score is `keyrecord.score`: a `dnc` line is ignored. A node or a row with an
 Both commands hold the lock of the benchmark IDEs (exit 2 when another holder has it, with no call to the IDE),
 and wait until the IDE is in smart mode (exit 4 after `READY_TIMEOUT` seconds, with no result file). They read
 `serverInfo.version` before the first call and after the last row. When the two versions differ, the command
-writes the file, prints one line and exits 4. The first line of the output is `{"id": "_meta", "version_start",
-"version_end", "project", "keys", "n"}` (`dyn`: no `keys`). Each other line is the row of one record:
+writes the file, prints one line and exits 4. At its start, a command prints the warnings of
+`live-test/manifest.json` (`common.manifest.warn`; a difference never stops it), and after the first version read
+it writes `<out without .jsonl>.manifest.json` next to the output (`common.manifest.write`, with `plugin` and
+`files`). The first line of the output is `{"id": "_meta", "version_start", "version_end", "project", "keys", "n"}`
+(`dyn`: no `keys`). Each other line is the row of one record:
 
 - `callers`: `{"id", "levels", "property", "truncated", "kinds", "deeper", "notes", "warnings", "raw", "mapped"}`,
   or `{"id", "levels", "property", "error"}` when the tool gave no tree. `raw` and `mapped` are `{"tp", "fp",
@@ -41,10 +44,12 @@ writes the file, prints one line and exits 4. The first line of the output is `{
 import argparse
 import collections
 import json
+import os
 import random
 import sys
 
 from common import keyrecord as keys
+from common import manifest
 from common.lock import Busy, ide_lock
 from common.mcp import READY_POLL, READY_TIMEOUT, McpClient, McpError, wait_ready
 
@@ -215,16 +220,21 @@ def traced(records: list[dict]) -> list[dict]:
 
 
 def run_file(kind: str, client: McpClient, records: list[dict], calls: list[dict], path: str,
-             keys_file: str) -> tuple[str, list[dict]] | None:
+             keys_file: str, manifest_path: str | None = None, calls_file: str | None = None
+             ) -> tuple[str, list[dict]] | None:
     """Wait for smart mode, run the audit `kind` (`callers` or `dyn`) and write its file. Return the server
     version and the rows. None when the audit stops: the IDE is not in smart mode after `READY_TIMEOUT` seconds
     (no file), or the server version after the last row differs from the version at the start (the file has
-    both versions)."""
+    both versions). With `manifest_path`, the recorded manifest (with the SHA-256 of `keys_file` and `calls_file`)
+    goes there after the first version read."""
     reason = wait_ready(client, READY_TIMEOUT, READY_POLL)
     if reason is not None:
         print(f"The IDE is not in smart mode after {READY_TIMEOUT:.0f} s ({reason}). No result file.", file=sys.stderr)
         return None
     version = client.server_version()
+    if manifest_path:
+        manifest.write(manifest_path, plugin=version,
+                       files={f: manifest.file_sha256(f) for f in (keys_file, calls_file) if f})
     rows = AUDITS[kind](client, records, calls)
     try:
         version_end = client.server_version()
@@ -313,9 +323,11 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_INPUT
     calls = keys.load_keys(args.calls)
     client = McpClient(args.url, args.project)
+    manifest.warn()
     try:
         with ide_lock(f"audit.callers {args.command} {args.out}"):
-            done = run_file(args.command, client, records, calls, args.out, args.keys)
+            done = run_file(args.command, client, records, calls, args.out, args.keys,
+                            manifest_path=os.path.splitext(args.out)[0] + ".manifest.json", calls_file=args.calls)
     except Busy as e:
         print(f"{e}. No call to the IDE.", file=sys.stderr)
         return EXIT_BUSY

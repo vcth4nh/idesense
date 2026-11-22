@@ -17,6 +17,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from common import manifest
+from common.tests.test_manifest_unit import OTHER, PYCHARM, fake_machine, manifest_file
 from suite import cli as run
 from suite import fleet, products
 from suite.cli import _result_has_error, _result_is_structured_error, _structured_error_bless_refusals
@@ -899,6 +901,28 @@ class MainSuiteTest(unittest.TestCase):
         self.assertEqual(([], []), (self.languages, self.product_calls))
         self.assertIn("/nonexistent/idesense-fleet-fixtures", self.errors)
 
+    def test_a_manifest_difference_warns_and_changes_no_exit_code_and_no_row(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        path = fake_machine(self, folder)
+        runs = (((), 0, (3, 0, 0)), (("--suite", "all"), 0, (3, 0, 0)), (("--product", "alpha"), 1, (2, 1, 0)))
+        same = []
+        for argv, code, result in runs:
+            self.assertEqual(code, self.main(*argv, product_result=result))
+            self.assertEqual("", self.errors)
+            same.append(self.printed)
+        manifest_file(path, {"goland": OTHER, "pycharm": PYCHARM})
+        for (argv, code, result), printed in zip(runs, same):
+            self.assertEqual(code, self.main(*argv, product_result=result))
+            self.assertEqual(printed, self.printed)
+            self.assertEqual(1, len(self.errors.splitlines()), self.errors)
+            self.assertTrue(self.errors.startswith("manifest: goland: "), self.errors)
+        # Also a warning that fails changes nothing.
+        with mock.patch.object(manifest, "warn", side_effect=RuntimeError("no warning")):
+            for (argv, code, result), printed in zip(runs, same):
+                self.assertEqual(code, self.main(*argv, product_result=result))
+                self.assertEqual((printed, ""), (self.printed, self.errors))
+
 
 class MainFleetTest(unittest.TestCase):
     """The two commands of main() that only change the open projects of the fleet."""
@@ -955,6 +979,12 @@ class MainFleetTest(unittest.TestCase):
             self.assertEqual(2, self.main("--close-products"))
             self.assertEqual(2, self.main("--open-product", "alpha"))
         self.assertEqual(([], []), (self.closed, self.opened))
+
+    def test_the_fleet_commands_check_no_manifest(self):
+        with mock.patch.object(manifest, "warn") as warn:
+            self.main("--close-products")
+            self.main("--open-product", "alpha")
+        warn.assert_not_called()
 
 
 class ProductOfflineTest(unittest.TestCase):
@@ -1108,6 +1138,12 @@ class MainOfflineTest(unittest.TestCase):
         self.assertIn("[beta] anchors not written: checkout is missing", self.printed)
         self.assertEqual(1, self.main("--write-anchors", "--product", "alpha", state="missing"))
         self.assertEqual([], self.writes)
+
+    def test_the_offline_commands_check_no_manifest(self):
+        with mock.patch.object(manifest, "warn") as warn:
+            self.main("--check-fixtures")
+            self.main("--write-anchors")
+        warn.assert_not_called()
 
 
 if __name__ == "__main__":

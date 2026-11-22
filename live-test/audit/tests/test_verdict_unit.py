@@ -12,7 +12,8 @@ from audit import verdict as audit_verdict
 from audit.tests.test_symbols_unit import FakeMcp, definition, page, record, site, usage
 from audit.verdict import verdict
 from common import keyrecord as keys
-from common import lock
+from common import lock, manifest
+from common.tests.test_manifest_unit import GOLAND, OTHER, PYCHARM, fake_machine, manifest_file
 
 A = {"audit": "x", "tool": "t", "symbol": "s1", "miss": [["f", 1]], "fp": [], "errors": []}
 B = {**A, "symbol": "s2"}
@@ -335,6 +336,25 @@ class MainTest(unittest.TestCase):
             self.verdict_file("run2"))
         # The folder run2 exists now: no second run into it.
         self.assertEqual(2, self.main(*self.run_args(server, "run2"))[0])
+
+    def test_run_warns_for_a_manifest_difference_and_writes_one_manifest(self):
+        server = self.run_setup()
+        machine = fake_machine(self, self.dir)
+        seen = []
+        for out, goland in (("run1", GOLAND), ("run2", OTHER)):
+            manifest_file(machine, {"goland": goland, "pycharm": PYCHARM})
+            code, text = self.main(*self.run_args(server, out))
+            seen.append((code, [line for line in text.splitlines() if line.startswith("manifest: ")]))
+        self.assertEqual([(1, []), (1, seen[1][1])], seen, "the verdict fail in both runs")
+        self.assertEqual(1, len(seen[1][1]), seen[1][1])
+        with open(os.path.join(self.dir, "run2", "manifest.json"), encoding="utf-8") as f:
+            rec = json.load(f)
+        key_file = os.path.join(self.root, "keys", "caddy", "symbols.jsonl")
+        self.assertEqual(({"caddy": "2.1.1-dev.12", "beets": "2.1.1-dev.12"},
+                          {"caddy/symbols.jsonl": manifest.file_sha256(key_file)}, OTHER),
+                         (rec["plugin"], rec["files"], rec["ides"]["goland"]))
+        self.assertFalse(os.path.exists(os.path.join(self.dir, "run2", "caddy-symbols", "manifest.json")),
+                         "one manifest for the run")
 
     def test_run_calls_the_public_symbols_run_with_no_second_lock(self):
         server = self.run_setup()

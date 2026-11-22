@@ -23,7 +23,8 @@ from unittest import mock
 
 from bench import claude_code, planfile, proxy, qfiles, runner
 from bench import sets as challenges
-from common import lock, mcp, settings, trees
+from common import lock, manifest, mcp, settings, trees
+from common.tests.test_manifest_unit import GOLAND, OTHER, PYCHARM, fake_machine, manifest_file
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIXTURES = os.path.join(HERE, "fixtures", "stream")
@@ -1583,6 +1584,45 @@ class BatchTest(CaddyCase):
         self.assertEqual(2, code)
         self.assertIn("gives no plugin version", err)
         self.assertEqual([], runs, "no run starts")
+
+    def test_a_manifest_difference_warns_and_changes_no_exit_code(self):
+        """A run with the fake docker in a batch: with a manifest that equals the machine, and with one that does
+        not. The batch folder gets the recorded manifest at each start."""
+        path = fake_machine(self, self.tmp)
+        os.environ["FAKE_DOCKER_FIXTURE"] = self.c_ok()
+        plan = self.plan({"arm": "C"})
+        seen = []
+        for batch, goland in (("b1", GOLAND), ("b2", OTHER)):
+            manifest_file(path, {"goland": goland, "pycharm": PYCHARM})
+            code, out, err = self.main("batch", "-plan", plan, "-batch", batch, "-jobs", "1")
+            with open(os.path.join(self.runs, batch, f"{CHALLENGE['id']}__C__{MODEL}__1", "run.json"),
+                      encoding="utf-8") as f:
+                outcome = json.load(f)["outcome"]
+            seen.append((code, outcome, [line for line in err.splitlines() if line.startswith("manifest: ")]))
+        self.assertEqual([(0, "ok", []), (0, "ok", seen[1][2])], seen)
+        self.assertEqual(1, len(seen[1][2]), seen[1][2])
+        self.assertIn(OTHER["build"], seen[1][2][0])
+        self.assertIn(GOLAND["build"], seen[1][2][0])
+        with open(os.path.join(self.runs, "b2", "manifest.json"), encoding="utf-8") as f:
+            rec = json.load(f)
+        question = os.path.join(qfiles.QUESTIONS, KEY["question"] + ".md")
+        key = os.path.join(qfiles.KEYS, KEY["question"] + ".json")
+        self.assertEqual({"goland": OTHER, "pycharm": PYCHARM}, rec["ides"])
+        self.assertEqual({"goland": GOLAND, "pycharm": PYCHARM}, rec["machine_ides"])
+        self.assertEqual(manifest.load()["agent"], rec["agent"])
+        self.assertEqual({"commit", "dirty"}, set(rec["repository"]))
+        self.assertEqual(({"beets": VERSION}, [MODEL], {"beets": IMAGE["id"]}, trees.SLOTS_ROOT, "api-key"),
+                         (rec["plugin"], rec["plan_models"], rec["image_ids"], rec["slots_root"], rec["login"]))
+        self.assertEqual({KEY["question"]: {"question_sha256": manifest.file_sha256(question),
+                                            "key_sha256": manifest.file_sha256(key)}}, rec["questions"])
+        # A later start of the batch writes the record again, with the present values.
+        manifest_file(path, {"goland": GOLAND, "pycharm": PYCHARM})
+        code, out, err = self.main("batch", "-plan", plan, "-batch", "b2", "-jobs", "1", "-plugin-version", "1.2.3")
+        self.assertEqual(0, code, err)
+        self.assertIn("1 finished before, 0 to run", out)
+        with open(os.path.join(self.runs, "b2", "manifest.json"), encoding="utf-8") as f:
+            rec = json.load(f)
+        self.assertEqual(({"goland": GOLAND, "pycharm": PYCHARM}, "1.2.3"), (rec["ides"], rec["plugin"]))
 
 
 class HandshakeTest(RunnerCase):
