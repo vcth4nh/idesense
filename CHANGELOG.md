@@ -312,6 +312,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - The SSE transport no longer logs a cancellation at ERROR when the channel of a session closes
   between the check and the send of an event. The cancellation now ends the sending coroutine with
   no log entry, as in the request handlers (#283).
+- `ide_find_symbol` and the name anchors in GoLand order a Go embedded field (kind
+  `ANONYMOUS_FIELD`) as a value, after the declarations of the same name. It could come before the
+  type that it embeds when its file sorted first (#286).
 
 ## [2.1.0] - 2026-11-09
 

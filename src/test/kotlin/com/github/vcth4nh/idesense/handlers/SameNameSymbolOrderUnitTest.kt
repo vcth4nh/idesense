@@ -21,6 +21,27 @@ class SameNameSymbolOrderUnitTest : TestCase() {
         )
     }
 
+    fun testGoEmbeddedFieldIsAValueAndComesAfterTheTypeOfTheSameName() {
+        assertEquals(
+            listOf(
+                "STRUCT normal.go:31",
+                "ANONYMOUS_FIELD embed.go:9",
+                "ANONYMOUS_FIELD normal.go:38",
+                "ANONYMOUS_FIELD normal.go:51",
+                "FIELD normal_test.go:14",
+            ),
+            SameNameSymbolOrder.sort(
+                listOf(
+                    sym("baseShape", "FIELD", "normal_test.go").copy(line = 14),
+                    sym("baseShape", "ANONYMOUS_FIELD", "normal.go").copy(line = 51),
+                    sym("baseShape", "ANONYMOUS_FIELD", "embed.go").copy(line = 9),
+                    sym("baseShape", "STRUCT", "normal.go").copy(line = 31),
+                    sym("baseShape", "ANONYMOUS_FIELD", "normal.go").copy(line = 38),
+                )
+            ) { it }.map { "${it.kind} ${it.file}:${it.line}" }
+        )
+    }
+
     fun testSymbolInAFileOfItsOwnNameComesFirstAmongDeclarations() {
         assertEquals(
             listOf("FUNCTION pkg/render/render.py", "FUNCTION examples/sample.py", "FIELD x/render.py"),

@@ -13,7 +13,7 @@ package com.github.vcth4nh.idesense.handlers
  * fixed order gives the same answer every time. The order of the names stays as the popup gives it.
  */
 internal object SameNameSymbolOrder {
-    private val VALUE_KINDS = setOf("FIELD", "VARIABLE", "PROPERTY", "CONSTANT", "PARAMETER")
+    private val VALUE_KINDS = setOf("FIELD", "VARIABLE", "PROPERTY", "CONSTANT", "PARAMETER", "ANONYMOUS_FIELD")
 
     fun <T> sort(items: List<T>, symbol: (T) -> SymbolData): List<T> {
         val nameOrder = HashMap<String, Int>()
