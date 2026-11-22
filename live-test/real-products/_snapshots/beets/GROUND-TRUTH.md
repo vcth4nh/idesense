@@ -96,6 +96,16 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   lines the receiver is a parameter with no annotation. The tool gives 30 rows: the rows of
   lines 438 and 545 have `match` `DYNAMIC`, and the 28 other rows have no `match`, as for the
   probable usage of `BeetsPlugin` in the bullet "173 usages of `BeetsPlugin`".
+- **beets: no callers of a property (#224).** In PyCharm 2026.3.0.1 (build 263.7307.329,
+  2026-11-22, a development build of the plugin code of main @ 2b4c071 in the same instance),
+  the Call Hierarchy window (callers) of a property shows only the root, with no row and no
+  message under it. Seen at `beets/autotag/match.py:130:9` (`disambig_string`, the decorator
+  `@property`) and at `beetsplug/musicbrainz.py:247:9` (`genres_field`, the decorator
+  `@cached_property`), no row. `ide_call_hierarchy` gives no caller for both.
+  `ide_find_usages` gives the 2 reads of each: `beets/ui/commands/import_/display.py:89` and
+  `beets/ui/commands/import_/session.py:481` for `disambig_string`, and
+  `beetsplug/musicbrainz.py:512` and `:513` for `genres_field`. The code vision of each
+  property says "2 usages".
 - **beets: no scope for Python subtypes.** `hier-sub-ImportHelper-production-scope` gives the
   same 92 subtypes as a call with no scope. `PySubTypesHierarchyTreeStructure.buildChildren`
   calls `PyClassInheritorsSearch.search(PyClass, boolean)`, which takes no scope (bytecode of

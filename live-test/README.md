@@ -532,7 +532,10 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
 - **Window.** With no window manager on the display, `xdotool windowactivate` did not work,
   and `windowfocus`, `windowmove` and `windowsize` worked (seen with GoLand 2026.3). Move the
   window to 0,0 and size it to the display: the window of GoLand 2026.3 opened at 1400x1000 on
-  a 1920x1080 display.
+  a 1920x1080 display. After a popup closed (Go to Line), the keyboard focus can go to the root
+  window of the display, and the next shortcut then has no effect (seen on PyCharm 2026.3.0.1,
+  not after each popup). Give the focus back to the IDE frame (`xdotool windowfocus`) before
+  the key.
 - **Keyboard.** Drive the IDE by keyboard (for example `xdotool`), and focus its window first.
   Swing widgets are no X windows: click by pixel only from a screenshot that you read. Open
   the file with Go to File (`ctrl+shift+n`). Its list shows a short location next to each
