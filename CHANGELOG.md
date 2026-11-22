@@ -55,6 +55,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   tells a caller to pass the sub-project root: the workspace root also selects the workspace
   project, and only `ide_sync_files` with no `paths` syncs just the sub-project of its root. The
   `kind` list of `ide_find_symbol` in `docs/USAGE.md` gives `FIELD` and `CONSTANT` their own lines.
+- `ide_find_file` builds its name matcher with `NameUtil.buildMatcher(pattern).build()`, not with the
+  overload that takes `NameUtil.MatchingCaseSensitivity`. JetBrains scheduled that overload for
+  removal from the build 262 on. The matcher is the same: it ignores case (#255).
 
 ### Removed
 - The default server name and port for JetBrains Aqua (`aqua-idesense`, port 29180). JetBrains
@@ -230,6 +233,17 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   line break stays complete, so a long function signature stays whole. In WebStorm, the name of a
   spread element over several lines had these lines, so the outline had lines that were no nodes
   (#199).
+- `ide_file_structure` writes the keyword `static` one time for a Java static initializer:
+  `static class initializer`, as the Structure tool window. The line was
+  `static static class initializer` (#326).
+- `ide_file_structure` leaves a comment between two modifier keywords out of the modifiers of a
+  Java or Kotlin declaration. For `public /* c */ static void m() {}` the line was
+  `public /* c */ static m(): void`, and a line comment also brought the next keyword after `//`.
+  The line is now `public static m(): void` (#282).
+- `ide_file_structure` gives a Python function no modifiers, as each other Python node. A static
+  method, a class method, `__new__`, `__init_subclass__` and `__class_getitem__` had the modifier
+  `STATICMETHOD` or `CLASSMETHOD`, the name of an enum constant of PyCharm and no keyword of the
+  source (#280).
 - A cancelled tool call no longer writes error entries to the IDE log. The server logged the
   cancellation with its exception, and the platform logger wrote "Control-flow exceptions ...
   should never be logged" in place of the exception. When the IDE stopped the MCP server during a
@@ -309,6 +323,16 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   "Search context invalidated due to file changes. Please re-search." or a short page before. The
   analysis of `ide_diagnostics` and the rename or move of `ide_refactor_rename` and `ide_move_file`
   do not wait; #295 tracks the refactorings (#267).
+- The SSE transport no longer logs a cancellation at ERROR when the channel of a session closes
+  between the check and the send of an event. The cancellation now ends the sending coroutine with
+  no log entry, as in the request handlers (#283).
+- `ide_find_symbol` and the name anchors in GoLand order a Go embedded field (kind
+  `ANONYMOUS_FIELD`) as a value, after the declarations of the same name. It could come before the
+  type that it embeds when its file sorted first (#286).
+- The tools that give a kind, for example `ide_find_definition`, `ide_find_class` and
+  `ide_find_symbol`, give the kind `TYPE_ALIAS` to a Kotlin type alias, as for a Rust or a
+  TypeScript type alias. It was `SYMBOL`. The `qualifiedName` of a Kotlin type alias does not
+  change. Part of #278.
 
 ## [2.1.0] - 2026-11-09
 

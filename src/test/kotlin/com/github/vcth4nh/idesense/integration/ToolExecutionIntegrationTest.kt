@@ -14,10 +14,12 @@ import com.github.vcth4nh.idesense.tools.navigation.FindImplementationsTool
 import com.github.vcth4nh.idesense.tools.navigation.FindFileTool
 import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.FindDefinitionTool
+import com.github.vcth4nh.idesense.tools.navigation.FindSymbolTool
 import com.github.vcth4nh.idesense.tools.navigation.TypeHierarchyTool
 import com.github.vcth4nh.idesense.tools.navigation.ReadFileTool
 import com.github.vcth4nh.idesense.tools.models.DefinitionResult
 import com.github.vcth4nh.idesense.tools.models.FindFileResult
+import com.github.vcth4nh.idesense.tools.models.FindSymbolResult
 import com.github.vcth4nh.idesense.tools.models.FindUsagesResult
 import com.github.vcth4nh.idesense.tools.models.ReadFileResult
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
@@ -515,6 +517,21 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         assertFalse("A call in code is not a COMMENT usage", callType == "COMMENT")
     }
 
+    fun testFindFileMatchesWithoutCase() = runBlocking {
+        // #255: the name matcher ignores case, as the Go to File popup does.
+        myFixture.addFileToProject("CaseProbe.txt", "probe")
+
+        val result = FindFileTool().execute(project, buildJsonObject { put("query", "caseprobe") })
+
+        val text = (result.content.first() as ContentBlock.Text).text
+        assertFalse("Search should not fail: $text", result.isError)
+        val payload = Json { ignoreUnknownKeys = true }.decodeFromString<FindFileResult>(text)
+        assertTrue(
+            "A query in lower case should find CaseProbe.txt, got: ${payload.files}",
+            payload.files.any { it.name == "CaseProbe.txt" }
+        )
+    }
+
     fun testFindFileSurfacesContributorFailureAsWarning() = runBlocking {
         // #87: a file contributor throwing mid-search must not abort the whole search
         // silently — remaining contributors still run and the response carries a
@@ -629,6 +646,20 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         }
 
         assertTrue("Full preview should include method name", definition.preview.contains("doWork"))
+    }
+
+    fun testFindSymbolGivesTypeAliasKindForKotlinTypeAlias() = runBlocking {
+        // #278: a Kotlin type alias had the kind SYMBOL.
+        myFixture.addFileToProject("Aliases.kt", "typealias ProbeAlias = String")
+
+        val result = FindSymbolTool().execute(project, buildJsonObject { put("query", "ProbeAlias") })
+
+        val text = (result.content.first() as ContentBlock.Text).text
+        assertFalse("Find symbol should succeed: $text", result.isError)
+        val symbols = json.decodeFromString<FindSymbolResult>(text).symbols
+        val alias = symbols.singleOrNull { it.name == "ProbeAlias" && it.file.endsWith("Aliases.kt") }
+        assertNotNull("The alias should be found, got: $symbols", alias)
+        assertEquals("TYPE_ALIAS", alias!!.kind)
     }
 
     fun testReadFileToolValidation() = runBlocking {

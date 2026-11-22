@@ -365,6 +365,6 @@ class FindFileTool : AbstractMcpTool() {
     }
 
     private fun createMatcher(pattern: String): MinusculeMatcher {
-        return NameUtil.buildMatcher(matcherPattern(pattern), NameUtil.MatchingCaseSensitivity.NONE)
+        return NameUtil.buildMatcher(matcherPattern(pattern)).build()
     }
 }

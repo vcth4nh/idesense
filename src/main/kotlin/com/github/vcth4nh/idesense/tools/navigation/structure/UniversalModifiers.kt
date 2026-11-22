@@ -1,6 +1,7 @@
 package com.github.vcth4nh.idesense.tools.navigation.structure
 
 import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 
 /**
@@ -12,17 +13,21 @@ import com.intellij.psi.PsiElement
  * accessor methods are conventionally one of `getModifierList`, `getAttributeList`,
  * or `getVis`, and the returned PSI element's `getText()` yields the source-order
  * keyword list. We probe those accessors reflectively, remove the text of each
- * annotation or decorator child (see [withoutAnnotations]), and split the resulting
- * text on whitespace, dropping anything that looks like an annotation (`@...`).
+ * annotation, decorator or comment child (see [withoutAnnotationsAndComments]), and split
+ * the resulting text on whitespace, dropping anything that looks like an annotation (`@...`).
  *
  * PHP class and field elements don't expose `getModifierList()` (only methods do).
  * As a fallback, we probe `getModifier()` — which returns a `PhpModifier` whose
  * `toString()` is overridden to yield source-form modifier text ("abstract public",
  * "private final static", etc., including PHP 8.4 `public(set)`). Guarded against
  * accidental matches in other languages by rejecting outputs containing `@`, since
- * Java's default `Object.toString()` returns `"ClassName@hashcode"`.
+ * Java's default `Object.toString()` returns `"ClassName@hashcode"`, and by keeping the
+ * text only when the class of the value has its own `toString` (see [hasOwnToString]).
  *
  * Languages without a modifier concept (Python, Go) silently return empty.
+ *
+ * A Java class initializer also returns empty. Its only keyword is `static`, and the IDE already
+ * writes it into the name of the node (`static class initializer`, #326).
  *
  * Caveat: Kotlin's `KtModifierList` includes declaration-shape keywords like `data`,
  * `sealed`, `enum`, `annotation` — those will surface as modifiers. That's
@@ -33,14 +38,18 @@ internal object UniversalModifiers {
 
     private val GETTERS = listOf("getModifierList", "getAttributeList", "getVis")
 
+    private val classInitializerClass: Class<*>? by lazy {
+        try { Class.forName("com.intellij.psi.PsiClassInitializer") } catch (_: ClassNotFoundException) { null }
+    }
+
     fun extract(value: Any?): List<String> {
-        if (value !is PsiElement) return emptyList()
+        if (value !is PsiElement || classInitializerClass?.isInstance(value) == true) return emptyList()
         for (getter in GETTERS) {
             val sub = invokeNoArg(value, getter) ?: continue
             val text = invokeString(sub, "getText") ?: continue
-            return splitKeywords(withoutAnnotations(sub, text))
+            return splitKeywords(withoutAnnotationsAndComments(sub, text))
         }
-        invokeNoArg(value, "getModifier")?.let { mod ->
+        invokeNoArg(value, "getModifier")?.takeIf(::hasOwnToString)?.let { mod ->
             val text = mod.toString()
             if (text.isNotBlank() && '@' !in text) return splitKeywords(text)
         }
@@ -53,6 +62,10 @@ internal object UniversalModifiers {
      * can hold white space, so the `@` filter of [splitKeywords] alone left parts of them (#173).
      * With the space, two keywords next to the child stay apart (`static@A(x)final`).
      *
+     * A comment between two keywords is also a child, and it gets a space too (#282). A comment
+     * is a leaf, and `getChildren()` of a Kotlin modifier list gives only the composite children,
+     * so the comments come from the walk over the siblings.
+     *
      * The offsets come from the PSI, so a string or a parenthesis in the arguments has no effect.
      * In a compiled Java class the annotations are the only children, and the text and the
      * offsets come from the decompiled text. The loop goes from the end, so that each
@@ -62,17 +75,27 @@ internal object UniversalModifiers {
      * that a Java class inherits. Its text is the text of its navigation element, so the children
      * come from that element when the two texts are the same.
      */
-    private fun withoutAnnotations(modifierList: Any, text: String): String {
+    private fun withoutAnnotationsAndComments(modifierList: Any, text: String): String {
         if (modifierList !is PsiElement) return text
         val source = modifierList.navigationElement.takeIf { it.text == text } ?: modifierList
+        val annotations = source.children.filter { it.text.startsWith("@") }
+        val comments = generateSequence(source.firstChild) { it.nextSibling }.filterIsInstance<PsiComment>()
         val result = StringBuilder(text)
-        for (child in source.children.reversed()) {
+        for (child in (annotations + comments).sortedByDescending { it.startOffsetInParent }) {
             val start = child.startOffsetInParent
-            if (start < 0 || !child.text.startsWith("@")) continue
+            if (start < 0) continue
             result.replace(start, start + child.textLength, " ")
         }
         return result.toString()
     }
+
+    /**
+     * True when the `toString` of [value] is not the default of `Object` or `Enum`. The default
+     * gives a class name or the name of an enum constant, which is no keyword of the source
+     * (`STATICMETHOD` of `PyFunction.getModifier()`, #280).
+     */
+    private fun hasOwnToString(value: Any): Boolean =
+        value.javaClass.getMethod("toString").declaringClass.let { it != Any::class.java && it != Enum::class.java }
 
     private fun splitKeywords(text: String): List<String> =
         text.trim().split(Regex("\\s+"))
