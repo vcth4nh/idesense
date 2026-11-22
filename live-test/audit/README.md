@@ -44,8 +44,9 @@ is the product of its tree: the lines of `caddy-plant-1` go to `accepted/caddy.j
 
 `<build>` names the plugin build, for example the seven hex digits of its commit. The command runs
 each audit of `audits.json` on the IDE of its product, at the slot path of its tree. It holds the
-lock of the benchmark IDEs while the audits run. It refuses an `-out` folder that exists, a fleet
-port, and an input that is absent. Before it makes the `-out` folder, it reads the plugin version
+lock of the benchmark IDEs while the audits run. It refuses an `-out` folder that exists, a port
+of a fleet IDE (29170 to 29178; the fleet is the set of the IDEs of the two suites, see
+[live-test/README.md](../README.md)), and an input that is absent. Before it makes the `-out` folder, it reads the plugin version
 of each IDE: when an IDE that an audit uses gives no version, it stops at once and makes no
 folder. Then it prints one verdict line for each audit and one total line:
 

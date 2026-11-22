@@ -7,8 +7,9 @@ each instrument.
 
 ## 1. Two kinds of truth
 
-- **Snapshot.** The blessed output of a tool. Before the bless, a person or an agent checks the
-  output against the IDE. Its rule is "mirror the IDE" (the rule "Mimic the IDE" in the root
+- **Snapshot.** The blessed output of a tool: a bless (the option `--bless` of the suites) writes
+  the output of a run as the expected result of a row. Before the bless, a person or an agent
+  checks the output against the IDE. Its rule is "mirror the IDE" (the rule "Mimic the IDE" in the root
   [AGENTS.md](../AGENTS.md)). The fixture suite and the product suite use snapshots.
 - **Key.** An answer that no IDE and no plugin made. It comes from the Go compiler library, from
   a Python scan, from reflection in the interpreter of the product, or from a run-time trace.
@@ -66,7 +67,8 @@ Each line of a key has one class:
 - `required`: an exact answer has the line.
 - `forbidden`: an exact answer does not have the line (for example a line with the same name that
   is a different symbol).
-- `dnc` (not decided; `not_counted` in a tracked key of `bench/keys/`): the line is not counted.
+- `dnc` (the name in a tracked key of `bench/keys/` is `not_counted`): the key does not decide
+  if an answer has the line, and the score does not count it.
   Examples: the declaration of the symbol itself, a comment, a use that a rename can change and
   need not change.
 
@@ -180,12 +182,14 @@ JSON object `{"sites": ["<path>:<line>", ...]}`.
 A program chooses the questions by fixed rules and a seed (the set makers of
 [`bench/sets.py`](bench/sets.py)). A question has a `hard`, `random` or `control` pick, and the
 key holds the rule of its pick (`pick.rule`). A hard pick has a class, and its rule is written
-before the first run. Examples of classes: types that get a method from an embedded type, many
+before the first run. A random pick and a control pick are seeded choices among the records that
+fit a size condition, and the rule gives the seed and the number of candidates. Examples of classes: types that get a method from an embedded type, many
 lines with the same name, lines in a file that the build of the machine does not compile, a planted
 name, a long list, a call inside a function literal, a property.
 
 A plan (`bench/plans/<name>.json`) names the questions, the arms, the models and the runs of each
-cell of a batch, and a `rule` sentence that says how the questions were chosen.
+cell of a batch. It has a `rule` sentence of its own, which says how the questions of the plan
+were chosen (it is not the `pick.rule` of a key).
 
 ### 5.2 Arms
 

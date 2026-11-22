@@ -1,6 +1,8 @@
 # Questions of the agent benchmark
 
-This folder holds the questions of the agent benchmark of IdeSense. A question asks a coding agent
+This folder holds the questions of the agent benchmark of IdeSense, a plugin that gives coding
+agents the code-analysis engines of a JetBrains IDE (see the [README](../../../README.md) of the
+repository). A question asks a coding agent
 for a closed list of source lines about one symbol of an open source product at a pinned release:
 for example each implementer of an interface, or each caller of a function. Each question has a
 key with the correct answer. You can score any agent on these questions with Python 3.10 or later
@@ -28,17 +30,17 @@ answer is relative to the root of the checkout, and each line number starts at 1
 | Field | Content |
 |---|---|
 | `question` | The name of the question |
-| `old_ids` | The earlier ids of the question in the benchmark |
+| `old_ids` | The ids that the question had before the tracked files. A run record of an earlier batch of the maintainers names the question by one of them. You do not need them to score an agent |
 | `product` | The product |
 | `pin` | The release tag of the product |
 | `tree` | The tree of the question: the product name, or `<product>-plant-<n>` for a planted tree (see "Planted trees") |
-| `family` | `refs`, `impls`, `rename`, `callers` or `dyncallers` |
+| `family` | `refs`, `impls`, `rename`, `callers` or `dyncallers`: what the question asks for (the table is in [METHOD.md](../../METHOD.md), section 5.1) |
 | `lang` | `go` or `python` |
-| `symbol` | The id of the symbol in the full key of the maintainers |
+| `symbol` | The id of the symbol in the key file that `key_file` names: `go:<package path>.<name>`, `py:<dotted name>`, or `plant:<language>:<tree>:<name>` for a planted name |
 | `name` | The name of the symbol in the question |
 | `answer` | Three lists of `<path>:<line>`: `required`, `forbidden` and `not_counted` |
-| `pick` | `sample` (`hard`, `random` or `control`) and `rule`: how the question was chosen |
-| `key_file`, `source` | The full key file in the data root of the maintainers, and how it was made |
+| `pick` | How the question was chosen. `sample` is the kind of the pick: `hard` (a rule chose the symbol for one class of difficult case), or `random` or `control` (a seeded choice among the symbols that fit a size condition). `rule` is the sentence of the rule. See [METHOD.md](../../METHOD.md), section 5.1 |
+| `key_file`, `source` | `key_file`: the file from which the answer comes. It holds one record for each symbol of the tree, it is on the machine of the maintainers and not in git, and the tools of [keygen](../../keygen/README.md) make it again. `source`: one sentence that says how the answer was made, for example `name resolution of the Go compiler library (go/types)`. You do not need these fields to score an agent |
 
 The classes of `answer`:
 
@@ -72,8 +74,16 @@ Get a checkout of this repository. Run the commands from its root.
    sed "s|{root}|$(cd <checkout> && pwd)|g" live-test/bench/questions/<name>.md
    ```
 
-   The control arm of the benchmark gives this text and nothing more, and it gives Claude Code the
-   JSON schema of the answer (option `--json-schema`). The keys are public, so an agent that can
+   The arm of the benchmark with no plugin (arm `C` in [METHOD.md](../../METHOD.md), section 5.2)
+   gives this text and nothing more. It also gives Claude Code the JSON schema of the answer, with
+   the option `--json-schema`:
+
+   ```json
+   {"type": "object", "properties": {"sites": {"type": "array", "items": {"type": "string"}}}, "required": ["sites"], "additionalProperties": false}
+   ```
+
+   An agent with no such option gets the answer format from the last paragraph of the question.
+   The keys are public, so an agent that can
    read this repository or the web can find the answer: read the transcript of a run for an
    access to `bench/keys`.
 3. **Score the answer.** Write the answer of the agent into a file, for example `answer.json`,
@@ -126,7 +136,8 @@ a file that cannot be read, or an answer with no list `sites`).
 A question whose `tree` is `<product>-plant-<n>` is about a planted tree: a copy of the product at
 the pin in which four methods with unique names got one shared name. The `name` of the key is the
 shared name. A checkout at the pin does not have this name, so an agent cannot answer the question
-in it. The recipe of each planted tree (the four names and the shared name) is in
+in it. This repository holds no made planted tree. With no planted tree, leave these questions
+out: their names have `-plant<n>-` after the product. The recipe of each planted tree (the four names and the shared name) is in
 `live-test/keygen/trees.json`. To make a planted tree you need the harness of this repository and
 more than Python: see "Trees" in [keygen/README.md](../../keygen/README.md#trees). The files of a
 planted tree have the paths and the line numbers of the checkout at the pin.

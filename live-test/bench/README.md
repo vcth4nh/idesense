@@ -44,7 +44,7 @@ The settings come from environment variables. No tracked file holds a value of o
 | Variable | Content | Default |
 |---|---|---|
 | `BENCH_ROOT` | The data root | `~/dev/idesense-bench` |
-| `BENCH_SLOTS` | The slots root | `~/dev/ws` |
+| `BENCH_SLOTS` | The slots root: the folder of the slots (a slot is a copy of a tree for the runs, see below the folder list) | `~/dev/ws` |
 | `BENCH_APPS` | The Toolbox apps folder, with the IDE installs | `~/.local/share/JetBrains/Toolbox/apps` |
 | `BENCH_SECRET_FILE` | The file of the secret of the login: one line | No default |
 | `BENCH_LOGIN` | `api-key` (the secret goes to `ANTHROPIC_API_KEY`) or `subscription` (the token of `claude setup-token`, to `CLAUDE_CODE_OAUTH_TOKEN`). No container run with `subscription` is verified yet. | `api-key` |
