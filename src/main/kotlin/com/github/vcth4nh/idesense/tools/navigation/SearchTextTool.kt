@@ -54,6 +54,13 @@ class SearchTextTool : AbstractMcpTool() {
          */
         private const val WORD_INDEX_CONTEXT: Short = UsageSearchContext.ANY
 
+        /**
+         * The search walks no injected language fragment. A word inside a fragment is text of
+         * the host file, so the search reports it once, in the host file. The walk of the
+         * fragments gave a second match, with the path and a line of the fragment (#184).
+         */
+        private const val PROCESS_INJECTED_PSI = false
+
         /** The `contextType` label that the `context` value keeps. Null keeps each label. */
         internal fun requestedContextType(context: String): String? = when (context.lowercase()) {
             "code" -> "CODE"
@@ -212,7 +219,8 @@ class SearchTextTool : AbstractMcpTool() {
             scope,
             word,
             WORD_INDEX_CONTEXT,
-            caseSensitive
+            caseSensitive,
+            PROCESS_INJECTED_PSI
         )
 
         return results.toList()
@@ -276,7 +284,8 @@ class SearchTextTool : AbstractMcpTool() {
             scope,
             word,
             WORD_INDEX_CONTEXT,
-            caseSensitive
+            caseSensitive,
+            PROCESS_INJECTED_PSI
         )
 
         return newResults.toList()
