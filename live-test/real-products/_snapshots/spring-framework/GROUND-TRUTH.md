@@ -84,7 +84,4 @@ The window observations used IntelliJ IDEA 2026.3 (IU-263.7307.200).
     `org.springframework.context.event.PayloadApplicationEventTests#payloadObjectWithPayloadType`.
     The rows with the suffix `-production-scope` give the same two trees with the scope
     `production`. They have no anonymous class and no local class, and they are blessed.
-  - `file-structure-AbstractApplicationContext.java` (#326): the tool gives the static
-    initializer as `static static class initializer`. The Structure tool window shows
-    `static class initializer`.
   - `search-text-BeanPostProcessor-paged` (#328): see the note on the symbolic link `docs-src`.
