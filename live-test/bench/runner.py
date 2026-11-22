@@ -1043,7 +1043,7 @@ def _parser() -> argparse.ArgumentParser:
     batch.add_argument("-plan", required=True,
                        help="a plan name (bench/plans/<name>.json) or the path of a plan file (bench.planfile)")
     batch.add_argument("-batch", required=True)
-    batch.add_argument("-jobs", type=int, default=2)
+    batch.add_argument("-jobs", type=int, default=2, help="the count of runs at the same time (default %(default)s)")
     batch.add_argument("-seed", type=int, default=1)
     batch.add_argument("-plugin-version", dest="plugin_version", help=PLUGIN_VERSION_HELP)
     hs = sub.add_parser("handshake", help="Claude Code in the product image connects through the proxy",

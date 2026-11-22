@@ -68,11 +68,13 @@ source.
   ide/<goland|pycharm>/           the folders of the benchmark IDEs (bench-ide.sh)
   images/<product>.json           the records of the product images
   proxy/routes.json  proxy/log/   the routes of the proxy and its request logs
+  proxy/serve.out  proxy/serve.pid  the output and the process id of a proxy in the background
   audit/<build>/                  the audit results (audit verdict run)
   runs/<batch>/  runs/<batch>.triage/   the run records of a batch, and its report
   additions.json                  the rows of the arms PFR and PFL
   state/lock                      the lock of the benchmark IDEs
-  scratch/                        the build context of an image, the gate logs, the gokeys binary
+  scratch/                        the build context of an image, the gate logs, the gokeys binary,
+                                  the files of the trace runs of the keys (scratch/calls/)
 ```
 
 A slot is a copy of a master tree at a neutral path, `<slots root>/<slot id>/<product>`. The slot
@@ -132,7 +134,8 @@ Requirements:
    only when each check passes.
 7. **Benchmark IDEs.** Build the plugin and start the benchmark IDEs with it:
    `./live-test/run.py bench build -start` (see "The plugin build under test").
-8. **Proxy.** Start the proxy in a terminal of its own, then check the connection of each image:
+8. **Proxy.** Start the proxy in a terminal of its own (or in the background: see "Before and
+   after a batch"), then check the connection of each image:
 
    ```bash
    ./live-test/run.py bench proxy serve -routes "$B/proxy/routes.json" -log-dir "$B/proxy/log"
@@ -141,7 +144,11 @@ Requirements:
    ```
 
    The proxy listens on `172.17.0.1:29380`, the address of the bridge `docker0`. `handshake` needs
-   no secret, and exits 0 when Claude Code in the image reached the IDE through the proxy.
+   no secret, and exits 0 when Claude Code in the image reached the IDE through the proxy. The
+   proxy log of a handshake that passes also has a line `server/discover` with `"is_error": true`
+   (the plugin does not know this method and answers "Method not found"), and a line with the
+   status 405 and no method (the proxy refuses a GET or a DELETE on a route, as the plugin does).
+   Both are normal.
 
 A run also needs the secret: write it into a file outside the repository, and set
 `BENCH_SECRET_FILE` to its path.
@@ -156,8 +163,9 @@ A run also needs the secret: write it into a file outside the repository, and se
 The version of the build is `<pluginVersion of gradle.properties>-bench.<the first 7 hex digits
 of HEAD>`, so the `serverInfo.version` of a benchmark IDE names the commit of the plugin code. The
 command refuses to build when a file outside `live-test/` and `docs/` has a change, or when such a
-file is untracked and not ignored: commit the change first. The zip goes to
-`$B/plugin/idesense-<version>.zip`. When that file exists, the command runs no Gradle. With
+file is untracked and not ignored: commit the change first. The build is a Gradle build
+(`./gradlew buildPlugin -PpluginVersion=<version>` in the root of the checkout), and the zip goes
+to `$B/plugin/idesense-<version>.zip`. When that file exists, the command runs no Gradle. With
 `-start`, it takes the lock, and stops and starts GoLand with the caddy slots and PyCharm with the
 beets slots. After a failure, its last line is `build: <reason>`.
 
@@ -173,7 +181,7 @@ live-test/bench/ide/bench-ide.sh stop pycharm
 ```
 
 `bench-ide.sh` takes no lock: change the build with `bench build -start`. Stop a benchmark IDE
-only when no command holds the lock.
+only when no command holds the lock (see "Before and after a batch").
 
 ## Questions, keys and plans
 
@@ -230,14 +238,23 @@ The arms and their meaning are in [METHOD.md](../METHOD.md), section 5.2. The op
 | `-plugin-version <text>` | The expected `serverInfo.version`; default: the version of the IDE at the start |
 | `-dry-run` | Print the docker command as a JSON list, and do nothing else |
 
-A plugin arm needs the proxy. A run that is not a dry run needs the secret file. A batch reads its
-plan, refuses a batch folder that holds another plan, and skips a run that has a record: a batch
-that stopped continues at its next start. Use a new batch name for a new plan. Before its first
-run, a batch reads the plugin version of the IDE of each product with a run to do, also with
-`-plugin-version`. It stops with exit 2, before any write, when an IDE gives no version, when the
-version is not the option, or when the plugin version or the image of a product differs from the
-`manifest.json` of an earlier start of the batch: use a new batch name for a new build or a new
-image.
+A plugin arm needs the proxy. A run that is not a dry run needs the secret file. A batch does
+`-jobs` runs at the same time (default 2). It reads its plan, refuses a batch folder that holds
+another plan, and skips a run that has a record: a batch that stopped continues at its next
+start. Use a new batch name for a new plan. Before its first run, a batch reads the plugin
+version of the IDE of each product with a run to do, also with `-plugin-version`. It stops with
+exit 2, before any write, when an IDE gives no version, when the version is not the option, or
+when the plugin version or the image of a product differs from the `manifest.json` of an earlier
+start of the batch: use a new batch name for a new build or a new image.
+
+The limits of a run are in [METHOD.md](../METHOD.md), section 5.3. On the machine of the
+maintainers, one `smoke` batch (4 runs with `claude-haiku-5-5`, the default of `-jobs`) took
+about 26 s and cost about 0.01 USD. This is one measurement: take it as an order of size, not as a
+limit. The batch of the ledger summary `ledger/2026-11-22-dev-2026-11-22.md` ran the plan `dev`:
+12 questions, the arms `C` and `PF`, the models `claude-haiku-5-5` and `claude-opus-5-5`, and one
+run for each question, arm and model: 48 runs, each with the outcome `ok`. Over these 48 runs, a
+run took 9 s to 8 minutes, and it cost 0.002 to 0.31 USD with `claude-haiku-5-5` and 0.04 to
+0.76 USD with `claude-opus-5-5`.
 
 ```
 <data root>/runs/<batch>/
@@ -293,16 +310,79 @@ summaries: [METHOD.md](../METHOD.md), section 6, says what must be equal.
 
 ## Procedures
 
+### Before and after a batch
+
+Before a batch on a data root that exists, do these checks in this order:
+
+1. `live-test/bench/ide/bench-ide.sh status goland` and
+   `live-test/bench/ide/bench-ide.sh status pycharm`: each IDE gives the version of the build under
+   test, and has the slots of its product open.
+2. `./live-test/run.py bench planfile check <plan>` prints the run count, and
+   `./live-test/run.py bench qfiles check` prints `0 problems`.
+3. Only after a change of a tree or of a key file: `./live-test/run.py common trees digests`
+   prints `ok` for each tree, and `./live-test/run.py bench qfiles check -data` prints
+   `0 problems`.
+4. Only after an image build (a change of a tree needs one, because the image holds the trees):
+   `./live-test/run.py bench images gate <product>` exits 0. It runs the tests of each tree of the
+   product in containers: the tree of the product and its three planted trees (`tree_names` in
+   `images.py`). One measurement on the machine of the maintainers took about 5 minutes for one
+   product.
+5. The proxy runs, and `./live-test/run.py bench runner handshake -product caddy` and
+   `-product beets` exit 0 (step 8 of "Setup from zero").
+
+To start the proxy in the background, with its output and its process id in the data root:
+
+```bash
+nohup ./live-test/run.py bench proxy serve -routes "$B/proxy/routes.json" -log-dir "$B/proxy/log" \
+  > "$B/proxy/serve.out" 2>&1 &
+echo $! > "$B/proxy/serve.pid"
+```
+
+`serve.out` gets the line `proxy ready on 172.17.0.1:29380`. The proxy runs until it gets a
+signal.
+
+After a batch, the proxy and the benchmark IDEs can stay up for the next batch. Only the runs of a
+plugin arm and `handshake` use the proxy; the audit does not. Stop the proxy by its process id:
+
+```bash
+kill "$(cat "$B/proxy/serve.pid")"
+```
+
+Do not use `pkill -f` with the command line of the proxy: the pattern also matches the shell that
+runs the command. The proxy has no handler for SIGTERM, so a shell shows the exit status 143
+(128 + 15) after `kill`. Ctrl-C (SIGINT) in its terminal ends it with the exit status 0.
+
+Stop a benchmark IDE only when no command holds the lock. `flock -n` exits 0 when the lock is
+free, and 1 when a command holds it:
+
+```bash
+flock -n "$B/state/lock" true && live-test/bench/ide/bench-ide.sh stop goland
+flock -n "$B/state/lock" true && live-test/bench/ide/bench-ide.sh stop pycharm
+```
+
+The lock file keeps the record `{"pid", "what", "since"}` of its last holder after the release, so
+its content does not tell if a command holds the lock now. While a command holds the lock, the
+record names that command and its start time. A batch holds the lock until its last run ends.
+
 ### A development batch
 
 1. Commit the change, then `./live-test/run.py bench build -start`.
-2. Start the proxy if it does not run (step 8 of "Setup from zero").
+2. Do the checks of "Before and after a batch". Start the proxy if it does not run.
 3. `./live-test/run.py bench runner batch -plan smoke -batch <batch>-smoke`. Read the transcript of
    one plugin run (`transcript.jsonl` in its run folder): the agent called the IDE, and the answer
    has a score.
 4. `./live-test/run.py bench runner batch -plan dev -batch <batch> -jobs 2`.
-5. `./live-test/run.py bench triage report -batch <batch>`. Read `summary.md`, and each flag.
-6. `./live-test/run.py bench triage ledger -batch <batch>`, and commit the summary.
+5. `./live-test/run.py bench triage report -batch <batch>`. Read `summary.md`, and each flag: the
+   module text of `triage.py` defines each flag and says what to do when it is set. To tell a
+   known disagreement from a new one, look for the `symbol` of the key of the question in the
+   accepted list of the audit (`live-test/audit/accepted/<product>.jsonl`). A missed or false line
+   that an accepted line of that symbol also holds is known and has the cause of that line; each
+   other line is new.
+6. `./live-test/run.py bench triage ledger -batch <batch>`, and commit the summary. The procedure
+   writes no ledger summary for the `smoke` batch of step 3; `triage ledger` can write one (for
+   example `ledger/2026-11-17-smoke.md`).
+7. Stop the proxy and the benchmark IDEs, or keep them for the next batch (see "Before and after a
+   batch").
 
 ### A release batch
 
