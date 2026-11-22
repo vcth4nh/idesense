@@ -614,6 +614,15 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
   Then the canary row that resolves into a dependency differs: the gate tries again for the
   readiness time and prints `MISCONFIGURED`. Close the product with `--close-products`, open
   it again, and run again.
+- **`MISCONFIGURED`, or rows that lose their library entries, at a later open of a product**
+  — an open that is not the first one can also end with a wrong project model, with no error
+  and with `isDumbMode: false` (issue #205). Seen in IntelliJ IDEA: no file of a Maven product
+  was in the project, and a file search for `pom.xml` gave nothing. Seen in PhpStorm: the
+  Composer sync put no package of the root `vendor` folder on the include path, the canary
+  rows passed, and three later rows lost their `vendor` entries. A wait does not repair such
+  an open: the gate uses its full readiness time. Run the product again, which opens it
+  again. Before you blame a row, read `idea.log` of the failed open and compare it with a
+  good open of the same product. Never bless in this state.
 - **`<id> met dumb mode: waited <n> s, the row runs again`** — the IDE went to dumb mode
   again after the canary rows matched (a build tool sync, then a refresh). The row waited
   until the IDE was ready and then ran one more time. All waits of a product run share the
