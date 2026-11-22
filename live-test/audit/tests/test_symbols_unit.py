@@ -656,6 +656,7 @@ class RunTest(unittest.TestCase):
         env = mock.patch.dict(os.environ, {"BENCH_ROOT": root})
         env.start()
         self.addCleanup(env.stop)
+        self.machine = fake_machine(self, root)  # the IDEs of the host change no output of a test
 
     def test_run_refuses_a_busy_lock(self):
         d, path = self.keyfile([record([site("a.go", 3)])])
@@ -688,10 +689,9 @@ class RunTest(unittest.TestCase):
         d, path = self.keyfile([record([site("a.go", 3)])])
         server, _ = fake(self, lambda tool, args: definition("a.go", 1) if tool == "ide_find_definition"
                          else page([usage("a.go", 3)]))
-        machine = fake_machine(self, d)
         seen = []
         for out, goland in (("same", GOLAND), ("other", OTHER)):
-            manifest_file(machine, {"goland": goland, "pycharm": PYCHARM})
+            manifest_file(self.machine, {"goland": goland, "pycharm": PYCHARM})
             err = io.StringIO()
             with contextlib.redirect_stderr(err):
                 code = audit.main(["run", "-keys", path, "-url", server.url, "-project", "/bench/trees/caddy",

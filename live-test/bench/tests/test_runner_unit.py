@@ -152,6 +152,7 @@ class RunnerCase(unittest.TestCase):
         self.addCleanup(env.stop)
         for name in ("ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN", "BENCH_LOGIN"):
             os.environ.pop(name, None)
+        self.machine = fake_machine(self, self.tmp)  # the IDEs of the host change no output of a test
 
     def fake_ide(self, url, root, timeout):
         self.assertEqual(ROOT, root)
@@ -1587,8 +1588,8 @@ class BatchTest(CaddyCase):
 
     def test_a_manifest_difference_warns_and_changes_no_exit_code(self):
         """A run with the fake docker in a batch: with a manifest that equals the machine, and with one that does
-        not. The batch folder gets the recorded manifest at each start."""
-        path = fake_machine(self, self.tmp)
+        not. The batch folder gets the recorded manifest at its start."""
+        path = self.machine
         os.environ["FAKE_DOCKER_FIXTURE"] = self.c_ok()
         plan = self.plan({"arm": "C"})
         seen = []
@@ -1615,14 +1616,32 @@ class BatchTest(CaddyCase):
                          (rec["plugin"], rec["plan_models"], rec["image_ids"], rec["slots_root"], rec["login"]))
         self.assertEqual({KEY["question"]: {"question_sha256": manifest.file_sha256(question),
                                             "key_sha256": manifest.file_sha256(key)}}, rec["questions"])
-        # A later start of the batch writes the record again, with the present values.
-        manifest_file(path, {"goland": GOLAND, "pycharm": PYCHARM})
-        code, out, err = self.main("batch", "-plan", plan, "-batch", "b2", "-jobs", "1", "-plugin-version", "1.2.3")
+
+    def test_a_start_with_a_run_to_do_writes_the_manifest_again_and_a_start_with_none_keeps_it(self):
+        os.environ["FAKE_DOCKER_FIXTURE"] = self.c_ok()
+        plan = self.plan({"arm": "C"}, runs=2)
+        record = os.path.join(self.runs, "b1", "manifest.json")
+
+        def read():
+            with open(record, encoding="utf-8") as f:
+                return f.read()
+
+        code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
         self.assertEqual(0, code, err)
-        self.assertIn("1 finished before, 0 to run", out)
-        with open(os.path.join(self.runs, "b2", "manifest.json"), encoding="utf-8") as f:
-            rec = json.load(f)
-        self.assertEqual(({"goland": GOLAND, "pycharm": PYCHARM}, "1.2.3"), (rec["ides"], rec["plugin"]))
+        first = read()
+        self.assertEqual({"beets": VERSION}, json.loads(first)["plugin"])
+        shutil.rmtree(os.path.join(self.runs, "b1", f"{CHALLENGE['id']}__C__{MODEL}__2"))
+        code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1", "-plugin-version", VERSION)
+        self.assertEqual(0, code, err)
+        self.assertIn("1 finished before, 1 to run", out)
+        self.assertEqual(VERSION, json.loads(read())["plugin"], "a start with a run to do writes the record again")
+        second = read()
+        manifest_file(self.machine, {"goland": OTHER, "pycharm": PYCHARM})
+        code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1", "-plugin-version", "1.2.3")
+        self.assertEqual(0, code, err)
+        self.assertIn("2 finished before, 0 to run", out)
+        self.assertEqual(second, read(), "a start with no run to do keeps the record of the batch")
+        self.assertNotEqual(first, second)
 
 
 class HandshakeTest(RunnerCase):

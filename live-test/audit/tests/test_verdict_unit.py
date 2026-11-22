@@ -190,6 +190,7 @@ class MainTest(unittest.TestCase):
         env = mock.patch.dict(os.environ, {"BENCH_ROOT": self.root})
         env.start()
         self.addCleanup(env.stop)
+        self.machine = fake_machine(self, self.dir)  # the IDEs of the host change no output of a test
         self.audits = os.path.join(self.dir, "audits.json")
         with open(self.audits, "w", encoding="utf-8") as f:
             json.dump(ENTRIES, f)
@@ -339,10 +340,9 @@ class MainTest(unittest.TestCase):
 
     def test_run_warns_for_a_manifest_difference_and_writes_one_manifest(self):
         server = self.run_setup()
-        machine = fake_machine(self, self.dir)
         seen = []
         for out, goland in (("run1", GOLAND), ("run2", OTHER)):
-            manifest_file(machine, {"goland": goland, "pycharm": PYCHARM})
+            manifest_file(self.machine, {"goland": goland, "pycharm": PYCHARM})
             code, text = self.main(*self.run_args(server, out))
             seen.append((code, [line for line in text.splitlines() if line.startswith("manifest: ")]))
         self.assertEqual([(1, []), (1, seen[1][1])], seen, "the verdict fail in both runs")

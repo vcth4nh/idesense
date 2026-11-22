@@ -111,8 +111,8 @@ prints the warnings of `live-test/manifest.json` (`common.manifest.warn`); a dif
 stops a batch. Next to `plan.json`, the batch folder gets `manifest.json` (`common.manifest.write`): the pins, the
 IDEs of this machine, the commit of the repository, and `plugin` (the option `-plugin-version`, else {product: the
 version that the batch read}), `plan_models`, `image_ids` ({product: `id` of the image record}), `slots_root`,
-`login` and `questions` ({question: {`question_sha256`, `key_sha256`}}). A later start writes it again: it
-describes the last start. Each run of the batch
+`login` and `questions` ({question: {`question_sha256`, `key_sha256`}}). A later start with a run to do writes it
+again: it describes the last start that ran. A start with no run to do keeps it. Each run of the batch
 gets the option `-plugin-version` of the batch. With no option, `batch` reads the version of the IDE of each product
 one time before its first run (`ide_version`), and each run of the product gets it as its expected version; an IDE
 that gives no version exits 2 before the first run. The runs of one
@@ -872,7 +872,8 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_versio
     os.makedirs(os.path.join(RUNS, batch), exist_ok=True)
     with open(os.path.join(RUNS, batch, "plan.json"), "w", encoding="utf-8") as f:
         f.write(json.dumps(spec, indent=2, ensure_ascii=False) + "\n")
-    _batch_manifest(os.path.join(RUNS, batch, "manifest.json"), runs, plugin_version or versions)
+    if todo:  # a start with no run to do keeps the record of the start that ran
+        _batch_manifest(os.path.join(RUNS, batch, "manifest.json"), runs, plugin_version or versions)
     queue, lock, stop, codes, api_reasons = iter(todo), threading.Lock(), threading.Event(), [], []
 
     def worker():

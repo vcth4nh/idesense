@@ -176,6 +176,7 @@ class MainTest(unittest.TestCase):
         env = mock.patch.dict(os.environ, {"BENCH_ROOT": os.path.join(self.dir, "bench")})
         env.start()
         self.addCleanup(env.stop)
+        self.machine = fake_machine(self, self.dir)  # the IDEs of the host change no output of a test
         self.keys = os.path.join(self.dir, "callers.jsonl")
         keys.save_keys(self.keys, [EXACT, LEVEL2, CLOSURE, BROKEN])
         self.calls = os.path.join(self.dir, "calls.jsonl")
@@ -244,10 +245,9 @@ class MainTest(unittest.TestCase):
                 self.assertEqual(2 if command == "callers" else 1, len(self.lines()) - 1)
 
     def test_a_manifest_difference_warns_and_changes_no_exit_code(self):
-        machine = fake_machine(self, self.dir)
         seen = []
         for goland in (GOLAND, OTHER):
-            manifest_file(machine, {"goland": goland, "pycharm": PYCHARM})
+            manifest_file(self.machine, {"goland": goland, "pycharm": PYCHARM})
             server = FakeMcp(hierarchy_answer)
             self.addCleanup(server.close)
             err = io.StringIO()

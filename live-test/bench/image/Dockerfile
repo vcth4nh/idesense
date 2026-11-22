@@ -8,7 +8,8 @@
 # master manifests, with no agent instruction file of the product, no .idea, no .venv and no .git. In the image
 # each tree is at its slot path SLOTS_ROOT/<slot id>/<product>, as on the host.
 # PRODUCT, BASE_IMAGE and the pins have no default on purpose (so the check above is off): a build without them
-# fails.
+# fails. An empty CLAUDE_CODE_VERSION fails too (`test -n`); else npm installs the latest version. `bench.images
+# build` checks each pin before the build.
 ARG PRODUCT
 ARG BASE_IMAGE
 ARG SLOTS_ROOT=/home/ubuntu/dev/ws
@@ -33,7 +34,8 @@ RUN curl -fsSLo /tmp/node.tar.gz "https://nodejs.org/dist/v${NODE_VERSION}/node-
 ENV PATH=/opt/node/bin:$PATH
 
 ARG CLAUDE_CODE_VERSION
-RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+RUN test -n "${CLAUDE_CODE_VERSION}" \
+ && npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
  && npm cache clean --force
 ENV DISABLE_AUTOUPDATER=1
 

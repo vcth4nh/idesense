@@ -14,7 +14,9 @@ one commit in each tree and warms the caches) and writes BENCH/images/<product>.
 `server_name`, `trees` and `slots` (`{"<tree>": {"slot": "<id>", "path": "<slot path>"}}`). The build
 arguments are the product, the slots root and the pins of `live-test/manifest.json` (`common.manifest`): the
 base image, the versions and SHA-256 values of Node, Go and uv, and the version of Claude Code. The Dockerfile
-has no version default. `claude_version` is the agent version of `live-test/manifest.json`.
+has no version default. A pin that is absent or empty stops `build` before the build context, with one line
+(`live-test/manifest.json: image.uv.sha256 is absent or empty`) and exit 2. `claude_version` is the agent version
+of `live-test/manifest.json`.
 
 `gate` starts containers with the container flags of a run (no API key) and prints one line with PASS or
 FAIL for each check. It exits 0 only when each check passes. The check `claude --version` compares with the
@@ -207,17 +209,37 @@ def _first_line(text: str) -> str:
     return (text.strip().splitlines() or [""])[0]
 
 
+# The build argument of each pin and its field in live-test/manifest.json.
+PIN_ARGS = {"BASE_IMAGE": ("image", "base"), "NODE_VERSION": ("image", "node", "version"),
+            "NODE_SHA256": ("image", "node", "sha256"), "CLAUDE_CODE_VERSION": ("agent", "version"),
+            "GO_VERSION": ("image", "go", "version"), "GO_SHA256": ("image", "go", "sha256"),
+            "UV_VERSION": ("image", "uv", "version"), "UV_SHA256": ("image", "uv", "sha256")}
+
+
+class PinError(Exception):
+    """A pin of live-test/manifest.json is absent or empty."""
+
+
+def build_pins() -> dict[str, str]:
+    """{build argument: pin} from live-test/manifest.json. PinError when a pin is no string or is empty."""
+    pins = manifest.load()
+    args = {}
+    for arg, field in PIN_ARGS.items():
+        value = pins
+        for key in field:
+            value = value.get(key) if isinstance(value, dict) else None
+        if not isinstance(value, str) or not value:
+            raise PinError(f"live-test/manifest.json: {'.'.join(field)} is absent or empty")
+        args[arg] = value
+    return args
+
+
 def build(product: str) -> dict:
+    pins = build_pins()
     slots = image_slots(product)
     ctx = make_context(product, slots=slots)
     name = image_name(product)
-    pins = manifest.load()
-    tools = pins["image"]
-    args = {"PRODUCT": product, "SLOTS_ROOT": trees.SLOTS_ROOT, "BASE_IMAGE": tools["base"],
-            "NODE_VERSION": tools["node"]["version"], "NODE_SHA256": tools["node"]["sha256"],
-            "CLAUDE_CODE_VERSION": pins["agent"]["version"],
-            "GO_VERSION": tools["go"]["version"], "GO_SHA256": tools["go"]["sha256"],
-            "UV_VERSION": tools["uv"]["version"], "UV_SHA256": tools["uv"]["sha256"]}
+    args = {"PRODUCT": product, "SLOTS_ROOT": trees.SLOTS_ROOT, **pins}
     subprocess.run(["docker", "build", "--progress=plain",
                     *[part for key, value in args.items() for part in ("--build-arg", f"{key}={value}")],
                     "-t", name, ctx], check=True)
@@ -234,7 +256,7 @@ def build(product: str) -> dict:
         "image": name,
         "id": image_id,
         "built": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "claude_version": pins["agent"]["version"],
+        "claude_version": pins["CLAUDE_CODE_VERSION"],
     }
     if product == "caddy":
         record["go_version"] = version("go", "version").split()[2].removeprefix("go")
@@ -489,7 +511,12 @@ def main(argv: list[str]) -> int:
         return 2
     command, product = argv
     if command == "build":
-        print(json.dumps(build(product), indent=2))
+        try:
+            record = build(product)
+        except PinError as e:
+            print(e, file=sys.stderr)
+            return 2
+        print(json.dumps(record, indent=2))
         return 0
     return gate(product)
 

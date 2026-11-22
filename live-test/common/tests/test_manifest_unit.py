@@ -3,13 +3,15 @@ import io
 import json
 import os
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
 
 from common import manifest, settings
-from suite import fleet
 
+TRACKED = os.path.join(settings.live_test_root(), "manifest.json")
 GOLAND = {"version": "2026.3", "build": "263.7307.211"}
 PYCHARM = {"version": "2026.3.0.1", "build": "263.7307.329"}
 OTHER = {"version": "2026.2", "build": "262.1"}  # a GoLand pin that the fake machine does not have
@@ -25,7 +27,7 @@ def ide_folder(apps, folder, data_dir, pin):
 
 def manifest_file(path, ides):
     """A manifest with the `ides` section and the other sections of the tracked manifest."""
-    tracked = manifest.load()
+    tracked = manifest.load(TRACKED)
     with open(path, "w", encoding="utf-8") as f:
         json.dump({**tracked, "ides": ides}, f)
 
@@ -89,12 +91,23 @@ class MachineIdesTest(Machine):
             f.write("not a folder")
         self.assertEqual({"goland": GOLAND, "pycharm": PYCHARM}, manifest.machine_ides(self.apps))
 
-    def test_only_the_fleet_ides_count(self):
-        ide_folder(self.apps, "clion", "CLion2026.2", {"version": "2026.2.0.1", "build": "262.8665.321"})
-        ide_folder(self.apps, "intellij-idea", "IntelliJIdea2026.3", {"version": "2026.3", "build": "263.7307.200"})
-        self.assertEqual(["goland", "intellij-idea", "pycharm"], sorted(manifest.machine_ides(self.apps)))
-        self.assertEqual({"IntelliJIdea", "PyCharm", "WebStorm", "GoLand", "PhpStorm", "RustRover"},
-                         {ide.selector for ide in fleet.IDES.values()}, "the six fleet IDEs")
+    def test_each_ide_of_the_apps_folder_with_a_version_and_a_build_counts(self):
+        clion = {"version": "2026.2.0.1", "build": "262.8665.321"}
+        ide_folder(self.apps, "clion", "CLion2026.2", clion)
+        for folder, info in (("datagrip", {"version": "2026.3", "buildNumber": "263.1"}),  # no dataDirectoryName
+                             ("rider", {"version": "2026.3", "dataDirectoryName": "Rider2026.3"})):  # no build
+            os.makedirs(os.path.join(self.apps, folder))
+            with open(os.path.join(self.apps, folder, "product-info.json"), "w", encoding="utf-8") as f:
+                json.dump(info, f)
+        self.assertEqual({"clion": clion, "datagrip": {"version": "2026.3", "build": "263.1"}, "goland": GOLAND,
+                          "pycharm": PYCHARM}, manifest.machine_ides(self.apps))
+
+    def test_the_module_imports_no_module_of_suite(self):
+        code = ("import sys, common.manifest; "
+                "print(sorted(m for m in sys.modules if m.split('.')[0] == 'suite'))")
+        result = subprocess.run([sys.executable, "-B", "-c", code], cwd=settings.live_test_root(),
+                                capture_output=True, text=True, timeout=60)
+        self.assertEqual((0, "[]"), (result.returncode, result.stdout.strip()), result.stderr)
 
     def test_the_default_folder_is_the_setting_and_an_absent_folder_is_empty(self):
         self.assertEqual({"goland": GOLAND, "pycharm": PYCHARM}, manifest.machine_ides())
@@ -142,6 +155,12 @@ class WarnTest(Machine):
         with contextlib.redirect_stderr(err):
             manifest.warn()
         self.assertIn("manifest: goland: ", err.getvalue())
+
+
+class LoadTest(Machine):
+    def test_load_reads_the_path_of_the_time_of_the_call(self):
+        self.assertEqual({"goland": GOLAND, "pycharm": PYCHARM}, manifest.load()["ides"])
+        self.assertEqual(manifest.load(TRACKED)["agent"], manifest.load()["agent"])
 
 
 class RecordedTest(Machine):

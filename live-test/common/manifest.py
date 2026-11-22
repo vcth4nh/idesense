@@ -1,6 +1,6 @@
 """The version pins of the live tests: a reference, with a low-effort check and no stop.
 
-    python3 -m common.manifest machine      (run from live-test; prints the `ides` section of this machine)
+    python3 -m common.manifest machine      (run from live-test; prints each IDE of this machine)
 
 `live-test/manifest.json` (PATH) holds the versions that a result depends on:
 
@@ -14,8 +14,8 @@ The instruments use the IDEs of this machine. The manifest is only a reference: 
 and this machine prints a warning line, and no instrument stops, fails or changes its exit code for it.
 
 - `ides`: the six fleet IDEs (`suite.fleet.IDES`), by their folder in the Toolbox apps folder (`settings.ide_apps()`,
-  the variable BENCH_APPS). The benchmark IDEs (GoLand, PyCharm) use the same installs. To update the section, copy
-  the output of the command `machine`.
+  the variable BENCH_APPS). The benchmark IDEs (GoLand, PyCharm) use the same installs. The command `machine` prints
+  each IDE of the apps folder; to update the section, copy the entries of the six fleet IDEs from its output.
 - `agent`, `image`: the build arguments of the product image (`bench.images.build`; `bench/image/Dockerfile` has no
   version default). `image.base` names the base image; with a digest (`ubuntu:24.04@sha256:<digest>`, from
   `docker image inspect ubuntu:24.04 --format '{{index .RepoDigests 0}}'`) it pins one image. `node`, `go` and `uv`
@@ -26,16 +26,17 @@ The manifest holds no plugin version (an instrument gets it from its option or f
 product pins are in `live-test/real-products/products.json`).
 
 `warn()` prints each line of `warnings(load(), machine_ides())` as `manifest: <text>`: an IDE of the manifest whose
-version or build differs on this machine, or that this machine does not have. A manifest or an apps folder that it
-cannot read gives one line. `warn` never raises. `runner batch`, the `run` commands of the audits and a live run of
+version or build differs on this machine, or that this machine does not have. An IDE of this machine that the
+manifest does not list gives no line. A manifest or an apps folder that it cannot read gives one line. `warn` never
+raises. `runner batch`, the `run` commands of the audits and a live run of
 the suite call it at their start.
 
 `recorded(**extra)` is the record of one result: the pins of the manifest, `machine_ides` (the IDEs of this machine),
 `repository` (`commit`: HEAD of the repository, `dirty`: a tracked file differs from HEAD) and the values of the
 caller. `write(path, **extra)` writes it as JSON:
-- `runner batch`: `<batch folder>/manifest.json` at each start, with `plugin`, `plan_models`, `image_ids`,
-  `slots_root`, `login` and `questions` (see `bench.runner`). A later start of the batch writes it again with the
-  values of that start: the record describes the last start.
+- `runner batch`: `<batch folder>/manifest.json` at each start with a run to do, with `plugin`, `plan_models`,
+  `image_ids`, `slots_root`, `login` and `questions` (see `bench.runner`). A later start of the batch with a run to
+  do writes it again with the values of that start: the record describes the last start that ran.
 - `audit.symbols run`: `<out>/manifest.json`; `audit.callers callers` and `dyn`: `<out without .jsonl>.manifest.json`
   next to the result file; `audit.verdict run`: one `<out>/manifest.json` for all its audits. Each has `plugin`
   and `files` (the SHA-256 of the key files and the calls files).
@@ -51,13 +52,14 @@ import subprocess
 import sys
 
 from common import settings
-from suite import fleet
 
 PATH = os.path.join(settings.live_test_root(), "manifest.json")
 
 
-def load(path: str = PATH) -> dict:
-    """The manifest. OSError when there is no file, ValueError when it is no JSON object."""
+def load(path: str | None = None) -> dict:
+    """The manifest at `path` (default: PATH at the time of the call). OSError when there is no file, ValueError when
+    it is no JSON object."""
+    path = path or PATH
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if not isinstance(data, dict):
@@ -65,16 +67,10 @@ def load(path: str = PATH) -> dict:
     return data
 
 
-def _is_fleet(data_directory: str) -> bool:
-    """True for the `dataDirectoryName` of a fleet IDE: its selector and a version (as in `fleet.parse_ide_process`)."""
-    return any(data_directory.startswith(ide.selector) and data_directory[len(ide.selector):][:1].isdigit()
-               for ide in fleet.IDES.values())
-
-
 def machine_ides(apps: str | None = None) -> dict:
-    """{"<folder>": {"version", "build"}} of each fleet IDE in the apps folder (default `settings.ide_apps()`), from
-    `<apps>/<folder>/product-info.json`. A folder with no readable file is left out; an apps folder that does not
-    exist gives {}."""
+    """{"<folder>": {"version", "build"}} of each IDE in the apps folder (default `settings.ide_apps()`), from the
+    fields `version` and `buildNumber` of `<apps>/<folder>/product-info.json`. A folder with no readable file or with
+    no such field is left out; an apps folder that does not exist gives {}."""
     apps = settings.ide_apps() if apps is None else apps
     try:
         names = sorted(os.listdir(apps))
@@ -85,9 +81,8 @@ def machine_ides(apps: str | None = None) -> dict:
         try:
             with open(os.path.join(apps, name, "product-info.json"), encoding="utf-8") as f:
                 info = json.load(f)
-            if _is_fleet(info["dataDirectoryName"]):
-                found[name] = {"version": info["version"], "build": info["buildNumber"]}
-        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            found[name] = {"version": info["version"], "build": info["buildNumber"]}
+        except (OSError, ValueError, KeyError, TypeError):
             continue
     return found
 
@@ -110,7 +105,7 @@ def warn(out=None) -> None:
     """Print each warning as `manifest: <text>` to `out` (default: stderr). Never raises."""
     try:
         try:
-            lines = warnings(load(PATH), machine_ides())
+            lines = warnings(load(), machine_ides())
         except Exception as e:  # each problem of the check is one line, never a stop
             lines = [f"no check ({type(e).__name__}: {e})"]
         for line in lines:
@@ -135,7 +130,7 @@ def repository() -> dict:
 def recorded(**extra) -> dict:
     """The pins of the manifest, the values of this machine and `extra` (module text). Never raises."""
     try:
-        record = load(PATH)
+        record = load()
     except Exception as e:
         record = {"manifest_error": f"{type(e).__name__}: {e}"}
     try:
@@ -173,7 +168,7 @@ def write(path: str, **extra) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python3 -m common.manifest", description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("machine", help="print the ides section of this machine (the fleet IDEs of the apps folder)")
+    sub.add_parser("machine", help="print each IDE of the apps folder of this machine (version and build)")
     parser.parse_args(argv)
     print(json.dumps(machine_ides(), indent=2))
     return 0

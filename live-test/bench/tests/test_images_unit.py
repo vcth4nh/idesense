@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import os
 import shutil
@@ -208,6 +210,37 @@ class BuildTest(unittest.TestCase):
                          (record["claude_version"], record["go_version"], record["id"]))
         self.assertEqual(["go"], containers, "no container for the agent version")
         self.assertFalse(hasattr(image, "CLAUDE_CODE_VERSION"))
+
+    def test_a_pin_that_is_absent_or_empty_stops_the_build_with_one_line_before_the_context(self):
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        path = os.path.join(tmp, "manifest.json")
+        tracked = manifest.load()
+        cases = (("image.uv.sha256", lambda m: m["image"]["uv"].pop("sha256")),
+                 ("agent.version", lambda m: m["agent"].update(version="")),
+                 ("image.base", lambda m: m["image"].update(base=None)),
+                 ("image.go.version", lambda m: m["image"].update(go="1.26.3")),
+                 ("agent.version", lambda m: m.pop("agent")))
+        for field, change in cases:
+            with self.subTest(field):
+                pins = json.loads(json.dumps(tracked))
+                change(pins)
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(pins, f)
+                calls = []
+                err = io.StringIO()
+                with mock.patch.object(manifest, "PATH", path), \
+                        mock.patch.object(image, "image_slots", lambda product: calls.append("slots") or {}), \
+                        mock.patch.object(image, "make_context", lambda product, slots: calls.append("ctx")), \
+                        mock.patch.object(image.subprocess, "run", lambda cmd, **kw: calls.append(cmd)), \
+                        contextlib.redirect_stderr(err):
+                    code = image.main(["build", "caddy"])
+                self.assertEqual((2, f"live-test/manifest.json: {field} is absent or empty\n", []),
+                                 (code, err.getvalue(), calls))
+
+    def test_an_empty_agent_version_fails_the_dockerfile(self):
+        run = next(part for part in "\n".join(dockerfile_code()).split("\nRUN ") if "claude-code@" in part)
+        self.assertTrue(run.startswith('test -n "${CLAUDE_CODE_VERSION}" \\\n && npm install -g '), run)
 
     def test_dockerfile_takes_the_slots_root_from_the_build_argument(self):
         code = dockerfile_code()

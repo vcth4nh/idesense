@@ -805,6 +805,11 @@ class RunProductsTest(unittest.TestCase):
 class MainSuiteTest(unittest.TestCase):
     A, B = RunProductsTest.A, RunProductsTest.B
 
+    def setUp(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        self.machine = fake_machine(self, folder)  # the IDEs of the host change no output of a test
+
     def main(self, *argv, product_result=(3, 0, 0)):
         self.languages, self.product_calls, self.language_paths = [], [], []
 
@@ -902,16 +907,13 @@ class MainSuiteTest(unittest.TestCase):
         self.assertIn("/nonexistent/idesense-fleet-fixtures", self.errors)
 
     def test_a_manifest_difference_warns_and_changes_no_exit_code_and_no_row(self):
-        folder = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, folder)
-        path = fake_machine(self, folder)
-        runs = (((), 0, (3, 0, 0)), (("--suite", "all"), 0, (3, 0, 0)), (("--product", "alpha"), 1, (2, 1, 0)))
+        runs =(((), 0, (3, 0, 0)), (("--suite", "all"), 0, (3, 0, 0)), (("--product", "alpha"), 1, (2, 1, 0)))
         same = []
         for argv, code, result in runs:
             self.assertEqual(code, self.main(*argv, product_result=result))
             self.assertEqual("", self.errors)
             same.append(self.printed)
-        manifest_file(path, {"goland": OTHER, "pycharm": PYCHARM})
+        manifest_file(self.machine, {"goland": OTHER, "pycharm": PYCHARM})
         for (argv, code, result), printed in zip(runs, same):
             self.assertEqual(code, self.main(*argv, product_result=result))
             self.assertEqual(printed, self.printed)
