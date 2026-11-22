@@ -46,7 +46,7 @@ import random
 import re
 import sys
 
-from bench import qfiles, runner, score
+from bench import claude_code, qfiles, runner, score
 from common import trees
 
 RUNS = runner.RUNS
@@ -151,7 +151,7 @@ def measures(rec: dict) -> dict:
 def _events(lines):
     """The JSON objects of the lines (str, bytes or already a dict)."""
     for raw in lines:
-        event = raw if isinstance(raw, dict) else runner._event(raw)
+        event = raw if isinstance(raw, dict) else claude_code.event(raw)
         if event is not None:
             yield event
 
@@ -163,12 +163,12 @@ def _blocks(event: dict, kind: str) -> list[dict]:
 
 
 def _calls(lines) -> list[dict]:
-    """Each tool use of the transcript in order, one time for each block id (as `runner.parse_transcript` counts
-    them): `index`, `name`, `input` and `result` (the tool_result block with the same id, or None)."""
+    """Each tool use of the transcript in order, one time for each block id (as `claude_code.parse_transcript`
+    counts them): `index`, `name`, `input` and `result` (the tool_result block with the same id, or None)."""
     calls, seen, results = [], set(), {}
     for event in _events(lines):
         inputs = {b.get("id"): b.get("input") for b in _blocks(event, "tool_use")}
-        for block_id, name in runner._tool_uses(event):
+        for block_id, name in claude_code.tool_uses(event):
             if block_id is not None:
                 if block_id in seen:
                     continue

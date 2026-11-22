@@ -205,7 +205,7 @@ class IdeResultsTest(unittest.TestCase):
         # The results of toolu_02 and toolu_03 come in the other order in one user event.
         self.assertEqual({("pkg/a.go", 3), ("pkg/c.go", 12)}, got[0]["sites"])
         self.assertEqual({("pkg/b.go", 8)}, got[1]["sites"])
-        # The same assistant event two times: one tool use for each block id, as runner.parse_transcript counts.
+        # The same assistant event two times: one tool use for each block id, as claude_code.parse_transcript counts.
         self.assertEqual(got, triage.ide_results(lines[:4] + [lines[3]] + lines[4:]))
         self.assertEqual(got, triage.ide_results([line.encode("utf-8") for line in lines] + ["no json", "[1]"]))
 

@@ -39,8 +39,9 @@ the project of the route and the slot that the entry script keeps (`BENCH_SLOT`)
 `IMAGES/<product>.json` (amendment A2: `id`, `server_name`, `slots`); its slot of the tree must equal the slot of
 `slots.json`. The docker command: `docker run` with CONTAINER_FLAGS, `--name run-<hex>`, `-e BENCH_SLOT=<slot id>`,
 `-e BENCH_AID=<aid or none>`, `-e ANTHROPIC_API_KEY` (the name only: the value is in the environment of the docker
-process and never in a command line or a file), the image id, then the arguments of `claude` (CLAUDE_FLAGS). A plugin
-arm adds `--mcp-config {"mcpServers": {"<server name>": {"type": "http", "url": "<route url>"}}}`. The route entry
+process and never in a command line or a file), the image id, then the arguments of `claude` (`claude_code.flags`). A
+plugin arm adds `--mcp-config` and the JSON of `claude_code.mcp_config` (`{"mcpServers": {"<server name>": {"type":
+"http", "url": "<route url>"}}}`). The route entry
 (`proxy.add_route`) has the run, the IDE URL as upstream, the root as project, the instructions, the notes and the
 additions of the run. `-dry-run` prints this command as a JSON list, and on stderr one line with the run id, the
 arm, the tools of the route notes, and the form and the row count of the route additions. It does nothing else; it
@@ -58,8 +59,8 @@ before any route or container exists.
 
 Guards of each run, in this order:
 - a plugin arm needs an answer from the proxy at HEALTH_URL; with no answer `run` exits 2 and starts nothing;
-- the key file `settings.secret_file()` (the variable BENCH_SECRET_FILE; `read_key`); no variable or a bad key file
-  exits 2;
+- the key file `settings.secret_file()` (the variable BENCH_SECRET_FILE; `claude_code.read_key`); no variable or a
+  bad key file exits 2;
 - the IDE of the product (direct, not through the proxy): `serverInfo.version` must be the expected version and
   `ide_index_status` must say smart mode (`common.mcp.wait_ready`, up to READY_TIMEOUT s); else the outcome is
   `invalid` and no container starts. The expected version is the option `-plugin-version`; with no option, it is
@@ -90,13 +91,7 @@ The answer is read only from a result event with the subtype `success` and
 entries that cannot be read, and `score` is `score.score` with the key and the files of the master manifest of the
 tree (`qfiles.tree_files`).
 
-The transcript parser (`parse_transcript`) reads the stream-json events of Claude Code: of a `result` event (the last
-one) `subtype`, `is_error`, `terminal_reason`, `total_cost_usd`, `num_turns`, `usage`, `modelUsage` and
-`structured_output`; of an `assistant` event (also of a subagent) the `tool_use` blocks of `message.content`, with
-their `id` and `name`, one time for each block id; of the first `system` event with the subtype `init` the
-`name` and `status` of each entry of `mcp_servers`. A tool name stays as the transcript has it (an IDE tool is
-`mcp__<server name>__<tool>`; `ToolSearch` and `StructuredOutput` are counted too). A line that is no JSON object and
-an event of another type are skipped.
+The transcript parser is `claude_code.parse_transcript` (see the module text of `bench.claude_code`).
 
 Exit codes of `run`: 0 when `run.json` is written (also with the outcome `invalid`), 1 for the outcome `error`, 2
 when no run starts, 9 for a key leak, and
@@ -123,12 +118,12 @@ starts, for example the proxy is down) stops the batch too. A stop means: no new
 run of another worker ends normally. The exit code of the batch: 9 before 3, 3 before 2. `-jobs` runs go at the
 same time.
 
-`handshake`: with no key, a container of the product image runs `claude mcp add --transport http <server name>
-<route url>` and `claude mcp list` (the entry point is `/bin/bash`, so the entry script does not run). It prints
+`handshake`: with no key, a container of the product image runs the shell text of `claude_code.handshake_script`
+(`claude mcp add --transport http <server name> <route url>` and `claude mcp list`; the entry point is `/bin/bash`,
+so the entry script does not run). It prints
 the output and the proxy log lines of the route, and exits 0 when the log has an `initialize` with the status 200.
 """
 import argparse
-import collections
 import datetime
 import hashlib
 import http.client
@@ -143,7 +138,7 @@ import threading
 import time
 import urllib.parse
 
-from bench import planfile, proxy, qfiles, score
+from bench import claude_code, planfile, proxy, qfiles, score
 from bench import sets as challenges
 from common import mcp, settings, trees
 from common.lock import Busy, ide_lock
@@ -228,36 +223,6 @@ class SetupError(Exception):
     """The run cannot start (exit 2)."""
 
 
-class KeyFileError(Exception):
-    """The key file is absent, empty or has more than one line. The message never holds the content."""
-
-
-def claude_flags(prompt: str, model: str, schema: dict) -> list[str]:
-    """The arguments of `claude` of each run (Global Constraints). The prompt comes first, before the options with
-    more than one value (`--mcp-config`, `--tools`)."""
-    return ["-p", prompt, "--model", model, "--effort", "medium", "--output-format", "stream-json", "--verbose",
-            "--no-session-persistence", "--permission-mode", "bypassPermissions", "--max-budget-usd", "20",
-            "--json-schema", json.dumps(schema, separators=(",", ":")), "--strict-mcp-config"]
-
-
-def read_key(path: str | None = None) -> str:
-    """The API key: the text of the key file (default: `settings.secret_file()`) without white space at the two
-    ends."""
-    path = path or settings.secret_file()
-    try:
-        with open(path, encoding="utf-8") as f:
-            text = f.read().strip()
-    except FileNotFoundError:
-        raise KeyFileError(f"{path}: the key file is absent") from None
-    except (OSError, UnicodeDecodeError) as e:
-        raise KeyFileError(f"{path}: the key file cannot be read ({type(e).__name__})") from None
-    if not text:
-        raise KeyFileError(f"{path}: the key file is empty")
-    if len(text.splitlines()) > 1:
-        raise KeyFileError(f"{path}: the key file has more than one line")
-    return text
-
-
 def search_key(paths, key: str) -> list[str]:
     """The paths (of `paths`) whose bytes hold the key. An absent path is no hit."""
     needle = key.encode("utf-8")
@@ -272,58 +237,7 @@ def search_key(paths, key: str) -> list[str]:
     return hits
 
 
-# ---------------------------------------------------------------- transcript parser (stream-json of Claude Code)
-
-def _event(raw) -> dict | None:
-    try:
-        event = json.loads(raw)
-    except ValueError:
-        return None
-    return event if isinstance(event, dict) else None
-
-
-def _tool_uses(event: dict | None) -> list[tuple[str | None, str]]:
-    """The (id, name) of each `tool_use` block of an `assistant` event."""
-    if not event or event.get("type") != "assistant":
-        return []
-    message = event.get("message")
-    content = message.get("content") if isinstance(message, dict) else None
-    if not isinstance(content, list):
-        return []
-    return [(b.get("id"), b["name"]) for b in content
-            if isinstance(b, dict) and b.get("type") == "tool_use" and isinstance(b.get("name"), str)]
-
-
-def _mcp_status(event: dict) -> dict | None:
-    """{server name: status} of `mcp_servers` of an init event; None when the field is no list."""
-    servers = event.get("mcp_servers")
-    if not isinstance(servers, list):
-        return None
-    return {s["name"]: s.get("status") for s in servers if isinstance(s, dict) and isinstance(s.get("name"), str)}
-
-
-def parse_transcript(lines) -> dict:
-    """`result` (the last result event, or None), `tools` ({name: count}), `first_tools` (the first 5 names in
-    order) and `mcp_status` (of the first init event; None with no init event or no `mcp_servers` list) of the
-    stream-json lines (str or bytes). See the module text."""
-    result, names, seen, mcp_status, init = None, [], set(), None, False
-    for raw in lines:
-        event = _event(raw)
-        if event is None:
-            continue
-        if event.get("type") == "system" and event.get("subtype") == "init" and not init:
-            init, mcp_status = True, _mcp_status(event)
-        if event.get("type") == "result":
-            result = event
-        for block_id, name in _tool_uses(event):
-            if block_id is not None:
-                if block_id in seen:
-                    continue
-                seen.add(block_id)
-            names.append(name)
-    return {"result": result, "tools": dict(collections.Counter(names)), "first_tools": names[:5],
-            "mcp_status": mcp_status}
-
+# ---------------------------------------------------------------- outcome
 
 def mcp_problem(arm: str, server: str, status: dict | None) -> str | None:
     """Why the MCP servers of the init event do not fit the arm, or None. No list (None) is no problem."""
@@ -515,16 +429,16 @@ def prepare(args) -> dict:
     name = "run-" + secrets.token_hex(6)
     env = ["-e", f"BENCH_SLOT={slot['slot']}", "-e", f"BENCH_AID={args.aid or 'none'}", "-e", "ANTHROPIC_API_KEY"]
     if args.variant == "no-tool-search":
-        env += ["-e", "ENABLE_TOOL_SEARCH=false"]
+        env += ["-e", claude_code.NO_TOOL_SEARCH]
     if args.env_scrub:
-        env += ["-e", "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1"]
+        env += ["-e", claude_code.ENV_SCRUB]
     cmd = ["docker", "run", *CONTAINER_FLAGS, "--name", name, *env, image["id"],
-           *claude_flags(text, args.model, challenges.schema(key))]
+           *claude_code.flags(text, args.model, challenges.schema(key))]
     if plugin:
-        config = {"mcpServers": {server: {"type": "http", "url": proxy.route_url(token)}}}
-        cmd += ["--mcp-config", json.dumps(config, separators=(",", ":"))]
+        config = claude_code.mcp_config(server, proxy.route_url(token))
+        cmd += [claude_code.MCP_CONFIG_FLAG, json.dumps(config, separators=(",", ":"))]
     if args.no_tools:
-        cmd += ["--tools", ""]
+        cmd += claude_code.NO_TOOLS
     run_id = run_id_of(args)
     return {"run_id": run_id, "folder": os.path.join(RUNS, args.batch, run_id), "key": key, **digests,
             "product": product, "tree": tree, "slot": slot, "root": root, "image": image, "server": server,
@@ -622,8 +536,9 @@ def run_container(cmd: list[str], env: dict, name: str, transcript: str, stderr_
                 out.write(raw)
                 out.flush()
                 if stop_after and state["ended"] is None:
-                    seen.update(block_id or object() for block_id, name in _tool_uses(_event(raw))
-                                if name != "StructuredOutput")
+                    seen.update(block_id or object()
+                                for block_id, name in claude_code.tool_uses(claude_code.event(raw))
+                                if name != claude_code.ANSWER_TOOL)
                     if len(seen) >= stop_after:
                         stop("stopped")
             proc.wait()
@@ -654,7 +569,7 @@ def _read_jsonl(path: str) -> list[dict]:
     try:
         with open(path, encoding="utf-8", errors="replace") as f:
             for line in f:
-                event = _event(line)
+                event = claude_code.event(line)
                 if event is not None:
                     out.append(event)
     except FileNotFoundError:
@@ -707,8 +622,8 @@ def run_one(args) -> tuple[int, dict | None]:
         print(f"runner: {run_id}: {problem}; no run starts", file=sys.stderr)
         return 2, None
     try:
-        key = read_key()
-    except (KeyFileError, ValueError) as e:
+        key = claude_code.read_key()
+    except (claude_code.KeyFileError, ValueError) as e:
         print(f"runner: {run_id}: {e}; no run starts", file=sys.stderr)
         return 2, None
 
@@ -757,7 +672,7 @@ def run_one(args) -> tuple[int, dict | None]:
 
     rec["exit_code"] = exit_code
     with open(files["transcript.jsonl"], "rb") as f:
-        parsed = parse_transcript(f)
+        parsed = claude_code.parse_transcript(f)
     result = parsed["result"] or {}
     answer = _answer(parsed["result"], root)
     rec.update(cost_usd=result.get("total_cost_usd"), turns=result.get("num_turns"), usage=result.get("usage"),
@@ -993,7 +908,7 @@ def handshake(product: str) -> int:
     token = proxy.new_token()
     route_run, name, url = f"handshake-{product}.{token[:8]}", "run-" + secrets.token_hex(6), proxy.route_url(token)
     cmd = ["docker", "run", *CONTAINER_FLAGS, "--name", name, "--entrypoint", "/bin/bash", image["id"], "-c",
-           'claude mcp add --transport http "$1" "$2" && claude mcp list', "handshake", image["server_name"], url]
+           claude_code.handshake_script(), "handshake", image["server_name"], url]
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     proxy.add_route(ROUTES_FILE, token, {"run": route_run, "upstream": IDE_URLS[product], "project": slot["path"],
                                          "instructions": None})
@@ -1038,7 +953,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("-stop-after-tools", type=int, dest="stop_after_tools")
     run.add_argument("-no-tools", action="store_true", dest="no_tools")
     run.add_argument("-env-scrub", action="store_true", dest="env_scrub",
-                     help="-e CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 (no credential in the environment of Bash)")
+                     help=f"-e {claude_code.ENV_SCRUB} (no credential in the environment of Bash)")
     run.add_argument("-n", type=int, default=1, help="run number (default 1)")
     run.add_argument("-plugin-version", dest="plugin_version", help=PLUGIN_VERSION_HELP)
     run.add_argument("-dry-run", action="store_true", dest="dry_run")

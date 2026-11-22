@@ -20,7 +20,7 @@ import time
 import unittest
 from unittest import mock
 
-from bench import planfile, proxy, qfiles, runner
+from bench import claude_code, planfile, proxy, qfiles, runner
 from bench import sets as challenges
 from common import lock, mcp, settings, trees
 
@@ -298,8 +298,8 @@ class CommandTest(RunnerCase):
             self.assertIn("BENCH_SLOT=0000", values)
             self.assertEqual("--name", flags[2 + len(FLAGS)])
             self.assertEqual(arm == "P", "ENABLE_TOOL_SEARCH=false" in values)
-            self.assertEqual(runner.claude_flags(prompt_of(cmd), MODEL, challenges.schema(CHALLENGE)),
-                             claude_args(cmd)[:len(runner.claude_flags("", MODEL, {}))])
+            self.assertEqual(claude_code.flags(prompt_of(cmd), MODEL, challenges.schema(CHALLENGE)),
+                             claude_args(cmd)[:len(claude_code.flags("", MODEL, {}))])
 
     def test_arm_options_are_checked(self):
         for arm, extra, word in (("C", ("-aid", "skill"), "-aid"), ("P", ("-no-tools",), "-no-tools"),
@@ -794,20 +794,8 @@ class GuideTest(RunnerCase):
 
 
 class KeyTest(RunnerCase):
-    def test_read_key_refuses_two_lines(self):
-        path = os.path.join(self.tmp, "k2")
-        write(path, "  sk-one  \n")
-        self.assertEqual("sk-one", runner.read_key(path))
-        for text in ("sk-one\nsk-two\n", "", " \n\t\n"):
-            write(path, text)
-            with self.assertRaises(runner.KeyFileError) as e:
-                runner.read_key(path)
-            self.assertNotIn("sk-", str(e.exception))
-        with self.assertRaises(runner.KeyFileError):
-            runner.read_key(os.path.join(self.tmp, "absent"))
-
     def test_key_is_not_in_command_or_run_json_or_dry_run(self):
-        with mock.patch.object(runner, "read_key", side_effect=AssertionError("a dry run reads the key")):
+        with mock.patch.object(claude_code, "read_key", side_effect=AssertionError("a dry run reads the key")):
             code, out, err = self.main(*self.run_args("P"), "-dry-run")
         self.assertEqual(0, code)
         self.assertNotIn(FAKE_KEY, out + err)
@@ -1090,12 +1078,12 @@ class McpStatusTest(RunnerCase):
         self.assertEqual({}, rec["mcp_status"])
         init = lambda servers: json.dumps({"type": "system", "subtype": "init", "mcp_servers": servers})
         two = [init([{"name": "a", "status": "connected"}, {"status": "x"}, "b"]), init([{"name": "c", "status": "failed"}])]
-        self.assertEqual({"a": "connected"}, runner.parse_transcript(two)["mcp_status"], "the first init event counts")
+        self.assertEqual({"a": "connected"}, claude_code.parse_transcript(two)["mcp_status"], "the first init event counts")
         no_field = json.dumps({"type": "system", "subtype": "init", "tools": []})
-        self.assertIsNone(runner.parse_transcript([no_field])["mcp_status"])
-        self.assertIsNone(runner.parse_transcript([init("text")])["mcp_status"])
+        self.assertIsNone(claude_code.parse_transcript([no_field])["mcp_status"])
+        self.assertIsNone(claude_code.parse_transcript([init("text")])["mcp_status"])
         other = json.dumps({"type": "system", "subtype": "api_retry", "mcp_servers": []})
-        self.assertIsNone(runner.parse_transcript([other])["mcp_status"])
+        self.assertIsNone(claude_code.parse_transcript([other])["mcp_status"])
 
     def test_no_init_event_keeps_the_outcome(self):
         for arm in ("P", "C"):
@@ -1140,7 +1128,7 @@ class ApiErrorTest(RunnerCase):
 
     def test_api_error_result_gives_the_outcome_api_error(self):
         with open(os.path.join(FIXTURES, "auth_error.jsonl"), "rb") as f:
-            parsed = runner.parse_transcript(f)
+            parsed = claude_code.parse_transcript(f)
         result = parsed["result"]
         self.assertEqual(("api_error", True), (result["terminal_reason"], result["is_error"]))
         self.assertEqual(({SERVER: "connected"}, {}), (parsed["mcp_status"], parsed["tools"]))
@@ -1209,24 +1197,6 @@ class ApiErrorTest(RunnerCase):
 
 
 class ParserTest(unittest.TestCase):
-    def test_parse_transcript_skips_unknown_events(self):
-        tool = lambda i, name, parent=None: json.dumps({"type": "assistant", "parent_tool_use_id": parent, "message": {
-            "content": [{"type": "tool_use", "id": i, "name": name, "input": {}}]}})
-        lines = ["not json", "[1, 2]", "", json.dumps({"type": "a_new_event", "message": {"content": [
-                     {"type": "tool_use", "id": "t0", "name": "Hidden"}]}}),
-                 tool("t1", "Bash"), tool("t1", "Bash"), tool("t2", "Read", parent="toolu_agent"),
-                 json.dumps({"type": "assistant", "message": {"content": "text only"}}),
-                 json.dumps({"type": "assistant", "message": {"content": [{"type": "tool_use", "name": 7}]}}),
-                 json.dumps({"type": "result", "subtype": "success", "num_turns": 1}),
-                 json.dumps({"type": "result", "subtype": "success", "num_turns": 2}).encode("utf-8"),
-                 b"\xff\xfe"]
-        parsed = runner.parse_transcript(lines)
-        self.assertEqual(2, parsed["result"]["num_turns"])
-        self.assertEqual({"Bash": 1, "Read": 1}, parsed["tools"])
-        self.assertEqual(["Bash", "Read"], parsed["first_tools"])
-        self.assertEqual({"result": None, "tools": {}, "first_tools": [], "mcp_status": None},
-                         runner.parse_transcript([]))
-
     def test_outcome_of(self):
         ok = {"subtype": "success", "is_error": False}
         self.assertEqual("ok", runner.outcome_of("exit", 0, ok, True))
@@ -1554,7 +1524,7 @@ class HandshakeTest(RunnerCase):
     def test_handshake_has_no_key_and_removes_route(self):
         os.environ["ANTHROPIC_API_KEY"] = FAKE_KEY
         os.environ["FAKE_DOCKER_EXTRA"] = f"{SERVER}: http://172.17.0.1:29380/r/x/mcp (HTTP) - connected"
-        with mock.patch.object(runner, "read_key", side_effect=AssertionError("the handshake reads the key")):
+        with mock.patch.object(claude_code, "read_key", side_effect=AssertionError("the handshake reads the key")):
             code, out, err = self.main("handshake", "-product", "beets")
         self.assertEqual(0, code, out + err)
         call = self.runs_of_docker()[0]
