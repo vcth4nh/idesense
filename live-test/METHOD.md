@@ -220,8 +220,9 @@ tools at all.
   agent of a benchmark. The benchmark IDE has the same tree open at the same path.
 - **Proxy.** The container reaches the IDE only through a filter proxy. The proxy passes a fixed
   list of tools: no rename, no file move, no plugin install, no restart.
-- **Limits.** A wall-clock limit and a cost limit for each run (`WALL_LIMIT` in `bench/runner.py`,
-  `--max-budget-usd` in `bench/claude_code.py`). The agent version and the effort are fixed.
+- **Limits.** A wall-clock limit of 30 minutes (`WALL_LIMIT` in `bench/runner.py`) and a cost
+  limit of 20 USD (`--max-budget-usd` in `bench/claude_code.py`) for each run. The agent version
+  and the effort are fixed.
 - **Record.** Each run keeps its transcript, the log of its IDE calls, its cost, its answer and its
   score, and the SHA-256 of its question file and its key file.
 
