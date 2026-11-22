@@ -8,9 +8,11 @@ import com.intellij.ide.structureView.newStructureView.TreeModelWrapper
 import com.intellij.ide.util.treeView.AbstractTreeNode
 import com.intellij.ide.util.treeView.smartTree.ProvidingTreeModel
 import com.intellij.ide.util.treeView.smartTree.SmartTreeStructure
+import com.intellij.ide.util.treeView.smartTree.TreeElement
 import com.intellij.lang.LanguageStructureViewBuilder
 import com.intellij.openapi.util.Disposer
 import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.PsiClassInitializer
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.search.GlobalSearchScope
@@ -162,6 +164,50 @@ class UniversalModifiersTest : BasePlatformTestCase() {
 
     // endregion
 
+    // region Java: no text of a comment stays
+
+    // A comment between the keywords is a child of the modifier list (#282). A doc comment before
+    // the keywords is not.
+    fun testJavaCommentBetweenKeywords() {
+        java(
+            """
+            class A {
+                public /* c */ static void m() {}
+                public /*c*/ static void n() {}
+                public // line
+                static void o() {}
+                /** doc */ public static void p() {}
+                static/*c*/final int g = 1;
+            }
+            """
+        )
+        assertEquals(listOf("public", "static"), modifiersOf("m"))
+        assertEquals(listOf("public", "static"), modifiersOf("n"))
+        assertEquals(listOf("public", "static"), modifiersOf("o"))
+        assertEquals(listOf("public", "static"), modifiersOf("p"))
+        assertEquals(listOf("static", "final"), modifiersOf("g"))
+    }
+
+    // endregion
+
+    // region Java: the name of a class initializer holds its keyword
+
+    // The IDE writes `static` into the name of a static initializer, so the modifiers do not give
+    // it a second time (#326).
+    fun testJavaClassInitializerLineHasStaticOneTime() {
+        java(
+            """
+            class A {
+                static { int a = 1; }
+                { int b = 2; }
+            }
+            """
+        )
+        assertEquals(listOf("static class initializer", "class initializer"), initializerLinesInStructureView())
+    }
+
+    // endregion
+
     // region Kotlin: no text of an annotation stays
 
     fun testKotlinFunctionWithNamedAnnotationArgument() {
@@ -230,6 +276,28 @@ class UniversalModifiersTest : BasePlatformTestCase() {
 
     // endregion
 
+    // region Kotlin: no text of a comment stays
+
+    // A comment between the keywords is a child of the modifier list (#282). The modifier list
+    // gives only its composite children in `getChildren()`, so a comment is not among them.
+    fun testKotlinCommentBetweenKeywords() {
+        kotlin(
+            """
+            open class K {
+                public /* c */ open fun m() {}
+                public/*c*/open fun n() {}
+                public // line
+                open fun o() {}
+            }
+            """
+        )
+        assertEquals(listOf("public", "open"), modifiersOf("m"))
+        assertEquals(listOf("public", "open"), modifiersOf("n"))
+        assertEquals(listOf("public", "open"), modifiersOf("o"))
+    }
+
+    // endregion
+
     // region Kotlin: the keywords of a declaration with no annotation text in them do not change
 
     fun testKotlinKeywordsInSourceOrder() {
@@ -284,6 +352,24 @@ class UniversalModifiersTest : BasePlatformTestCase() {
         val declaration = PsiTreeUtil.findChildrenOfType(myFixture.file, PsiNameIdentifierOwner::class.java)
             .first { it.name == name }
         return UniversalModifiers.extract(declaration)
+    }
+
+    // The modifiers and the name of each class initializer of the Java structure view of the file,
+    // in the order of `ide_file_structure`.
+    private fun initializerLinesInStructureView(): List<String> {
+        val builder = LanguageStructureViewBuilder.getInstance()
+            .getStructureViewBuilder(myFixture.file) as TreeBasedStructureViewBuilder
+        val model = builder.createStructureViewModel(null)
+        try {
+            return generateSequence(listOf<TreeElement>(model.root)) { level -> level.flatMap { it.children.asList() }.ifEmpty { null } }
+                .flatten()
+                .filterIsInstance<StructureViewTreeElement>()
+                .filter { it.value is PsiClassInitializer }
+                .map { (UniversalModifiers.extract(it.value) + it.presentation.presentableText!!).joinToString(" ") }
+                .toList()
+        } finally {
+            Disposer.dispose(model)
+        }
     }
 
     // The methods of the Java structure view of the file with the inherited members on. These are
