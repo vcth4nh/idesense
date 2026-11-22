@@ -75,6 +75,12 @@ class SecretEnvTest(unittest.TestCase):
                 claude_code.secret_env()
 
 
+class FlagsTest(unittest.TestCase):
+    def test_flags_hold_no_cost_limit(self):
+        got = claude_code.flags("question", "model", {"type": "object"})
+        self.assertNotIn("--max-budget-usd", got)
+
+
 class ParserTest(unittest.TestCase):
     def test_parse_transcript_skips_unknown_events(self):
         tool = lambda i, name, parent=None: json.dumps({"type": "assistant", "parent_tool_use_id": parent, "message": {

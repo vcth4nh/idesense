@@ -219,6 +219,9 @@ tools at all.
 
 ### 5.3 One run
 
+The harness tells the agent nothing about the run, because each such fact can change a result.
+Apart from the content of its arm (section 5.2), the agent gets only the task and the tree.
+
 - **Isolation.** One container, one question, one new agent. The container has no mount, no host
   network mode and no Docker socket. No key file goes into an image or a container.
 - **Tools.** The agent has each normal tool of Claude Code: the shell, the file tools and the
@@ -227,9 +230,11 @@ tools at all.
   agent of a benchmark. The benchmark IDE has the same tree open at the same path.
 - **Proxy.** The container reaches the IDE only through a filter proxy. The proxy passes a fixed
   list of tools: no rename, no file move, no plugin install, no restart.
-- **Limits.** A wall-clock limit of 30 minutes (`WALL_LIMIT` in `bench/runner.py`) and a cost
-  limit of 20 USD (`--max-budget-usd` in `bench/claude_code.py`) for each run. The agent version
-  and the effort are fixed.
+- **Limits.** A wall-clock limit of 30 minutes (`WALL_LIMIT` in `bench/runner.py`) for each run.
+  The runner applies it from outside the container, and no text tells the agent of it. A run
+  has no cost limit: Claude Code tells the model of such a limit, and with it the small model
+  stopped long tasks after some seconds. The cost of a run is a result (section 5.4). The agent
+  version and the effort are fixed.
 - **Record.** Each run keeps its transcript, the log of its IDE calls, its cost, its answer and its
   score, and the SHA-256 of its question file and its key file.
 
@@ -240,7 +245,7 @@ tools at all.
 - **Other measures.** Precision, recall and F1 over the lines, the cost, the time, the turns and
   the tool calls of the run. An answer line whose path is no file of the tree is not scored
   (`outside`). An entry that cannot be read counts as `invalid`.
-- **A run with no usable answer** (a time-out, the cost limit, no answer, an error of the agent)
+- **A run with no usable answer** (a time-out, no answer, an error of the agent)
   has F1 0 and is not exact.
 
 ### 5.5 Statistics
