@@ -242,7 +242,8 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   also runs after a rename of `ide_refactor_rename`, and before a tool call when the setting "Sync
   external file changes before operations" is on. While a modal dialog is open in the IDE, a tool
   step that writes (for example this commit) waits until the dialog closes. The searches and
-  `ide_diagnostics` do not wait (#145).
+  `ide_diagnostics` do not wait, unless the setting "Sync external file changes before operations"
+  is on: then each of these tools commits the documents first, and that step waits (#145).
 - `ide_restart` no longer logs SEVERE entries "Write-unsafe context!" when the IDE saves the
   documents and the projects before the restart. The restart request ran with
   `ModalityState.any()`, and it now runs with `ModalityState.nonModal()`. While a modal dialog is
