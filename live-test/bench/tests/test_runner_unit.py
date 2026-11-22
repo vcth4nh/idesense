@@ -20,7 +20,7 @@ import time
 import unittest
 from unittest import mock
 
-from bench import proxy, qfiles, runner
+from bench import planfile, proxy, qfiles, runner
 from bench import sets as challenges
 from common import lock, mcp, settings, trees
 
@@ -1017,9 +1017,11 @@ class RunTest(RunnerCase):
         self.assertEqual([], self.docker_calls())
 
     def test_busy_lock_starts_nothing(self):
+        plan = os.path.join(self.tmp, "plan.json")
+        write(plan, json.dumps({"rule": "A test plan.", "questions": [KEY["question"]], "arms": [{"arm": "P"}],
+                                "models": [MODEL], "runs": 1}))
+        self.assertEqual([], planfile.problems(planfile.load(plan)), "a valid plan: the lock is the only cause")
         with lock.ide_lock("audit.symbols run /x/out"):
-            plan = os.path.join(self.tmp, "plan.jsonl")
-            write(plan, json.dumps({"question": KEY["question"], "model": MODEL, "arm": "P"}) + "\n")
             for argv in (self.run_args("P"), ["batch", "-plan", plan, "-batch", "b1"]):
                 code, out, err = self.main(*argv)
                 self.assertEqual(2, code, argv)
@@ -1241,11 +1243,12 @@ class ParserTest(unittest.TestCase):
         self.assertEqual("error", runner.outcome_of("exit", 0, {"subtype": "success", "is_error": True}, False))
 
 
-class BatchTest(RunnerCase):
-    def plan(self, *lines):
-        path = os.path.join(self.tmp, "plan.jsonl")
-        write(path, "".join(json.dumps({"question": KEY["question"], "model": MODEL, **line}) + "\n"
-                            for line in lines))
+class BatchTest(CaddyCase):
+    def plan(self, *arms, questions=(KEY["question"],), runs=1):
+        """A plan file (bench.planfile) of the arm entries, with the model MODEL."""
+        path = os.path.join(self.tmp, "plan.json")
+        write(path, json.dumps({"rule": "A test plan.", "questions": list(questions), "arms": list(arms),
+                                "models": [MODEL], "runs": runs}, indent=2) + "\n")
         return path
 
     def fake_run(self, codes):
@@ -1265,7 +1268,9 @@ class BatchTest(RunnerCase):
         return code, {"outcome": outcome, "reason": reason}
 
     def listing(self, batch="b1"):
-        return sorted(os.listdir(os.path.join(self.runs, batch)))
+        """The run folders of the batch (not the file plan.json)."""
+        folder = os.path.join(self.runs, batch)
+        return sorted(name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name)))
 
     def test_batch_tries_an_api_error_run_one_more_time(self):
         plan = self.plan({"arm": "C"}, {"arm": "PF"})
@@ -1327,16 +1332,34 @@ class BatchTest(RunnerCase):
         self.assertEqual([f"{CHALLENGE['id']}__C__{MODEL}__1.api-error-{k}" for k in (1, 2)], self.listing("b2"))
 
     def test_batch_skips_a_finished_run(self):
-        plan = self.plan({"arm": "C"}, {"arm": "PF"}, {"arm": "PS", "aid": "skill", "n": 2})
+        plan = self.plan({"arm": "C"}, {"arm": "PF"}, {"arm": "PS", "aid": "skill"}, runs=2)
         os.makedirs(self.folder("C"))
         write(os.path.join(self.folder("C"), "run.json"), "{}")
         calls, fake = self.fake_run([])
         with mock.patch.object(runner, "run_one", fake):
             code, out, _ = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
         self.assertEqual(0, code)
-        self.assertEqual(sorted([f"{CHALLENGE['id']}__PF__{MODEL}__1", f"{CHALLENGE['id']}__PS-skill__{MODEL}__2"]),
+        rest = [f"{CHALLENGE['id']}__{arm}__{MODEL}__{n}" for arm in ("PF", "PS-skill") for n in (1, 2)]
+        self.assertEqual(sorted([f"{CHALLENGE['id']}__C__{MODEL}__2"] + rest), sorted(calls))
+        self.assertIn("batch b1: 6 runs, 1 finished before, 5 to run", out)
+
+    def test_batch_runs_a_plan_by_name_and_keeps_a_copy_of_the_plan(self):
+        plans = os.path.join(self.tmp, "plans")
+        path = self.plan({"arm": "C"}, {"arm": "PF"}, runs=2)
+        os.makedirs(plans)
+        shutil.copy(path, os.path.join(plans, "mini.json"))
+        os.unlink(path)
+        calls, fake = self.fake_run([])
+        with mock.patch.object(planfile, "PLANS", plans), mock.patch.object(runner, "run_one", fake):
+            code, out, err = self.main("batch", "-plan", "mini", "-batch", "b1", "-jobs", "1")
+        self.assertEqual(0, code, err)
+        self.assertEqual(sorted(f"{CHALLENGE['id']}__{arm}__{MODEL}__{n}" for arm in ("C", "PF") for n in (1, 2)),
                          sorted(calls))
-        self.assertIn("1 finished before", out)
+        with open(os.path.join(plans, "mini.json"), encoding="utf-8") as f:
+            text = f.read()
+        with open(os.path.join(self.runs, "b1", "plan.json"), encoding="utf-8") as f:
+            self.assertEqual(text, f.read(), "the batch folder has a copy of the plan")
+        self.assertEqual(sorted(calls), self.listing())
 
     def test_batch_runs_again_a_single_run_that_left_an_api_error(self):
         # A single `run` with the outcome api_error writes run.json (exit 3). For a batch it is no finished run.
@@ -1412,26 +1435,53 @@ class BatchTest(RunnerCase):
                          [runner.run_id_of(a) for a in runner.batch_order(runs, 1)])
         self.assertNotEqual([a.arm for a in order], [a.arm for a in runs], "seed 1 changes the arm order")
 
-    def test_plan_line_with_a_bad_option_stops_the_batch(self):
-        plan = self.plan({"arm": "C", "dry-run": True})
-        code, _, err = self.main("batch", "-plan", plan, "-batch", "b1")
-        self.assertEqual(2, code)
-        plan = self.plan({"arm": "C", "plugin-version": "1.0"})
-        code, _, err = self.main("batch", "-plan", plan, "-batch", "b1")
-        self.assertEqual(2, code)
-        self.assertIn("plugin-version", err)
+    def test_bad_plan_exits_2_and_starts_no_container(self):
+        with open(self.plan({"arm": "C"}), encoding="utf-8") as f:
+            good = json.load(f)
+        bad = os.path.join(self.tmp, "bad.json")
+        cases = [("an unknown question", dict(good, questions=["beets-refs-gone"]),
+                  "questions: unknown question 'beets-refs-gone'"),
+                 ("an unknown arm", dict(good, arms=[{"arm": "X"}]), "arms: unknown arm 'X'"),
+                 ("runs 0", dict(good, runs=0), "runs 0: use a whole number of 1 or more"),
+                 ("no model", dict(good, models=[]), "models: no list of one or more model names"),
+                 ("an unknown key", dict(good, batch="b2"), "unknown key 'batch'"),
+                 ("an option of the batch", dict(good, arms=[{"arm": "C", "plugin-version": "1.0"}]),
+                  "arms: unknown key 'plugin-version' in ")]
+        calls, fake = self.fake_run([])
+        with mock.patch.object(runner, "run_one", fake):
+            for what, plan, problem in cases:
+                with self.subTest(what):
+                    write(bad, json.dumps(plan))
+                    code, out, err = self.main("batch", "-plan", bad, "-batch", "b1")
+                    self.assertEqual((2, ""), (code, out))
+                    self.assertIn(f"runner: {bad}: {problem}", err)
+            for what, plan, text in (("no JSON", bad, "JSONDecodeError"), ("no file", "absent", "FileNotFoundError")):
+                with self.subTest(what):
+                    write(bad, "{not json")
+                    code, out, err = self.main("batch", "-plan", plan, "-batch", "b1")
+                    self.assertEqual((2, ""), (code, out))
+                    self.assertIn(f"runner: {plan}: no plan ({text}: ", err)
+        self.assertEqual(([], []), (calls, self.docker_calls()), "no run, no container")
+        self.assertFalse(os.path.exists(self.runs))
+        for option in ({"dry-run": True}, {"plugin-version": "1.0"}, {"batch": "b2"}):
+            with self.assertRaises(runner.SetupError):
+                runner.plan_args({"question": KEY["question"], "model": MODEL, "arm": "C", **option}, "b1")
 
     def test_batch_takes_the_version_of_the_ide(self):
-        plan = self.plan({"arm": "C"}, {"arm": "P"}, {"arm": "PF"})
+        self.caddy_args("C")  # the tracked question of caddy
+        plan = self.plan({"arm": "C"}, {"arm": "P"}, {"arm": "PF"},
+                         questions=(KEY["question"], self.GO_KEY["question"]))
+        versions = {runner.IDE_URLS["beets"]: "9.9.9-bench.beets", runner.IDE_URLS["caddy"]: "9.9.9-bench.caddy"}
         runs, reads = [], []
 
         def run_one(args):
-            runs.append((args.plugin_version, len(reads)))  # the expected version, the reads before the run
+            product = "caddy" if args.question == self.GO_KEY["question"] else "beets"
+            runs.append((product, args.plugin_version, len(reads)))  # the expected version, the reads before the run
             return self.fake_record(args, 0, "ok", None)
 
         def version(url):
             reads.append(url)
-            return "9.9.9-bench.abc1234"
+            return versions[url]
 
         def no_version(url):
             raise mcp.McpError("transport", "transport_error: connection refused")
@@ -1439,15 +1489,17 @@ class BatchTest(RunnerCase):
         with mock.patch.object(runner, "run_one", run_one), mock.patch.object(runner, "ide_version", version):
             code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
             self.assertEqual(0, code, err)
-            self.assertEqual([("9.9.9-bench.abc1234", 1)] * 3, runs, "each planned run, after one read")
-            self.assertEqual([runner.IDE_URLS["beets"]], reads)
-            self.assertIn("plugin version 9.9.9-bench.abc1234 of the IDE of beets", out)
+            self.assertEqual([runner.IDE_URLS["beets"], runner.IDE_URLS["caddy"]], reads, "one read for each IDE")
+            self.assertEqual([("beets", "9.9.9-bench.beets", 2)] * 3 + [("caddy", "9.9.9-bench.caddy", 2)] * 3, runs,
+                             "each planned run gets the version of its product, after the reads")
+            self.assertIn("plugin version 9.9.9-bench.beets of the IDE of beets", out)
+            self.assertIn("plugin version 9.9.9-bench.caddy of the IDE of caddy", out)
             # With the option, the batch reads no version and each run gets the option.
             runs.clear()
             reads.clear()
             code, _, err = self.main("batch", "-plan", plan, "-batch", "b2", "-jobs", "1", "-plugin-version", "1.2.3")
             self.assertEqual(0, code, err)
-            self.assertEqual(([("1.2.3", 0)] * 3, []), (runs, reads))
+            self.assertEqual(([("beets", "1.2.3", 0)] * 3 + [("caddy", "1.2.3", 0)] * 3, []), (runs, reads))
         runs.clear()
         with mock.patch.object(runner, "run_one", run_one), mock.patch.object(runner, "ide_version", no_version):
             code, _, err = self.main("batch", "-plan", plan, "-batch", "b3", "-jobs", "1")

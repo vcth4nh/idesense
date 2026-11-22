@@ -4,7 +4,7 @@
         -model <model> -batch <name> [-aid skill|rule] [-variant instructions|no-tool-search|guide]
         [-stop-after-tools N] [-no-tools] [-env-scrub] [-n <run number>] [-plugin-version <text>] [-dry-run]
         (run from live-test)
-    python3 -m bench.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1] [-plugin-version <text>]
+    python3 -m bench.runner batch -plan <plan name or file> -batch <name> [-jobs 2] [-seed 1] [-plugin-version <text>]
     python3 -m bench.runner handshake -product <caddy|beets>
 
 The question is the tracked pair of `qfiles` (`-question` matches `qfiles.NAME`, else no run starts): the task text
@@ -102,13 +102,16 @@ Exit codes of `run`: 0 when `run.json` is written (also with the outcome `invali
 when no run starts, 9 for a key leak, and
 3: the API refused or failed; the run is no measurement (the outcome `api_error`; `run.json` is written).
 
-`batch`: each plan line is a JSON object with the options of `run` without the dash, for example
-`{"question": "caddy-refs-ca", "arm": "PS", "aid": "skill", "model": "claude-opus-5-5", "n": 1}`
-(a flag option has the value true; no `batch`, `dry-run` or `plugin-version`). Each run of the batch gets the option
-`-plugin-version` of the batch. With no option, `batch` reads the version of the IDE of each product one time before
-its first run (`ide_version`), and each run of the product gets it as its expected version; an IDE that gives no
-version exits 2 before the first run. The runs of one question and one model are neighbours, in a random order
-(`-seed`); the groups keep the order of their first plan line. A run whose folder has `run.json` is skipped, except
+`batch`: the plan is `planfile.load(<-plan>)`: a name with no `/` is `bench/plans/<name>.json`, else the value is the
+path of a plan file. A plan with a problem (`planfile.problems`) exits 2 before any run. Each run line of the plan
+(`planfile.expand`) holds the options of `run` without the dash, for example
+`{"question": "caddy-refs-ca", "arm": "PS", "model": "claude-opus-5-5", "n": 1, "aid": "skill"}` (`plan_args`). The
+batch folder gets `plan.json`, the plan as JSON with 2 spaces of indent (a later start of the batch writes it again),
+before the first run. Each run of the batch gets the option `-plugin-version` of the batch. With no option, `batch`
+reads the version of the IDE of each product one time before its first run (`ide_version`), and each run of the
+product gets it as its expected version; an IDE that gives no version exits 2 before the first run. The runs of one
+question and one model are neighbours, in a random order (`-seed`); the groups keep the order of their first run
+line. A run whose folder has `run.json` is skipped, except
 a record with the outcome `api_error` that a single `run` left: that folder moves to `<run id>.api-error-<k>/`. A run
 with the outcome `invalid` moves to `<run id>.invalid-<k>/` and runs again one time (a second `invalid` run stays). A
 run with the exit code 3 (`api_error`) moves to `<run id>.api-error-<k>/` and runs again one time; when the second
@@ -138,7 +141,7 @@ import threading
 import time
 import urllib.parse
 
-from bench import proxy, qfiles, score
+from bench import planfile, proxy, qfiles, score
 from bench import sets as challenges
 from common import mcp, settings, trees
 from common.lock import Busy, ide_lock
@@ -873,10 +876,20 @@ def _product_of(args) -> str | None:
 
 
 def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_version: str | None = None) -> int:
+    """The runs of the plan (a plan name or the path of a plan file; module text) in the batch folder."""
     try:
-        with open(plan, encoding="utf-8") as f:
-            runs = [plan_args(json.loads(line), batch) for line in f if line.strip()]
-    except (OSError, ValueError, SetupError) as e:
+        spec = planfile.load(plan)
+    except (OSError, ValueError) as e:
+        print(f"runner: {plan}: no plan ({type(e).__name__}: {e})", file=sys.stderr)
+        return 2
+    found = planfile.problems(spec)
+    for problem in found:
+        print(f"runner: {plan}: {problem}", file=sys.stderr)
+    if found:
+        return 2
+    try:
+        runs = [plan_args(line, batch) for line in planfile.expand(spec)]
+    except SetupError as e:
         print(f"runner: {plan}: {e}", file=sys.stderr)
         return 2
     ids = [run_id_of(a) for a in runs]
@@ -897,6 +910,9 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_versio
                 return 2
             print(f"batch {batch}: plugin version {versions[product]} of the IDE of {product}", flush=True)
         a.plugin_version = plugin_version or versions.get(product)
+    os.makedirs(os.path.join(RUNS, batch), exist_ok=True)
+    with open(os.path.join(RUNS, batch, "plan.json"), "w", encoding="utf-8") as f:
+        f.write(json.dumps(spec, indent=2, ensure_ascii=False) + "\n")
     queue, lock, stop, codes, api_reasons = iter(todo), threading.Lock(), threading.Event(), [], []
 
     def worker():
@@ -1014,9 +1030,10 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("-n", type=int, default=1, help="run number (default 1)")
     run.add_argument("-plugin-version", dest="plugin_version", help=PLUGIN_VERSION_HELP)
     run.add_argument("-dry-run", action="store_true", dest="dry_run")
-    batch = sub.add_parser("batch", help="the runs of a plan file", allow_abbrev=False, epilog=EXIT_CODES_BATCH,
+    batch = sub.add_parser("batch", help="the runs of a plan", allow_abbrev=False, epilog=EXIT_CODES_BATCH,
                            formatter_class=argparse.RawDescriptionHelpFormatter)
-    batch.add_argument("-plan", required=True, help="one JSON object with the options of run for each line")
+    batch.add_argument("-plan", required=True,
+                       help="a plan name (bench/plans/<name>.json) or the path of a plan file (bench.planfile)")
     batch.add_argument("-batch", required=True)
     batch.add_argument("-jobs", type=int, default=2)
     batch.add_argument("-seed", type=int, default=1)
