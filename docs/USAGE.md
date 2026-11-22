@@ -1708,3 +1708,5 @@ Before calling index-dependent tools, you can check the index status:
 ```
 
 If `isDumbMode` is `true`, wait and retry later.
+
+After its dumb mode check, a tool that needs the index starts its search, and starts it again, only in smart mode: it waits for the end of a dumb mode or of a scan of the files, and it returns `index_not_ready` when the wait comes to 10 seconds. The analysis of `ide_diagnostics` and the rename or move of `ide_refactor_rename` and `ide_move_file` do not wait. During a scan of the files `isDumbMode` is `false`, but such a call can still return `index_not_ready`: wait and retry later.

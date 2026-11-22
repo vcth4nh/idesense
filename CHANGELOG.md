@@ -286,6 +286,29 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   class by its class name without the package. The name was empty before.
 - `ide_file_structure` passes a cancellation on when the read of the modifiers of a node is
   cancelled. Before, the walk went on with empty modifiers for that node.
+- `ide_find_usages` no longer returns an empty or partial list of usages, and `ide_explain_symbol`
+  no longer returns a `usageCount` and `topUsages` that are too low, when the IDE enters dumb mode
+  during the search. The result had the warning "Find-usages handler ... threw on
+  findReferencesToHighlight; skipped a search target — usages may be incomplete", or the same
+  warning with `processElementUsages`. The search now waits for smart mode (no dumb mode and no
+  scan of the files) and returns the full result. The wait of a call is at most 10 seconds in
+  total; after that, the call gets `index_not_ready` (#195).
+- `ide_find_implementations`, `ide_type_hierarchy` and `ide_call_hierarchy` no longer return an
+  empty list with no error when the IDE enters dumb mode after the dumb mode check of the tool.
+  `ide_find_definition` gave `internal_error` with the text of the platform `IndexNotReadyException`
+  in the same case. After the dumb mode check at the start, the search of a tool now starts, and
+  starts again, only in smart mode, with no dumb mode and no scan of the files: when dumb mode or a
+  scan starts, the call waits for its end and returns the full result. During a scan with no dumb
+  mode, the Java search of lambdas and method references gave no result before. The wait of a call
+  is at most 10 seconds in total; after that, the call gets `index_not_ready`, also while
+  `ide_index_status` shows `isDumbMode: false` during a scan. A call that starts in dumb mode still
+  gets `index_not_ready` at once, a call that starts during a scan waits, and a tool that does not
+  need the index does not wait. A call with a `cursor` has no dumb mode check at the start: when it
+  must search again for its page in dumb mode, it gets `index_not_ready` at once, and it waits for a
+  dumb mode or a scan that starts after that, with the same limit. Such a call gave the error
+  "Search context invalidated due to file changes. Please re-search." or a short page before. The
+  analysis of `ide_diagnostics` and the rename or move of `ide_refactor_rename` and `ide_move_file`
+  do not wait; #295 tracks the refactorings (#267).
 
 ## [2.1.0] - 2026-11-09
 
