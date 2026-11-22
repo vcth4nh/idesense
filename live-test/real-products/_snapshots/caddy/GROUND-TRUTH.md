@@ -5,7 +5,30 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 - **No caller through an interface.** `ide_call_hierarchy` shows no caller for a Go method
   that is called only through an interface value (`hier-caller-App.Provision`). The Hierarchy
   window of GoLand shows the same in its default state: its toggle "Respecting Interface
-  Calls" is off by default, and the tool has no parameter for it (#218).
+  Calls" is off by default, and the tool has no parameter for it (#218). Seen again on GoLand
+  2026.3 (build 263.7307.211, 2026-11-22, a development build of the plugin code of main @
+  2b4c071 in the same instance) at `modules/caddyhttp/fileserver/matcher.go:174:18`
+  (`MatchFile.CELLibrary`, no row). `*MatchExpression.Provision` calls it through a value of
+  the interface `CELLibraryProducer` (`modules/caddyhttp/celmatcher.go:155`). At the first open
+  of Call Hierarchy the toggle was off, and the config had no property for it (the key
+  `go.call.hierarchy.browser.recursive` of `GoCallHierarchyBrowser`, bytecode of
+  `intellij.go.impl.jar`, build 263.7307.211). The window showed only the root, and the tool
+  gave no caller. With the toggle on, the window showed the row `*MatchExpression.Provision`
+  (`celmatcher.go`), and the tool also returned that caller (`celmatcher.go:122:27`): the
+  answer of the tool follows the state of the toggle in the IDE instance. With the toggle off
+  again, the tool gave no caller again.
+- **A closure node in the callers (#223).** Call Hierarchy (callers) at `listeners.go:531:6`
+  (`newSharedQUICState`, no row) in GoLand 2026.3, with the toggle "Respecting Interface Calls"
+  off, shows two rows of level 1: `TestSharedQUICStateGetEncryptedClientHelloKeys`
+  (`listeners_test.go`) and `func() (Destructor, error)` (`listeners.go`), the function
+  literal that holds the call at `listeners.go:462`. Neither row has children. No function of
+  `modules/caddyhttp/server.go` is in the tree. The answer key `callers.jsonl` of the audit (see
+  the cause `closure-node` in
+  [live-test/audit/README.md](../../../audit/README.md#name-the-cause-of-a-line)) has a caller
+  of level 2 there: `*Server.serveHTTP3` (`server.go:1052`), which calls `ListenQUIC`, the
+  function that holds the literal. The tool (`maxDepth` 2, the same instance) gives the same
+  two rows and no children: the literal has the kind `CLOSURE` at `listeners.go:437:63` and
+  the `enclosingScope` `["ListenQUIC"]`.
 - **Build constraints.** The declaration `FastAbs` in a file that the build constraints
   exclude has no usage (`usage-FastAbs-decl-windows`, a `_windows.go` file on a Linux host).
   GoLand says "Nothing found" and shows a banner about the OS mismatch. The row depends on the
