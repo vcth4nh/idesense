@@ -237,12 +237,13 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   The new name is no `symbol` anchor, as the name of a Go method (#139): use a position for a field.
 - The excluded-path rules of `ide_search_text` test a file of a content root outside the project
   base path with its path relative to that content root. They tested its absolute path. So a
-  folder above the content root with the name `node_modules`, `venv`, `.venv` or `.worktrees`
+  folder above the content root with the name of a rule, for example `node_modules` or `venv`,
   removed each file of the root from the result, and the rules for `build/`, `bin/`, `out/`,
   `.gradle/`, `env/` and `.env/` at the root never applied there. A folder beside the base path
   whose name starts with the name of the base path folder (`app` and `appbin`) got a wrong
   relative path (`bin/...`), and its files were removed. A file below the base path keeps its
-  path relative to the base path (#148).
+  path relative to the base path. A file of the project outside the base path and outside each
+  module content root now gets no rule. Before, the rules tested its absolute path (#148).
 
 ## [2.1.0] - 2026-11-09
 

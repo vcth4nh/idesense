@@ -1,11 +1,14 @@
 package com.github.vcth4nh.idesense.tools.navigation
 
+import com.github.vcth4nh.idesense.handlers.ExcludedPathScope
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.github.vcth4nh.idesense.tools.models.SearchTextResult
 import com.intellij.openapi.roots.ModuleRootManager
+import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -101,6 +104,22 @@ class SearchTextToolExcludedPathTest : BasePlatformTestCase() {
         addContentRoot(sub)
 
         assertEquals("Base path: $base", setOf("sub148/build/Gen.txt"), filesWith("probewordnested"))
+    }
+
+    // A scope with no base path folder, and a file in no module content root: the file has no
+    // path that the rules can test, so no rule applies to it. The base scope holds only the
+    // file: the everything scope of the project holds no file outside the indexable files.
+    fun testNoRuleAppliesToAFileOutsideTheBaseFolderAndEachContentRoot() {
+        val folder = newFolderOutsideTheBasePath()
+        writeFile(folder, "node_modules/X.txt", "probewordneither")
+        val file = requireNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(folder.resolve("node_modules/X.txt")))
+        val baseScope = GlobalSearchScope.fileScope(project, file)
+        assertTrue("The base scope must hold the file", baseScope.contains(file))
+        assertNull("The file must be in no content root", ProjectFileIndex.getInstance(project).getContentRootForFile(file))
+
+        val scope = ExcludedPathScope(baseScope, null, ProjectFileIndex.getInstance(project))
+
+        assertTrue("File: ${file.path}", scope.contains(file))
     }
 
     private fun basePath(): String = requireNotNull(project.basePath) { "The test project needs a base path" }
