@@ -26,9 +26,9 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   the cause `closure-node` in
   [live-test/audit/README.md](../../../audit/README.md#name-the-cause-of-a-line)) has a caller
   of level 2 there: `*Server.serveHTTP3` (`server.go:1052`), which calls `ListenQUIC`, the
-  function that holds the literal. The tool (`maxDepth` 2, the same instance) gives the same two rows and no
-  children: the literal has the kind `CLOSURE` at `listeners.go:437:63` and the
-  `enclosingScope` `["ListenQUIC"]`.
+  function that holds the literal. The tool (`maxDepth` 2, the same instance) gives the same
+  two rows and no children: the literal has the kind `CLOSURE` at `listeners.go:437:63` and
+  the `enclosingScope` `["ListenQUIC"]`.
 - **Build constraints.** The declaration `FastAbs` in a file that the build constraints
   exclude has no usage (`usage-FastAbs-decl-windows`, a `_windows.go` file on a Linux host).
   GoLand says "Nothing found" and shows a banner about the OS mismatch. The row depends on the
