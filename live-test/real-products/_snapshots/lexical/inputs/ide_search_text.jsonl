@@ -2,6 +2,6 @@
 {"id":"search-text-CollapsibleContainerNode-code","tool":"ide_search_text","params":{"context":"code","query":"CollapsibleContainerNode"}}
 {"id":"search-text-CollapsibleContainerNode-comments","tool":"ide_search_text","params":{"context":"comments","query":"CollapsibleContainerNode"}}
 {"id":"search-text-CollapsibleContainerNode-strings","tool":"ide_search_text","params":{"context":"strings","query":"CollapsibleContainerNode"}}
-{"id":"search-text-ImageNode-injected-fragment","tool":"ide_search_text","params":{"query":"ImageNode"},"parked":184}
+{"id":"search-text-ImageNode-injected-fragment","tool":"ide_search_text","params":{"query":"ImageNode"},"parked":144}
 {"id":"search-text-LexicalNode-paged","tool":"ide_search_text","params":{"pageSize":100,"query":"LexicalNode"},"compare":"shape"}
 {"id":"search-text-gamma-after-escape","tool":"ide_search_text","params":{"query":"gamma"},"parked":309}

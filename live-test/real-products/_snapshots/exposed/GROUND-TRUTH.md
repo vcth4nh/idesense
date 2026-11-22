@@ -38,6 +38,5 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 
   | Row | Issue | Defect |
   |---|---|---|
-  | `search-text-OFFSET`, `search-text-OFFSET-code` | #184 | the match in a KDoc code span of `AbstractQuery.kt:24` comes a second time, as `/AbstractQuery.kt` line 1 (an injected Kotlin fragment) |
   | `impls-IColumnType`, `impls-Expression-paged` | #277 | each object expression drops out: 70 of the 71 implementations that Go to Implementation lists for `IColumnType`, 160 of the 189 subtypes of `Expression` |
   | `def-Select-via-typealias` | #278 | the type alias `Select` gets the kind `SYMBOL` |

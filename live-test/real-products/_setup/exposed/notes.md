@@ -156,8 +156,7 @@ that had no `gradle.xml`, so that IntelliJ made the project model by itself:
   found)". `ide_type_hierarchy` gives 71 subtypes. `ide_find_implementations` gives 70: it
   leaves out the object expression at `IdTable.kt:163`.
 - Find in Files for `OFFSET` (In Project, Match case, Words) shows 13 matches in 13 files.
-  `ide_search_text` gives 14: it gives the KDoc code span at `AbstractQuery.kt:24` a second
-  time, as an injected Kotlin fragment (#184).
+  `ide_search_text` gives the same 13 lines, one in each file.
 - The Callees view of `executeMultiple` (`JdbcPreparedStatementImpl.kt:57`) shows
   `execute()` and `getMoreResults(int)`. The tool gives the same two callees.
 

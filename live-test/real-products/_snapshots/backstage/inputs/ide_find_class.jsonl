@@ -2,4 +2,5 @@
 {"id":"find-class-Config","tool":"ide_find_class","params":{"pageSize":100,"query":"Config"}}
 {"id":"find-class-CustomErrorBase-lang-typescript","tool":"ide_find_class","params":{"language":"typescript","query":"CustomErrorBase"}}
 {"id":"find-class-EntityProvider","tool":"ide_find_class","params":{"query":"EntityProvider"}}
+{"id":"find-class-GitHubEvRo-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"GitHubEvRo"}}
 {"id":"find-class-zzqNoSuchClassXyz-no-match","tool":"ide_find_class","params":{"query":"zzqNoSuchClassXyz"}}

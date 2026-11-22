@@ -31,8 +31,7 @@ pin.
 
 | Row | Issue | Defect |
 |---|---|---|
-| `search-text-matchpairs` | #184 | the match in the KDoc code span of `OptionDeclaredScope.kt:59` comes a second time, as `/OptionDeclaredScope.kt` line 1 with the label `STRING_LITERAL`. The row also misses the line 28 of `ideavim-common/src/main/resources/dictionaries/ideavim.dic`, which Find in Files finds (#317). |
-| `search-text-matchpairs-strings` | #184 | the same second match is 1 of its 6 matches |
+| `search-text-matchpairs` | #317 | 16 matches and no match in line 28 of `ideavim-common/src/main/resources/dictionaries/ideavim.dic`. Find in Files finds that line: 18 matches, the 16 lines of the tool, the `.dic` line and a second match on one line |
 | `find-file-Range.kt` | #271 | Go to File lists 12 files: the 11 files of the tool and `vim-engine/src/main/kotlin/com/maddyhome/idea/vim/ex/ranges/Address.kt` |
 | `find-file-VimEditor.kt` | #271 | the tool gives 9 files, Go to File at least 20 |
 | `find-file-Command.kt` | #271 | a `shape` row: it pins the count of the tool (`totalCollected` 263, `hasMore: true`). The rows of Go to File for `Command.kt` are not counted. The count changes when #271 is fixed. |

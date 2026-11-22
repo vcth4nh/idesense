@@ -55,5 +55,5 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   | Row | Issue | Defect |
   |---|---|---|
   | `search-text-unordered-code` | #181 | `context: "code"` returns comment lines and string lines |
-  | `search-text-wget` | #184 | a match in an injected fragment (a Markdown code block) comes two times |
+  | `search-text-wget` | #144 | the match `README.md:20`, a line of a Markdown code fence, has the label `CODE`; the Find tool window lists it below "Usage in string constants" |
   | `search-text-updateTimestamps-build` | #146 | the files under `build/` are absent |
