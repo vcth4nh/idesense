@@ -228,7 +228,10 @@ The measured times of each product are in `_setup/<folder>/notes.md`.
    a `serverMode` IDE checks the trust of a project, so the switch that opens a product adds
    a trust entry for the product path to `options/trusted-paths.xml` of the IDE while the IDE
    is down. For a JavaScript product use `npm ci --ignore-scripts`: it runs no script of the
-   product and no install script of a package.
+   product and no install script of a package. For a Go product with no `vendor/` folder, run
+   `go mod download all` on a copy of `go.mod`: GoLand indexes each module of the module graph
+   that has a folder in the shared module cache, so a smaller download lets the checkouts of
+   other products change the results.
 5. **Import check.** `--open-product <folder>`, then compare some tool calls with the IDE
    itself. Record the times and the memory in `_setup/<folder>/notes.md`. A product that the
    IDE imports with Gradle needs one restart with `ide_restart` after its first sync: see

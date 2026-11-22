@@ -8,13 +8,30 @@
 
 ## Setup
 
-Run `bootstrap.sh`. It checks the Go version, downloads the modules, and writes three
-IDE project files when they are absent: `.idea/workspace.xml` (GOROOT), `.idea/modules.xml`
-and `.idea/caddy.iml`. There is no lockfile to create: `go.sum` is committed.
+Run `bootstrap.sh`. It checks the Go version, downloads each module of the module graph
+(`go mod download all` on a copy of `go.mod`), and writes three IDE project files when they
+are absent: `.idea/workspace.xml` (GOROOT), `.idea/modules.xml` and `.idea/caddy.iml`. There
+is no lockfile to create: `go.sum` is committed.
 
 The IDE files are necessary. At its start GoLand opens only a marked project that has an
 `.idea` folder, and it gives such a project no module by itself. Without the module file
 the project opens with an empty model: 311 files scanned, no Go module, no class found.
+
+The module set depends only on caddy. At each open GoLand reads the module graph with
+`go list -m -json -mod=mod all` on a copy of `go.mod`. It attaches each module of the graph
+that has a folder in the module cache, and no other module. In GoLand 2026.3,
+`GoListOutputParser.readDependency` takes the root of a module from the `Dir` field of the
+output. caddy has no `vendor/` folder, so GoLand also indexes each of these modules (with a
+`vendor/` folder it does not: see the notes of `lazygit`). The graph has 595 modules, and `go.mod` requires 165 of them. `go mod download` and
+the download that GoLand starts at the open (`go mod download -json -x`) get only these 165.
+The other modules of the graph then come only from other checkouts that share the module
+cache. For example, a module that another Go product downloads can add a supertype to
+`hier-super-caddyhttp.App-byname`. So the bootstrap gets the full graph. Then `idea.log` shows
+`Summary for VgoDependencyEntity: nullRoots=0, fromGoModulesRoot=595`, and a download for
+another product cannot change the attached set. The full graph uses about 2.0 GB of the
+module cache: 1.66 GB of module folders and 0.39 GB of download files. At the first open with the
+full graph, the scan of GoLand 2026.3 covered 43,205 files in the 595 module folders; with 346
+module folders it covered 20,652 files.
 
 ## Measured
 

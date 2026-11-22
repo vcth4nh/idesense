@@ -8,7 +8,15 @@ have=$(go env GOVERSION | sed 's/^go//')
 if [ "$(printf '%s\n%s\n' "$need" "$have" | sort -V | head -1)" != "$need" ]; then
   echo "caddy needs Go $need or later, found $have" >&2; exit 1
 fi
-(cd "$product" && go mod download)
+# At each open GoLand reads the module graph with `go list -m -json -mod=mod all` on a copy of
+# go.mod. It attaches each module of the graph that has a folder in the module cache, and no
+# other. `go mod download` gets only the modules of go.mod, so other checkouts that share the
+# module cache would change the attached set. `all` gets each module of the graph. The copy
+# keeps go.mod and go.sum unchanged.
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+cp "$product/go.mod" "$product/go.sum" "$tmp/"
+(cd "$product" && go mod download -modfile="$tmp/go.mod" all)
 # GoLand restores a project at its start only when the folder has IDE project files, and it
 # gives a restored project no module. These are the files that GoLand wrote for the Go fixture.
 idea="$product/.idea"
