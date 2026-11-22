@@ -32,6 +32,7 @@ import com.intellij.util.QueryExecutor
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.EnumSet
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -94,38 +95,64 @@ class SmartReadActionTest : BasePlatformTestCase() {
             testRootDisposable
         )
 
-        val result = callAcrossDumbModeStart(trigger) { FindImplementationsTool().execute(project, args) }
+        val race = callAcrossDumbModeStart(trigger) { FindImplementationsTool().execute(project, args) }
 
-        assertEquals("The implementations of a search that met dumb mode", baseline.sorted(), implementations(result).sorted())
+        assertEquals("The implementations of a search that met dumb mode", baseline.sorted(), implementations(race.result).sorted())
+        assertEquals("Errors logged during the call", emptyList<String>(), race.errors)
     }
 
     fun testFindUsagesGivesTheFullResultWhenDumbModeStartsAfterTheCheck() {
         val args = positionOf(SHAPE_FILE, "area")
-        val baseline = json.decodeFromString<FindUsagesResult>(text(runTool(FindUsagesTool(), args)))
+        val baseline = usages(runTool(FindUsagesTool(), args))
         assertEquals(2, baseline.usages.size)
         assertNull(baseline.warnings)
 
         val trigger = DumbModeTrigger("race.Shape#area")
-        ReferencesSearch.EP_NAME.point.registerExtension(
-            QueryExecutor { params, _ -> trigger.onSearch(params.elementToSearch); true },
-            LoadingOrder.FIRST,
-            testRootDisposable
-        )
-        MethodReferencesSearch.EP_NAME.point.registerExtension(
-            QueryExecutor { params, _ -> trigger.onSearch(params.method); true },
-            LoadingOrder.FIRST,
-            testRootDisposable
-        )
+        holdReferenceSearches(trigger)
 
-        val result = callAcrossDumbModeStart(trigger) { FindUsagesTool().execute(project, args) }
-        val usages = json.decodeFromString<FindUsagesResult>(text(result))
+        val race = callAcrossDumbModeStart(trigger) { FindUsagesTool().execute(project, args) }
+        val result = usages(race.result)
 
+        assertEquals("The usages of a search that met dumb mode", baseline.keys().sorted(), result.keys().sorted())
+        assertNull("A search that waited for the index has no warning", result.warnings)
+        assertEquals("Errors logged during the call", emptyList<String>(), race.errors)
+    }
+
+    // A call with a cursor does not check for dumb mode. When its page needs more results than the
+    // first call kept, it searches again (the search extender of the cursor), and that search waits
+    // for the index too.
+    fun testFindUsagesCursorGivesTheFullPageWhenDumbModeStartsBeforeTheSearchAgain() {
+        // The first call keeps 500 usages (the collection limit) and gives the first 100. A cursor
+        // call with a page of 500 needs the other usages, so it searches again.
+        val first = buildJsonObject {
+            positionOf(COUNTER_FILE, "tick").forEach { (key, value) -> put(key, value) }
+            put("pageSize", FIRST_PAGE)
+        }
+        fun cursorCall(cursor: String) = buildJsonObject {
+            put("cursor", cursor)
+            put("pageSize", 500)
+        }
+
+        val baselineFirst = usages(runTool(FindUsagesTool(), first))
+        val baselineNext = usages(runTool(FindUsagesTool(), cursorCall(baselineFirst.nextCursor!!)))
+        assertEquals(FIRST_PAGE, baselineFirst.usages.size)
+        assertEquals(TICKS - FIRST_PAGE, baselineNext.usages.size)
+        assertEquals(TICKS, (baselineFirst.keys() + baselineNext.keys()).toSet().size)
+
+        val raceFirst = usages(runTool(FindUsagesTool(), first))
+        val trigger = DumbModeTrigger("race.Counter#tick")
+        holdReferenceSearches(trigger)
+
+        val race = callAcrossDumbModeStart(trigger) { FindUsagesTool().execute(project, cursorCall(raceFirst.nextCursor!!)) }
+        val next = usages(race.result)
+
+        assertEquals("The usages of a cursor page that met dumb mode", TICKS - FIRST_PAGE, next.usages.size)
         assertEquals(
-            "The usages of a search that met dumb mode",
-            baseline.usages.map { "${it.file}:${it.line}:${it.column}" }.sorted(),
-            usages.usages.map { "${it.file}:${it.line}:${it.column}" }.sorted()
+            "The usages of the two pages",
+            (baselineFirst.keys() + baselineNext.keys()).sorted(),
+            (raceFirst.keys() + next.keys()).sorted()
         )
-        assertNull("A search that waited for the index has no warning", usages.warnings)
+        assertEquals("Errors logged during the call", emptyList<String>(), race.errors)
     }
 
     // requireSmartMode stays: a call that starts in dumb mode gets index_not_ready at once.
@@ -189,19 +216,40 @@ class SmartReadActionTest : BasePlatformTestCase() {
         }
     }
 
+    /** The reference search of a Java method goes to [MethodReferencesSearch]; other elements to [ReferencesSearch]. */
+    private fun holdReferenceSearches(trigger: DumbModeTrigger) {
+        ReferencesSearch.EP_NAME.point.registerExtension(
+            QueryExecutor { params, _ -> trigger.onSearch(params.elementToSearch); true },
+            LoadingOrder.FIRST,
+            testRootDisposable
+        )
+        MethodReferencesSearch.EP_NAME.point.registerExtension(
+            QueryExecutor { params, _ -> trigger.onSearch(params.method); true },
+            LoadingOrder.FIRST,
+            testRootDisposable
+        )
+    }
+
+    /** The result of a call across a dumb mode start, and the errors that the IDE logged meanwhile. */
+    private class RaceCall(val result: ToolCallResult, val errors: List<String>)
+
     /**
      * Runs [call] on a pooled thread. When the search reaches [trigger], starts dumb mode, keeps it
      * on for [DUMB_WINDOW_MS], ends it, and returns the result of the call.
      *
      * A search that runs in dumb mode can log an error (the Java functional expression search does).
-     * The IDE writes such an error to its log and goes on. The test does the same, so that the
-     * result of the call shows the effect.
+     * The IDE writes such an error to its log and goes on. The test keeps each logged error in
+     * [RaceCall.errors], so that the result of the call shows the effect first. A test asserts the
+     * errors after the result.
      */
-    private fun callAcrossDumbModeStart(trigger: DumbModeTrigger, call: suspend () -> ToolCallResult): ToolCallResult {
+    private fun callAcrossDumbModeStart(trigger: DumbModeTrigger, call: suspend () -> ToolCallResult): RaceCall {
         var result: ToolCallResult? = null
+        val errors = ConcurrentLinkedQueue<String>()
         LoggedErrorProcessor.executeWith<Throwable>(object : LoggedErrorProcessor() {
-            override fun processError(category: String, message: String, details: Array<out String>, t: Throwable?) =
-                EnumSet.of(Action.LOG)
+            override fun processError(category: String, message: String, details: Array<out String>, t: Throwable?): Set<Action> {
+                errors.add("$category: $message${t?.let { " ($it)" } ?: ""}")
+                return EnumSet.of(Action.LOG)
+            }
         }) {
             val future = ApplicationManager.getApplication().executeOnPooledThread<ToolCallResult> { runBlocking { call() } }
             PlatformTestUtil.waitWithEventsDispatching("The search did not reach the trigger", { trigger.reached.count == 0L }, 30)
@@ -218,7 +266,7 @@ class SmartReadActionTest : BasePlatformTestCase() {
             PlatformTestUtil.waitWithEventsDispatching("The call did not end after dumb mode", { future.isDone }, 60)
             result = future.get()
         }
-        return result!!
+        return RaceCall(result!!, errors.toList())
     }
 
     private fun inDumbMode(block: () -> Unit) {
@@ -238,6 +286,10 @@ class SmartReadActionTest : BasePlatformTestCase() {
         return text
     }
 
+    private fun usages(result: ToolCallResult): FindUsagesResult = json.decodeFromString<FindUsagesResult>(text(result))
+
+    private fun FindUsagesResult.keys(): List<String> = usages.map { "${it.file}:${it.line}:${it.column}" }
+
     private fun implementations(result: ToolCallResult): List<String> =
         json.decodeFromString<ImplementationResult>(text(result)).implementations.map { it.qualifiedName ?: it.name }
 
@@ -256,6 +308,9 @@ class SmartReadActionTest : BasePlatformTestCase() {
     private companion object {
         const val ROOT = "race-src"
         const val SHAPE_FILE = "$ROOT/race/Shape.java"
+        const val COUNTER_FILE = "$ROOT/race/Counter.java"
+        const val TICKS = 520
+        const val FIRST_PAGE = 100
         const val DUMB_WINDOW_MS = 1500L
         const val HOLD_TIMEOUT_MS = 30_000L
         const val CALL_TIMEOUT_MS = 10_000L
@@ -295,6 +350,19 @@ class SmartReadActionTest : BasePlatformTestCase() {
                     }
                 }
             """.trimIndent(),
+            "Counter.java" to """
+                package race;
+
+                public class Counter {
+                    public void tick() { }
+                }
+            """.trimIndent(),
+            // More usages of Counter#tick than the collection limit of the first call (500).
+            "Ticks.java" to buildString {
+                append("package race;\n\npublic class Ticks {\n    void run(Counter c) {\n")
+                repeat(TICKS) { append("        c.tick();\n") }
+                append("    }\n}\n")
+            },
         )
     }
 }
