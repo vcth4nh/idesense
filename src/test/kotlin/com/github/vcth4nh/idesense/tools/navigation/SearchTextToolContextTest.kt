@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.tools.navigation
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.github.vcth4nh.idesense.tools.models.SearchTextResult
 import com.github.vcth4nh.idesense.tools.models.TextMatch
+import com.intellij.lang.injection.InjectedLanguageManager
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import kotlinx.coroutines.runBlocking
@@ -78,5 +79,33 @@ class SearchTextToolContextTest : BasePlatformTestCase() {
         assertEquals(listOf("CODE"), search("code").map { it.contextType })
         assertEquals(listOf("COMMENT"), search("comments").map { it.contextType })
         assertEquals(emptyList<String>(), search("strings").map { it.contextType })
+    }
+
+    // A word inside an injected language fragment is one match of the host file. The search
+    // also walked the fragment and gave a second match with the path of the fragment, a line of
+    // the fragment and the label CODE (#184). The test platform has no IntelliLang plugin, so
+    // the fragment is the Java code that the Java plugin injects into a Javadoc snippet.
+    fun testAWordInAnInjectedFragmentIsOneMatchOfTheHostFile() {
+        val java = myFixture.addFileToProject(
+            "Documented.java",
+            """
+            class Documented {
+                /**
+                 * {@snippet :
+                 * int zorbleword = 1;
+                 * }
+                 */
+                void method() {}
+            }
+            """.trimIndent()
+        )
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        assertNotNull(
+            "The snippet must be an injected fragment",
+            InjectedLanguageManager.getInstance(project).findInjectedElementAt(java, java.text.indexOf("zorbleword"))
+        )
+
+        assertEquals(setOf(TextMatch("Documented.java", 4, 12, "* int zorbleword = 1;", "COMMENT")), search(null))
+        assertEquals(emptySet<TextMatch>(), search("code"))
     }
 }

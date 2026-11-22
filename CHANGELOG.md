@@ -104,6 +104,13 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   is a different classification: matches in plain text, in HTML and in JSON strings were absent from
   the filtered results. One case is lost: `strings` no longer finds a word that follows an escape
   sequence with no space (`World` in `"Hello\nWorld"`). `all` did not find it before (#133).
+- `ide_search_text` returns a word inside an injected language fragment one time, as a match of
+  its file. Examples of such fragments are a code block of a Markdown file or of a KDoc comment, a
+  section of a PHPT file, a Vue template interpolation and a regular expression literal. The search
+  also walked the fragments and gave a second match with the path `/<file name>`, the line and the
+  column in the fragment, and the label of the word in the fragment, for example `CODE` for a word
+  in a KDoc code span. With a `context` filter, the second match could be the only match of its
+  line (#184).
 - The excluded-path rules of `ide_search_text` test a file of a content root outside the project
   base path with its path relative to that content root. They tested its absolute path. So a
   folder above the content root with the name of a rule, for example `node_modules` or `venv`,
