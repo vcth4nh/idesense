@@ -1,6 +1,6 @@
 """Triage of the runs of a batch: measures and flags of each run, tables, paired differences and adoption.
 
-    python3 -m bench.triage report -batch <name> [-set <file>] [-out <dir>]   (run from live-test)
+    python3 -m bench.triage report -batch <name> [-out <dir>]   (run from live-test)
     python3 -m bench.triage table -batch <name>
 
 The input is a batch folder `RUNS/<batch>/` of `bench.runner`: one folder for each run, with `run.json`,
@@ -12,28 +12,30 @@ Outcomes: an EXCLUDED run is no measurement (counted, in no mean). The score of 
 FAILED run has f1, precision and recall 0 and exact False. A `stopped` run (`-stop-after-tools`) is only in the
 adoption table, also when it has an answer.
 
-The key view of a challenge comes from the set file (`-set`, default SET_FILE) and `challenges.view`. The tree root
-of a challenge is its slot path (`trees.load_slots`). A site of an IDE result with an absolute path below the root is
-made relative to the root, as `challenges.parse_sites` does; another site stays as it is. A site that is in no key
-site has no class.
+The question of a run is the field `question` of `run.json`. An old record has the field `challenge` and no
+`question`: its question is the tracked question whose `old_ids` hold the challenge id (`qfiles.by_old_id`), or the
+challenge id itself when no tracked key has it (`load_batch`). The key of a run is the tracked key of its question
+(`qfiles.load_key`), and its line classes are `score.line_classes`. The tree root of a question is its slot path
+(`trees.load_slots`). A site of an IDE result with an absolute path below the root is made relative to the root, as
+`score.parse_sites` does; another site stays as it is. A line that is in no answer list of the key has no class.
 
 `report` writes into `-out` (default `RUNS/<batch>.triage/`):
-- `runs.jsonl`: one JSON object for each run, sorted by id: `id`, `challenge`, `model`, `arm_label`, `n`, `outcome`,
+- `runs.jsonl`: one JSON object for each run, sorted by id: `id`, `question`, `model`, `arm_label`, `n`, `outcome`,
   the measures (`measures`), the flags (`flags`) and `plugin_wrong_control_right` (`batch_flags`). A set of sites is
   a sorted list of `path:line`.
 - `summary.md`, with one Markdown table in each section: "Batch" (the run count of each outcome, set aside,
-  unfinished, the total cost of the runs), "By challenge, model and arm" (`summary_rows`), "Paired differences"
+  unfinished, the total cost of the runs), "By question, model and arm" (`summary_rows`), "Paired differences"
   (`paired`: each plugin arm - C, and each arm of PF_BASED (PFN, PFR, PFL, PFG, PFI and PFS) - PF; after the lines
-  of the challenges of a model, an arm and a base, the line `all` has the means over the challenges and, for each
+  of the questions of a model, an arm and a base, the line `all` has the means over the questions and, for each
   difference, its mean and its 95 % interval from `bootstrap`), "Adoption" (`adoption_rows`) and "Flags" (for each
   flag the count of the runs where it is true or above 0, and at most FLAG_IDS run ids). The tables give the arms in
   the order of `runner.ARMS` (C, P, PS, PF, PFN, PFR, PFL, PFG, PFI, PFS). Numbers: 3 decimals for scores and
   shares, 4 for USD, 1 for seconds and the means of counts, 0 for tokens; `-` for None.
 
-`table` prints one line for each run: challenge, arm label, model, n, outcome, tp, fp, miss, exact, USD, turns,
+`table` prints one line for each run: question, arm label, model, n, outcome, tp, fp, miss, exact, USD, turns,
 seconds, tool calls, IDE calls.
 
-Exit codes: 0 done; 2 the batch folder does not exist, or the set file, a key or a run cannot be read.
+Exit codes: 0 done; 2 the batch folder does not exist, or a key or a run cannot be read.
 """
 import argparse
 import collections
@@ -44,13 +46,10 @@ import random
 import re
 import sys
 
-from bench import runner, score
-from bench import sets as challenges
-from common import keyrecord as keys
+from bench import qfiles, runner, score
 from common import trees
 
 RUNS = runner.RUNS
-SET_FILE = os.path.join(trees.BENCH, "challenges", "pilot.jsonl")
 SLOTS_FILE = trees.SLOTS_FILE
 
 # The arms whose labels have the base PF too (`paired`), in the order of runner.ARMS.
@@ -87,15 +86,16 @@ NAMES = {"cost_usd": "USD", "tool_calls": "tool calls", "ide_calls": "IDE calls"
 def arm_label(rec: dict) -> str:
     """The arm part of the run id (`runner.run_id_of`): `C`, `P`, `PS-rule`, `PF`, `P-instructions`, `C-no-tools`,
     `PS-rule-stop-5`, ..."""
-    args = argparse.Namespace(challenge="", model="", n=0, arm=rec["arm"], aid=rec.get("aid"),
+    args = argparse.Namespace(question="", model="", n=0, arm=rec["arm"], aid=rec.get("aid"),
                               variant=rec.get("variant"), no_tools=rec.get("no_tools"),
                               stop_after_tools=rec.get("stop_after_tools"), env_scrub=rec.get("env_scrub"))
     return runner.run_id_of(args).split("__")[1]
 
 
 def load_batch(batch_dir: str) -> dict:
-    """{"runs": the run.json records sorted by id, each with "folder"; "set_aside": n; "unfinished": n}."""
-    runs, set_aside, unfinished = [], 0, 0
+    """{"runs": the run.json records sorted by id, each with "folder" and "question" (module text); "set_aside": n;
+    "unfinished": n}."""
+    runs, set_aside, unfinished, old_ids = [], 0, 0, None
     for name in sorted(os.listdir(batch_dir)):
         folder = os.path.join(batch_dir, name)
         if not os.path.isdir(folder):
@@ -113,6 +113,10 @@ def load_batch(batch_dir: str) -> dict:
         except ValueError as e:
             raise ValueError(f"{path}: {e}") from None
         rec["folder"] = folder
+        if not rec.get("question"):
+            if old_ids is None:
+                old_ids = qfiles.by_old_id(qfiles.KEYS)
+            rec["question"] = old_ids.get(rec.get("challenge"), rec.get("challenge"))
         runs.append(rec)
     runs.sort(key=lambda r: r["id"])
     return {"runs": runs, "set_aside": set_aside, "unfinished": unfinished}
@@ -273,15 +277,15 @@ def _has_cursor(result: dict) -> bool:
     return isinstance(result["input"], dict) and "cursor" in result["input"]
 
 
-def flags(rec: dict, lines, proxy_lines, view, root: str | None = None) -> dict:
+def flags(rec: dict, lines, proxy_lines, key, root: str | None = None) -> dict:
     """The flags of one run (spec 6.8; each value a count unless the name says more): `lines` are the transcript
-    lines, `proxy_lines` the proxy log lines (str, bytes or dicts), `view` the key view of the challenge and `root`
-    the tree root of the challenge (None: no site path changes)."""
+    lines, `proxy_lines` the proxy log lines (str, bytes or dicts), `key` the tracked key of the question and `root`
+    the tree root of the question (None: no site path changes)."""
     calls = _calls(lines)
     ide = [_ide_result(call) for call in calls if call["name"].startswith(IDE_PREFIX)]
     prefix = root.rstrip("/") + "/" if root else None
     listed = {_site_of(site, prefix) for result in ide for site in result["sites"]}
-    classes = keys.line_classes(view)
+    classes = score.line_classes(key)
     answer = _answer(rec)
     ide_calls = measures(rec)["ide_calls"] or 0
     tools = collections.Counter()
@@ -292,7 +296,7 @@ def flags(rec: dict, lines, proxy_lines, view, root: str | None = None) -> dict:
     refused = sum(1 for line in _events(proxy_lines)
                   if line.get("method") == "tools/call" and line.get("refused") is True)
     forbidden = {site for site in listed if classes.get(site) == "forbidden"}
-    missed = ({site for site, cls in classes.items() if cls in keys.REQUIRED and site not in listed}
+    missed = ({site for site, cls in classes.items() if cls == "required" and site not in listed}
               if ide_calls else set())
     first = ide[0]["index"] if ide else None
     return {
@@ -321,13 +325,13 @@ def _decided(rec: dict) -> bool:
 
 def batch_flags(records: list[dict]) -> None:
     """Add `plugin_wrong_control_right` to each record: a plugin arm run with an ANSWER or FAILED outcome is not
-    exact, and the same challenge and model has C runs (label `C`) with an ANSWER or FAILED outcome, each exact."""
+    exact, and the same question and model has C runs (label `C`) with an ANSWER or FAILED outcome, each exact."""
     control: dict[tuple, list] = {}
     for rec in records:
         if arm_label(rec) == "C" and _decided(rec):
-            control.setdefault((rec["challenge"], rec["model"]), []).append(measures(rec)["exact"])
+            control.setdefault((rec["question"], rec["model"]), []).append(measures(rec)["exact"])
     for rec in records:
-        c = control.get((rec["challenge"], rec["model"]))
+        c = control.get((rec["question"], rec["model"]))
         rec["plugin_wrong_control_right"] = bool(rec.get("arm") in runner.PLUGIN_ARMS and _decided(rec)
                                                  and measures(rec)["exact"] is False and c and all(c))
 
@@ -350,18 +354,18 @@ def _arm_order(label: str) -> tuple:
 
 
 def summary_rows(records) -> list[dict]:
-    """One row for each (challenge, model, arm label), over the runs that are not EXCLUDED and not `stopped`: `runs`,
+    """One row for each (question, model, arm label), over the runs that are not EXCLUDED and not `stopped`: `runs`,
     `outcomes`, the means of MEANS, the share `exact`, `adoption` (plugin arms: the share of runs with an IDE call;
     else None) and `excluded` (the count of EXCLUDED runs)."""
     groups: dict[tuple, list] = {}
     for rec in records:
         if rec.get("outcome") != "stopped":
-            groups.setdefault((rec["challenge"], rec["model"], arm_label(rec)), []).append(rec)
+            groups.setdefault((rec["question"], rec["model"], arm_label(rec)), []).append(rec)
     rows = []
-    for (challenge, model, label), recs in sorted(groups.items(), key=lambda g: (g[0][:2], _arm_order(g[0][2]))):
+    for (question, model, label), recs in sorted(groups.items(), key=lambda g: (g[0][:2], _arm_order(g[0][2]))):
         counted = [rec for rec in recs if rec.get("outcome") not in EXCLUDED]
         ms = [measures(rec) for rec in counted]
-        row = {"challenge": challenge, "model": model, "arm_label": label, "runs": len(counted),
+        row = {"question": question, "model": model, "arm_label": label, "runs": len(counted),
                "outcomes": dict(sorted(collections.Counter(rec["outcome"] for rec in counted).items()))}
         row.update({k: _mean(m[k] for m in ms) for k in MEANS[:3]})
         row["exact"] = _mean(m["exact"] for m in ms)
@@ -373,31 +377,31 @@ def summary_rows(records) -> list[dict]:
 
 
 def paired(records) -> list[dict]:
-    """One row for each (model, plugin arm label, base label, challenge) where the arm and the base both have a run
+    """One row for each (model, plugin arm label, base label, question) where the arm and the base both have a run
     that is not EXCLUDED and not `stopped`. The base of each plugin arm label is `C`; a label whose arm is in
     PF_BASED (`PFN<rest>`, `PFR<rest>`, `PFL<rest>`, `PFG<rest>`, `PFI<rest>` or `PFS<rest>`) also has the base
     `PF<rest>`. For each PAIRED measure: `<m>_arm`, `<m>_base` (the means) and `<m>_diff` (arm - base)."""
-    rows = {(r["challenge"], r["model"], r["arm_label"]): r for r in summary_rows(records) if r["runs"]}
+    rows = {(r["question"], r["model"], r["arm_label"]): r for r in summary_rows(records) if r["runs"]}
     out = []
-    for (challenge, model, label), row in rows.items():
+    for (question, model, label), row in rows.items():
         if not _plugin_label(label):
             continue
         pf_base = label.split("-", 1)[0] in PF_BASED
         for base_label in ["C"] + (["PF" + label[3:]] if pf_base else []):
-            base = rows.get((challenge, model, base_label))
+            base = rows.get((question, model, base_label))
             if base is None:
                 continue
-            item = {"model": model, "arm_label": label, "base_label": base_label, "challenge": challenge}
+            item = {"model": model, "arm_label": label, "base_label": base_label, "question": question}
             for k in PAIRED:
                 a, b = row[k], base[k]
                 item.update({f"{k}_arm": a, f"{k}_base": b, f"{k}_diff": None if a is None or b is None else a - b})
             out.append(item)
     return sorted(out, key=lambda r: (r["model"], _arm_order(r["arm_label"]), _arm_order(r["base_label"]),
-                                      r["challenge"]))
+                                      r["question"]))
 
 
 def bootstrap(values: list[float], seed: int = 1, n: int = 10000) -> tuple[float, float, float]:
-    """The mean of `values` (one difference for each challenge) and the 2.5 % and 97.5 % percentiles (nearest rank)
+    """The mean of `values` (one difference for each question) and the 2.5 % and 97.5 % percentiles (nearest rank)
     of the means of `n` resamples with replacement (`random.Random(seed)`). Fewer than 2 values: no interval."""
     if not values:
         return None, None, None
@@ -465,9 +469,9 @@ def _batch_section(batch: dict) -> str:
 
 
 def _summary_section(records) -> str:
-    header = (["challenge", "model", "arm", "runs", "outcomes", "f1", "precision", "recall", "exact"]
+    header = (["question", "model", "arm", "runs", "outcomes", "f1", "precision", "recall", "exact"]
               + [NAMES.get(k, k) for k in MEANS[3:]] + ["adoption", "excluded"])
-    rows = [[f"`{r['challenge']}`", r["model"], r["arm_label"], str(r["runs"]),
+    rows = [[f"`{r['question']}`", r["model"], r["arm_label"], str(r["runs"]),
              ", ".join(f"{k} {n}" for k, n in r["outcomes"].items()) or "-"]
             + [_fmt(r[k], k) for k in ("f1", "precision", "recall", "exact") + MEANS[3:] + ("adoption",)]
             + [str(r["excluded"])] for r in summary_rows(records)]
@@ -476,13 +480,13 @@ def _summary_section(records) -> str:
 
 def _paired_section(records) -> str:
     sides = ("arm", "base", "diff")
-    header = ["model", "arm", "base", "challenge"] + [f"{NAMES.get(k, k)} {side}" for k in PAIRED for side in sides]
+    header = ["model", "arm", "base", "question"] + [f"{NAMES.get(k, k)} {side}" for k in PAIRED for side in sides]
     groups: dict[tuple, list] = {}
     for row in paired(records):
         groups.setdefault((row["model"], row["arm_label"], row["base_label"]), []).append(row)
     rows = []
     for (model, label, base), group in groups.items():
-        rows += [[model, label, base, f"`{r['challenge']}`"]
+        rows += [[model, label, base, f"`{r['question']}`"]
                  + [_fmt(r[f"{k}_{side}"], k) for k in PAIRED for side in sides] for r in group]
         line = [model, label, base, "all"]
         for k in PAIRED:
@@ -508,29 +512,30 @@ def _flags_section(rows: list[dict]) -> str:
     return _md(["flag", "runs", f"ids (at most {FLAG_IDS})"], out)
 
 
-def report(batch_dir: str, set_file: str, out_dir: str) -> str:
+def report(batch_dir: str, out_dir: str) -> str:
     """Write `<out_dir>/runs.jsonl` and `<out_dir>/summary.md` (module text); return the path of summary.md."""
     batch = load_batch(batch_dir)
-    chs = {ch["id"]: ch for ch in challenges.load(set_file)}
     slots = trees.load_slots(SLOTS_FILE)
-    views, run_flags = {}, []
+    tracked, run_flags = {}, []
     for rec in batch["runs"]:
-        ch = chs.get(rec["challenge"])
-        if ch is None:
-            raise ValueError(f"{set_file}: no challenge {rec['challenge']!r} (run {rec['id']})")
-        if ch["id"] not in views:
-            views[ch["id"]] = challenges.view(ch, challenges.record_of(ch))
+        name = rec["question"]
+        if name not in tracked:
+            try:
+                tracked[name] = qfiles.load_key(name, qfiles.KEYS)
+            except FileNotFoundError:
+                raise ValueError(f"{qfiles.KEYS}: no key of the question {name!r} (run {rec['id']})") from None
+        key = tracked[name]
         try:
             with open(os.path.join(rec["folder"], "transcript.jsonl"), "rb") as f:
                 lines = f.readlines()
         except FileNotFoundError:
             lines = []
         proxy_lines = runner._read_jsonl(os.path.join(rec["folder"], "proxy.jsonl"))
-        run_flags.append(flags(rec, lines, proxy_lines, views[ch["id"]], (slots.get(ch["tree"]) or {}).get("path")))
+        run_flags.append(flags(rec, lines, proxy_lines, key, (slots.get(key["tree"]) or {}).get("path")))
     batch_flags(batch["runs"])
     rows = []
     for rec, rec_flags in zip(batch["runs"], run_flags):
-        rows.append({"id": rec["id"], "challenge": rec["challenge"], "model": rec["model"], "arm_label": arm_label(rec),
+        rows.append({"id": rec["id"], "question": rec["question"], "model": rec["model"], "arm_label": arm_label(rec),
                      "n": rec.get("n"), "outcome": rec.get("outcome"), **measures(rec), **rec_flags,
                      "plugin_wrong_control_right": rec["plugin_wrong_control_right"]})
     os.makedirs(out_dir, exist_ok=True)
@@ -540,13 +545,13 @@ def report(batch_dir: str, set_file: str, out_dir: str) -> str:
     records = batch["runs"]
     text = "\n\n".join([
         f"# Triage of the batch `{os.path.basename(os.path.normpath(batch_dir))}`",
-        f"Batch folder `{batch_dir}`, set `{set_file}`.",
+        f"Batch folder `{batch_dir}`.",
         "## Batch", _batch_section(batch),
-        "## By challenge, model and arm", _summary_section(records),
+        "## By question, model and arm", _summary_section(records),
         "## Paired differences",
-        "Arm - base, for each challenge of a model, an arm and a base. The base is C for each plugin arm, and also PF "
-        "for PFN, PFR, PFL, PFG, PFI and PFS. The line `all`: the means over the challenges; each difference with its "
-        "bootstrap mean and 95 % interval over the challenges.",
+        "Arm - base, for each question of a model, an arm and a base. The base is C for each plugin arm, and also PF "
+        "for PFN, PFR, PFL, PFG, PFI and PFS. The line `all`: the means over the questions; each difference with its "
+        "bootstrap mean and 95 % interval over the questions.",
         _paired_section(records),
         "## Adoption", _adoption_section(records),
         "## Flags", _flags_section(rows)]) + "\n"
@@ -557,11 +562,11 @@ def report(batch_dir: str, set_file: str, out_dir: str) -> str:
 
 
 def _table_lines(records: list[dict]) -> list[str]:
-    rows = [["challenge", "arm", "model", "n", "outcome", "tp", "fp", "miss", "exact", "USD", "turns", "seconds",
+    rows = [["question", "arm", "model", "n", "outcome", "tp", "fp", "miss", "exact", "USD", "turns", "seconds",
              "tools", "IDE"]]
     for rec in records:
         score, m = rec.get("score") or {}, measures(rec)
-        rows.append([rec["challenge"], arm_label(rec), rec["model"], _raw(rec.get("n")), _raw(rec.get("outcome"))]
+        rows.append([rec["question"], arm_label(rec), rec["model"], _raw(rec.get("n")), _raw(rec.get("outcome"))]
                     + [_raw(score.get(k)) for k in ("tp", "fp", "miss", "exact")]
                     + [_fmt(rec.get("cost_usd"), "cost_usd"), _raw(rec.get("turns")),
                        _fmt(rec.get("seconds"), "seconds"), _raw(m["tool_calls"]), _raw(m["ide_calls"])])
@@ -577,7 +582,6 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     rep = sub.add_parser("report", help="write runs.jsonl and summary.md", allow_abbrev=False)
     rep.add_argument("-batch", required=True, help="the folder below RUNS")
-    rep.add_argument("-set", default=SET_FILE, help="challenge set (JSONL; default: %(default)s)")
     rep.add_argument("-out", help="output folder (default: RUNS/<batch>.triage)")
     tab = sub.add_parser("table", help="print one line for each run", allow_abbrev=False)
     tab.add_argument("-batch", required=True, help="the folder below RUNS")
@@ -591,7 +595,7 @@ def main(argv: list[str] | None = None) -> int:
             for line in _table_lines(load_batch(batch_dir)["runs"]):
                 print(line)
             return 0
-        path = report(batch_dir, args.set, args.out or os.path.join(RUNS, args.batch + ".triage"))
+        path = report(batch_dir, args.out or os.path.join(RUNS, args.batch + ".triage"))
     except (OSError, ValueError, KeyError) as e:
         print(f"triage: {type(e).__name__}: {e}", file=sys.stderr)
         return 2

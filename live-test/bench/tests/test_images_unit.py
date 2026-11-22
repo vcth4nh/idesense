@@ -8,6 +8,7 @@ import unittest
 from unittest import mock
 
 from bench import images as image
+from bench import qfiles
 from common import trees
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -116,6 +117,24 @@ class ContextTest(TmpTestCase):
         self.assertEqual(["Dockerfile", "aids", "entry.sh", "ws"], sorted(os.listdir(ctx)))
         self.assertEqual({tree: {"slot": e["slot"], "path": e["path"]} for tree, e in slots.items()},
                          image.image_slots("caddy", slots))
+
+    def test_context_holds_no_tracked_question_and_no_tracked_key(self):
+        key_files = set(os.listdir(qfiles.KEYS))
+        self.assertTrue(key_files, "the tracked keys exist")
+        for product in ("caddy", "beets"):
+            masters, slots = os.path.join(self.tmp, product, "masters"), {}
+            for n, tree in enumerate(image.tree_names(product)):
+                write(masters, f"{tree}/main.go", f"package main // {tree}\n")
+                trees.write_manifest(os.path.join(masters, tree), ["main.go"],
+                                     os.path.join(masters, tree + ".manifest"))
+                slots[tree] = {"slot": f"{n}0aa", "path": f"{trees.SLOTS_ROOT}/{n}0aa/{product}", "product": product}
+            ctx = os.path.join(self.tmp, product, "ctx")
+            image.make_context(product, ctx, masters, slots)
+            paths = [os.path.relpath(os.path.join(d, name), ctx)
+                     for d, dirs, files in os.walk(ctx) for name in dirs + files]
+            self.assertTrue(paths, product)
+            self.assertEqual([], [rel for rel in paths if "bench/keys" in rel or "bench/questions" in rel
+                                  or os.path.basename(rel) in key_files], product)
 
 
 class BuildTest(unittest.TestCase):

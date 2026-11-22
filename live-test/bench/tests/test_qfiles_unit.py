@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from bench import qfiles
+from bench import qfiles, score
 from bench import sets as challenges
 from common import trees
 
@@ -238,6 +238,48 @@ class CheckTest(DataRoot):
         with contextlib.redirect_stdout(out):
             self.assertEqual(1, qfiles.main(["check", "-data"]))
         self.assertEqual(["questions/caddy-refs-ca.md: no key", "1 problem"], out.getvalue().splitlines())
+
+
+class RescoreTest(DataRoot):
+    def setUp(self):
+        super().setUp()
+        self.export()
+        self.runs = os.path.join(self.d, "runs")
+        self.key = qfiles.load_key("caddy-refs-app.run", self.keys)
+
+    def put(self, batch, run_id, rec):
+        write(os.path.join(self.runs, batch, run_id, "run.json"), json.dumps(rec))
+
+    def test_rescore_compares_the_stored_score_with_the_tracked_key(self):
+        answer = ["a.go:4", "a.go:6", ".venv/x.go:1"]
+        sites = {("a.go", 4), ("a.go", 6), (".venv/x.go", 1)}
+        now = score.score(self.key, sites, {"a.go", "b.go"}, ["a.go:1-2"])
+        self.assertEqual((1, 1, 1, 2), (now["tp"], now["fp"], now["outside"], now["listed"]))
+        self.put("b1", "r1", {"question": "caddy-refs-app.run", "answer": answer, "invalid": ["a.go:1-2"],
+                              "score": now})
+        # An old record: the challenge id maps to the question by `old_ids`; its stored score came from another key.
+        self.put("b1", "r2", {"challenge": "caddy-refs-control", "answer": answer, "invalid": [],
+                              "score": dict(now, fp=0, exact=True)})
+        self.put("b1", "r3", {"challenge": "caddy-refs-CA", "answer": None, "score": None})
+        self.put("b1", "r4", {"challenge": "caddy-refs-gone", "answer": answer, "invalid": [], "score": now})
+        self.put("b1", "r1.invalid-1", {"question": "caddy-refs-app.run", "answer": [], "score": None})
+        self.put("b2", "r1", {"question": "caddy-refs-ca", "answer": ["a.go:3", "a.go:5"], "invalid": [],
+                              "score": dict(now, tp=2, fp=0, miss=0, ignored=0, exact=True, outside=0, listed=2,
+                                            precision=0.0)})
+        write(os.path.join(self.runs, "b1.triage", "runs.jsonl"), "{}\n")
+        write(os.path.join(self.runs, "plans", "b1.jsonl"), "{}\n")
+        self.assertEqual({"b1": {"equal": 1, "different": 1, "unknown": 1, "no_answer": 1},
+                          "b2": {"equal": 1, "different": 0, "unknown": 0, "no_answer": 0}},
+                         qfiles.rescore(self.runs))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(0, qfiles.main(["rescore", self.runs]))
+        lines = out.getvalue().splitlines()
+        self.assertEqual(["batch", "equal", "different", "unknown", "no_answer"], lines[0].split())
+        self.assertEqual(["b1", "1", "1", "1", "1"], lines[1].split())
+        self.assertIn("different b1/r2 (caddy-refs-app.run): stored tp=1 fp=0 miss=0 ignored=0 exact=True "
+                      "outside=1 listed=2; now tp=1 fp=1 miss=0 ignored=0 exact=False outside=1 listed=2", lines)
+        self.assertIn("unknown b1/r4 (caddy-refs-gone)", lines)
 
 
 if __name__ == "__main__":

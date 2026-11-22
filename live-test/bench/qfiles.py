@@ -2,6 +2,7 @@
 
     python3 -m bench.qfiles export <set file> ...      (run from live-test)
     python3 -m bench.qfiles check [-data]
+    python3 -m bench.qfiles rescore <runs folder>
 
 A question is QUESTIONS/<name>.md: the task text of the control arm (`sets.prompt`) with the placeholder `{root}` for
 the path of the checkout, and a final newline. `load_question` gives the text with no final newline; the runner
@@ -32,6 +33,14 @@ file names of a folder are equal in lowercase, each key has the fields KEY_FIELD
 and its `pin` is the pin of the product in products.json. With `data` (the data root): each `answer` equals
 `sets.answer` of a fresh key record of `key_file`, and each answer line is a line of its file in the master tree
 `TREES/<tree>/`. The command prints each problem and the count, and exits 0 only with no problem.
+
+`rescore` reads each stored `run.json` of each batch folder below the runs folder (BENCH/runs). A set-aside try
+(`<run id>.invalid-<k>`, `<run id>.api-error-<k>`) is not read, and a folder with no run folder is no batch. The
+question of a run is its field `question`, or for an old record the question whose `old_ids` hold its `challenge`.
+A run with no `answer` is `no_answer`; a run whose question has no tracked key is `unknown`. For each other run,
+`score.score` of the stored answer with the tracked key and the files of the master manifest is `equal` when the
+fields COMPARED equal the fields of the stored score, else `different`. The command prints the counts of each batch,
+then one line for each `different` and each `unknown` run.
 """
 import argparse
 import fnmatch
@@ -58,6 +67,9 @@ SOURCES = (("symbols.jsonl", "name resolution of the Go compiler library (go/typ
            ("plant.jsonl", "planted name: the state of the tree before the rename"),
            ("callers.jsonl", "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"),
            ("dyncallers.jsonl", "run-time trace of the test suite"))
+SET_ASIDE = re.compile(r"\.(?:invalid|api-error)-[0-9]+$")
+COMPARED = ("tp", "fp", "miss", "ignored", "exact", "outside", "listed")
+STATUSES = ("equal", "different", "unknown", "no_answer")
 
 
 def pins() -> dict[str, str]:
@@ -235,6 +247,60 @@ def check(data: bool = False, questions_dir: str = QUESTIONS, keys_dir: str = KE
     return problems
 
 
+def _rescored(runs_root: str):
+    """(batch, run folder, question, status, stored score, new score) of each stored run (module text)."""
+    old, keys, files = by_old_id(KEYS), {}, {}
+    for batch in sorted(os.listdir(runs_root)):
+        folder = os.path.join(runs_root, batch)
+        if not os.path.isdir(folder):
+            continue
+        for run in sorted(os.listdir(folder)):
+            path = os.path.join(folder, run, "run.json")
+            if SET_ASIDE.search(run) or not os.path.isfile(path):
+                continue
+            with open(path, encoding="utf-8") as f:
+                rec = json.load(f)
+            name = rec.get("question") or old.get(rec.get("challenge"))
+            if rec.get("answer") is None:
+                yield batch, run, name or rec.get("challenge"), "no_answer", None, None
+                continue
+            if name and name not in keys:
+                try:
+                    keys[name] = load_key(name, KEYS)
+                except FileNotFoundError:
+                    keys[name] = None
+            key = keys.get(name)
+            if key is None:
+                yield batch, run, name or rec.get("challenge"), "unknown", None, None
+                continue
+            if key["tree"] not in files:
+                files[key["tree"]] = tree_files(key["tree"])
+            sites = set()
+            for entry in rec["answer"]:
+                path, _, line = entry.rpartition(":")
+                sites.add((path, int(line)))
+            new = score.score(key, sites, files[key["tree"]], rec.get("invalid") or [])
+            stored = rec.get("score") or {}
+            yield (batch, run, name, "equal" if all(stored.get(k) == new[k] for k in COMPARED) else "different",
+                   stored, new)
+
+
+def _counts(results) -> dict:
+    out = {}
+    for batch, _, _, status, _, _ in results:
+        out.setdefault(batch, dict.fromkeys(STATUSES, 0))[status] += 1
+    return out
+
+
+def rescore(runs_root: str) -> dict:
+    """{batch: {"equal": n, "different": n, "unknown": n, "no_answer": n}} of the stored runs (module text)."""
+    return _counts(_rescored(runs_root))
+
+
+def _compared(s: dict) -> str:
+    return " ".join(f"{k}={s.get(k)}" for k in COMPARED)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python3 -m bench.qfiles", description=__doc__.splitlines()[0],
                                      allow_abbrev=False)
@@ -243,7 +309,22 @@ def main(argv: list[str] | None = None) -> int:
     exp.add_argument("sets", nargs="+", help="challenge set files (JSONL)")
     chk = sub.add_parser("check", help="check the tracked questions and keys")
     chk.add_argument("-data", action="store_true", help="also check against the data root")
+    res = sub.add_parser("rescore", help="score the stored runs again with the tracked keys")
+    res.add_argument("runs", help="the runs folder of the data root")
     args = parser.parse_args(argv)
+    if args.command == "rescore":
+        results = list(_rescored(args.runs))
+        counts = _counts(results)
+        width = max([len("batch")] + [len(batch) for batch in counts])
+        print(f"{'batch':<{width}}  " + "  ".join(f"{status:>9}" for status in STATUSES))
+        for batch, row in counts.items():
+            print(f"{batch:<{width}}  " + "  ".join(f"{row[status]:>9}" for status in STATUSES))
+        for batch, run, name, status, stored, new in results:
+            if status == "different":
+                print(f"different {batch}/{run} ({name}): stored {_compared(stored)}; now {_compared(new)}")
+            elif status == "unknown":
+                print(f"unknown {batch}/{run} ({name})")
+        return 0
     if args.command == "export":
         written = export(args.sets, QUESTIONS, KEYS)
         print(f"{len(written)} questions in {QUESTIONS} and {KEYS}")

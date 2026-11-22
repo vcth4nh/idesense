@@ -7,6 +7,7 @@ proxy, or reads the real key file: the paths of the runner, the data root of the
 a temporary folder, `check_ide`, `ide_version` and `proxy_healthy` are fakes, and the key is a fake value.
 """
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -19,7 +20,7 @@ import time
 import unittest
 from unittest import mock
 
-from bench import proxy, runner
+from bench import proxy, qfiles, runner
 from bench import sets as challenges
 from common import lock, mcp, settings, trees
 
@@ -39,6 +40,11 @@ RECORD = {"id": "py:demo.helper", "lang": "python", "kind": "function", "name": 
           "sites": [{"file": "beets/a.py", "line": 10, "col": 3, "class": "required", "why": "use"},
                     {"file": "beets/b.py", "line": 4, "col": 1, "class": "required", "why": "use"},
                     {"file": "beets/b.py", "line": 9, "col": 1, "class": "forbidden", "why": "comment"}]}
+# The tracked key of CHALLENGE (bench.qfiles); the question file is the prompt of CHALLENGE with `{root}`.
+KEY = {"question": CHALLENGE["id"], "old_ids": [CHALLENGE["id"]], "product": "beets", "pin": "v0", "tree": "beets",
+       "family": "refs", "lang": "python", "symbol": RECORD["id"], "name": "helper",
+       "answer": challenges.answer(CHALLENGE, RECORD), "pick": {"sample": "hard", "rule": "test"},
+       "key_file": "beets/test.jsonl", "source": "test"}
 MANIFEST = "".join(f"{'0' * 64}  {p}\n" for p in ("beets/a.py", "beets/b.py", "beets/util.py"))
 IMAGE = {"image": "idesense-bench-beets:p2", "id": "sha256:feed", "server_name": SERVER,
          "slots": {"beets": {"slot": "0000", "path": ROOT}}}
@@ -96,15 +102,20 @@ def write(path, text):
         f.write(text)
 
 
+def write_tracked(tmp, ch, record, key):
+    """The tracked question file and key file of a challenge, in `<tmp>/tracked/`."""
+    write(os.path.join(tmp, "tracked", "questions", key["question"] + ".md"),
+          challenges.prompt(ch, record, "{root}") + "\n")
+    write(os.path.join(tmp, "tracked", "keys", key["question"] + ".json"), json.dumps(key, indent=2) + "\n")
+
+
 class RunnerCase(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="runner-test-")
         self.addCleanup(shutil.rmtree, self.tmp)
         t = lambda *p: os.path.join(self.tmp, *p)
-        write(t("keys", "beets", "test.jsonl"), json.dumps(RECORD) + "\n")
+        write_tracked(self.tmp, CHALLENGE, RECORD, KEY)  # no key record file: the runner reads the tracked files
         write(t("trees", "beets.manifest"), MANIFEST)
-        self.set_file = t("set.jsonl")
-        write(self.set_file, json.dumps(CHALLENGE) + "\n")
         write(t("slots.json"), json.dumps({"beets": {"slot": "0000", "path": ROOT, "product": "beets"}}))
         write(t("images", "beets.json"), json.dumps(IMAGE))
         write(t("key"), FAKE_KEY + "\n")
@@ -123,8 +134,10 @@ class RunnerCase(unittest.TestCase):
             p = mock.patch.object(runner, name, value)
             p.start()
             self.addCleanup(p.stop)
-        for name, value in (("KEYS", t("keys")), ("TREES", t("trees"))):
-            p = mock.patch.object(challenges, name, value)
+        for module, name, value in ((challenges, "KEYS", t("keys")), (challenges, "TREES", t("trees")),
+                                    (trees, "TREES", t("trees")), (qfiles, "QUESTIONS", t("tracked", "questions")),
+                                    (qfiles, "KEYS", t("tracked", "keys"))):
+            p = mock.patch.object(module, name, value)
             p.start()
             self.addCleanup(p.stop)
         env = mock.patch.dict(os.environ, {"PATH": t("bin") + os.pathsep + os.environ.get("PATH", ""),
@@ -151,8 +164,7 @@ class RunnerCase(unittest.TestCase):
         return code, out.getvalue(), err.getvalue()
 
     def run_args(self, arm, *extra):
-        return ["run", "-set", self.set_file, "-challenge", CHALLENGE["id"], "-arm", arm, "-model", MODEL,
-                "-batch", "b1", *extra]
+        return ["run", "-question", KEY["question"], "-arm", arm, "-model", MODEL, "-batch", "b1", *extra]
 
     def start(self, arm, *extra, fixture="ok.jsonl", **fake):
         """One run with the fake docker; the exit code, the run.json record, stdout and stderr."""
@@ -302,8 +314,8 @@ class CommandTest(RunnerCase):
             code, _, err = self.main(*self.run_args(arm, *extra), "-dry-run")
             self.assertEqual(2, code, (arm, extra))
             self.assertIn(word, err)
-        code, _, err = self.main("run", "-set", self.set_file, "-challenge", CHALLENGE["id"], "-arm", "C",
-                                 "-model", "claude opus", "-batch", "b1", "-dry-run")
+        code, _, err = self.main("run", "-question", KEY["question"], "-arm", "C", "-model", "claude opus", "-batch",
+                                 "b1", "-dry-run")
         self.assertEqual(2, code)
 
     def test_run_id_has_the_probe_options(self):
@@ -336,20 +348,22 @@ class CaddyCase(RunnerCase):
     GO_RECORD = {"id": "go:example.com/demo.Helper", "lang": "go", "kind": "func", "name": "Helper", "container": "",
                  "decl": {"file": "demo/helper.go", "line": 3, "col": 6}, "implementers": [], "source": "go/types",
                  "sites": [{"file": "demo/use.go", "line": 7, "col": 2, "class": "required", "why": "use"}]}
+    GO_KEY = {**KEY, "question": "caddy-refs-helper", "old_ids": [GO_CHALLENGE["id"]], "product": "caddy",
+              "tree": "caddy", "lang": "go", "symbol": GO_RECORD["id"], "name": "Helper",
+              "answer": challenges.answer(GO_CHALLENGE, GO_RECORD), "key_file": "caddy/test.jsonl"}
 
     def caddy_args(self, arm):
         """The run options of a caddy challenge (a Go key record, a slot and an image of caddy)."""
         t = lambda *p: os.path.join(self.tmp, *p)
-        write(t("keys", "caddy", "test.jsonl"), json.dumps(self.GO_RECORD) + "\n")
         write(t("trees", "caddy", "demo", "helper.go"), "package demo\n")
+        write_tracked(self.tmp, self.GO_CHALLENGE, self.GO_RECORD, self.GO_KEY)
         write(t("slots.json"), json.dumps({"beets": {"slot": "0000", "path": ROOT, "product": "beets"},
                                            "caddy": {"slot": "0001", "path": self.GO_ROOT, "product": "caddy"}}))
         write(t("images", "caddy.json"), json.dumps({"image": "idesense-bench-caddy:p2", "id": "sha256:cafe",
                                                      "server_name": self.GO_SERVER,
                                                      "slots": {"caddy": {"slot": "0001", "path": self.GO_ROOT}}}))
-        write(t("set-caddy.jsonl"), json.dumps(self.GO_CHALLENGE) + "\n")
-        return runner._parser().parse_args(["run", "-set", t("set-caddy.jsonl"), "-challenge", self.GO_CHALLENGE["id"],
-                                            "-arm", arm, "-model", MODEL, "-batch", "b1"])
+        return runner._parser().parse_args(["run", "-question", self.GO_KEY["question"], "-arm", arm, "-model", MODEL,
+                                            "-batch", "b1"])
 
 
 class PfnTest(CaddyCase):
@@ -426,7 +440,7 @@ class PfnTest(CaddyCase):
 
 class AdditionsTest(RunnerCase):
     """Arms PFR and PFL: the prompt of arm PF, and a route with the additions of runner.ADDITIONS_FILE for the
-    challenge."""
+    question."""
     ROWS = [{"file": "beets/a.py", "line": 12, "column": 9, "preview": "item.label", "usageType": "REFERENCE",
              "enclosingScope": ["a", "run"]},
             {"file": "beets/b.py", "line": 3, "column": 5, "preview": "obj.label", "usageType": "REFERENCE",
@@ -441,10 +455,10 @@ class AdditionsTest(RunnerCase):
     def test_arm_with_no_form_has_no_additions_and_reads_no_file(self):
         os.unlink(runner.ADDITIONS_FILE)
         for arm in ("C", "P", "PS", "PF", "PFN"):
-            self.assertIsNone(runner.route_additions(CHALLENGE["id"], arm), arm)
+            self.assertIsNone(runner.route_additions(KEY, arm), arm)
 
     def test_PFR_rows_have_match_DYNAMIC(self):
-        got = runner.route_additions(CHALLENGE["id"], "PFR")
+        got = runner.route_additions(KEY, "PFR")
         self.assertEqual(["ide_find_usages"], list(got))
         add = got["ide_find_usages"]
         self.assertEqual(["known", "rows", "form", "field", "note"], list(add))
@@ -458,7 +472,7 @@ class AdditionsTest(RunnerCase):
         self.assertIs(add, proxy._addition({"additions": got}, runner.ADDITION_TOOL), "the proxy takes the addition")
 
     def test_PFL_rows_are_the_file_rows(self):
-        got = runner.route_additions(CHALLENGE["id"], "PFL")
+        got = runner.route_additions(KEY, "PFL")
         add = got["ide_find_usages"]
         self.assertEqual((self.KNOWN, self.ROWS, "field", "nameOnlyMatches"),
                          (add["known"], add["rows"], add["form"], add["field"]))
@@ -468,6 +482,16 @@ class AdditionsTest(RunnerCase):
                                                "type does not declare `label`, "), add["note"])
         self.assertEqual(runner.ADDITION_NOTES["field"].format(n=2, name="label"), add["note"])
         self.assertIs(add, proxy._addition({"additions": got}, runner.ADDITION_TOOL), "the proxy takes the addition")
+
+    def test_entry_is_the_entry_of_the_name_else_of_an_old_id(self):
+        key = {**KEY, "question": "beets-refs-new", "old_ids": ["beets-refs-old", CHALLENGE["id"]]}
+        self.assertEqual(self.ROWS, runner.route_additions(key, "PFL")["ide_find_usages"]["rows"], "an old id")
+        named = {**self.item, "rows": self.ROWS[:1]}
+        write(runner.ADDITIONS_FILE, json.dumps({CHALLENGE["id"]: self.item, "beets-refs-new": named}))
+        self.assertEqual(self.ROWS[:1], runner.route_additions(key, "PFL")["ide_find_usages"]["rows"], "the name")
+        with self.assertRaises(runner.SetupError) as e:
+            runner.route_additions({**key, "old_ids": ["beets-refs-old"], "question": "beets-refs-x"}, "PFR")
+        self.assertIn("'beets-refs-x'", str(e.exception))
 
     def test_bad_file_or_entry_is_a_setup_error(self):
         item = lambda **change: json.dumps({CHALLENGE["id"]: {**self.item, **change}})
@@ -491,7 +515,7 @@ class AdditionsTest(RunnerCase):
                     write(runner.ADDITIONS_FILE, text)
                 for arm in ("PFR", "PFL"):
                     with self.assertRaises(runner.SetupError) as e:
-                        runner.route_additions(CHALLENGE["id"], arm)
+                        runner.route_additions(KEY, arm)
                     self.assertIn(runner.ADDITIONS_FILE, str(e.exception))
         os.unlink(runner.ADDITIONS_FILE)
         code, _, _, err = self.start("PFR")
@@ -506,7 +530,7 @@ class AdditionsTest(RunnerCase):
         self.assertIsNone(runner.prepare(runner._parser().parse_args(self.run_args("PFN")))["additions"])
         for arm in ("PFR", "PFL"):
             run = runner.prepare(runner._parser().parse_args(self.run_args(arm)))
-            self.assertEqual(runner.route_additions(CHALLENGE["id"], arm), run["additions"], arm)
+            self.assertEqual(runner.route_additions(KEY, arm), run["additions"], arm)
             self.assertEqual((True, None), (run["plugin"], run["notes"]), arm)
             self.assertEqual(prompt_of(pf["cmd"]), prompt_of(run["cmd"]), arm)
             self.assertEqual("--mcp-config", run["cmd"][-2], arm)
@@ -518,8 +542,8 @@ class AdditionsTest(RunnerCase):
             self.assertEqual(f"{CHALLENGE['id']}__{arm}__{MODEL}__1", rec["id"])
         routes = [c["route"] for c in self.docker_calls() if "route" in c]
         self.assertEqual(3, len(routes))
-        self.assertEqual(runner.route_additions(CHALLENGE["id"], "PFR"), routes[0]["additions"])
-        self.assertEqual(runner.route_additions(CHALLENGE["id"], "PFL"), routes[1]["additions"])
+        self.assertEqual(runner.route_additions(KEY, "PFR"), routes[0]["additions"])
+        self.assertEqual(runner.route_additions(KEY, "PFL"), routes[1]["additions"])
         self.assertIsNone(routes[2]["additions"])
         self.assertEqual([None] * 3, [route["notes"] for route in routes])
         self.assertEqual({}, self.routes_now())
@@ -566,7 +590,7 @@ class PfgTest(RunnerCase):
         self.assertRegex(run["token"], "^[0-9a-f]{32}$")
         self.assertEqual("--mcp-config", run["cmd"][-2])
         self.assertIn(proxy.route_url(run["token"]), run["cmd"][-1])
-        self.assertIsNone(runner.route_additions(CHALLENGE["id"], "PFG"))
+        self.assertIsNone(runner.route_additions(KEY, "PFG"))
 
     def test_route_of_a_run_has_no_notes_and_no_additions(self):
         code, rec, _, err = self.start("PFG")
@@ -613,7 +637,7 @@ class PfiTest(CaddyCase):
             for run in (beets, caddy):
                 self.assertEqual((True, self.NOTES, None), (run["plugin"], run["notes"], run["additions"]), notes_file)
                 self.assertEqual("--mcp-config", run["cmd"][-2])
-        self.assertIsNone(runner.route_additions(CHALLENGE["id"], "PFI"))
+        self.assertIsNone(runner.route_additions(KEY, "PFI"))
 
     def test_route_of_a_run_has_the_note(self):
         code, rec, _, err = self.start("PFI")
@@ -670,7 +694,7 @@ class PfsTest(RunnerCase):
             run = runner.prepare(runner._parser().parse_args(self.run_args("PFS")))
         self.assertEqual((True, None, None), (run["plugin"], run["notes"], run["additions"]))
         self.assertEqual("--mcp-config", run["cmd"][-2])
-        self.assertIsNone(runner.route_additions(CHALLENGE["id"], "PFS"))
+        self.assertIsNone(runner.route_additions(KEY, "PFS"))
 
     def test_route_of_a_run_has_no_notes_and_no_additions(self):
         code, rec, _, err = self.start("PFS")
@@ -798,6 +822,27 @@ class KeyTest(RunnerCase):
 
 
 class RunTest(RunnerCase):
+    def test_run_reads_the_question_file(self):
+        question = os.path.join(qfiles.QUESTIONS, KEY["question"] + ".md")
+        write(question, "Find each use of `helper` below {root}.\n\n" + challenges.TAIL + "\n")
+        self.assertFalse(os.path.exists(challenges.KEYS), "no key record file of the data root")
+        self.assertEqual(f"Find each use of `helper` below {ROOT}.\n\n{challenges.TAIL}", prompt_of(self.dry("C")))
+        code, rec, _, err = self.start("C", fixture=self.c_ok())
+        self.assertEqual((0, "ok"), (code, rec["outcome"]), err)
+        def digest(path):
+            with open(path, "rb") as f:
+                return hashlib.sha256(f.read()).hexdigest()
+        self.assertEqual((KEY["question"], digest(question),
+                          digest(os.path.join(qfiles.KEYS, KEY["question"] + ".json"))),
+                         (rec["question"], rec["question_sha256"], rec["key_sha256"]))
+        self.assertNotIn("challenge", rec)
+        self.assertEqual(2, rec["score"]["tp"], "the score comes from the tracked key")
+        os.unlink(os.path.join(qfiles.KEYS, KEY["question"] + ".json"))
+        code, _, err = self.main(*self.run_args("C", "-n", "2"))
+        self.assertEqual(2, code)
+        self.assertIn(KEY["question"], err)
+        self.assertEqual(1, len(self.runs_of_docker()), "no run starts with no key")
+
     def test_result_event_gives_cost_turns_answer(self):
         code, rec, _, err = self.start("P")
         self.assertEqual(0, code, err)
@@ -954,7 +999,9 @@ class RunTest(RunnerCase):
 
     def test_busy_lock_starts_nothing(self):
         with lock.ide_lock("audit.symbols run /x/out"):
-            for argv in (self.run_args("P"), ["batch", "-plan", self.set_file, "-batch", "b1"]):
+            plan = os.path.join(self.tmp, "plan.jsonl")
+            write(plan, json.dumps({"question": KEY["question"], "model": MODEL, "arm": "P"}) + "\n")
+            for argv in (self.run_args("P"), ["batch", "-plan", plan, "-batch", "b1"]):
                 code, out, err = self.main(*argv)
                 self.assertEqual(2, code, argv)
                 self.assertIn("audit.symbols run /x/out", err)
@@ -1051,8 +1098,8 @@ class EnvScrubTest(RunnerCase):
         self.assertEqual(f"{CHALLENGE['id']}__C-scrub__{MODEL}__1", rec["id"])
         self.assertTrue(os.path.isdir(self.folder("C-scrub")))
         self.assertIn(self.SCRUB, env_values(self.runs_of_docker()[0]["argv"]))
-        args = runner.plan_args({"set": self.set_file, "challenge": CHALLENGE["id"], "model": MODEL, "arm": "PS",
-                                 "aid": "skill", "stop-after-tools": 5, "env-scrub": True}, "b1")
+        args = runner.plan_args({"question": KEY["question"], "model": MODEL, "arm": "PS", "aid": "skill",
+                                 "stop-after-tools": 5, "env-scrub": True}, "b1")
         self.assertTrue(args.env_scrub)
         self.assertEqual(f"{CHALLENGE['id']}__PS-skill-stop-5-scrub__{MODEL}__1", runner.run_id_of(args))
 
@@ -1063,7 +1110,7 @@ class EnvScrubTest(RunnerCase):
         self.assertEqual((0, False), (code, rec["env_scrub"]))
         self.assertEqual(f"{CHALLENGE['id']}__C__{MODEL}__1", rec["id"])
         self.assertNotIn("CLAUDE_CODE_SUBPROCESS_ENV_SCRUB", json.dumps(self.runs_of_docker()[0]["argv"]))
-        self.assertFalse(runner.plan_args({"set": "s", "challenge": "c", "model": "m", "arm": "C"}, "b1").env_scrub)
+        self.assertFalse(runner.plan_args({"question": "c", "model": "m", "arm": "C"}, "b1").env_scrub)
 
 
 class ApiErrorTest(RunnerCase):
@@ -1178,8 +1225,8 @@ class ParserTest(unittest.TestCase):
 class BatchTest(RunnerCase):
     def plan(self, *lines):
         path = os.path.join(self.tmp, "plan.jsonl")
-        write(path, "".join(json.dumps({"set": self.set_file, "challenge": CHALLENGE["id"], "model": MODEL, **line})
-                            + "\n" for line in lines))
+        write(path, "".join(json.dumps({"question": KEY["question"], "model": MODEL, **line}) + "\n"
+                            for line in lines))
         return path
 
     def fake_run(self, codes):
@@ -1335,12 +1382,12 @@ class BatchTest(RunnerCase):
         self.assertTrue(os.path.isdir(self.folder("C") + ".invalid-1"))
         self.assertTrue(os.path.exists(os.path.join(self.folder("C"), "run.json")))
 
-    def test_batch_order_keeps_challenge_and_model_together(self):
+    def test_batch_order_keeps_question_and_model_together(self):
         parse = lambda *a: runner._parser().parse_args(
-            ["run", "-set", "s", "-batch", "b", "-challenge", a[0], "-model", a[1], "-arm", a[2]])
+            ["run", "-batch", "b", "-question", a[0], "-model", a[1], "-arm", a[2]])
         runs = [parse(c, m, arm) for c in ("x", "y") for m in ("m1", "m2") for arm in ("C", "P", "PF")]
         order = runner.batch_order(runs, 1)
-        keys = [(a.challenge, a.model) for a in order]
+        keys = [(a.question, a.model) for a in order]
         self.assertEqual([("x", "m1")] * 3 + [("x", "m2")] * 3 + [("y", "m1")] * 3 + [("y", "m2")] * 3, keys)
         self.assertEqual([runner.run_id_of(a) for a in order],
                          [runner.run_id_of(a) for a in runner.batch_order(runs, 1)])

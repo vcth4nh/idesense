@@ -1,24 +1,29 @@
-"""One run of the agent benchmark: Claude Code in print mode in a product container answers one challenge.
+"""One run of the agent benchmark: Claude Code in print mode in a product container answers one question.
 
-    python3 -m bench.runner run -set <file> -challenge <id> -arm <C|P|PS|PF|PFN|PFR|PFL|PFG|PFI|PFS>
+    python3 -m bench.runner run -question <name> -arm <C|P|PS|PF|PFN|PFR|PFL|PFG|PFI|PFS>
         -model <model> -batch <name> [-aid skill|rule] [-variant instructions|no-tool-search|guide]
         [-stop-after-tools N] [-no-tools] [-env-scrub] [-n <run number>] [-plugin-version <text>] [-dry-run]
         (run from live-test)
     python3 -m bench.runner batch -plan <jsonl> -batch <name> [-jobs 2] [-seed 1] [-plugin-version <text>]
     python3 -m bench.runner handshake -product <caddy|beets>
 
+The question is the tracked pair of `qfiles`: the task text is `qfiles.load_question(<name>)` with `{root}`
+replaced by the root of the run, and the key is `qfiles.load_key(<name>)`. The runner reads no set file and no key
+file of the data root.
+
 Arms: `C` has no MCP server. `P` has the MCP server of the IDE of the product, through a route of the filter
 proxy (`bench.proxy`). `PS` is `P` with an aid (`-aid skill` or `-aid rule`, installed by the entry script of
 the image). `PF` is `P` with the sentence PF_SENTENCE as its own paragraph before the answer paragraph of the
 prompt. `PFN` is `PF`, and its route has the notes of NOTES_FILE for the language of the product (LANGS): the
 proxy appends the note of a tool to the `notes` of each result of that tool. `PFR` and `PFL` are `PF`, and their
-route has the additions of the challenge (`route_additions`): the proxy adds the name-only rows of ADDITIONS_FILE to
+route has the additions of the question (`route_additions`): the proxy adds the name-only rows of ADDITIONS_FILE to
 a result of ADDITION_TOOL for the target declaration, and appends the note ADDITION_NOTES of the form. `PFR`
 (form `rows`) adds them to `usages`, each with `"match": "DYNAMIC"`. `PFL` (form `field`) puts them in the list
-ADDITION_FIELD, and `usages` stays. ADDITIONS_FILE is `{"<challenge id>": {"name": "<attribute name>", "known":
-[[file, line], ...], "rows": [<row object>, ...]}}`. `known` holds the positions of the rows that the IDE gives for
+ADDITION_FIELD, and `usages` stays. ADDITIONS_FILE is `{"<question name or old id>": {"name": "<attribute name>",
+"known": [[file, line], ...], "rows": [<row object>, ...]}}`: the entry of a question is the entry of its name, else
+the entry of the first of its `old_ids` that has one. `known` holds the positions of the rows that the IDE gives for
 the target declaration. A row object has `file`, `line`, `column`, `preview`, `usageType` and `enclosingScope`, and
-never `match`. With no usable entry for the challenge, a `PFR` or `PFL` run does not start. `PFG` is `PF` with
+never `match`. With no usable entry for the question, a `PFR` or `PFL` run does not start. `PFG` is `PF` with
 PFG_SENTENCE after PF_SENTENCE in the same paragraph, and its route has no notes and no additions. `PFI` is `PF`, and
 its route has the note PFG_SENTENCE for ADDITION_TOOL, with no read of NOTES_FILE and no additions. `PFS` is `PF`
 with PFS_SENTENCE after PF_SENTENCE in the same paragraph, and its route has no notes and no additions. `-no-tools`
@@ -39,12 +44,13 @@ arm adds `--mcp-config {"mcpServers": {"<server name>": {"type": "http", "url": 
 (`proxy.add_route`) has the run, the IDE URL as upstream, the root as project, the instructions, the notes and the
 additions of the run. `-dry-run` prints this command as a JSON list, and on stderr one line with the run id, the
 arm, the tools of the route notes, and the form and the row count of the route additions. It does nothing else; it
-does not read the key.
+does not read the API key.
 
-Run id `<challenge>__<arm>[-<aid>][-<variant>][-no-tools][-stop-<N>][-scrub]__<model>__<n>`, run folder
+Run id `<question>__<arm>[-<aid>][-<variant>][-no-tools][-stop-<N>][-scrub]__<model>__<n>`, run folder
 `RUNS/<batch>/<run id>/` with `transcript.jsonl` (the stdout of the container), `stderr.txt`, `proxy.jsonl` (the
-proxy log lines of the route of the run; empty for arm C) and `run.json` (RUN_FIELDS). `run.json` comes last: a
-folder with `run.json` holds a finished run, and `run` refuses it.
+proxy log lines of the route of the run; empty for arm C) and `run.json` (RUN_FIELDS). `run.json` names the question
+(`question`) and holds the SHA-256 of its question file and its key file (`question_sha256`, `key_sha256`).
+`run.json` comes last: a folder with `run.json` holds a finished run, and `run` refuses it.
 
 A single `run` (not `-dry-run`) and `batch` hold the lock of the benchmark IDEs (`common.lock.ide_lock`) while they
 run; `batch` takes it one time for all its runs. When another holder has the lock, they print its message and exit 2,
@@ -80,8 +86,9 @@ DOCKER_ERRORS with no result event, or an exception of the runner); else `ok`. T
 `api_error`: the exception of the runner, else `<subtype> / <terminal_reason> / <api_error_status>: <the first
 RESULT_TEXT characters of the result text>` (`-` for a missing part), else (no result event) the docker exit code.
 The answer is read only from a result event with the subtype `success` and
-`is_error` false: `challenges.parse_sites(structured_output, root)`; `answer` is the sorted site list, `invalid` the
-entries that cannot be read, and `score` is `challenges.score_answer`.
+`is_error` false: `score.parse_sites(structured_output, root)`; `answer` is the sorted site list, `invalid` the
+entries that cannot be read, and `score` is `score.score` with the key and the files of the master manifest of the
+tree (`qfiles.tree_files`).
 
 The transcript parser (`parse_transcript`) reads the stream-json events of Claude Code: of a `result` event (the last
 one) `subtype`, `is_error`, `terminal_reason`, `total_cost_usd`, `num_turns`, `usage`, `modelUsage` and
@@ -96,11 +103,11 @@ when no run starts, 9 for a key leak, and
 3: the API refused or failed; the run is no measurement (the outcome `api_error`; `run.json` is written).
 
 `batch`: each plan line is a JSON object with the options of `run` without the dash, for example
-`{"set": "<file>", "challenge": "caddy-refs-CA", "arm": "PS", "aid": "skill", "model": "claude-opus-5-5", "n": 1}`
+`{"question": "caddy-refs-ca", "arm": "PS", "aid": "skill", "model": "claude-opus-5-5", "n": 1}`
 (a flag option has the value true; no `batch`, `dry-run` or `plugin-version`). Each run of the batch gets the option
 `-plugin-version` of the batch. With no option, `batch` reads the version of the IDE of each product one time before
 its first run (`ide_version`), and each run of the product gets it as its expected version; an IDE that gives no
-version exits 2 before the first run. The runs of one challenge and one model are neighbours, in a random order
+version exits 2 before the first run. The runs of one question and one model are neighbours, in a random order
 (`-seed`); the groups keep the order of their first plan line. A run whose folder has `run.json` is skipped, except
 a record with the outcome `api_error` that a single `run` left: that folder moves to `<run id>.api-error-<k>/`. A run
 with the outcome `invalid` moves to `<run id>.invalid-<k>/` and runs again one time (a second `invalid` run stays). A
@@ -118,6 +125,7 @@ the output and the proxy log lines of the route, and exits 0 when the log has an
 import argparse
 import collections
 import datetime
+import hashlib
 import http.client
 import json
 import os
@@ -130,7 +138,7 @@ import threading
 import time
 import urllib.parse
 
-from bench import proxy
+from bench import proxy, qfiles, score
 from bench import sets as challenges
 from common import mcp, settings, trees
 from common.lock import Busy, ide_lock
@@ -182,14 +190,14 @@ INSTRUCTIONS = ("This server gives the code analysis of a JetBrains IDE for the 
                 "from the IDE index and resolve names by their meaning, not by their text.")
 GUIDE_INSTRUCTIONS = "Use the tools of this server for code navigation in the open project. " + PFG_SENTENCE
 LEAK_WORDS = (os.path.basename(trees.BENCH), "-plant-", "BENCH_", settings.repo_root() + "/")
-RUN_FIELDS = ("id", "challenge", "arm", "aid", "variant", "no_tools", "stop_after_tools", "env_scrub", "model", "n",
-              "image_id", "started", "seconds", "plugin_version_start", "plugin_version_end", "outcome", "reason",
-              "exit_code", "cost_usd", "turns", "usage", "model_usage", "tools", "first_tools", "mcp_calls",
-              "mcp_status", "answer", "invalid", "score", "leak_words")
+RUN_FIELDS = ("id", "question", "question_sha256", "key_sha256", "arm", "aid", "variant", "no_tools",
+              "stop_after_tools", "env_scrub", "model", "n", "image_id", "started", "seconds", "plugin_version_start",
+              "plugin_version_end", "outcome", "reason", "exit_code", "cost_usd", "turns", "usage", "model_usage",
+              "tools", "first_tools", "mcp_calls", "mcp_status", "answer", "invalid", "score", "leak_words")
 # The fields of run.json after a key leak: metadata, cost and turns. Each other field is null.
-KEPT_AFTER_LEAK = ("id", "challenge", "arm", "aid", "variant", "no_tools", "stop_after_tools", "env_scrub", "model",
-                   "n", "image_id", "started", "seconds", "plugin_version_start", "plugin_version_end", "exit_code",
-                   "cost_usd", "turns", "leak_words")
+KEPT_AFTER_LEAK = ("id", "question", "question_sha256", "key_sha256", "arm", "aid", "variant", "no_tools",
+                   "stop_after_tools", "env_scrub", "model", "n", "image_id", "started", "seconds",
+                   "plugin_version_start", "plugin_version_end", "exit_code", "cost_usd", "turns", "leak_words")
 # The status of a connected MCP server in `mcp_servers` of the init event (agent-sdk/mcp.md, "Error handling").
 CONNECTED = "connected"
 # Outcomes that the MCP server check does not change (the IDE check at the end does not change `api_error`).
@@ -360,7 +368,7 @@ def run_id_of(args) -> str:
                    + (["no-tools"] if args.no_tools else [])
                    + ([f"stop-{args.stop_after_tools}"] if args.stop_after_tools else [])
                    + (["scrub"] if args.env_scrub else []))
-    return f"{args.challenge}__{arm}__{args.model}__{args.n}"
+    return f"{args.question}__{arm}__{args.model}__{args.n}"
 
 
 def _check_args(args) -> None:
@@ -419,7 +427,7 @@ def route_notes(product: str) -> dict:
 
 
 def _addition_problem(item) -> str | None:
-    """Why the entry of a challenge in ADDITIONS_FILE is not usable, or None."""
+    """Why the entry of a question in ADDITIONS_FILE is not usable, or None."""
     if not isinstance(item, dict):
         return "no entry object"
     if not isinstance(item.get("name"), str) or not item["name"]:
@@ -434,9 +442,10 @@ def _addition_problem(item) -> str | None:
     return None
 
 
-def route_additions(challenge_id: str, arm: str) -> dict | None:
+def route_additions(key: dict, arm: str) -> dict | None:
     """The additions of the route of a run (module text): {ADDITION_TOOL: addition} for an arm of ADDITION_FORMS,
-    None for another arm (with no read of ADDITIONS_FILE)."""
+    None for another arm (with no read of ADDITIONS_FILE). The entry is the entry of the name of the question
+    (`key["question"]`), else of the first of its `old_ids` that has an entry."""
     form = ADDITION_FORMS.get(arm)
     if form is None:
         return None
@@ -445,10 +454,11 @@ def route_additions(challenge_id: str, arm: str) -> dict | None:
             items = json.load(f)
     except (OSError, ValueError) as e:
         raise SetupError(f"{ADDITIONS_FILE}: no addition file ({type(e).__name__}: {e})") from None
-    item = items.get(challenge_id) if isinstance(items, dict) else None
+    ids = [key["question"], *key["old_ids"]]
+    item = next((items[i] for i in ids if i in items), None) if isinstance(items, dict) else None
     problem = _addition_problem(item)
     if problem:
-        raise SetupError(f"{ADDITIONS_FILE}: the entry of the challenge {challenge_id!r} is not usable: {problem}")
+        raise SetupError(f"{ADDITIONS_FILE}: the entry of the question {key['question']!r} is not usable: {problem}")
     rows = [{**row, "match": "DYNAMIC"} for row in item["rows"]] if form == "rows" else item["rows"]
     note = ADDITION_NOTES[form].format(n=len(rows), name=item["name"])
     return {ADDITION_TOOL: {"known": item["known"], "rows": rows, "form": form, "field": ADDITION_FIELD,
@@ -465,15 +475,20 @@ def pf_prompt(text: str, server: str, after: str | None = None) -> str:
     return f"{head}\n\n{paragraph}\n\n{tail}"
 
 
+def _sha256(path: str) -> str:
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
+
+
 def prepare(args) -> dict:
-    """The parts of a run: challenge, key record, slot, image, prompt, route token and the docker command."""
+    """The parts of a run: the key of the question, the digests of its two files, slot, image, prompt, route token
+    and the docker command."""
     _check_args(args)
-    matches = [ch for ch in challenges.load(args.set) if ch["id"] == args.challenge]
-    if len(matches) != 1:
-        raise SetupError(f"{args.set}: {len(matches)} challenges with the id {args.challenge!r}")
-    ch = matches[0]
-    record = challenges.record_of(ch)
-    product, tree = ch["product"], ch["tree"]
+    key = qfiles.load_key(args.question, qfiles.KEYS)
+    question = qfiles.load_question(args.question, qfiles.QUESTIONS)
+    digests = {"question_sha256": _sha256(os.path.join(qfiles.QUESTIONS, args.question + ".md")),
+               "key_sha256": _sha256(os.path.join(qfiles.KEYS, args.question + ".json"))}
+    product, tree = key["product"], key["tree"]
     if product not in IDE_URLS:
         raise SetupError(f"no benchmark IDE for the product {product!r}")
     slot = trees.load_slots(SLOTS_FILE).get(tree)
@@ -481,13 +496,13 @@ def prepare(args) -> dict:
         raise SetupError(f"{SLOTS_FILE}: no slot for the tree {tree!r}")
     image = load_image(product)
     server, root = image["server_name"], slot["path"]
-    text = challenges.prompt(ch, record, root)
+    text = question.replace("{root}", root)
     if args.arm in PF_ARMS:
         text = pf_prompt(text, server, {"PFG": PFG_SENTENCE, "PFS": PFS_SENTENCE}.get(args.arm))
     notes = route_notes(product) if args.arm == "PFN" else None
     if args.arm == "PFI":
         notes = {ADDITION_TOOL: PFG_SENTENCE}
-    additions = route_additions(ch["id"], args.arm)
+    additions = route_additions(key, args.arm)
     plugin = args.arm in PLUGIN_ARMS
     token = proxy.new_token() if plugin else None
     name = "run-" + secrets.token_hex(6)
@@ -497,14 +512,14 @@ def prepare(args) -> dict:
     if args.env_scrub:
         env += ["-e", "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1"]
     cmd = ["docker", "run", *CONTAINER_FLAGS, "--name", name, *env, image["id"],
-           *claude_flags(text, args.model, challenges.schema(ch))]
+           *claude_flags(text, args.model, challenges.schema(key))]
     if plugin:
         config = {"mcpServers": {server: {"type": "http", "url": proxy.route_url(token)}}}
         cmd += ["--mcp-config", json.dumps(config, separators=(",", ":"))]
     if args.no_tools:
         cmd += ["--tools", ""]
     run_id = run_id_of(args)
-    return {"run_id": run_id, "folder": os.path.join(RUNS, args.batch, run_id), "ch": ch, "record": record,
+    return {"run_id": run_id, "folder": os.path.join(RUNS, args.batch, run_id), "key": key, **digests,
             "product": product, "tree": tree, "slot": slot, "root": root, "image": image, "server": server,
             "plugin": plugin, "token": token, "notes": notes, "additions": additions, "name": name, "cmd": cmd,
             "image_problem": image_problem(image, tree, slot)}
@@ -645,7 +660,7 @@ def _answer(result: dict | None, root: str):
     if not result or result.get("subtype") != "success" or result.get("is_error") is True:
         return None
     try:
-        return challenges.parse_sites(result.get("structured_output"), root)
+        return score.parse_sites(result.get("structured_output"), root)
     except ValueError:
         return None
 
@@ -664,7 +679,7 @@ def run_one(args) -> tuple[int, dict | None]:
     try:
         run = prepare(args)
     except (SetupError, OSError, ValueError, KeyError) as e:
-        print(f"runner: {args.challenge}: {type(e).__name__}: {e}", file=sys.stderr)
+        print(f"runner: {args.question}: {type(e).__name__}: {e}", file=sys.stderr)
         return 2, None
     if args.dry_run:
         if run["image_problem"]:
@@ -693,7 +708,8 @@ def run_one(args) -> tuple[int, dict | None]:
     os.makedirs(folder, exist_ok=True)
     files = {name: os.path.join(folder, name) for name in RUN_FILES}
     rec = dict.fromkeys(RUN_FIELDS)
-    rec.update(id=run_id, challenge=run["ch"]["id"], arm=args.arm, aid=args.aid, variant=args.variant,
+    rec.update(id=run_id, question=args.question, question_sha256=run["question_sha256"],
+               key_sha256=run["key_sha256"], arm=args.arm, aid=args.aid, variant=args.variant,
                no_tools=args.no_tools, stop_after_tools=args.stop_after_tools, env_scrub=args.env_scrub,
                model=args.model, n=args.n, image_id=run["image"]["id"])
     ide_url, root = IDE_URLS[run["product"]], run["root"]
@@ -744,7 +760,7 @@ def run_one(args) -> tuple[int, dict | None]:
     if answer is not None:
         sites, invalid = answer
         rec.update(answer=[f"{p}:{n}" for p, n in sorted(sites)], invalid=invalid,
-                   score=challenges.score_answer(run["ch"], run["record"], sites, invalid))
+                   score=score.score(run["key"], sites, qfiles.tree_files(run["tree"]), invalid))
     rec["outcome"] = "error" if error else outcome_of(ended, exit_code, parsed["result"], answer is not None)
     rec["reason"] = error or (result_reason(parsed["result"], exit_code)
                               if rec["outcome"] in ("error", "api_error") else None)
@@ -799,11 +815,11 @@ def plan_args(line: dict, batch: str) -> argparse.Namespace:
 
 
 def batch_order(runs: list, seed: int) -> list:
-    """The runs of one challenge and one model as neighbours, in a random order; the groups in the order of their
+    """The runs of one question and one model as neighbours, in a random order; the groups in the order of their
     first run."""
     groups: dict[tuple, list] = {}
     for a in runs:
-        groups.setdefault((a.challenge, a.model), []).append(a)
+        groups.setdefault((a.question, a.model), []).append(a)
     rng = random.Random(seed)
     out = []
     for group in groups.values():
@@ -846,13 +862,12 @@ def _finished(folder: str) -> bool:
 
 
 def _product_of(args) -> str | None:
-    """The product of the challenge of a run; None when the set has no single challenge with its id (then `prepare`
-    refuses the run)."""
+    """The product of the question of a run; None when the question has no readable key (then `prepare` refuses the
+    run)."""
     try:
-        found = [ch["product"] for ch in challenges.load(args.set) if ch["id"] == args.challenge]
-    except (OSError, ValueError, TypeError):
+        return qfiles.load_key(args.question, qfiles.KEYS)["product"]
+    except (OSError, ValueError, KeyError, TypeError):
         return None
-    return found[0] if len(found) == 1 else None
 
 
 def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_version: str | None = None) -> int:
@@ -984,8 +999,7 @@ def _parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser("run", help="one run", allow_abbrev=False, epilog=EXIT_CODES_RUN,
                          formatter_class=argparse.RawDescriptionHelpFormatter)
-    run.add_argument("-set", required=True, help="challenge set (JSONL)")
-    run.add_argument("-challenge", required=True)
+    run.add_argument("-question", required=True, help="the name of a tracked question (bench/questions/<name>.md)")
     run.add_argument("-arm", required=True, choices=ARMS)
     run.add_argument("-model", required=True)
     run.add_argument("-batch", required=True, help="the folder below RUNS")
