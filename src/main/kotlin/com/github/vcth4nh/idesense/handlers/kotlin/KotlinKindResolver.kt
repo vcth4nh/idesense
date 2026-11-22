@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtClass
 import org.jetbrains.kotlin.psi.KtConstructor
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
+import org.jetbrains.kotlin.psi.KtTypeAlias
 
 class KotlinKindResolver : LanguageKindResolver {
     override fun resolveKind(element: PsiElement): String? {
@@ -24,6 +25,7 @@ class KotlinKindResolver : LanguageKindResolver {
             }
         }
         if (element is KtObjectDeclaration) return "OBJECT"
+        if (element is KtTypeAlias) return "TYPE_ALIAS"
         return null
     }
 }

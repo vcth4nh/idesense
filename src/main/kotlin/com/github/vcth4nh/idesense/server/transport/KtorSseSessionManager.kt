@@ -1,5 +1,6 @@
 package com.github.vcth4nh.idesense.server.transport
 
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.intellij.openapi.diagnostic.logger
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
@@ -143,6 +144,7 @@ class KtorSseSession(val sessionId: String) {
             LOG.warn("Channel closed while sending event to session $sessionId")
             false
         } catch (e: Exception) {
+            rethrowIfCancellation(e)
             LOG.error("Failed to send SSE event to session $sessionId", e)
             false
         }
