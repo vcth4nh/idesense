@@ -1,0 +1,4 @@
+{"id":"file-structure-actions.js","tool":"ide_file_structure","params":{"file":"django/contrib/admin/static/admin/js/actions.js"}}
+{"id":"file-structure-admin_views.tests.py","tool":"ide_file_structure","params":{"file":"tests/admin_views/tests.py"},"compare":"shape"}
+{"id":"file-structure-auth.0001_initial.py","tool":"ide_file_structure","params":{"file":"django/contrib/auth/migrations/0001_initial.py"}}
+{"id":"file-structure-duration.py","tool":"ide_file_structure","params":{"file":"django/utils/duration.py"}}

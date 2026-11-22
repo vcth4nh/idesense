@@ -1,0 +1,3 @@
+{"id":"super-AddField.database_forwards","tool":"ide_find_super_methods","params":{"column":9,"file":"django/db/migrations/operations/fields.py","line":111}}
+{"id":"super-Field.get_internal_type-negative","tool":"ide_find_super_methods","params":{"column":9,"file":"django/db/models/fields/__init__.py","line":1023}}
+{"id":"super-PositiveBigIntegerField.get_internal_type","tool":"ide_find_super_methods","params":{"column":9,"file":"django/db/models/fields/__init__.py","line":2445}}

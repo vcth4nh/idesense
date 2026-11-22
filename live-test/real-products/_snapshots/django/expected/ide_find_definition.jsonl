@@ -1,0 +1,6 @@
+{"id":"canary-def-sync_to_async-into-dependency","result":{"column":5,"enclosingScope":null,"file":".venv/lib/python3.12/site-packages/asgiref/sync.py","kind":"FUNCTION","line":645,"name":"sync_to_async","qualifiedName":"asgiref.sync.sync_to_async"}}
+{"id":"def-Q-via-reexport","result":{"column":7,"enclosingScope":null,"file":"django/db/models/query_utils.py","kind":"CLASS","line":41,"name":"Q","qualifiedName":"django.db.models.query_utils.Q"}}
+{"id":"def-len-builtin","result":{"enclosingScope":null,"file":"builtins.pyi","kind":"FUNCTION","name":"len","qualifiedName":"builtins.len"}}
+{"id":"def-objects-dynamic-manager","result":{"error":"tool_error","message":"Could not resolve symbol definition"}}
+{"id":"def-punycode-cross-file","result":{"column":5,"enclosingScope":null,"file":"django/utils/encoding.py","kind":"FUNCTION","line":208,"name":"punycode","qualifiedName":"django.utils.encoding.punycode"}}
+{"id":"def-split-into-dependency","result":{"column":5,"enclosingScope":null,"file":".venv/lib/python3.12/site-packages/sqlparse/__init__.py","kind":"FUNCTION","line":63,"name":"split","qualifiedName":"sqlparse.split"}}

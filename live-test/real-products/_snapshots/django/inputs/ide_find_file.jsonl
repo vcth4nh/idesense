@@ -1,0 +1,5 @@
+{"id":"find-file-jquery.js","tool":"ide_find_file","params":{"query":"jquery.js"}}
+{"id":"find-file-models.py-paged","tool":"ide_find_file","params":{"pageSize":10,"query":"models.py"},"compare":"shape"}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-query.py","tool":"ide_find_file","params":{"query":"query.py"}}
+{"id":"find-file-query_utils.py","tool":"ide_find_file","params":{"query":"query_utils.py"}}
