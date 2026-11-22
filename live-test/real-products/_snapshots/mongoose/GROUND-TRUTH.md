@@ -30,19 +30,23 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   reference search gives them is not established. The nine `DYNAMIC` rows in Markdown prose are
   the group "Dynamic usages" of WebStorm (8 lines; `docs/documents.md:19` has two usages). The
   row is parked with #186 for its other rows (see "Parked rows").
-- **mongoose: `file-structure-connection.js` differs in a WebStorm with a window.** In 2 of 2
-  calls on a WebStorm 2026.3 started with a window (two processes), the outline had 706 lines and
-  not the usual 158: each node `<anonymous>(err): never (line 1083)` held a second copy of the
-  members of `Connection`, and the top-level node `set(val): void (line 133)` held one more copy.
-  The File Structure popup of the same process showed no copy. The fleet WebStorm
-  (`serverMode`) gave 158 lines in 10 calls in three IDE sessions. The observation is in a
-  comment of #177. The expected row holds the tree with 158 lines.
+- **mongoose: `file-structure-connection.js` has two results (#177).** The outline of
+  `lib/connection.js` has 158 lines in some IDE sessions and 706 lines in others. In the tree
+  with 706 lines, each node `<anonymous>(err): never (line 1083)` holds a second copy of the
+  members of `Connection`, and the top-level node `set(val): void (line 133)` holds one more
+  copy. The File Structure popup of WebStorm shows no copy. Seen: 158 lines in each call of
+  five IDE sessions of the fleet WebStorm (`serverMode`), 706 lines in each call of two later
+  sessions of the same IDE, and 706 lines in two WebStorm processes with a window. The trees
+  with 706 lines are equal. Inside one IDE session the result did not change. The
+  observations are in two comments of #177, and the row is parked (see "Parked rows").
 - **mongoose: instruction files in the checkout.** The checkout has its own instruction file for
   agents, `.github/instructions/type-tests.instructions.md` (see "Product checkouts" in
   [AGENTS.md](../../../AGENTS.md)).
 
 ## Parked rows
 
+- `file-structure-connection.js` (#177): the outline of `lib/connection.js` has 158 lines in
+  some IDE sessions and 706 lines, with copies of the members of `Connection`, in others.
 - `usage-Document-d.ts-ts-to-js` (#186): 16 usages in code fences of Markdown files have the
   path `/<file name>.md` and a line of the fence. The three imports of
   `docs/typescript/populate.md` (lines 6, 34 and 66) become one usage.
