@@ -238,6 +238,9 @@ The measured times of each product are in `_setup/<folder>/notes.md`.
    itself. Record the times and the memory in `_setup/<folder>/notes.md`. A product that the
    IDE imports with Gradle needs one restart with `ide_restart` after its first sync: see
    "Kotlin rows fail after an IDE restart with empty results" in "Troubleshooting".
+   A product that tracks `.idea/gradle.xml` with a named Gradle JVM needs a JDK with that name
+   in the JDK table of the IDE before its first open, or the first sync fails and the product
+   has no module: see `_setup/ideavim/notes.md`.
 6. **Canary rows.** Add the rows with the id prefix `canary-` that pin the project model (see
    "Canary rows" in CONVENTIONS.md).
 7. **Sweep.** Draft the probe rows, run them, and give each row a class: OK, EMPTY, ERROR or
