@@ -1,0 +1,14 @@
+// Init script of bootstrap.sh: one task in each project that resolves the classpaths that the
+// IntelliJ Gradle sync reads (compile and runtime classpath of each source set, and the Kotlin
+// compiler plugins). It changes no file of the product.
+allprojects {
+    tasks.register("resolveDependenciesForIde") {
+        def wanted = project.configurations.matching { c ->
+            c.canBeResolved && (c.name ==~ /(.*C|c)ompileClasspath|(.*R|r)untimeClasspath|kotlinCompilerPluginClasspath.*/)
+        }
+        doLast {
+            wanted.each { c -> c.resolve() }
+            println "${project.path}: ${wanted.size()} configurations"
+        }
+    }
+}

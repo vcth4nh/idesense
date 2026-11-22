@@ -1,0 +1,8 @@
+{"id":"usage-Database.registerJdbcDriver-empty","tool":"ide_find_usages","params":{"column":13,"file":"exposed-jdbc/src/main/kotlin/org/jetbrains/exposed/v1/jdbc/Database.kt","line":159,"pageSize":100}}
+{"id":"usage-ExposedSQLException.getErrorCode-base-java","tool":"ide_find_usages","params":{"column":18,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/Exceptions.kt","line":42,"pageSize":100}}
+{"id":"usage-LoggerFactory.getLogger-from-kotlin","tool":"ide_find_usages","params":{"column":35,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/SQLLog.kt","line":17,"pageSize":100}}
+{"id":"usage-SchemaUtils-bysymbol","tool":"ide_find_usages","params":{"pageSize":25,"symbol":"SchemaUtils"}}
+{"id":"usage-exposedLogger-production-scope","tool":"ide_find_usages","params":{"column":5,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/SQLLog.kt","line":17,"pageSize":200,"scope":"project_production_files"}}
+{"id":"usage-exposedLogger-test-scope","tool":"ide_find_usages","params":{"column":5,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/SQLLog.kt","line":17,"pageSize":200,"scope":"project_test_files"}}
+{"id":"usage-transaction-page1","tool":"ide_find_usages","params":{"column":9,"file":"exposed-jdbc/src/main/kotlin/org/jetbrains/exposed/v1/jdbc/transactions/Transactions.kt","line":131,"pageSize":100},"compare":"shape"}
+{"id":"usage-transaction-page2","tool":"ide_find_usages","params":{"pageSize":100},"compare":"shape","cursorFrom":"usage-transaction-page1"}
