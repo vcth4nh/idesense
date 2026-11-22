@@ -5,6 +5,7 @@
     python3 -m keygen.callkeys targets -keys <keys.jsonl> -ids <id,...|@file> -out <targets.json>
     python3 -m keygen.callkeys tracecheck -keys <keys.jsonl> -calls <calls.jsonl> -trace <trace.jsonl>
         -ids <id,...|@file>
+    python3 -m keygen.callkeys dyntargets -calls <calls.jsonl> -symbols <symbols.jsonl> -out <targets.json>
     python3 -m keygen.callkeys dynmake -calls <calls.jsonl> -symbols <symbols.jsonl> -targets <targets.json>
         -trace <trace.jsonl> -root <folder of the copy> -out <keys.jsonl>
 
@@ -95,6 +96,12 @@ runner); else `key` when G is a caller of F; else `outside` (also a line in no f
 each traced function (`decl`, level, the count of each verdict, how many of its callers the `key` sites reached),
 the totals with the count of the trace lines of other ids, then each `outside` site. Exit code 1 when a site is
 `outside`, or when a function with callers has an `external` site; else 0.
+
+dyntargets: the targets file of `gokeys trace` and `dynmake`. `-calls` must be a Go calls file, and `-symbols` is
+the key file of `gokeys extract` for the same tree. One entry `{"id": "<file>:<line>", "file", "line"}` with the
+`decl` line (the id form of `targets`) for each record of kind `method` whose open causes (`open_causes`) are
+exactly `interface`: the ELIGIBLE targets of `dynmake`. The entries have the order of calls.jsonl. The file is
+written as `targets` writes it.
 
 dynmake: the caller keys of one level of the Go methods that a caller can reach through an interface value. The
 sources are the static calls, the call sites of the interface methods and a run-time trace. `-calls` must be a Go
@@ -640,6 +647,15 @@ def _holder(spans: dict, file: str, line: int) -> tuple | None:
     return min(holders)[1] if holders else None
 
 
+def dyn_target_list(calls: list[dict], symbols: list[dict]) -> list[dict]:
+    """The entries of `dyntargets` (see the module text), in the order of `calls`."""
+    if sorted({r["lang"] for r in calls}) != ["go"]:
+        raise CallKeysError("dyntargets needs a Go calls file (gokeys calls)")
+    causes = open_causes(calls, symbols)
+    return [{"id": f"{r['decl']['file']}:{r['decl']['line']}", "file": r["decl"]["file"], "line": r["decl"]["line"]}
+            for r in calls if r["kind"] == "method" and causes[_key(r["decl"])] == [INTERFACE]]
+
+
 def _dyn_targets(targets: list[dict], calls: list[dict]) -> dict[str, tuple]:
     """The decl of the record of each target, by the target id: the one record whose decl has its file and line."""
     by_line = collections.defaultdict(list)
@@ -810,6 +826,12 @@ def _dyn_lines(stats: dict, breaks: list[tuple]) -> list[str]:
 # ---- the commands
 
 
+def _write_targets(path: str, targets: list[dict]) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(targets, f, indent=1)
+        f.write("\n")
+
+
 def _distribution(counter: collections.Counter) -> str:
     return ", ".join(f"{n}: {counter[n]}" for n in sorted(counter)) or "none"
 
@@ -835,6 +857,11 @@ def main(argv: list[str]) -> int:
     tc.add_argument("-calls", required=True, help="the calls file of the keys")
     tc.add_argument("-trace", required=True, help="the trace file of trace_plugin")
     tc.add_argument("-ids", required=True, help="comma-separated key ids, or @<file>")
+    dt = commands.add_parser("dyntargets", help="the targets file of gokeys trace: the Go methods whose only open "
+                                                "cause is interface")
+    dt.add_argument("-calls", required=True, help="calls.jsonl of gokeys calls")
+    dt.add_argument("-symbols", required=True, help="the key file of gokeys extract for the same tree")
+    dt.add_argument("-out", required=True, help="targets.json")
     dm = commands.add_parser("dynmake", help="the caller keys of Go methods through an interface value, from a "
                                              "trace of gokeys trace")
     dm.add_argument("-calls", required=True, help="calls.jsonl of gokeys calls")
@@ -866,10 +893,12 @@ def main(argv: list[str]) -> int:
             print(f'levels["2"]: {_distribution(stats["level2"])}')
         elif args.command == "targets":
             targets = trace_targets(keys.load_keys(args.keys), _ids(args.ids))
-            with open(args.out, "w", encoding="utf-8") as f:
-                json.dump(targets, f, indent=1)
-                f.write("\n")
+            _write_targets(args.out, targets)
             print(f"targets: {len(targets)} functions in {args.out}")
+        elif args.command == "dyntargets":
+            targets = dyn_target_list(keys.load_keys(args.calls), keys.load_keys(args.symbols))
+            _write_targets(args.out, targets)
+            print(f"dyntargets: {len(targets)} methods in {args.out}")
         elif args.command == "dynmake":
             with open(args.targets, encoding="utf-8") as f:
                 targets = json.load(f)

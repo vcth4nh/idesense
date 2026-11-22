@@ -106,6 +106,13 @@ compiler fact names the callers. The key of such a method has three classes of c
 The trace is a lower limit: it proves only the calls that the test suite makes. So the questions
 take methods with few callers that are not decided. The question asks for one level of callers.
 
+The traced calls can change from run to run: the timing of the tests and the state that the tests
+of the product keep can change which calls a run makes. So the `proof` of a caller can change, and
+a caller with the proof `trace` only can come or go. A second run does not always give a key file
+that is equal byte for byte. The repeat check of "Caller keys through an interface value" in
+[keygen/README.md](keygen/README.md#caller-keys-through-an-interface-value) says which difference
+changes an answer.
+
 ## 4. The audit
 
 The audit asks: what do the tools of the plugin answer for each symbol of a key file, with no
@@ -220,8 +227,9 @@ tools at all.
   agent of a benchmark. The benchmark IDE has the same tree open at the same path.
 - **Proxy.** The container reaches the IDE only through a filter proxy. The proxy passes a fixed
   list of tools: no rename, no file move, no plugin install, no restart.
-- **Limits.** A wall-clock limit and a cost limit for each run (`WALL_LIMIT` in `bench/runner.py`,
-  `--max-budget-usd` in `bench/claude_code.py`). The agent version and the effort are fixed.
+- **Limits.** A wall-clock limit of 30 minutes (`WALL_LIMIT` in `bench/runner.py`) and a cost
+  limit of 20 USD (`--max-budget-usd` in `bench/claude_code.py`) for each run. The agent version
+  and the effort are fixed.
 - **Record.** Each run keeps its transcript, the log of its IDE calls, its cost, its answer and its
   score, and the SHA-256 of its question file and its key file.
 
