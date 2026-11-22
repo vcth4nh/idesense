@@ -47,7 +47,8 @@ then run the harness.
 **Python: run the bootstrap before the first open.** `fixtures/_setup/python/bootstrap.sh`
 needs `uv` on the `PATH`. It makes the environment `.venv` with `uv sync`, and it writes
 `.idea/live-test-python.iml` when that file is absent: `src` is the source root and `test` is
-the test root. At the first open PyCharm makes an interpreter from `.venv`, and writes its name
+the test root. The script keeps a module file that exists: to get a new one, delete the older
+module file and run the script again. At the first open PyCharm makes an interpreter from `.venv`, and writes its name
 (a path of the machine) to `misc.xml` and to the module file (seen on PyCharm 2026.3). For this
 reason git does not track the module file. Without the test root, `hier-caller-target-production` gains the test caller
 and `hier-caller-target-test` loses it.
