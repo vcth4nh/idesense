@@ -184,15 +184,49 @@ def _stop(proc: IdeProcess, timeout: float, key: str) -> str | None:
     return None
 
 
+def _scope_prefix(env: dict[str, str]) -> list[str]:
+    """The `systemd-run` prefix for a scope of its own, or [] when systemd cannot give one.
+
+    A probe with the environment of the IDE process decides: no `systemd-run` on its PATH,
+    no user manager, a timeout or a non-zero exit all mean no.
+    """
+    if shutil.which("systemd-run", path=env.get("PATH", os.defpath)) is None:
+        return []
+    prefix = ["systemd-run", "--user", "--scope", "--quiet", "--collect", "--"]
+    try:
+        probe = subprocess.run(prefix + ["true"], env=env, timeout=10, stdin=subprocess.DEVNULL,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    return prefix if probe.returncode == 0 else []
+
+
 def _start(proc: IdeProcess) -> None:
     """Start the IDE as it ran before: same launcher, environment and working directory.
 
     `setsid --fork` makes the IDE a child of init, not of this harness. A child
     of the harness would stay in /proc as a zombie after its end, and a later
     `_stop` in the same harness run would wait for it until the timeout.
+
+    `setsid` does not leave the cgroup of the caller. On a machine with systemd the caller
+    is in a user unit, for example the service of a terminal. When systemd-oomd or a stop
+    kills that unit, the IDE dies with it. A transient scope takes the IDE out of that unit.
+    The start is plain when no scope is possible, or when the scoped start fails once.
     """
-    subprocess.run(["setsid", "--fork", str(proc.launcher), "serverMode"], cwd=proc.cwd, env=proc.env, check=True,
-                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    command = ["setsid", "--fork", str(proc.launcher), "serverMode"]
+    prefix = _scope_prefix(proc.env)
+
+    def run(cmd: list[str]) -> None:
+        subprocess.run(cmd, cwd=proc.cwd, env=proc.env, check=True,
+                       stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    if prefix:
+        try:
+            run(prefix + command)
+            return
+        except subprocess.CalledProcessError:
+            pass
+    run(command)
 
 
 @contextlib.contextmanager
