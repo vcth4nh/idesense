@@ -110,8 +110,8 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   "Variable declaration" 4. "Unclassified" lists `admin_test.go:993`, `admin_test.go:1220`
   and `context.go:673`. Each of the three lines is the key `Context:` of a `Context{...}`
   literal whose type name is on the line before. The key names the embedded field
-  `context.Context` (`context.go:47`), a type of the Go SDK with the same name. The other 3 rows of
-  "Unclassified" are such keys on a line that also has the type name `Context{`.
+  `context.Context` (`context.go:47`), a type of the Go SDK with the same name. The other 3
+  rows of "Unclassified" are such keys on a line that also has the type name `Context{`.
   In the audit run of 2026-11-22, `ide_find_usages` gave 345 rows too, with the three lines
   and no mark on them. The key file of the audit comes from the Go type checker, which
   resolves each key to the embedded field, so the audit gives the three lines as false lines.
