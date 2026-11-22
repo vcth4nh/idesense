@@ -979,7 +979,7 @@ def run_products(
         try:
             for p in group:
                 checkout = f"{root.name}/real-products/{p.folder}"
-                state = products.checkout_state(root.parent, checkout)
+                state = products.checkout_state(root.parent, checkout, p.ide_owned_files)
                 if state == "missing":
                     print(f"[{p.folder}] SKIPPED (checkout is missing: git submodule update --init --depth 1 {checkout})")
                     skipped += 1
@@ -989,6 +989,8 @@ def run_products(
                     print(f"[{p.folder}] FAIL {state}")
                     failed += 1
                     continue
+                for path in products.changed_ide_owned(root.parent, checkout, p.ide_owned_files):
+                    print(f"[{p.folder}] IDE-owned file differs from the pin: {path}")
                 start = time.monotonic()
                 try:
                     err, switch_s, ready_s, did_switch = open_product(root, p, url=url)
@@ -1022,7 +1024,8 @@ def run_products(
     return passed, failed, skipped
 
 
-def check_fixtures(root: Path, langs: list[str], product: bool = False, repo_root: Path | None = None) -> int:
+def check_fixtures(root: Path, langs: list[str], product: bool = False, repo_root: Path | None = None,
+                   ide_owned: dict[str, tuple[str, ...]] | None = None) -> int:
     """Offline validation: no IDE contact. Returns failure count.
 
     Per language: every inputs/<tool>.jsonl row is valid JSON with a unique
@@ -1081,7 +1084,8 @@ def check_fixtures(root: Path, langs: list[str], product: bool = False, repo_roo
         if product:
             state = "unknown"
             if repo_root is not None:
-                state = products.checkout_state(repo_root, lang_dir.relative_to(repo_root).as_posix())
+                state = products.checkout_state(repo_root, lang_dir.relative_to(repo_root).as_posix(),
+                                               (ide_owned or {}).get(lang, ()))
             check_anchors = state == "ok"
             if not check_anchors:
                 print(f"[{lang}] anchors not checked: checkout is {state}")
@@ -1255,7 +1259,8 @@ def main() -> int:
         if product is None:
             print(f"No product '{args.open_product}' in real-products/products.json", file=sys.stderr)
             return 2
-        state = products.checkout_state(here.parent, f"live-test/real-products/{product.folder}")
+        state = products.checkout_state(here.parent, f"live-test/real-products/{product.folder}",
+                                        product.ide_owned_files)
         if state != "ok":
             print(f"[{product.folder}] ERROR: checkout is {state}")
             return 1
@@ -1296,7 +1301,8 @@ def main() -> int:
         not_written = 0
         for p in prods:
             # A map from the sources of another commit would be wrong, and the offline check could not tell.
-            state = products.checkout_state(here.parent, (product_root / p.folder).relative_to(here.parent).as_posix())
+            state = products.checkout_state(here.parent, (product_root / p.folder).relative_to(here.parent).as_posix(),
+                                            p.ide_owned_files)
             if state == "ok":
                 write_anchor_maps(product_root, [p.folder], product=True)
             else:
@@ -1307,7 +1313,8 @@ def main() -> int:
     if args.check_fixtures:
         failures = check_fixtures(root, langs) if with_fixtures else 0
         if with_products:
-            failures += check_fixtures(product_root, [p.folder for p in prods], product=True, repo_root=here.parent)
+            failures += check_fixtures(product_root, [p.folder for p in prods], product=True, repo_root=here.parent,
+                                       ide_owned={p.folder: p.ide_owned_files for p in prods})
         print(f"ALL: {failures} issues")
         return 0 if failures == 0 else 1
 

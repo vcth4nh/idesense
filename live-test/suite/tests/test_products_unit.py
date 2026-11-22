@@ -34,6 +34,20 @@ class LoadProductsTest(unittest.TestCase):
         p = self.load([dict(CADDY, requestTimeoutSeconds=120, readyTimeoutSeconds=1800)])[0]
         self.assertEqual((120.0, 1800.0), (p.request_timeout, p.ready_timeout))
 
+    def test_reads_the_ide_owned_files(self):
+        p = self.load([dict(CADDY, ideOwnedFiles=[".idea/misc.xml", ".idea/a/b.xml"])])[0]
+        self.assertEqual((".idea/misc.xml", ".idea/a/b.xml"), p.ide_owned_files)
+
+    def test_no_ide_owned_files_by_default(self):
+        self.assertEqual((), self.load([CADDY])[0].ide_owned_files)
+
+    def test_bad_ide_owned_files_name_the_product(self):
+        for bad in ("misc.xml", [1], [".idea/misc.xml", None], ["src/misc.xml"], [".idea/"], [".idea"],
+                    [".idea/../a.xml"], [".idea/a/../b.xml"], [".idea/*.xml"], [".idea/a?.xml"], [".idea/[a].xml"],
+                    [".idea/dir/"], [".idea\\misc.xml"], [""]):
+            with self.subTest(bad=bad), self.assertRaisesRegex(ValueError, "caddy: ideOwnedFiles"):
+                self.load([dict(CADDY, ideOwnedFiles=bad)])
+
     def test_unknown_ide_names_the_product(self):
         with self.assertRaisesRegex(ValueError, "caddy: unknown ide 'gland'"):
             self.load([dict(CADDY, ide="gland")])
@@ -85,8 +99,16 @@ class CheckoutStateTest(unittest.TestCase):
         git(self.repo, "commit", "-qm", "add")
         self.sub = self.repo / self.REL
 
-    def state(self):
-        return products.checkout_state(self.repo, self.REL)
+    def state(self, ide_owned=()):
+        return products.checkout_state(self.repo, self.REL, ide_owned)
+
+    def track(self, *rels):
+        for rel in rels:
+            (self.sub / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.sub / rel).write_text("1\n")
+        git(self.sub, "add", *rels)
+        git(self.sub, "commit", "-qm", "more")
+        git(self.repo, "add", self.REL)
 
     def test_clean_checkout_at_the_pin(self):
         self.assertEqual("ok", self.state())
@@ -127,6 +149,34 @@ class CheckoutStateTest(unittest.TestCase):
     def test_modified_tracked_file(self):
         (self.sub / "a.txt").write_text("changed\n")
         self.assertEqual("modified: 1 tracked file(s)", self.state())
+
+    def test_changed_ide_owned_file_is_not_modified(self):
+        self.track(".idea/misc.xml")
+        (self.sub / ".idea" / "misc.xml").write_text("changed\n")
+        self.assertEqual("modified: 1 tracked file(s)", self.state())
+        self.assertEqual("ok", self.state((".idea/misc.xml",)))
+
+    def test_other_changed_file_still_counts_beside_an_ide_owned_file(self):
+        self.track(".idea/misc.xml")
+        (self.sub / ".idea" / "misc.xml").write_text("changed\n")
+        (self.sub / "a.txt").write_text("changed\n")
+        self.assertEqual("modified: 1 tracked file(s)", self.state((".idea/misc.xml",)))
+
+    def test_ide_owned_path_matches_exactly(self):
+        self.track(".idea/misc.xml.bak", "sub/.idea/misc.xml", ".idea/misc.xml")
+        for rel in (".idea/misc.xml.bak", "sub/.idea/misc.xml"):
+            (self.sub / rel).write_text("changed\n")
+            self.assertEqual("modified: 1 tracked file(s)", self.state((".idea/misc.xml",)))
+            git(self.sub, "checkout", "--", rel)
+
+    def test_changed_ide_owned_files_lists_the_changed_listed_paths(self):
+        owned = (".idea/misc.xml", ".idea/other.xml")
+        self.track(".idea/misc.xml", ".idea/other.xml")
+        self.assertEqual([], products.changed_ide_owned(self.repo, self.REL, owned))
+        (self.sub / ".idea" / "misc.xml").write_text("changed\n")
+        (self.sub / "a.txt").write_text("changed\n")
+        self.assertEqual([".idea/misc.xml"], products.changed_ide_owned(self.repo, self.REL, owned))
+        self.assertEqual([], products.changed_ide_owned(self.repo, self.REL, ()))
 
 
 class SnapshotFormTest(unittest.TestCase):

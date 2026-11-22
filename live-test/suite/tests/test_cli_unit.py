@@ -709,11 +709,25 @@ class RunProductsTest(unittest.TestCase):
             with mock.patch.object(run, "open_product", open_product), \
                  mock.patch.object(run, "close_products", close_products), \
                  mock.patch.object(run, "run_language", run_language), \
-                 mock.patch.object(products, "checkout_state", lambda repo, rel: state), \
+                 mock.patch.object(products, "checkout_state", lambda repo, rel, ide_owned=(): state), \
                  contextlib.redirect_stdout(printed):
                 return run.run_products(Path("/r/live-test"), prods, named, None, bless, **kw)
         finally:
             self.printed = printed.getvalue().splitlines()
+
+    def test_a_changed_ide_owned_file_is_reported_and_the_run_goes_on(self):
+        owned = products.Product("alpha", "goland", "o/a", "v1", "MIT", "core", ide_owned_files=(".idea/misc.xml",))
+        seen = []
+
+        def changed(repo, rel, ide_owned):
+            seen.append(ide_owned)
+            return [".idea/misc.xml"]
+
+        with mock.patch.object(products, "changed_ide_owned", changed):
+            self.assertEqual((3, 0, 0), self.go([owned]))
+        self.assertEqual([(".idea/misc.xml",)], seen)
+        self.assertEqual("[alpha] IDE-owned file differs from the pin: .idea/misc.xml", self.printed[0])
+        self.assertEqual(["alpha"], self.opened)
 
     def test_products_of_one_ide_run_in_turn_and_the_last_one_is_closed(self):
         self.assertEqual((6, 0, 0), self.go([self.A, self.B]))
@@ -947,7 +961,7 @@ class MainFleetTest(unittest.TestCase):
              mock.patch.object(run, "close_products", close_products), \
              mock.patch.object(run, "open_product", open_product), \
              mock.patch.object(products, "load_products", lambda path: [self.A]), \
-             mock.patch.object(products, "checkout_state", lambda repo, rel: state), \
+             mock.patch.object(products, "checkout_state", lambda repo, rel, ide_owned=(): state), \
              contextlib.redirect_stdout(printed), contextlib.redirect_stderr(io.StringIO()):
             code = run.main()
         self.printed = printed.getvalue().splitlines()
@@ -1014,7 +1028,7 @@ class ProductOfflineTest(unittest.TestCase):
     def check(self, root, state=None, **kw):
         self.state_calls = []
 
-        def checkout_state(repo, rel):
+        def checkout_state(repo, rel, ide_owned=()):
             self.state_calls.append((repo, rel))
             return state
 
@@ -1092,7 +1106,7 @@ class MainOfflineTest(unittest.TestCase):
     def main(self, *argv, state="ok"):
         self.checks, self.writes = [], []
 
-        def check_fixtures(root, langs, product=False, repo_root=None):
+        def check_fixtures(root, langs, product=False, repo_root=None, ide_owned=None):
             self.checks.append((root.name, langs, product, repo_root and repo_root.name))
             return 1 if product else 0
 
@@ -1106,7 +1120,7 @@ class MainOfflineTest(unittest.TestCase):
              mock.patch.object(run, "check_fixtures", check_fixtures), \
              mock.patch.object(run, "write_anchor_maps", write_anchor_maps), \
              mock.patch.object(products, "load_products", lambda path: [self.A, self.B]), \
-             mock.patch.object(products, "checkout_state", lambda repo, rel: state), \
+             mock.patch.object(products, "checkout_state", lambda repo, rel, ide_owned=(): state), \
              contextlib.redirect_stdout(printed):
             code = run.main()
         self.printed = printed.getvalue().splitlines()

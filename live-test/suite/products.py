@@ -24,6 +24,12 @@ class Product:
     tier: str  # "core" or "optional"
     request_timeout: float = 60.0
     ready_timeout: float = 900.0
+    ide_owned_files: tuple[str, ...] = ()  # tracked files below .idea/ that the IDE rewrites at an open
+
+
+def _ide_owned_path_ok(path: Any) -> bool:
+    return (isinstance(path, str) and path.startswith(".idea/") and path != ".idea/" and not path.endswith("/")
+            and ".." not in path.split("/") and "\\" not in path and not any(c in path for c in "*?["))
 
 
 def load_products(path: Path) -> list[Product]:
@@ -47,9 +53,12 @@ def load_products(path: Path) -> list[Product]:
             raise ValueError(f"{folder}: unknown ide '{row['ide']}'")
         if row["tier"] not in ("core", "optional"):
             raise ValueError(f"{folder}: tier must be core or optional")
+        owned = row.get("ideOwnedFiles", [])
+        if not isinstance(owned, list) or not all(_ide_owned_path_ok(x) for x in owned):
+            raise ValueError(f"{folder}: ideOwnedFiles must be a list of exact file paths below .idea/")
         out.append(Product(folder, row["ide"], row["repo"], row["pin"], row["license"], row["tier"],
                            float(row.get("requestTimeoutSeconds", 60.0)),
-                           float(row.get("readyTimeoutSeconds", 900.0))))
+                           float(row.get("readyTimeoutSeconds", 900.0)), tuple(owned)))
     return out
 
 
@@ -57,10 +66,11 @@ def _git(cwd: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True).stdout
 
 
-def checkout_state(repo_root: Path, rel_path: str) -> str:
+def checkout_state(repo_root: Path, rel_path: str, ide_owned: tuple[str, ...] = ()) -> str:
     """State of a product checkout: "ok", "missing", "pin mismatch: …" or "modified: …".
 
-    The gitlink in the index of the plugin repository is the pin.
+    The gitlink in the index of the plugin repository is the pin. A changed file that `ide_owned` names
+    (exact paths, see `Product.ide_owned_files`) does not count as modified.
     """
     checkout = repo_root / rel_path
     if not (checkout / ".git").exists():
@@ -72,10 +82,19 @@ def checkout_state(repo_root: Path, rel_path: str) -> str:
     head = _git(checkout, "rev-parse", "HEAD").strip()
     if head != gitlink:
         return f"pin mismatch: HEAD {head[:12]} != gitlink {gitlink[:12]}"
-    modified = _git(checkout, "status", "--porcelain", "--untracked-files=no").splitlines()
+    modified = [l for l in _git(checkout, "status", "--porcelain", "--untracked-files=no").splitlines()
+                if l[3:] not in ide_owned]
     if modified:
         return f"modified: {len(modified)} tracked file(s)"
     return "ok"
+
+
+def changed_ide_owned(repo_root: Path, rel_path: str, ide_owned: tuple[str, ...]) -> list[str]:
+    """The paths of `ide_owned` that differ from the pin in a product checkout."""
+    if not ide_owned:
+        return []
+    lines = _git(repo_root / rel_path, "status", "--porcelain", "--untracked-files=no").splitlines()
+    return [l[3:] for l in lines if l[3:] in ide_owned]
 
 
 # Result fields that never reach a product snapshot: `preview`, `context` and

@@ -214,7 +214,9 @@ The measured times of each product are in `_setup/<folder>/notes.md`.
 2. **Table entry** in `products.json`: folder, IDE, repository, pin, license, tier, timeouts.
    `requestTimeoutSeconds` is the time limit of one request. `readyTimeoutSeconds` is the
    readiness time of the product: how long the harness waits until the product is open and
-   indexed (default 900).
+   indexed (default 900). The optional `ideOwnedFiles` is a list of exact file paths below
+   `.idea/`. Use it for a product that tracks a file of the IDE project state which the IDE
+   rewrites at each open. The pin guard skips these files.
 3. **Search hygiene.** From the repository root, search for one identifier of the product
    with `rg` and with `git grep`. The search must find nothing in the checkout. The `grep`
    of an agent shell (ugrep with `--ignore-files`) also skips the checkout. GNU `grep -r`
@@ -628,7 +630,9 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
 - **`[<product>] SKIPPED (checkout is missing: …)`** — run the printed
   `git submodule update` command, then the `bootstrap.sh` of the product.
 - **`[<product>] FAIL pin mismatch: …` or `FAIL modified: …`** — the checkout is not at
-  the pinned commit, or a tracked file of it changed. Put the checkout back to the pin.
+  the pinned commit, or a tracked file of it changed. Put the checkout back to the pin. A
+  tracked file that the IDE itself rewrites at each open goes into `ideOwnedFiles` of the
+  product. Each other changed file goes back to the pin.
 - **Many rows differ after an update of the IDE** — an update can change names and texts of
   the platform, for example the qualified name of a Python builtin (seen at the update from
   2026.1 to 2026.2). A line shift in a JDK or SDK file changes no row: the harness drops the
