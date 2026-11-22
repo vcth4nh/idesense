@@ -41,6 +41,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.util.concurrency.annotations.RequiresReadLock
+import org.jetbrains.annotations.TestOnly
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -53,6 +54,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -239,10 +242,10 @@ abstract class AbstractMcpTool : McpTool {
     }
 
     /**
-     * The project whose index the read actions of one tool call need, and the time that the call
-     * waited for smart mode. [requireSmartMode] and [getPageFromCache] set the project, and from
-     * then on each [suspendingReadAction] of the call is a smart read action (#195, #267).
-     * [execute] gives each call its own instance.
+     * The project whose index the read actions of one tool call need, and the waits of their smart
+     * read actions. [requireSmartMode] and [getPageFromCache] set the project, and from then on
+     * each [suspendingReadAction] of the call is a smart read action (#195, #267). [execute] gives
+     * each call its own instance.
      */
     private class IndexAccess : AbstractCoroutineContextElement(IndexAccess) {
         companion object Key : CoroutineContext.Key<IndexAccess>
@@ -250,7 +253,17 @@ abstract class AbstractMcpTool : McpTool {
         @Volatile
         var project: Project? = null
 
-        /** The time of this call in which no block of its smart read actions ran, in total. */
+        /**
+         * True after the dumb mode check of the call: [requireSmartMode], or the first index access
+         * of a call with a cursor, which has no check at its start.
+         */
+        @Volatile
+        var checked = false
+
+        /**
+         * The waits of the smart reads of this call, in total: in each [smartRead], the time before
+         * each run of the block.
+         */
         private val waitedNanos = AtomicLong()
 
         /**
@@ -260,26 +273,34 @@ abstract class AbstractMcpTool : McpTool {
          * the read action, and this function throws [IndexNotReadyException].
          */
         suspend fun <T> smartRead(project: Project, action: () -> T): T = coroutineScope {
-            // The start of the current wait (System.nanoTime), or IN_BLOCK while the block runs.
-            val waitStart = AtomicLong(System.nanoTime())
+            // The start of the current wait (System.nanoTime), or IN_BLOCK while the block runs and
+            // after it returned.
+            val waitStart = MutableStateFlow(System.nanoTime())
             val timedOut = AtomicBoolean()
             val read = async {
                 smartReadAction(project) {
-                    waitedNanos.addAndGet(System.nanoTime() - waitStart.getAndSet(IN_BLOCK))
+                    val start = waitStart.value
+                    waitStart.value = IN_BLOCK
+                    if (start != IN_BLOCK) waitedNanos.addAndGet(System.nanoTime() - start)
                     try {
                         action()
-                    } finally {
-                        waitStart.set(System.nanoTime())
+                    } catch (e: Throwable) {
+                        // A write action interrupted the block, and the platform runs it again.
+                        waitStart.value = System.nanoTime()
+                        throw e
                     }
                 }
             }
             val watchdog = launch {
                 while (true) {
-                    val start = waitStart.get()
-                    val waiting = start != IN_BLOCK
-                    val left = TimeUnit.MILLISECONDS.toNanos(indexWaitLimitMs) - waitedNanos.get() -
-                        (if (waiting) System.nanoTime() - start else 0L)
-                    if (waiting && left <= 0) {
+                    // While the block runs, the wait does not grow: suspend until the block throws.
+                    val start = waitStart.first { it != IN_BLOCK }
+                    val waited = waitedNanos.get()
+                    // The block sets IN_BLOCK before it adds its wait: an unchanged start means that
+                    // the total does not contain the current wait.
+                    if (waitStart.value != start) continue
+                    val left = TimeUnit.MILLISECONDS.toNanos(indexWaitLimitMs) - waited - (System.nanoTime() - start)
+                    if (left <= 0) {
                         timedOut.set(true)
                         read.cancel()
                         return@launch
@@ -305,14 +326,13 @@ abstract class AbstractMcpTool : McpTool {
         const val INDEX_WAIT_LIMIT_MS = 10_000L
 
         /** [INDEX_WAIT_LIMIT_MS]; a test can make it shorter. */
+        @TestOnly
         @Volatile
         internal var indexWaitLimitMs = INDEX_WAIT_LIMIT_MS
 
         private const val IN_BLOCK = Long.MIN_VALUE
 
         private const val WATCHDOG_MIN_DELAY_MS = 10L
-
-        private const val INDEX_NOT_READY_MESSAGE = "IDE is in dumb mode, indexes not available"
 
         private const val INDEX_WAIT_LIMIT_MESSAGE =
             "IDE indexes not ready after a wait of ${INDEX_WAIT_LIMIT_MS / 1000} seconds: the IDE is in dumb mode " +
@@ -337,18 +357,21 @@ abstract class AbstractMcpTool : McpTool {
      * Tools that don't need the index (e.g., file operations) don't need to call this.
      *
      * The IDE can enter dumb mode or scan files after this check. So each later
-     * [suspendingReadAction] of the call is a smart read action: it runs its action only in smart
-     * mode, and it waits for smart mode, at most [INDEX_WAIT_LIMIT_MS] in total for the call
-     * (#195, #267).
+     * [suspendingReadAction] of the call is a smart read action: its action starts, and starts
+     * again, only in smart mode, and it waits for smart mode, at most [INDEX_WAIT_LIMIT_MS] in
+     * total for the call (#195, #267).
      *
      * @param project The project to check
      * @throws IndexNotReadyException if indexes are not available
      */
     protected suspend fun requireSmartMode(project: Project) {
         if (DumbService.isDumb(project)) {
-            throw IndexNotReadyException(INDEX_NOT_READY_MESSAGE)
+            throw IndexNotReadyException(ErrorMessages.INDEX_NOT_READY)
         }
-        currentCoroutineContext()[IndexAccess]?.project = project
+        currentCoroutineContext()[IndexAccess]?.let {
+            it.project = project
+            it.checked = true
+        }
     }
 
     /**
@@ -378,8 +401,12 @@ abstract class AbstractMcpTool : McpTool {
      *
      * After [requireSmartMode] in the same call, this is a smart read action: the platform tests
      * smart mode (no dumb mode and no file scan) inside the read lock before each run of [action],
-     * and it waits for smart mode. After [INDEX_WAIT_LIMIT_MS] of waits in the call it throws
-     * [IndexNotReadyException].
+     * and it waits for smart mode. Dumb mode and a file scan start in a write action, which
+     * interrupts a run; the platform then starts [action] again in smart mode. After
+     * [INDEX_WAIT_LIMIT_MS] of waits in the call it throws [IndexNotReadyException].
+     *
+     * In a call with a cursor, which has no [requireSmartMode] check, the first such read action
+     * makes the check: in dumb mode it throws [IndexNotReadyException] at once.
      *
      * @param action The action to execute
      * @return The result of the action
@@ -387,6 +414,10 @@ abstract class AbstractMcpTool : McpTool {
     protected suspend fun <T> suspendingReadAction(action: () -> T): T {
         val access = currentCoroutineContext()[IndexAccess]
         val project = access?.project ?: return platformReadAction { action() }
+        if (!access.checked) {
+            if (DumbService.isDumb(project)) throw IndexNotReadyException(ErrorMessages.INDEX_NOT_READY)
+            access.checked = true
+        }
         return access.smartRead(project, action)
     }
 
@@ -659,7 +690,8 @@ abstract class AbstractMcpTool : McpTool {
      */
     protected suspend fun getPageFromCache(cursorToken: String, pageSize: Int?, project: Project): PaginationService.GetPageResult {
         // The search extender of a cursor searches again, also in a call with a cursor, which
-        // does not call requireSmartMode: its read actions wait for the index too.
+        // does not call requireSmartMode: its first read action checks for dumb mode, and its read
+        // actions wait for the index too. A page from the cache needs no index.
         currentCoroutineContext()[IndexAccess]?.project = project
         val service = ApplicationManager.getApplication().getService(PaginationService::class.java)
         val basePath = ProjectResolver.normalizePath(project.basePath ?: "")

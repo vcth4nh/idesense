@@ -601,18 +601,28 @@ Each entry gives the contract, the consequence for the code, and the class that 
   `ReadResult.WritePending`, and `readLoop` runs the block again; `app-client.jar` of
   ideaIC-2025.1.3, `intellij.platform.ide.impl.jar` of IU-263.7307.200), and `smartReadAction`
   tests smart mode inside the read lock before each run of its block. So after `requireSmartMode`,
-  `suspendingReadAction` of the same call is a smart read action, also for the search extender of
-  a cursor (`getPageFromCache`). Smart mode also excludes a scan of the files with no dumb mode:
-  the constraint tests `SmartModeScheduler.getCurrentMode`, which includes the scanner (both
-  builds). The call must wait during such a scan too: a platform search with the `inSmartMode`
-  constraint throws "Constraint inSmartMode cannot be satisfied" inside a read action
+  `suspendingReadAction` of the same call is a smart read action: its block starts, and starts
+  again, only in smart mode. Smart mode also excludes a scan of the files with no dumb mode: the
+  constraint tests `SmartModeScheduler.getCurrentMode`, which includes the scanner (both builds).
+  The start of a scan sets the running state of the scanner in a write action too
+  (`UnindexedFilesScannerExecutorImpl$1$1.invokeSuspend` calls `edtWriteAction` in ideaIC-2025.1.3,
+  `app-client.jar`, and `backgroundWriteAction` in IU-263.7307.200,
+  `intellij.platform.lang.impl.jar`), so a scan that starts during a run also makes the block run
+  again. The call must wait during a scan: a platform search with the `inSmartMode` constraint
+  throws "Constraint inSmartMode cannot be satisfied" inside a read action
   (`NonBlockingReadActionImpl$Submission.attemptComputation`, both builds), and `ExecutorsQuery`
   logs the error and goes on: `JavaFunctionalExpressionSearcher` then gives no lambdas and method
-  references. A watchdog coroutine in `IndexAccess.smartRead` adds up the time of the call in
-  which no block of its smart read actions runs, and at `INDEX_WAIT_LIMIT_MS` (10 s) it cancels the
-  read action; the call then gets `index_not_ready`. A test of the scan of the files is no public
-  API: `DumbService.canRunSmart` is `@ApiStatus.Internal` in IU-263.7307.200, and ideaIC-2025.1.3
-  has no such method.
+  references. A call with a cursor has no `requireSmartMode`: the first smart read action of its
+  search extender (`getPageFromCache`) makes the same check, so in dumb mode it gets
+  `index_not_ready` at once. A watchdog coroutine in `IndexAccess.smartRead` adds up, for each
+  smart read action of the call, the time before each run of its block: the wait for smart mode,
+  and also a wait for the read lock behind a write action. Other steps of the call do not count,
+  for example the wait for the lock of a cursor in `PaginationService` or a step on the UI
+  thread. At `INDEX_WAIT_LIMIT_MS` (10 s) the watchdog cancels the read action; the call then gets
+  `index_not_ready`. A test of the scan of the files is no public API: `DumbService.canRunSmart`
+  is `@ApiStatus.Internal` in IU-263.7307.200, and ideaIC-2025.1.3 has no such method. The
+  analysis of `ide_diagnostics` does not use `suspendingReadAction` (`DiagnosticsAnalysisService`
+  uses `ReadAction.compute`, the daemon and `CodeSmellDetector`), so it does not wait.
 - **No exception may leave a search callback inside a stub index processor.** GoLand runs the
   callback of `DefinitionsScopedSearch` inside `StubIndexEx.processElements`, which takes an
   `IndexOutOfBoundsException` for index damage (`FileBasedIndexEx.extractCauseToRebuildIndex`) and

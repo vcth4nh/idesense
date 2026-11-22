@@ -1,6 +1,8 @@
 package com.github.vcth4nh.idesense.tools
 
+import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.exceptions.IndexNotReadyException
+import com.github.vcth4nh.idesense.exceptions.SymbolNotFoundException
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.models.CallElement
@@ -64,7 +66,8 @@ import kotlinx.serialization.json.put
  * The race tests stop the first search inside its read action, start dumb mode, and keep dumb
  * mode on for [DUMB_WINDOW_MS]. The write action that starts dumb mode interrupts the read action,
  * and the platform runs the read action again. A plain read action runs again at once, in dumb
- * mode.
+ * mode. The start of a file scan also takes a write action, so it interrupts a run too: see
+ * [testCallWaitsForAFileScanThatStartsDuringTheSearch].
  */
 class SmartReadActionTest : BasePlatformTestCase() {
 
@@ -193,7 +196,7 @@ class SmartReadActionTest : BasePlatformTestCase() {
         assertWaitLimit(race)
     }
 
-    // A call with a cursor has the same limit.
+    // A call with a cursor has the same limit for a dumb mode that starts after its first search began.
     fun testCursorCallGivesIndexNotReadyAfterTheWaitLimit() {
         val first = usages(runTool(FindUsagesTool(), firstTickPage()))
         val trigger = DumbModeTrigger("race.Counter#tick")
@@ -204,6 +207,127 @@ class SmartReadActionTest : BasePlatformTestCase() {
         }
 
         assertWaitLimit(race)
+    }
+
+    // A call with a cursor has no dumb mode check at its start. When it must search again in dumb
+    // mode, its first search makes the check and gives index_not_ready at once, with no wait.
+    fun testCursorCallThatMustSearchAgainInDumbModeGetsIndexNotReadyAtOnce() {
+        val first = usages(runTool(FindUsagesTool(), firstTickPage()))
+        var error: Throwable? = null
+        var elapsedMs = 0L
+        inDumbMode {
+            val start = System.currentTimeMillis()
+            error = runCatching {
+                runBlocking { withTimeout(CALL_TIMEOUT_MS) { FindUsagesTool().execute(project, nextTickPage(first.nextCursor!!)) } }
+            }.exceptionOrNull()
+            elapsedMs = System.currentTimeMillis() - start
+        }
+
+        assertTrue("Expected index_not_ready, got $error", error is IndexNotReadyException)
+        assertEquals(ErrorMessages.INDEX_NOT_READY, error!!.message)
+        assertTrue("The call waited $elapsedMs ms", elapsedMs < AT_ONCE_MS)
+    }
+
+    // A cursor page that the first call kept needs no search: it answers in dumb mode.
+    fun testCursorPageFromTheCacheAnswersInDumbMode() {
+        val first = usages(runTool(FindUsagesTool(), firstTickPage()))
+        var next: FindUsagesResult? = null
+        inDumbMode {
+            next = usages(runTool(FindUsagesTool(), buildJsonObject {
+                put("cursor", first.nextCursor!!)
+                put("pageSize", FIRST_PAGE)
+            }))
+        }
+
+        assertEquals(FIRST_PAGE, next!!.usages.size)
+    }
+
+    // An exception of the action that is no cancellation comes to the caller as with a plain read action.
+    fun testExceptionOfTheActionComesToTheCaller() {
+        for (thrown in listOf(IllegalStateException("of the test"), SymbolNotFoundException("of the test"))) {
+            val error = runCatching { runTool(ThrowingTool(thrown), buildJsonObject {}) }.exceptionOrNull()
+            assertEquals("The exception of the caller", thrown.javaClass, error?.javaClass)
+            assertEquals(thrown.message, error!!.message)
+        }
+    }
+
+    /** Checks for dumb mode, then throws [error] in a read action. */
+    private class ThrowingTool(private val error: Throwable) : AbstractMcpTool() {
+        override val name = "test_throwing_tool"
+        override val description = "Throws in a read action."
+        override val inputSchema = buildJsonObject {}
+        override suspend fun doExecute(project: Project, arguments: JsonObject): ToolCallResult {
+            requireSmartMode(project)
+            return suspendingReadAction { throw error }
+        }
+    }
+
+    // A file scan that starts during a run of the search, queued from a thread with no write-intent
+    // lock: the scanner executor sets its running state in a write action, which interrupts the run.
+    // The smart read action then starts the search again only after the scan.
+    fun testCallWaitsForAFileScanThatStartsDuringTheSearch() {
+        val args = positionOf(FN_FILE, "apply")
+        val baseline = implementations(runTool(FindImplementationsTool(), args))
+        assertEquals(2, baseline.size)
+
+        val scan = HeldScan()
+        val reached = CountDownLatch(1)
+        val armed = AtomicBoolean(true)
+        val interrupted = AtomicBoolean(false)
+        DefinitionsScopedSearch.EP_NAME.point.registerExtension(
+            QueryExecutor { params, _ ->
+                val element = params.element
+                if (element is PsiMethod && element.containingClass?.qualifiedName == "race.Fn" && armed.compareAndSet(true, false)) {
+                    reached.countDown()
+                    // Hold the run until the scan starts. A write action interrupts the run here.
+                    try {
+                        while (scan.started.count > 0L) {
+                            ProgressManager.checkCanceled()
+                            Thread.sleep(5)
+                        }
+                    } catch (e: Throwable) {
+                        interrupted.set(true)
+                        throw e
+                    }
+                }
+                true
+            },
+            LoadingOrder.FIRST,
+            testRootDisposable
+        )
+
+        val errors = ConcurrentLinkedQueue<String>()
+        var outcome: Result<ToolCallResult>? = null
+        var endedDuringTheScan = false
+        try {
+            LoggedErrorProcessor.executeWith<Throwable>(collectInto(errors)) {
+                val call = ApplicationManager.getApplication().executeOnPooledThread<Result<ToolCallResult>> {
+                    runCatching { runBlocking { FindImplementationsTool().execute(project, args) } }
+                }
+                PlatformTestUtil.waitWithEventsDispatching("The search did not reach the hook", { reached.count == 0L }, 30)
+                // A pooled thread has no write-intent lock: submitTask itself takes no write action.
+                ApplicationManager.getApplication().executeOnPooledThread {
+                    UnindexedFilesScanner(project, listOf(scan), "a held scan of the test").queue()
+                }
+                PlatformTestUtil.waitWithEventsDispatching("The scan did not start", { scan.started.count == 0L }, 30)
+                endedDuringTheScan = try {
+                    call.get(SCAN_HOLD_MS, TimeUnit.MILLISECONDS)
+                    true
+                } catch (_: TimeoutException) {
+                    false
+                }
+                scan.release.countDown()
+                PlatformTestUtil.waitWithEventsDispatching("The call did not end", { call.isDone }, 30)
+                outcome = call.get()
+            }
+        } finally {
+            endHeldScan(scan)
+        }
+
+        assertEquals("The implementations of a search that met a scan start", baseline.sorted(), implementations(outcome!!.getOrThrow()).sorted())
+        assertEquals("Errors logged during the call", emptyList<String>(), errors.toList())
+        assertFalse("The call ended during the file scan", endedDuringTheScan)
+        assertTrue("The start of the scan interrupted the run of the search", interrupted.get())
     }
 
     // The call also waits while the IDE scans the files with no dumb mode. The Java functional
@@ -428,8 +552,9 @@ class SmartReadActionTest : BasePlatformTestCase() {
                 runCatching { runBlocking { call() } }
             }
             PlatformTestUtil.waitWithEventsDispatching("The search did not reach the trigger", { trigger.reached.count == 0L }, 30)
-            val token = DumbModeTestUtils.startEternalDumbModeTask(project)
+            // Before the start of dumb mode: the wait of the call can start in the write action that starts it.
             val start = System.currentTimeMillis()
+            val token = DumbModeTestUtils.startEternalDumbModeTask(project)
             try {
                 while (!future.isDone && System.currentTimeMillis() < start + dumbWindowMs) {
                     PlatformTestUtil.dispatchAllInvocationEventsInIdeEventQueue()
@@ -462,12 +587,18 @@ class SmartReadActionTest : BasePlatformTestCase() {
         }
     }
 
-    /** The call ended with index_not_ready after the wait limit, while dumb mode was still on. */
+    /**
+     * The call ended with index_not_ready after the wait limit, while dumb mode was still on. The
+     * clocks of the test and of the call differ a little, so the test allows a small tolerance.
+     */
     private fun assertWaitLimit(race: RaceCall) {
         assertTrue("Expected index_not_ready, got ${race.outcome}", race.outcome.exceptionOrNull() is IndexNotReadyException)
         val after = race.endedInDumbModeAfterMs
         assertNotNull("The call ended only after dumb mode", after)
-        assertTrue("The call ended $after ms after the start of dumb mode, before the limit", after!! >= TEST_WAIT_LIMIT_MS)
+        assertTrue(
+            "The call ended $after ms after the start of dumb mode, before the limit",
+            after!! >= TEST_WAIT_LIMIT_MS - LIMIT_TOLERANCE_MS
+        )
         assertEquals("Errors logged during the call", emptyList<String>(), race.errors)
     }
 
@@ -536,6 +667,8 @@ class SmartReadActionTest : BasePlatformTestCase() {
         const val DUMB_WINDOW_MS = 1500L
         const val TEST_WAIT_LIMIT_MS = 500L
         const val LONG_DUMB_WINDOW_MS = 5000L
+        const val LIMIT_TOLERANCE_MS = 50L
+        const val AT_ONCE_MS = 2000L
         const val SCAN_HOLD_MS = 1500L
         const val CANCEL_AFTER_MS = 300L
         const val HOLD_TIMEOUT_MS = 30_000L
