@@ -2,14 +2,20 @@
 # Start, stop and examine one dedicated benchmark IDE instance (GoLand or PyCharm) in serverMode.
 # The instance has its own config, system, plugins and log folders below BENCH/ide/<ide>/ and its
 # own MCP port, so that it never reaches an IDE of the fleet (ports 29170 to 29178).
-# The launch follows ~/.local/opt/x11-userland/bin/ide-gui-throwaway.
 #
 # Usage: bench-ide.sh start|prepare|dry-run <goland|pycharm> <project dir>...
 #        bench-ide.sh stop|status <goland|pycharm>
 #   start writes options/recentProjects.xml with the project dirs marked as open and launches a bare
-#   serverMode: that start opens each project of the file (live-test/fleet.py does the same).
+#   serverMode: that start opens each project of the file (live-test/suite/fleet.py does the same).
 #   prepare does each step of start before the launch (for the tests). dry-run does each check of
 #   start and prints what start would do. It makes no folder, copies nothing and starts nothing.
+# The systemd scope: start launches the IDE in a systemd scope of its own when systemd can give one.
+#   Then the end of the calling session (for example an out-of-memory kill of a terminal) does not
+#   end the IDE. The probe: systemd-run is on PATH, and `systemd-run --user --scope --quiet --collect
+#   -- true` exits 0 within 10 s. Then the launch command gets the prefix `systemd-run --user --scope
+#   --quiet --collect --`. Else the launch is as before, with no prefix. systemd-run --scope replaces
+#   its process with the command, so the launched pid stays the pid of the launcher and of its java.
+#   dry-run also does the probe and prints the launch command with or without the prefix.
 # Environment:
 #   BENCH_ROOT        the data root (default $HOME/dev/idesense-bench). Each project dir must be
 #                     below BENCH_ROOT/trees/ or below BENCH_SLOTS/, each folder of the instance below
@@ -115,7 +121,7 @@ version_of() { python3 -I -c 'import json,sys; print(json.load(sys.stdin)["resul
 open_projects() {
   # Prints "<path><TAB><name>" for each open project. The server lists them in the error of a call
   # with an unknown project_path; an entry with "workspace" is a module folder, not a project
-  # (as open_projects of live-test/fleet.py). Fails when the answer has no list.
+  # (as open_projects of live-test/suite/fleet.py). Fails when the answer has no list.
   local call='{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ide_index_status","arguments":{"project_path":"/bench-ide-status/no-such-project"}}}'
   mcp_post "$call" 2>/dev/null | python3 -I -c '
 import json, sys
@@ -230,6 +236,13 @@ vmo_text | check_path_args || die "the options text for $VMO does not have the f
 
 zip="${BENCH_PLUGIN_ZIP:-}"
 LAUNCH=(env "$envvar=$VMO" nohup "$LAUNCHER" serverMode)
+# The systemd scope (see the header). prepare does not launch, so it does no probe.
+SCOPE=(systemd-run --user --scope --quiet --collect --)
+scope_ok() {
+  command -v systemd-run >/dev/null 2>&1 || return 1
+  timeout 10 "${SCOPE[@]}" true < /dev/null > /dev/null 2>&1
+}
+if [ "$cmd" != prepare ] && scope_ok; then LAUNCH=("${SCOPE[@]}" "${LAUNCH[@]}"); fi
 
 if [ "$cmd" = dry-run ]; then
   echo "dry-run $ide: the checks passed. Nothing was made, copied or started."
@@ -350,7 +363,8 @@ end_launched() {  # $1 = the reason. SIGKILL at once to each process of the laun
   exit 1
 }
 
-# The launcher ends with exec of the java, so the java normally keeps the launched pid; a child java is also found.
+# systemd-run --scope, env and nohup replace their process with the next command, and the launcher ends with exec of
+# the java, so the java normally keeps the launched pid; a child java is also found.
 jpid=""
 for _ in $(seq 1 100); do  # 20 s
   for p in $(tree_pids "$lpid"); do

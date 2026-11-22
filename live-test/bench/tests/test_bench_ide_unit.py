@@ -54,6 +54,8 @@ class BenchIdeTestCase(unittest.TestCase):
               "<application />\n")
         self.fake_bin = os.path.join(self.tmp, "fakebin")
         write(os.path.join(self.fake_bin, "ss"), "#!/bin/sh\nexit 0\n", 0o755)
+        # No test reaches the systemd of the machine: the probe of this fake says "no scope".
+        write(os.path.join(self.fake_bin, "systemd-run"), "#!/bin/sh\nexit 1\n", 0o755)
         self.project = os.path.join(self.root, "trees", "p")
         os.makedirs(self.project)
         os.makedirs(os.path.join(self.root, "ide"))
@@ -168,6 +170,44 @@ class DryRunTest(BenchIdeTestCase):
         r = self.run_script("dry-run", "goland", self.project)
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("listens", r.stderr)
+
+
+class ScopeTest(BenchIdeTestCase):
+    """start launches the IDE in a systemd scope of its own when the probe of systemd-run exits 0."""
+
+    PROBE = "call [--user] [--scope] [--quiet] [--collect] [--] [true] 0=/dev/null 1=/dev/null 2=/dev/null"
+
+    def fake_systemd_run(self, code):
+        """A fake systemd-run first on PATH: it exits with code and writes one line for each call (its arguments
+        and the targets of its stdin, stdout and stderr) to the returned file."""
+        record = os.path.join(self.tmp, "systemd-run.calls")
+        write(os.path.join(self.fake_bin, "systemd-run"),
+              '#!/bin/sh\nfds=""\nfor fd in 0 1 2; do fds="$fds $fd=$(readlink /proc/$$/fd/$fd)"; done\n'
+              '{ printf call; printf " [%%s]" "$@"; echo "$fds"; } >> "%s"\nexit %d\n' % (record, code), 0o755)
+        return record
+
+    def dry_run(self, code):
+        record = self.fake_systemd_run(code)
+        r = self.run_script("dry-run", "goland", self.project)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        command = [line for line in r.stdout.splitlines() if line.startswith("command:")]
+        self.assertEqual(len(command), 1, r.stdout)
+        with open(record, encoding="utf-8") as f:
+            self.assertEqual([self.PROBE], f.read().splitlines(), "the probe is one call with these arguments")
+        self.assert_not_launched()
+        return command[0]
+
+    def test_dry_run_prints_the_scope_prefix_when_the_probe_exits_0(self):
+        command = self.dry_run(0)
+        self.assertTrue(command.startswith(
+            "command:        systemd-run --user --scope --quiet --collect -- env GOLAND_VM_OPTIONS="), command)
+        self.assertRegex(command, r"/goland\.sh serverMode > ")
+
+    def test_dry_run_prints_the_plain_launch_when_the_probe_exits_1(self):
+        command = self.dry_run(1)
+        self.assertTrue(command.startswith("command:        env GOLAND_VM_OPTIONS="), command)
+        self.assertNotIn("systemd-run", command)
+        self.assertRegex(command, r"/goland\.sh serverMode > ")
 
 
 class PrepareTest(BenchIdeTestCase):
