@@ -7,4 +7,4 @@
 {"id":"def-err_message-macro","tool":"ide_find_definition","params":{"column":17,"file":"crates/core/main.rs","line":131}}
 {"id":"def-file_name-call-windows-cfg","tool":"ide_find_definition","params":{"column":25,"file":"crates/ignore/src/pathutil.rs","line":40}}
 {"id":"def-messages-from-macro-body","tool":"ide_find_definition","params":{"column":29,"file":"crates/core/messages.rs","line":73},"parked":189}
-{"id":"def-pathutil-mod-decl","tool":"ide_find_definition","params":{"column":5,"file":"crates/globset/src/lib.rs","line":140},"parked":187}
+{"id":"def-pathutil-mod-decl","tool":"ide_find_definition","params":{"column":5,"file":"crates/globset/src/lib.rs","line":140}}

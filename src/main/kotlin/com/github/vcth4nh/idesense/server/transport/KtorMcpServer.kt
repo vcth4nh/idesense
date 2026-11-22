@@ -4,6 +4,7 @@ import com.github.vcth4nh.idesense.McpConstants
 import com.github.vcth4nh.idesense.server.JsonRpcHandler
 import com.github.vcth4nh.idesense.server.models.JsonRpcError
 import com.github.vcth4nh.idesense.server.models.JsonRpcResponse
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
@@ -208,6 +209,7 @@ class KtorMcpServer(
                         flush()
                     }
                 } catch (e: Exception) {
+                    rethrowIfCancellation(e)
                     LOG.debug("SSE connection closed for session $sessionId: ${e.message}")
                 }
             }
@@ -313,6 +315,7 @@ class KtorMcpServer(
                     )
                 }
             } catch (e: Exception) {
+                rethrowIfCancellation(e)
                 LOG.debug("Error processing notification: ${e.message}")
             }
             call.respond(HttpStatusCode.Accepted)
@@ -333,6 +336,7 @@ class KtorMcpServer(
                 call.respond(HttpStatusCode.Accepted)
             }
         } catch (e: Exception) {
+            rethrowIfCancellation(e)
             LOG.error("Error processing MCP request (Streamable HTTP)", e)
             call.respondText(
                 createJsonRpcError(requestId, -32603, e.message ?: "Internal error"),
@@ -388,6 +392,7 @@ class KtorMcpServer(
                     )
                 }
             } catch (e: Exception) {
+                rethrowIfCancellation(e)
                 LOG.error("Error processing MCP batch message (Streamable HTTP)", e)
                 createJsonRpcError(parsed?.get("id"), -32603, e.message ?: "Internal error")
             }
@@ -425,6 +430,7 @@ class KtorMcpServer(
                 call.respond(HttpStatusCode.InternalServerError)
             }
         } catch (e: Exception) {
+            rethrowIfCancellation(e)
             LOG.error("Error processing initialize (Streamable HTTP)", e)
             call.respondText(
                 createJsonRpcError(null as JsonElement?, -32603, e.message ?: "Internal error"),
@@ -470,6 +476,7 @@ class KtorMcpServer(
                 call.respond(HttpStatusCode.Accepted)
             }
         } catch (e: Exception) {
+            rethrowIfCancellation(e)
             LOG.error("Error processing MCP request (Streamable HTTP)", e)
             call.respondText(
                 createJsonRpcError(null as JsonElement?, -32603, e.message ?: "Internal error"),
@@ -519,6 +526,7 @@ class KtorMcpServer(
                     }
                 }
             } catch (e: Exception) {
+                rethrowIfCancellation(e)
                 LOG.error("Error processing MCP request (SSE)", e)
                 sseSessionManager.sendEvent(
                     sessionId,

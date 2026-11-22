@@ -1,0 +1,11 @@
+{"id":"canary-def-Collection-d.ts-into-dependency","tool":"ide_find_definition","params":{"column":75,"file":"types/collection.d.ts","line":4}}
+{"id":"canary-def-Schema-ts-paths","tool":"ide_find_definition","params":{"column":26,"file":"test/types/schema.test.ts","line":446}}
+{"id":"canary-def-mpath.set-into-dependency","tool":"ide_find_definition","params":{"column":15,"file":"lib/document.js","line":1322}}
+{"id":"def-BSON-into-dependency","tool":"ide_find_definition","params":{"column":10,"file":"test/types/schema.test.ts","line":33}}
+{"id":"def-CastError-alias-call","tool":"ide_find_definition","params":{"column":15,"file":"lib/schema/uuid.js","line":207}}
+{"id":"def-CastError-reexport-member","tool":"ide_find_definition","params":{"column":30,"file":"lib/schema/uuid.js","line":8}}
+{"id":"def-Document.$get-alias","tool":"ide_find_definition","params":{"column":37,"file":"lib/document.js","line":1185}}
+{"id":"def-Kareem-into-dependency","tool":"ide_find_definition","params":{"column":16,"file":"lib/schema.js","line":139}}
+{"id":"def-Schema.emit-via-prototype","tool":"ide_find_definition","params":{"column":26,"file":"lib/schema.js","line":422}}
+{"id":"def-SchemaType-cross-file","tool":"ide_find_definition","params":{"column":40,"file":"lib/schema/string.js","line":46}}
+{"id":"def-mquery-into-dependency","tool":"ide_find_definition","params":{"column":23,"file":"lib/query.js","line":201}}

@@ -48,6 +48,10 @@ import com.intellij.util.Processor
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicIntegerArray
 
 /**
  * Fused "what is this thing?" tool (#41): definition + signature + quick documentation +
@@ -94,6 +98,45 @@ class ExplainSymbolTool : AbstractMcpTool() {
          */
         internal fun preferSureUsages(usages: List<UsageLocation>, limit: Int): List<UsageLocation> =
             usages.sortedBy { usageClass(it.usageType, it.match) }.take(limit)
+    }
+
+    /**
+     * The state of the usage part: each position one time, at most [MAX_USAGE_COUNT] usages, and the
+     * candidates for topUsages. The reference search of the platform searches the files on more than
+     * one thread (`PsiSearchHelperImpl.processFilesConcurrentlyDespiteWriteActions` with `JobLauncher`,
+     * `lib/intellij.platform.indexing.impl.jar`, build 263.7307). `AbstractQuery.forEach` gives the
+     * calls of the processor one at a time, but a thread can give a usage after the processor returned
+     * false on another thread (#215). Thus a usage counts only when it gets one of the
+     * [MAX_USAGE_COUNT] slots. The state is in concurrent collections, as in ide_find_usages, so it
+     * does not depend on the lock of the query.
+     */
+    internal class UsageCollector {
+        private val seen = ConcurrentHashMap.newKeySet<String>()
+        private val counted = AtomicInteger(0)
+        // In arrival order until it has MAX_TOP_USAGES sure code usages, at most MAX_TOP_USAGES
+        // of each class; preferSureUsages selects.
+        private val top = ConcurrentLinkedQueue<UsageLocation>()
+        private val classCounts = AtomicIntegerArray(COMMENT_USAGE + 1)
+
+        /** The count of the usages, at most [MAX_USAGE_COUNT]. */
+        val usageCount: Int get() = minOf(counted.get(), MAX_USAGE_COUNT)
+
+        /** True when the count is at [MAX_USAGE_COUNT]: the search stops, and it can have more usages. */
+        val isFull: Boolean get() = counted.get() >= MAX_USAGE_COUNT
+
+        val topUsages: List<UsageLocation> get() = preferSureUsages(top.toList(), MAX_TOP_USAGES)
+
+        /**
+         * Counts the usage at [key] when the position is new and a slot is free. While the candidates
+         * have fewer than [MAX_TOP_USAGES] sure code usages, [usageType] gives the type of a counted
+         * usage, and [usage] gives a candidate when its class has a free slot.
+         */
+        fun add(key: String, match: String?, usageType: () -> String, usage: (String) -> UsageLocation) {
+            if (seen.add(key) && counted.incrementAndGet() <= MAX_USAGE_COUNT && classCounts[SURE_CODE_USAGE] < MAX_TOP_USAGES) {
+                val type = usageType()
+                if (classCounts.incrementAndGet(usageClass(type, match)) <= MAX_TOP_USAGES) top.add(usage(type))
+            }
+        }
     }
 
     override val name = ToolNames.EXPLAIN_SYMBOL
@@ -321,11 +364,7 @@ class ExplainSymbolTool : AbstractMcpTool() {
         var topUsages: List<UsageLocation>? = null
         var notes: List<String>? = null
         try {
-            val seen = HashSet<String>()
-            // In arrival order until it has MAX_TOP_USAGES sure code usages, at most MAX_TOP_USAGES
-            // of each class; preferSureUsages selects.
-            val top = mutableListOf<UsageLocation>()
-            val classCounts = IntArray(COMMENT_USAGE + 1)
+            val usages = UsageCollector()
             val collectRef: (UsageHit) -> Boolean = { hit ->
                 ProgressManager.checkCanceled()
                 val refElement = hit.element
@@ -338,25 +377,20 @@ class ExplainSymbolTool : AbstractMcpTool() {
                         val refLine = refDocument.getLineNumber(hit.offset) + 1
                         val refColumn = hit.offset - refDocument.getLineStartOffset(refLine - 1) + 1
                         val path = getRelativePath(project, refFile)
-                        if (seen.add("$path:$refLine:$refColumn") && classCounts[SURE_CODE_USAGE] < MAX_TOP_USAGES) {
-                            val usageType = FindUsagesTool.classifyUsage(refElement)
-                            val usageClass = usageClass(usageType, hit.match)
-                            if (classCounts[usageClass] < MAX_TOP_USAGES) {
-                                classCounts[usageClass]++
-                                top.add(UsageLocation(
-                                    file = path,
-                                    line = refLine,
-                                    column = refColumn,
-                                    preview = LinePreview.ofLine(refDocument, refLine - 1, refColumn - 1),
-                                    usageType = usageType,
-                                    enclosingScope = PsiUtils.getEnclosingScope(refElement),
-                                    match = hit.match,
-                                ))
-                            }
+                        usages.add("$path:$refLine:$refColumn", hit.match, { FindUsagesTool.classifyUsage(refElement) }) { usageType ->
+                            UsageLocation(
+                                file = path,
+                                line = refLine,
+                                column = refColumn,
+                                preview = LinePreview.ofLine(refDocument, refLine - 1, refColumn - 1),
+                                usageType = usageType,
+                                enclosingScope = PsiUtils.getEnclosingScope(refElement),
+                                match = hit.match,
+                            )
                         }
                     }
                 }
-                seen.size < MAX_USAGE_COUNT
+                !usages.isFull
             }
             val skippedBases = mutableListOf<PsiElement>()
             val dropped = LinkedHashMap<String, Int>()
@@ -369,9 +403,9 @@ class ExplainSymbolTool : AbstractMcpTool() {
                 skippedBases = skippedBases,
                 dropped = dropped
             )
-            usageCount = seen.size
-            usagesTruncated = seen.size >= MAX_USAGE_COUNT
-            topUsages = preferSureUsages(top, MAX_TOP_USAGES)
+            usageCount = usages.usageCount
+            usagesTruncated = usages.isFull
+            topUsages = usages.topUsages
             // The same entries as the notes of ide_find_usages; the search stops at MAX_USAGE_COUNT usages.
             notes = (listOfNotNull(SkippedBasesNote.build(skippedBases.map(FindUsagesTool::declarationName))) +
                 DroppedUsagesNote.build(dropped, cut = usagesTruncated)).ifEmpty { null }

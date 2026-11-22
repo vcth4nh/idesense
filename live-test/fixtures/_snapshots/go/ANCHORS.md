@@ -138,8 +138,10 @@ fails when this file is stale.
 | find-symbol-Area-fuzzy | find_symbol | `{"fuzzySearch":true,"query":"Area"}` |
 | find-symbol-Describe | find_symbol | `{"query":"Describe"}` |
 | find-symbol-Draw | find_symbol | `{"query":"Draw"}` |
+| find-symbol-Ink | find_symbol | `{"query":"Ink"}` |
 | find-symbol-IntCoercer.Coerce-qualified | find_symbol | `{"query":"IntCoercer.Coerce"}` |
 | find-symbol-Largest | find_symbol | `{"query":"Largest"}` |
+| find-symbol-Radius | find_symbol | `{"query":"Radius"}` |
 | find-symbol-TotalArea | find_symbol | `{"query":"TotalArea"}` |
 | find-symbol-area-paged | find_symbol | `{"pageSize":2,"query":"Area"}` |
 | find-symbol-no-match | find_symbol | `{"query":"noSuchSymbolXyz"}` |

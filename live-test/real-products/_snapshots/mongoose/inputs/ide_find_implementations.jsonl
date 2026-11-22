@@ -1,0 +1,5 @@
+{"id":"impls-MongooseError-d.ts","tool":"ide_find_implementations","params":{"column":16,"file":"types/error.d.ts","line":9}}
+{"id":"impls-PathTrie-negative","tool":"ide_find_implementations","params":{"column":7,"file":"lib/helpers/pathTrie.js","line":25}}
+{"id":"impls-SchemaType.cast","tool":"ide_find_implementations","params":{"column":22,"file":"lib/schemaType.js","line":377}}
+{"id":"impls-SchemaTypeOptions","tool":"ide_find_implementations","params":{"column":7,"file":"lib/options/schemaTypeOptions.js","line":17}}
+{"id":"impls-SessionOperation.session","tool":"ide_find_implementations","params":{"column":5,"file":"types/session.d.ts","line":16}}

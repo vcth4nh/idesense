@@ -1,0 +1,9 @@
+{"id":"canary-def-FormRequest-into-dependency","tool":"ide_find_definition","params":{"column":39,"file":"app/Http/Requests/BaseApiRequest.php","line":30}}
+{"id":"canary-def-axios.get-into-node-modules","tool":"ide_find_definition","params":{"column":16,"file":"resources/js/services/album-service.ts","line":185}}
+{"id":"def-AlbumFactory-cross-file","tool":"ide_find_definition","params":{"column":21,"file":"app/Http/Requests/BaseApiRequest.php","line":32}}
+{"id":"def-AlbumService.clearCache-from-vue","tool":"ide_find_definition","params":{"column":16,"file":"resources/js/v8/views/FixTree.vue","line":156}}
+{"id":"def-DB.table-via-facade","tool":"ide_find_definition","params":{"column":7,"file":"app/Models/Colour.php","line":84}}
+{"id":"def-PhotoAlbum-via-alias","tool":"ide_find_definition","params":{"column":11,"file":"app/Repositories/PhotoRepository.php","line":65}}
+{"id":"def-PhotoResource-into-generated","tool":"ide_find_definition","params":{"column":127,"file":"resources/js/services/photo-service.ts","line":24}}
+{"id":"def-configs-macro","tool":"ide_find_definition","params":{"column":48,"file":"app/View/Components/Webshop.php","line":35}}
+{"id":"def-size_variants-magic-property","tool":"ide_find_definition","params":{"column":23,"file":"app/Jobs/DispatchNsfwScanJob.php","line":54}}

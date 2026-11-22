@@ -463,6 +463,81 @@ class SetOpenProjectsTest(unittest.TestCase):
         self.assertEqual(f"cannot start goland: no memory. Start command: {proc.launcher} serverMode", err)
 
 
+class StartCommandTest(unittest.TestCase):
+    """The command of `_start`; no process starts and no systemd is needed."""
+
+    SCOPE = ["systemd-run", "--user", "--scope", "--quiet", "--collect", "--"]
+    PLAIN = ["setsid", "--fork", "/ide/idea.sh", "serverMode"]
+
+    def proc(self):
+        return fleet.IdeProcess(0, Path("/ide/idea.sh"), Path("/cfg"), {"PATH": "/bin"}, "/work")
+
+    def commands(self, prefix=None, fail_first=False):
+        calls = []
+
+        def run(cmd, **kwargs):
+            calls.append(cmd)
+            if fail_first and len(calls) == 1:
+                raise subprocess.CalledProcessError(1, cmd)
+
+        with mock.patch.object(fleet, "_scope_prefix", return_value=self.SCOPE if prefix is None else prefix), \
+             mock.patch.object(fleet.subprocess, "run", side_effect=run):
+            fleet._start(self.proc())
+        return calls
+
+    def test_command_has_the_scope_prefix_when_the_helper_says_yes(self):
+        self.assertEqual([self.SCOPE + self.PLAIN], self.commands())
+
+    def test_command_has_no_prefix_when_the_helper_says_no(self):
+        self.assertEqual([self.PLAIN], self.commands(prefix=[]))
+
+    def test_failed_scoped_start_falls_back_to_the_plain_command(self):
+        self.assertEqual([self.SCOPE + self.PLAIN, self.PLAIN], self.commands(fail_first=True))
+
+    def test_failed_plain_start_is_not_hidden(self):
+        with mock.patch.object(fleet, "_scope_prefix", return_value=[]), \
+             mock.patch.object(fleet.subprocess, "run", side_effect=subprocess.CalledProcessError(1, "x")):
+            with self.assertRaises(subprocess.CalledProcessError):
+                fleet._start(self.proc())
+
+    def test_scope_arguments_are_the_same_as_in_the_plain_start(self):
+        with mock.patch.object(fleet, "_scope_prefix", return_value=self.SCOPE), \
+             mock.patch.object(fleet.subprocess, "run") as run:
+            fleet._start(self.proc())
+        self.assertEqual("/work", run.call_args.kwargs["cwd"])
+        self.assertEqual({"PATH": "/bin"}, run.call_args.kwargs["env"])
+
+
+class ScopePrefixTest(unittest.TestCase):
+    ENV = {"PATH": "/bin"}
+
+    def prefix(self, which="/bin/systemd-run", run=None):
+        with mock.patch.object(fleet.shutil, "which", return_value=which), \
+             mock.patch.object(fleet.subprocess, "run", **(run or {"return_value": mock.Mock(returncode=0)})) as r:
+            return fleet._scope_prefix(self.ENV), r
+
+    def test_prefix_when_the_probe_succeeds(self):
+        prefix, run = self.prefix()
+        self.assertEqual(["systemd-run", "--user", "--scope", "--quiet", "--collect", "--"], prefix)
+        self.assertEqual(self.ENV, run.call_args.kwargs["env"])
+        self.assertIn("timeout", run.call_args.kwargs)
+
+    def test_no_prefix_when_systemd_run_is_absent(self):
+        prefix, run = self.prefix(which=None)
+        self.assertEqual([], prefix)
+        run.assert_not_called()
+
+    def test_no_prefix_when_the_probe_fails(self):
+        self.assertEqual([], self.prefix(run={"return_value": mock.Mock(returncode=1)})[0])
+
+    def test_no_prefix_when_the_probe_times_out(self):
+        timeout = subprocess.TimeoutExpired("systemd-run", 1)
+        self.assertEqual([], self.prefix(run={"side_effect": timeout})[0])
+
+    def test_no_prefix_when_the_program_cannot_be_run(self):
+        self.assertEqual([], self.prefix(run={"side_effect": FileNotFoundError()})[0])
+
+
 class StartStopTest(unittest.TestCase):
     """Real processes: a small shell script stands in for <ide>.sh."""
 

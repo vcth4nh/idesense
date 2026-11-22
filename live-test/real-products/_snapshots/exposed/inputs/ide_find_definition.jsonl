@@ -1,0 +1,7 @@
+{"id":"canary-def-LoggerFactory.getLogger-into-dependency","tool":"ide_find_definition","params":{"column":35,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/SQLLog.kt","line":17}}
+{"id":"canary-def-Transaction-cross-module","tool":"ide_find_definition","params":{"column":5,"file":"exposed-jdbc/src/main/kotlin/org/jetbrains/exposed/v1/jdbc/JdbcTransaction.kt","line":32}}
+{"id":"def-JavaUUID-via-import-alias","tool":"ide_find_definition","params":{"column":77,"file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/Table.kt","line":1242}}
+{"id":"def-JdbcTransactionInterface.connection-via-delegation","tool":"ide_find_definition","params":{"column":32,"file":"exposed-jdbc/src/main/kotlin/org/jetbrains/exposed/v1/jdbc/statements/BatchUpsertBlockingExecutable.kt","line":18}}
+{"id":"def-Select-via-typealias","tool":"ide_find_definition","params":{"column":11,"file":"exposed-jdbc/src/main/kotlin/org/jetbrains/exposed/v1/jdbc/Queries.kt","line":47},"parked":278}
+{"id":"def-Statement.getResultSet-via-synthetic-property","tool":"ide_find_definition","params":{"column":53,"file":"exposed-jdbc/src/main/kotlin/org/jetbrains/exposed/v1/jdbc/statements/jdbc/JdbcPreparedStatementImpl.kt","line":30}}
+{"id":"def-withContext-into-kotlin-dependency","tool":"ide_find_definition","params":{"column":12,"file":"exposed-jdbc/src/main/kotlin/org/jetbrains/exposed/v1/jdbc/transactions/experimental/Suspended.kt","line":30}}

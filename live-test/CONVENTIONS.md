@@ -371,7 +371,11 @@ A fixture row with one of these keys fails `--check-fixtures`.
   for the fixtures. Use it only for a complete result, one that no page size, no collection
   limit, no node budget and no depth cuts.
 - **`ordered`**: as `exact`, but the lists keep their order. For rank probes of
-  `ide_find_symbol`, `ide_find_class` and `ide_find_file`.
+  `ide_find_symbol`, `ide_find_class` and `ide_find_file`. Use it only when no two items of
+  the result have the same rank. `ide_find_file` gives files with the same name in the order
+  of the IDE index, which changes with a new index, and the Go to File popup changes their
+  order from one open to the next (seen on WebStorm 2026.3, see the uptime-kuma
+  [GROUND-TRUTH.md](real-products/_snapshots/uptime-kuma/GROUND-TRUTH.md)).
 - **`shape`**: the snapshot holds only the item count of each result list and the pagination
   and cap fields. **A cut result is always a `shape` row.** A cut result is in arrival order:
   the tools put the first results of a parallel search into the cursor cache with no sort, so

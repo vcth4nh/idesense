@@ -1,0 +1,7 @@
+{"id":"find-file-copy-code.js","tool":"ide_find_file","params":{"query":"copy-code.js"}}
+{"id":"find-file-decimal128.js","tool":"ide_find_file","params":{"query":"decimal128.js"}}
+{"id":"find-file-index.js-paged","tool":"ide_find_file","params":{"pageSize":10,"query":"index.js"},"compare":"shape"}
+{"id":"find-file-index.js-production-scope","tool":"ide_find_file","params":{"query":"index.js","scope":"project_production_files"}}
+{"id":"find-file-mongodb.d.ts-libraries-scope","tool":"ide_find_file","params":{"query":"mongodb.d.ts","scope":"project_and_libraries"}}
+{"id":"find-file-mongooseError.js","tool":"ide_find_file","params":{"query":"mongooseError.js"}}
+{"id":"find-file-zzqNoSuchFile.js-no-match","tool":"ide_find_file","params":{"query":"zzqNoSuchFile.js"}}

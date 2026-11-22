@@ -1,0 +1,9 @@
+{"id":"canary-def-FormRequest-into-dependency","result":{"column":7,"enclosingScope":null,"file":"vendor/laravel/framework/src/Illuminate/Foundation/Http/FormRequest.php","kind":"CLASS","line":15,"name":"FormRequest","qualifiedName":"\\Illuminate\\Foundation\\Http\\FormRequest"}}
+{"id":"canary-def-axios.get-into-node-modules","result":{"column":3,"enclosingScope":null,"file":"node_modules/axios/index.d.ts","kind":"METHOD","line":653,"name":"get","qualifiedName":"Axios.get"}}
+{"id":"def-AlbumFactory-cross-file","result":{"column":7,"enclosingScope":null,"file":"app/Factories/AlbumFactory.php","kind":"CLASS","line":38,"name":"AlbumFactory","qualifiedName":"\\App\\Factories\\AlbumFactory"}}
+{"id":"def-AlbumService.clearCache-from-vue","result":{"column":2,"enclosingScope":null,"file":"resources/js/services/album-service.ts","kind":"FUNCTION","line":92,"name":"clearCache","qualifiedName":"AlbumService.clearCache"}}
+{"id":"def-DB.table-via-facade","result":{"column":21,"enclosingScope":null,"file":"vendor/laravel/framework/src/Illuminate/Database/Connection.php","kind":"METHOD","line":330,"name":"table","qualifiedName":"\\Illuminate\\Database\\Connection::table"}}
+{"id":"def-PhotoAlbum-via-alias","result":{"column":7,"enclosingScope":null,"file":"app/Constants/PhotoAlbum.php","kind":"CLASS","line":13,"name":"PhotoAlbum","qualifiedName":"\\App\\Constants\\PhotoAlbum"}}
+{"id":"def-PhotoResource-into-generated","result":{"column":17,"enclosingScope":null,"file":"resources/js/lychee.d.ts","kind":"TYPE_ALIAS","line":1000,"name":"PhotoResource","qualifiedName":"App.Http.Resources.Models.PhotoResource"}}
+{"id":"def-configs-macro","result":{"error":"tool_error","message":"Could not resolve symbol definition"}}
+{"id":"def-size_variants-magic-property","result":{"column":36,"enclosingScope":null,"file":"app/Models/Photo.php","kind":"FIELD","line":90,"name":"size_variants","qualifiedName":"\\App\\Models\\Photo::@$size_variants"}}

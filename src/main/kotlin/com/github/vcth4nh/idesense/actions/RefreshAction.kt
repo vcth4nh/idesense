@@ -4,6 +4,7 @@ import com.github.vcth4nh.idesense.McpBundle
 import com.github.vcth4nh.idesense.McpConstants
 import com.github.vcth4nh.idesense.ui.McpToolWindowPanel
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.wm.ToolWindowManager
@@ -24,6 +25,8 @@ class RefreshAction : AnAction(
             }
         }
     }
+
+    override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabled = e.project != null

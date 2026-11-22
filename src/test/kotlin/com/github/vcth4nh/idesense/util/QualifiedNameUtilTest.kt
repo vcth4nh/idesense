@@ -124,6 +124,44 @@ class QualifiedNameUtilTest : BasePlatformTestCase() {
         assertNull(result)
     }
 
+    fun testAFileElementGoesToTheProviders() {
+        // A result can be a file: RsQualifiedNameProvider names a Rust module file (`globset::pathutil`).
+        // The walk of the providers stopped before each PsiFile, also before the element itself (#187).
+        val fileProvider = object : com.intellij.ide.actions.QualifiedNameProvider {
+            override fun getQualifiedName(element: com.intellij.psi.PsiElement): String? =
+                (element as? com.intellij.psi.PsiFile)?.let { "file:${it.name}" }
+            override fun qualifiedNameToElement(fqn: String, project: com.intellij.openapi.project.Project): com.intellij.psi.PsiElement? = null
+            override fun adjustElementToCopy(element: com.intellij.psi.PsiElement): com.intellij.psi.PsiElement? = null
+        }
+        com.intellij.testFramework.ExtensionTestUtil.maskExtensions(
+            com.intellij.ide.actions.QualifiedNameProvider.EP_NAME,
+            listOf(fileProvider) + com.intellij.ide.actions.QualifiedNameProvider.EP_NAME.extensionList,
+            testRootDisposable
+        )
+        val file = myFixture.configureByText("Foo.java", "package com.example; public class Foo { }")
+
+        val result = ReadAction.compute<String?, Throwable> {
+            QualifiedNameUtil.getQualifiedName(file)
+        }
+
+        assertEquals("file:Foo.java", result)
+    }
+
+    fun testAJavaFileHasNoQualifiedName() {
+        // The walk does not go from a file element to its directory: the Java provider gives the
+        // package of a directory, which is no name of the file.
+        val file = myFixture.addFileToProject(
+            "com/example/Foo.java",
+            "package com.example; public class Foo { }"
+        )
+
+        val result = ReadAction.compute<String?, Throwable> {
+            QualifiedNameUtil.getQualifiedName(file)
+        }
+
+        assertNull(result)
+    }
+
     fun testJavaPackageReturnsFqn() {
         // File must be at the package-matching path so the directory hierarchy maps to the
         // declared package; `JavaDirectoryService.getPackage` then yields a properly-qualified

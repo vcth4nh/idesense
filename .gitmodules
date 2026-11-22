@@ -28,3 +28,33 @@
 	url = https://github.com/louislam/uptime-kuma
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/exposed"]
+	path = live-test/real-products/exposed
+	url = https://github.com/JetBrains/Exposed
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/django"]
+	path = live-test/real-products/django
+	url = https://github.com/django/django
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/mongoose"]
+	path = live-test/real-products/mongoose
+	url = https://github.com/Automattic/mongoose
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/lazygit"]
+	path = live-test/real-products/lazygit
+	url = https://github.com/jesseduffield/lazygit
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/lychee"]
+	path = live-test/real-products/lychee
+	url = https://github.com/LycheeOrg/Lychee
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/rolldown"]
+	path = live-test/real-products/rolldown
+	url = https://github.com/rolldown/rolldown
+	shallow = true
+	ignore = dirty

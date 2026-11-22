@@ -1,0 +1,7 @@
+{"id":"canary-hier-super-SpringTransactionManager","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"spring-transaction/src/main/kotlin/org/jetbrains/exposed/v1/spring/transaction/SpringTransactionManager.kt","line":36}}
+{"id":"hier-sub-IColumnType","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/ColumnType.kt","line":33}}
+{"id":"hier-sub-IColumnType-production-scope","tool":"ide_type_hierarchy","params":{"column":11,"direction":"subtypes","file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/ColumnType.kt","line":33,"scope":"production"}}
+{"id":"hier-sub-Table","tool":"ide_type_hierarchy","params":{"column":12,"direction":"subtypes","file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/Table.kt","line":410},"compare":"shape"}
+{"id":"hier-super-ExposedSQLException-java","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/Exceptions.kt","line":17}}
+{"id":"hier-super-LargeTextColumnType","tool":"ide_type_hierarchy","params":{"column":12,"direction":"supertypes","file":"exposed-core/src/main/kotlin/org/jetbrains/exposed/v1/core/ColumnType.kt","line":938}}
+{"id":"hier-super-Query-byname","tool":"ide_type_hierarchy","params":{"className":"Query","direction":"supertypes"}}

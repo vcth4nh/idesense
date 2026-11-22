@@ -10,8 +10,9 @@ import com.intellij.psi.PsiElement
  * `JSAttributeList`, `RsVis`). Despite the type names differing per language, the
  * accessor methods are conventionally one of `getModifierList`, `getAttributeList`,
  * or `getVis`, and the returned PSI element's `getText()` yields the source-order
- * keyword list. We probe those accessors reflectively and split the resulting text
- * on whitespace, dropping anything that looks like an annotation (`@...`).
+ * keyword list. We probe those accessors reflectively, remove the text of each
+ * annotation or decorator child (see [withoutAnnotations]), and split the resulting
+ * text on whitespace, dropping anything that looks like an annotation (`@...`).
  *
  * PHP class and field elements don't expose `getModifierList()` (only methods do).
  * As a fallback, we probe `getModifier()` — which returns a `PhpModifier` whose
@@ -36,13 +37,40 @@ internal object UniversalModifiers {
         for (getter in GETTERS) {
             val sub = invokeNoArg(value, getter) ?: continue
             val text = invokeString(sub, "getText") ?: continue
-            return splitKeywords(text)
+            return splitKeywords(withoutAnnotations(sub, text))
         }
         invokeNoArg(value, "getModifier")?.let { mod ->
             val text = mod.toString()
             if (text.isNotBlank() && '@' !in text) return splitKeywords(text)
         }
         return emptyList()
+    }
+
+    /**
+     * Puts a space in place of each child of [modifierList] whose text starts with `@`: a Java or
+     * Kotlin annotation, or a JavaScript or TypeScript decorator. The arguments of such a child
+     * can hold white space, so the `@` filter of [splitKeywords] alone left parts of them (#173).
+     * With the space, two keywords next to the child stay apart (`static@A(x)final`).
+     *
+     * The offsets come from the PSI, so a string or a parenthesis in the arguments has no effect.
+     * In a compiled Java class the annotations are the only children, and the text and the
+     * offsets come from the decompiled text. The loop goes from the end, so that each
+     * replacement keeps the offsets of the children before it.
+     *
+     * A light modifier list has no children. An example is the modifier list of a Kotlin member
+     * that a Java class inherits. Its text is the text of its navigation element, so the children
+     * come from that element when the two texts are the same.
+     */
+    private fun withoutAnnotations(modifierList: Any, text: String): String {
+        if (modifierList !is PsiElement) return text
+        val source = modifierList.navigationElement.takeIf { it.text == text } ?: modifierList
+        val result = StringBuilder(text)
+        for (child in source.children.reversed()) {
+            val start = child.startOffsetInParent
+            if (start < 0 || !child.text.startsWith("@")) continue
+            result.replace(start, start + child.textLength, " ")
+        }
+        return result.toString()
     }
 
     private fun splitKeywords(text: String): List<String> =

@@ -1,0 +1,4 @@
+{"id":"file-structure-2021_12_04_181200_refactor_models.php","tool":"ide_file_structure","params":{"file":"database/migrations/2021_12_04_181200_refactor_models.php"},"compare":"shape"}
+{"id":"file-structure-ConfigManager.php","tool":"ide_file_structure","params":{"file":"app/Repositories/ConfigManager.php"}}
+{"id":"file-structure-FixTree.vue","tool":"ide_file_structure","params":{"file":"resources/js/v8/views/FixTree.vue"},"compare":"shape"}
+{"id":"file-structure-lychee.d.ts","tool":"ide_file_structure","params":{"file":"resources/js/lychee.d.ts"},"compare":"shape"}

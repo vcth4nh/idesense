@@ -33,6 +33,14 @@ object QualifiedNameUtil {
         try { Class.forName("com.goide.psi.GoTypeSpec") } catch (_: ClassNotFoundException) { null }
     }
 
+    private val goFieldDefinitionClass: Class<*>? by lazy {
+        try { Class.forName("com.goide.psi.GoFieldDefinition") } catch (_: ClassNotFoundException) { null }
+    }
+
+    private val goAnonymousFieldDefinitionClass: Class<*>? by lazy {
+        try { Class.forName("com.goide.psi.GoAnonymousFieldDefinition") } catch (_: ClassNotFoundException) { null }
+    }
+
     private val rsNamedElementClass: Class<*>? by lazy {
         try { Class.forName("org.rust.lang.core.psi.ext.RsNamedElement") } catch (_: ClassNotFoundException) { null }
     }
@@ -49,7 +57,10 @@ object QualifiedNameUtil {
      * @return qualified name, or null when no provider or fallback handles the element.
      */
     fun getQualifiedName(element: PsiElement): String? {
-        for (candidate in generateSequence(element) { it.parent }.takeWhile { it !is PsiFile }) {
+        // A file element goes to the providers too, but not its directory (#187).
+        val candidates = if (element is PsiFile) sequenceOf(element)
+            else generateSequence(element) { it.parent }.takeWhile { it !is PsiFile }
+        for (candidate in candidates) {
             for (provider in QualifiedNameProvider.EP_NAME.extensionList) {
                 try {
                     val adjusted = provider.adjustElementToCopy(candidate) ?: candidate
@@ -127,18 +138,20 @@ object QualifiedNameUtil {
                 val type = receiver.javaClass.getMethod("getType").invoke(receiver) as? PsiElement ?: return@run null
                 type.text?.trim()
             }
-            // Interface method specs (GoMethodSpec) have no receiver; qualify them by the enclosing
-            // interface (GoTypeSpec) so they read `package.Interface.method` instead of `package.method`
-            // (otherwise indistinguishable from a top-level function).
-            val interfaceName = run {
-                val spec = goMethodSpecClass ?: return@run null
-                if (!spec.isInstance(element)) return@run null
+            // Interface method specs (GoMethodSpec) and struct fields (GoFieldDefinition,
+            // GoAnonymousFieldDefinition) have no receiver; qualify them by the nearest enclosing
+            // type (GoTypeSpec) so they read `package.Type.name` instead of `package.name`.
+            // Otherwise a method spec reads as a top-level function, and the fields of one name in
+            // two structs of one package get one name (#136). GoLand gives `package.field`.
+            val typeName = run {
+                val members = listOfNotNull(goMethodSpecClass, goFieldDefinitionClass, goAnonymousFieldDefinitionClass)
+                if (members.none { it.isInstance(element) }) return@run null
                 val typeSpecCls = goTypeSpecClass ?: return@run null
                 @Suppress("UNCHECKED_CAST")
                 val enclosing = PsiTreeUtil.getParentOfType(element, typeSpecCls as Class<out PsiElement>) ?: return@run null
                 enclosing.javaClass.getMethod("getName").invoke(enclosing) as? String
             }
-            formatGoQualifiedName(packageName, receiverType ?: interfaceName, name)
+            formatGoQualifiedName(packageName, receiverType ?: typeName, name)
         } catch (e: Exception) {
             LOG.debug("Go qualified-name fallback threw for ${element.javaClass.simpleName}: ${e.message}")
             null
@@ -146,6 +159,9 @@ object QualifiedNameUtil {
     }
 
     private fun rustFallback(element: PsiElement): String? {
+        // The name of a file element is its file name ("pathutil.rs"), so no module path can be
+        // built from it. Only the provider knows the path of a module file (#187).
+        if (element is PsiFile) return null
         val namedElementClass = rsNamedElementClass ?: return null
         if (!namedElementClass.isInstance(element)) return null
         return try {

@@ -24,6 +24,15 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   a knex file, and the Supertypes view of WebStorm shows no supertype either.
   `find-file-dayjs.min.js-libraries-scope` gives no file, and Go to File of WebStorm with "All
   Places" finds nothing either.
+- **uptime-kuma: the files with the name `index.js` have no fixed order.** `find-file-index.js`
+  gives four files with the name `index.js` and one file whose name only holds the query. The
+  tool ranks the files by the match of the file name, so the fifth file is always last. The
+  four files keep the order in which the IDE index gives them, and that order changes with a new
+  index: the fleet gave three orders (WebStorm 2026.2, and WebStorm 2026.3 with two checkouts of
+  the product), and two instances of a throwaway WebStorm 2026.3 gave two more. Go to File of
+  WebStorm 2026.3 (the tab "Files" of Search Everywhere, scope "Project Files") also puts the
+  fifth file last, and it changes the order of the four files from one open of the popup to the
+  next: 7 opens gave 7 orders. So the row has the compare mode `exact`, not `ordered`.
 - **uptime-kuma: a `.vue` file as a caller.** `hier-caller-sleep-d1` has the nodes
   `CountUp.vue`, `SetupDatabase.vue` and `EditMonitor.vue` at line 1 with the kind `SYMBOL`.
   Each file imports the function outside a function, and the caller tree of WebStorm keys a
@@ -37,8 +46,7 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   name of the computed property is `default.computed.startDateTime`, the same as Copy
   Reference of WebStorm.
 - **uptime-kuma: instruction files in the checkout.** The checkout has its own instruction
-  files for agents (see "Product checkouts" in [AGENTS.md](../../../AGENTS.md)). The agents of
-  the agent task do not get them.
+  files for agents (see "Product checkouts" in [AGENTS.md](../../../AGENTS.md)).
 - **uptime-kuma: the usages of `send` are dynamic usages (#196, #171).**
   `usage-NotificationProvider.send` and `usage-Discord.send` give the 10 calls, all with
   `match` `DYNAMIC`. Find Usages of WebStorm hides them by default ("0 of 10 usages") and lists

@@ -1,0 +1,2 @@
+{"id":"search-text-favourite-comments","result":{"hasMore":false,"matches":[{"column":44,"contextType":"COMMENT","file":"tests/Feature_v2/Metrics/MetricsGetTest.php","line":79}],"offset":0,"pageSize":100,"query":"favourite","totalCollected":1}}
+{"id":"search-text-renamer-paged","result":{"counts":{"matches":50},"hasMore":true,"offset":0,"pageSize":50,"totalCollected":500}}

@@ -1,0 +1,4 @@
+{"id":"explain-MissingSchemaError-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"MissingSchemaError"},"parked":269}
+{"id":"explain-PathTrie-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"PathTrie"}}
+{"id":"explain-SchemaType.cast-pos","tool":"ide_explain_symbol","params":{"column":22,"file":"lib/schemaType.js","line":377}}
+{"id":"explain-isBsonType-ambiguous","tool":"ide_explain_symbol","params":{"symbol":"isBsonType"},"compare":"shape"}
