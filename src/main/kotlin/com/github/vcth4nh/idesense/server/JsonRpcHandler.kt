@@ -65,7 +65,12 @@ class JsonRpcHandler @JvmOverloads constructor(
         val response = try {
             routeRequest(request, protocolVersion)
         } catch (e: Exception) {
-            LOG.error("Error processing request: ${request.method}", e)
+            val cancellation = cancellationInActiveCall(e)
+            if (cancellation != null) {
+                LOG.warn("Request ${request.method} was cancelled: $cancellation")
+            } else {
+                LOG.error("Error processing request: ${request.method}", e)
+            }
             createErrorResponse(request.id, JsonRpcErrorCodes.INTERNAL_ERROR, e.message ?: "Unknown error")
         }
 
@@ -219,9 +224,13 @@ class JsonRpcHandler @JvmOverloads constructor(
 
             structuredToolError(request.id, McpErrors.fromException(e))
         } catch (e: Exception) {
+            // A cancelled call leaves here. A cancellation in an active call gets the usual answer (#127).
+            val cancellation = cancellationInActiveCall(e)
             val duration = System.currentTimeMillis() - startTime
             val indexMismatch = McpErrors.isIndexMismatch(e)
-            if (indexMismatch) {
+            if (cancellation != null) {
+                LOG.warn("Tool '$toolName' was cancelled: $cancellation")
+            } else if (indexMismatch) {
                 // A platform index state, not a plugin bug: no ERROR report, a retryable body instead.
                 LOG.warn("Tool '$toolName' hit a PSI/index mismatch", e)
             } else {
@@ -244,15 +253,20 @@ class JsonRpcHandler @JvmOverloads constructor(
         }
     }
 
-    private fun recordHistorySafely(project: Project, commandEntry: CommandEntry) {
+    private suspend fun recordHistorySafely(project: Project, commandEntry: CommandEntry) {
         try {
             recordHistory(project, commandEntry)
         } catch (e: Exception) {
-            LOG.warn("Failed to record command history for ${commandEntry.toolName}", e)
+            val cancellation = cancellationInActiveCall(e)
+            if (cancellation != null) {
+                LOG.warn("Failed to record command history for ${commandEntry.toolName}: $cancellation")
+            } else {
+                LOG.warn("Failed to record command history for ${commandEntry.toolName}", e)
+            }
         }
     }
 
-    private fun updateHistorySafely(
+    private suspend fun updateHistorySafely(
         project: Project,
         commandEntry: CommandEntry,
         status: CommandStatus,
@@ -262,7 +276,12 @@ class JsonRpcHandler @JvmOverloads constructor(
         try {
             updateHistory(project, commandEntry.id, status, result, duration)
         } catch (e: Exception) {
-            LOG.warn("Failed to update command history for ${commandEntry.toolName}", e)
+            val cancellation = cancellationInActiveCall(e)
+            if (cancellation != null) {
+                LOG.warn("Failed to update command history for ${commandEntry.toolName}: $cancellation")
+            } else {
+                LOG.warn("Failed to update command history for ${commandEntry.toolName}", e)
+            }
         }
     }
 

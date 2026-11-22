@@ -11,6 +11,7 @@ class RustKindResolver : LanguageKindResolver {
     private val rsFunction: Class<*>? by lazy { loadClass("org.rust.lang.core.psi.RsFunction") }
     private val rsImplItem: Class<*>? by lazy { loadClass("org.rust.lang.core.psi.RsImplItem") }
     private val rsModItem: Class<*>? by lazy { loadClass("org.rust.lang.core.psi.RsModItem") }
+    private val rsFile: Class<*>? by lazy { loadClass("org.rust.lang.core.psi.RsFile") }
     private val rsConstant: Class<*>? by lazy { loadClass("org.rust.lang.core.psi.RsConstant") }
     private val rsTypeAlias: Class<*>? by lazy { loadClass("org.rust.lang.core.psi.RsTypeAlias") }
     private val rsEnumVariant: Class<*>? by lazy { loadClass("org.rust.lang.core.psi.RsEnumVariant") }
@@ -29,6 +30,7 @@ class RustKindResolver : LanguageKindResolver {
             rsFunction?.isInstance(element) == true -> resolveRustFunction(element)
             rsImplItem?.isInstance(element) == true -> "IMPL"
             rsModItem?.isInstance(element) == true -> "MODULE"
+            rsFile?.isInstance(element) == true -> "MODULE"
             rsConstant?.isInstance(element) == true -> "CONSTANT"
             rsTypeAlias?.isInstance(element) == true -> "TYPE_ALIAS"
             rsNamedFieldDecl?.isInstance(element) == true -> "FIELD"

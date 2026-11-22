@@ -56,7 +56,6 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   |---|---|---|
   | `hier-sub-Flag` | #185 | the subtypes of a trait stop at 100 with no signal (104 types implement `Flag`) |
   | `usage-messages-macro-body`, `hier-caller-search_slice-d1` | #186 | an element in an injected fragment (a `macro_rules!` body, a doctest) gets the path and the line of the fragment; the two usages of `messages()` in macro bodies count as one |
-  | `def-pathutil-mod-decl` | #187 | a module file gets the qualified name `crate::pathutil.rs` and the kind `SYMBOL` |
   | `find-symbol-f1_sjis-macro-made` | #188 | a function that a macro call makes is absent (the 330 tests of `rgtest!`) |
   | `def-messages-from-macro-body` | #189 | a position inside an injected fragment is no anchor |
   | `search-text-set_errored` | #184 | a match in a `macro_rules!` body comes a second time, with the path `/messages.rs` |

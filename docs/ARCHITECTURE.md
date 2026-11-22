@@ -446,9 +446,9 @@ Provider hooks (`SuperMethodsProvider`; a hook that throws changes nothing, a ca
 | `usageMark` | the mark of a usage that is not dynamic | PHP (from the declarations that the reference resolves to) |
 | `droppedUsageKind` | a usage to leave out (`UsageDrop`) | Go (`GO_FIELD_KEY`), PHP (`PHP_SELF_REFERENCE`) |
 
-Related issues: #214 (a PHP field with an accessor), #215 (`usageCount` of `ide_explain_symbol` on the
-Go path), #216 (the reason text of the base note), #220 (PyCharm: a receiver type that does not
-declare the method), #221 (Go: a file that the build constraints exclude).
+Related issues: #214 (a PHP field with an accessor), #216 (the reason text of the base note), #220
+(PyCharm: a receiver type that does not declare the method), #221 (Go: a file that the build
+constraints exclude).
 
 ## Pagination
 
@@ -516,6 +516,22 @@ tool/method, disabled tool). `AbstractMcpTool.createErrorResult(message)` wraps 
 `processToolCall`'s catch is split: `catch (McpException)` → `McpErrors.fromException(e)` using
 `e.errorType`, logged at INFO (client-caused, e.g. dumb mode); `catch (Exception)` →
 `index_out_of_sync` at WARN when `McpErrors.isIndexMismatch(e)`, else `internal_error` at ERROR.
+A cancellation (a `CancellationException` or a `ControlFlowException`) has two cases in the catch
+blocks of `JsonRpcHandler` (`cancellationInActiveCall`, #127). When the coroutine of the call is
+cancelled, the cancellation leaves the block with no log entry, no history update and no answer.
+This occurs, for example, when the server stops. When the coroutine is still active, the client
+still waits. Then the block gives its usual answer and history update, and it logs one line with
+no throwable. Two examples extend `ProcessCanceledException`: `ServiceNotReadyException`, which
+`FileBasedIndexImpl.ensureUpToDate` throws while the index is not ready (`lib/app-client.jar`),
+and `AlreadyDisposedException` (`lib/util-8.jar`). `handleRequest` answers each cancellation in an
+active call, so the request handlers of `KtorMcpServer` rethrow each cancellation
+(`rethrowIfCancellation`). Their other source of a cancellation is the write of the answer. Then
+the output channel of the call is cancelled (`CloseToken.wrapCause`, ktor-io 3.4.3), so no answer
+can reach the client. The log gets no throwable, because the platform logger replaces a
+`ControlFlowException` with the text "Control-flow exceptions ... should never be logged". It
+also replaces a `CancellationException` while `idea.log.rethrow.ce` is `true`, the default
+(`Logger.ensureNotControlFlow`, `lib/util-8.jar`). A `ProcessCanceledException` is a
+`CancellationException`. The jars are those of ideaIC-2025.1.3.
 
 **`error` code vocabulary** (the class that makes each code; the list for a user is in
 "Error Handling" of [USAGE.md](USAGE.md#error-handling)): `invalid_arguments`
@@ -542,11 +558,12 @@ Each entry gives the contract, the consequence for the code, and the class that 
   or `catch (Exception)` stops the restart and turns a race into an empty or a failed result, and
   `Method.invoke` wraps the exception in `InvocationTargetException`. Rule: never swallow a
   cancellation. `rethrowIfCancellation` (in `HierarchyTreeWalker.kt`) unwraps and rethrows a
-  `CancellationException` or a `ControlFlowException` for `HierarchyTreeWalker` and
-  `ImplementationLocations.Collector`. The block can run more than one time, so the state that it
-  fills starts empty in each run (`FindUsagesTool` clears its warnings and notes). Broad catches remain
-  in the `SuperMethodsProvider` implementations (#210), `BrowserBackedResolver.resolve`,
-  `HierarchyTreeWalker.resolveTarget`, `RustTypeHierarchyImpl`, `ClassResolver` and `QualifiedNameUtil`.
+  `CancellationException` or a `ControlFlowException` for `HierarchyTreeWalker`,
+  `ImplementationLocations.Collector` and the reflective searches and getters of the
+  `SuperMethodsProvider` implementations (#210). The block can run more than one time, so the
+  state that it fills starts empty in each run (`FindUsagesTool` clears its warnings and notes).
+  Broad catches remain in `BrowserBackedResolver.resolve`, `HierarchyTreeWalker.resolveTarget`,
+  `RustTypeHierarchyImpl`, `ClassResolver` and `QualifiedNameUtil`.
 - **No exception may leave a search callback inside a stub index processor.** GoLand runs the
   callback of `DefinitionsScopedSearch` inside `StubIndexEx.processElements`, which takes an
   `IndexOutOfBoundsException` for index damage (`FileBasedIndexEx.extractCauseToRebuildIndex`) and

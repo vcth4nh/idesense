@@ -27,6 +27,16 @@ class LanguageServicesKindUnitTest : TestCase() {
         assertEquals("SYMBOL", kind)
     }
 
+    // PhpFindUsagesProvider.getType gives "Class constant" for a class constant and "Constant" for a
+    // constant outside a class. The substring test for "class" gave CLASS to the class constant (#180).
+    fun testAPhpClassConstantGetsTheKindOfAPhpConstant() {
+        val classConstant = LanguageServices.kindFromIdeTypeOrClassName("ClassConstImpl") { "Class constant" }
+        val constant = LanguageServices.kindFromIdeTypeOrClassName("ConstantImpl") { "Constant" }
+
+        assertEquals("CONSTANT", classConstant)
+        assertEquals(constant, classConstant)
+    }
+
     fun testACancellationOfTheProviderIsRethrown() {
         try {
             LanguageServices.kindFromIdeTypeOrClassName("HtmlFileImpl") { throw ProcessCanceledException() }

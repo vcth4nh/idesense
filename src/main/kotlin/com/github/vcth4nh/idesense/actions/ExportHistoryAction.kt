@@ -6,6 +6,7 @@ import com.github.vcth4nh.idesense.history.CommandHistoryService
 import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.fileChooser.FileChooserFactory
@@ -51,6 +52,8 @@ class ExportHistoryAction : AnAction(
                 .notify(project)
         }
     }
+
+    override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         e.presentation.isEnabled = e.project != null

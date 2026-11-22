@@ -54,7 +54,6 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 
   | Row | Issue | Defect |
   |---|---|---|
-  | `find-symbol-SHORT_OPTIONS`, `def-SHORT_OPTIONS-const` | #180 (a sub-issue of #27) | a class constant gets the kind `CLASS` |
   | `search-text-unordered-code` | #181 | `context: "code"` returns comment lines and string lines |
   | `search-text-wget` | #184 | a match in an injected fragment (a Markdown code block) comes two times |
   | `search-text-updateTimestamps-build` | #146 | the files under `build/` are absent |
