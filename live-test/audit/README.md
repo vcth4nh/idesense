@@ -72,6 +72,13 @@ run the audit again`.
 | `<audit>.jsonl` | The result of a `callers` or `dyn` audit |
 | `verdict.json` | `{"result": <total>, "audits": [{"name", "verdict": {"result", "new", "gone", "not_audited", "no_cause", "no_permission"}}, ...]}`. The verdict of a `symbols` audit in which the IDE was not ready also has `reason`. |
 
+A stored result does not hold each part of an answer of the IDE. A `dyn` row has no node kinds. A
+`callers` row has the counts of the node kinds and the missed and false lines, but not the nodes
+themselves: no position, kind or children of a node. A `symbols` result has no column of a row (a
+row is one entry of the answer of the tool, for example one usage with its file, line and
+column): it keeps only the lines, so it cannot tell if the IDE gave one usage or two usages on
+one line. When a decision needs such a part, call the tool again.
+
 | Exit code | Meaning |
 |---|---|
 | 0 | `pass` |
@@ -166,18 +173,128 @@ of `n`, `seed` or `ids` in `audits.json`, or after a new key file), remove the l
 symbol from the list by hand.
 
 1. Run all audits (see "Run all audits"). Read each `new` line.
-2. Decide for each new line: a defect of the plugin (write an issue), or a behaviour that the IDE
+2. Decide for each new line: a defect of the plugin (write an issue), a behaviour that the IDE
    also shows (find the evidence: the rule "Mimic the IDE" in the root
-   [AGENTS.md](../../AGENTS.md)).
+   [AGENTS.md](../../AGENTS.md)), or a limit of the audit. In a limit of the audit, the answer of
+   the tool is correct, and the audit counts it as a disagreement. An example is the cause
+   `base-row-on-decoy-line`. Its evidence is in "Name the cause of a line".
 3. Run `propose` for the audit. It writes each found line into `accepted/<product>.jsonl`, and
    each new line has the cause null. Remove from the list each line that you do not accept, for
    example a defect with no issue. That line stays new, and the audit fails.
-4. Give each new line the name of its cause. For a new cause, add an entry to `causes.json` with
-   its text, its issue and `"permitted": null`.
+4. Give each new line the name of its cause (see "Name the cause of a line"). For a new cause,
+   add an entry to `causes.json` with its text, its issue and `"permitted": null`.
 5. Ask the owner of the repository to permit each new cause. The owner writes the date into
    `permitted`.
 6. Run `check` for the audit. With each cause permitted, the result is `pass`. Commit the
    accepted list and `causes.json`.
+
+### Name the cause of a line
+
+The sites of a line are the lines of `miss`, of `fp` and of `marked`, and the sites of the texts
+of `errors`. Only the error of an `ide_find_definition` call at one site names a site: its text
+starts with `<path>:<line>:`. Each other error text is the error of the whole call (the `error` of
+a `symbols` result, the `error` of a `callers` row, or `hierarchy_error` or `usages_error` of a
+`dyn` row): the tool gave no answer for the symbol, and the text names no site. No cause of
+`causes.json` has such an error in its evidence, so a line with such an error keeps the cause
+null.
+
+A line gets the name of a cause only when each of its sites meets each item of the evidence of
+that cause. The evidence comes from the key files of the tree (`$B/keys/<tree>/`), the source of
+the tree and the stored result of the audit (see "Run all audits" for what a result does not
+hold). For some causes, the evidence also comes from an observation of the running IDE at the
+site (the rule "Mimic the IDE" in the root [AGENTS.md](../../AGENTS.md); the procedure is
+"Throwaway IDE with a display" in [live-test/README.md](../README.md#throwaway-ide-with-a-display)).
+Record each observation in `live-test/real-products/_snapshots/<product>/GROUND-TRUTH.md`. The
+reason: at a Python call, the stored answer of the tool cannot separate `python-call-not-resolved`
+from `python-definition-by-name`. The tool gives the same error at both, and only Go to
+Declaration of the IDE differs. The mechanism of a site is the reason why the answer of the tool
+differs from the key at that site, that is, the evidence list below that the site meets. A line
+whose sites have different mechanisms keeps the cause null, also when a cause explains some of
+its sites. A line with no such evidence keeps the cause null too.
+
+The evidence of each cause of `causes.json`:
+
+- `interface-calls-option-off`: the option is the toggle "Respecting Interface Calls" of the
+  Hierarchy window of GoLand, which is off by default; the tool has no parameter for it (the text
+  of the cause in `causes.json`). A `dyn` line of `ide_call_hierarchy`. Each missed caller has a
+  site with the `proof` `trace` in `dyncallers.jsonl` (`hierarchy.miss_proof` of the row counts
+  only `trace`). In `calls.jsonl`, no use of the method is in the body of the missed caller (the
+  format of `calls.jsonl` is in the module text of [`keygen/callkeys.py`](../keygen/callkeys.py)).
+  In `symbols.jsonl`, the record of the method has a site with `rel` `super` and `why` `use` in
+  the missed caller. The row has no `hierarchy_error`, `hierarchy.fp_sites` is empty, and no
+  missed caller is in `usages.miss_sites`: Find Usages lists it.
+- `closure-node`: a `callers` line of a Go function. Each missed line is a caller of level 2
+  (`mapped.miss_sites` of the row is `[file, line, level, lit, configs]`). It calls a function of
+  level 1 whose site in `callers.jsonl` has `lit` true: that function calls the target only inside
+  a function literal.
+  The row has `CLOSURE` in `kinds`, and `raw.fp_sites` has one line for each `CLOSURE` node, at
+  the first line of a function literal in the source. `mapped.fp_sites` is empty.
+- `other-build-configuration`: a `symbols` line of `ide_find_usages` or `ide_find_implementations`
+  on a Go declaration. The site with `why` `decl` in `symbols.jsonl` has `configs` without `linux`
+  (the benchmark IDEs run on Linux), and the file has a build constraint or a file name that
+  excludes Linux. Then one of two cases applies. The answer is empty: in `results.jsonl`,
+  `extra.rows` is 0, `extra.notes` is absent and `error` is null. Or, for `ide_find_usages`, the
+  line has no `fp` line, and each missed line is a use in a file that Linux does not compile either
+  (its site in `symbols.jsonl` has `configs` without `linux`).
+- `other-build-configuration-use`: a `symbols` line of `ide_find_definition`. Each missed line is
+  a use in such a file (its site in `symbols.jsonl` has `configs` without `linux`), and its text
+  in `errors` ends with `Could not resolve symbol definition`. The line has no other error and no
+  `fp` line.
+- `embedded-field-key`: a `symbols` line of `ide_find_usages` on a Go type, with no missed line, no
+  marked line and no error. Each `fp` line holds a key `<Name>:` of a composite literal, where
+  `<Name>` is the name of the type of the query. The site of the key in `symbols.jsonl` has
+  `class` `forbidden` and `why` `decoy`. The struct type of the literal (the type of the query, or
+  another type) embeds a type of another package with the name `<Name>`, so the key names that
+  embedded field. The cases of caddy: `caddy.Context` literals with the embedded
+  `context.Context`, a `caddytls.Certificate` literal with the embedded `tls.Certificate`, and for
+  the interface `caddyhttp.ResponseRecorder`, the literals of three test structs with the embedded
+  `*httptest.ResponseRecorder`.
+- `base-row-on-decoy-line`: a `symbols` line of `ide_find_usages` on a Go method, with empty `fp`,
+  `miss` and `errors`. Each line of `marked` has the mark `BASE` in `extra.marked_fp` of the
+  result. The source line holds a call of an interface method of a library with the name (the
+  record in `symbols.jsonl` names that method in `external`, for example
+  `super:net/http.ResponseWriter.Header`), and one more identifier with the name at another
+  column, for example a composite literal key. In `symbols.jsonl`, the site of the call has
+  `class` `dnc`, and the site of the other identifier has `class` `forbidden` and `why` `decoy`.
+  A forbidden site wins over a `dnc` site on the same line (`line_classes` in
+  [`common/keyrecord.py`](../common/keyrecord.py)), so the audit counts the line of the `BASE`
+  row as a marked false line.
+- `python-property-callers`: a `callers` line of a Python method. The record in `callers.jsonl`
+  has `property` true, and the source has the decorator `property` or `cached_property`. Each use
+  of the method in `calls.jsonl` has `read` true. The row has no `error`, and its `kinds` is empty:
+  the tree has no node. The `ide_find_usages` result of the same id in a `symbols` audit is exact
+  (`score.exact` in `results.jsonl`).
+- `python-call-not-resolved`: a line of `ide_find_usages`, `ide_call_hierarchy` or
+  `ide_find_definition` on a Python function or method, with no `fp` line. The use behind each
+  missed line is an attribute reference `<receiver>.<name>`. At each such use,
+  `ide_find_definition` gives the error `Could not resolve symbol definition`: for an
+  `ide_find_definition` line, its text in `errors`; for another line, `extra.site_errors` of the
+  `ide_find_definition` result of the method in a `symbols` audit of the tree when that audit
+  asked at the use, else ask the tool. Go to Declaration of PyCharm at the use shows the hint
+  "Cannot find declaration to go to" (an observation at the use, or at a use with the same
+  receiver expression in the same file). A use where Go to Declaration jumps does not fit. A
+  usages or callers answer has no note and no warning: no `extra.notes` and no `extra.warnings` in
+  `results.jsonl`, or null `notes` and `warnings` in a `callers` row.
+- `python-usages-lack-resolved-call`: a line of `ide_find_usages` or `ide_call_hierarchy` on a
+  Python method, with no `fp` line and no error. At the use behind each missed line, Go to
+  Declaration of PyCharm jumps to the method (an observation), and the Find Usages window for the
+  method does not list the line (an observation; the window and the tool give the same list). The
+  answer has no note and no warning, as for `python-call-not-resolved`.
+- `python-definition-by-name`: a line of `ide_find_definition` on a Python method, with no `fp`
+  line. Each missed line has its error text in `errors`, which ends with `Could not resolve symbol
+  definition`, and Go to Declaration of PyCharm at the site jumps to the method (an observation).
+  This cause is a defect of the tool with an issue (#322), not a result that the IDE also shows.
+- `python-base-through-package-attribute`: a `symbols` line of `ide_find_implementations` on a
+  Python class, with no `fp` line and no error. Each missed line is a `class` statement whose base
+  is an attribute chain on a package (`beets.plugins.BeetsPlugin`). The file imports the package
+  (`import beets`) and does not import the module of the base (`beets.plugins`).
+
+The use behind a missed line: for a line of `ide_find_usages` or `ide_find_definition`, the use at
+that line. For a `callers` line, the missed line is the `decl` of a caller. The uses behind it are
+the uses in the body of that caller (the `in` of each use in `calls.jsonl`): for a caller of level
+1, the uses of the method of the line; for a caller of level 2, the uses of the callers of level 1.
+The level is the third value of the entry in `mapped.miss_sites` of the row. For a caller of level
+2, the evidence applies to the caller of level 1 in place of the method.
 
 ## After a change of a usage, implementation or caller tool
 

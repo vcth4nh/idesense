@@ -25,6 +25,7 @@ class GetIndexStatusTool : AbstractMcpTool(), AllProjectsTool {
 
         Returns: isDumbMode (true = indexing in progress, most tools will fail).
         When isDumbMode is true, wait and retry — indexing will complete automatically.
+        During a file scan isDumbMode is false, but a tool can wait and then return index_not_ready.
 
         Without project_path while several projects are open, returns the status of each open
         project in projects (name, path, isDumbMode); the top-level isDumbMode is then true when any

@@ -33,6 +33,44 @@ of a run is the tracked key of its question (`qfiles.load_key`), and its line cl
   the order of `runner.ARMS` (C, P, PS, PF, PFN, PFR, PFL, PFG, PFI, PFS). Numbers: 3 decimals for scores and
   shares, 4 for USD, 1 for seconds and the means of counts, 0 for tokens; `-` for None.
 
+The flags of a run (`flags`) and of a batch (`batch_flags`). A COUNT is a number, a MARK is true or false, and a
+LIST holds sites (`path:line`) or texts. The table "Flags" counts the runs whose flag is true, above 0 or not empty.
+`ide_calls`, `ide_tools` and `text_after_ide` describe what the agent did: a value above 0 is no problem. For each
+other flag that is set, read the transcript of the run (`transcript.jsonl` in its run folder). The accepted list of
+the audit is `live-test/audit/accepted/<product>.jsonl`.
+- `no_plugin_call` (mark): a run of a plugin arm that is not EXCLUDED made no IDE call. In arm `P` this is the
+  adoption that the arm measures. In an arm with `runner.PF_SENTENCE`, the agent did not follow the sentence: read
+  why.
+- `ide_calls` (count): the IDE calls, the tool uses whose name starts with `claude_code.IDE_PREFIX`.
+- `ide_tools` (an object): the count of the IDE calls of each tool.
+- `ide_error` (count): the IDE results with `is_error` true, plus the `tools/call` lines of the proxy log with
+  `refused` true. Read `ide_error_texts` and the input of each call: a wrong input of the agent, a tool that the
+  proxy refused, or a defect of the plugin.
+- `anchor_error` (count): the IDE results that are an error (`is_error`, or a text `error` in the result JSON) and
+  hold a text of ANCHOR_PHRASES in their first TEXT_CHARS characters: the IDE found no symbol or no file at the
+  input. Compare the input with the source: a wrong position of the agent, or a defect of the plugin.
+- `ide_error_texts` (list): the distinct texts of the IDE results with `is_error` true, at most ERROR_TEXTS, each
+  cut to TEXT_CHARS characters. The ledger summary shows only the run ids: read the texts in `runs.jsonl`.
+- `has_more_no_cursor` (count): the IDE results with `hasMore` true after which the run made no IDE call with the
+  argument `cursor`: the agent did not read the next page, and the answer can lack the lines of that page.
+- `ide_forbidden_lines` (list): the `forbidden` lines of the key that an IDE result of the run holds (each pair of
+  `file` and `line` of the result JSON). Look for them in the accepted list of the audit.
+- `answer_repeats_ide_forbidden` (count): the lines of `ide_forbidden_lines` that the answer holds too.
+- `ide_missed_required` (list): for a run with an IDE call, the `required` lines of the key that no IDE result of the
+  run holds; empty for a run with no IDE call. A line is absent when the tool did not give it, or when the agent
+  did not ask a tool that gives it: read the calls. Look for the lines in the accepted list of the audit.
+- `answer_miss_not_in_ide` (count): the lines of `ide_missed_required` that the answer does not hold either.
+- `text_after_ide` (count): the text searches after the first IDE call: the uses of `claude_code.TEXT_TOOLS`, and
+  the shell commands with `grep`, `rg`, `ag` or `ack`.
+- `edit_then_ide_no_sync` (count): the IDE calls after an edit (`claude_code.EDIT_TOOLS`) with no call of
+  `ide_sync_files` in between: the IDE can answer for the old text of the file. Read the edits and these results.
+- `repo_access` (mark): the run can read its key (the next paragraph). Read the tool uses, and find out if the agent
+  read a key or a question.
+- `plugin_wrong_control_right` (mark, `batch_flags`): a run of a plugin arm with an ANSWER_OUTCOMES or FAILED outcome
+  is not exact, and the same question and model has runs of arm `C` (label `C`) with such an outcome, each exact.
+  Read `ide_missed_required` and `ide_forbidden_lines` of the run, and look for its lines in the accepted list of
+  the audit.
+
 The flag `repo_access` is true when the input of a tool use of `claude_code.REPO_TOOLS` (`Bash`, `WebFetch`,
 `WebSearch`) holds, with no case, the text REPO_TEXT (`bench/keys`) or the slug `<owner>/<repository>` of the remote
 `origin` of this repository. The tracked keys are public, so such a run can read its key. `repo_slug` reads the slug

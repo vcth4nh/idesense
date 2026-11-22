@@ -2,21 +2,100 @@
 
 These results look wrong, but the IDE returns the same. Do not change the probe to "fix" them.
 
-- **beets: a base class through `import beets`.** `beetsplug/playlist.py` imports only
-  `beets` and names the base class `beets.plugins.BeetsPlugin`. `beets/__init__.py` has a
-  module `__getattr__`. `def-plugins-via-module-getattr` gives the error "Could not resolve
-  symbol definition". In PyCharm, Go to Declaration does nothing at that position. The error
-  row needs the two-step bless (see "Rows that pin an expected error" in
-  `live-test/CONVENTIONS.md`).
+- **beets: a base class through `import beets`.** `beetsplug/playlist.py` imports `beets`
+  but not `beets.plugins`, and names the base class `beets.plugins.BeetsPlugin`.
+  `beets/__init__.py` has a module `__getattr__`. `def-plugins-via-module-getattr` gives the
+  error "Could not resolve symbol definition". In PyCharm, Go to Declaration does nothing at
+  that position. The error row needs the two-step bless (see "Rows that pin an expected error"
+  in `live-test/CONVENTIONS.md`).
 - **beets: 103 subclasses of `BeetsPlugin`.** `impls-BeetsPlugin` and `hier-sub-BeetsPlugin`
   give 103 classes, and a scan of the source finds 105. The two other classes are
   `PlaylistPlugin` (its base is the name of the bullet above) and a local `OtherPlugin` whose
   base is a local class of another method. Choose Implementation of PyCharm says "103 found".
+  On PyCharm 2026.3.0.1 at `beets/plugins.py:89:7`, the popup title is "Choose Implementation
+  of BeetsPlugin(metaclass=BeetsPluginMeta) (103 found)", and `PlaylistPlugin` is not in the
+  list: the filter "PlaylistPlugin" of the popup shows only `SmartPlaylistPlugin` and
+  `SubsonicPlaylistPlugin`.
 - **beets: 173 usages of `BeetsPlugin`.** Find Usages of PyCharm shows "Usages in Project
   Files (172 usages found)" and a separate group "Dynamic usages in Project Files" with one
   "Untyped (probable) usage" (`playlist.py:75`). The tool gives the sum, 173. The probable
   usage has the `usageType` `REFERENCE` and `match` `DYNAMIC`, and it is the only usage with a
   `match` (#143).
+- **beets: a call or a reference that PyCharm does not resolve is in no usage list (#220).**
+  Seen on 2026-11-22 with PyCharm 2026.3.0.1 (build 263.7307.329), the interpreter of the
+  project (`.venv`, Python 3.12.3) and the scope "Project Files". Instances of this build on the
+  same tree gave the windows of this bullet and of the next two bullets: an instance with no
+  plugin, and instances with a development build of the plugin code of main @ 2b4c071, which
+  also gave the tool answers. No position of this bullet has a row. At each call or reference
+  below, Go to Declaration shows the hint "Cannot find declaration to go to" and does not jump,
+  and `ide_find_definition` gives the error "Could not resolve symbol definition". Where the
+  window showed Find Usages of the method, the list does not have the call or the reference,
+  and `ide_find_usages` gives the same list. The observed kinds:
+  - A receiver with a type that does not declare the method. Find Usages at
+    `beets/importer/tasks.py:544:9` (`handle_created`) lists 4 usages, and not the calls at
+    `beets/importer/stages.py:75:30` and `:88:30`. Error Description at `stages.py:75:30` says
+    "Unresolved attribute reference handle_created for class BaseImportTask". The hint also
+    shows at `beets/ui/commands/help.py:30:44` (`_subcommand_for_name`; Error Description:
+    "Member OptionParser of OptionParser | None does not have attribute
+    _subcommand_for_name"), at the calls on `self.plugin` at
+    `test/plugins/test_lastgenre.py:182:28` (`_fetch_va_genres`), `:325:30` (`_filter_valid`)
+    and `:79:28` (`_format_genres`), and at `test/plugins/test_lyrics.py:531:26`
+    (`make_search_result`). At these four calls the name has a wavy underline.
+  - `self` in a method with a decorator. `convert_item` has the decorator
+    `@pipeline.mutator_stage` (`beetsplug/convert.py:418`). Its calls at
+    `beetsplug/convert.py:429:21` (`get_item_destination`) and `:567:33` (`_get_art_resize`)
+    are not in the lists. The calls in methods with no decorator are in the lists: Find Usages
+    at `beetsplug/convert.py:403:9` (`get_item_destination`) lists lines 609 and 708, and at
+    `:766:9` (`_get_art_resize`) line 628.
+  - A function of a module that comes from `pytest.importorskip`. Find Usages at
+    `extra/release.py:250:5` (`changelog_as_markdown`) lists only line 279. The call at
+    `test/extra/test_release.py:133:22` is not in the list: its module `release` comes from
+    `pytest.importorskip("extra.release")` (line 10).
+  - A reference on a `Mock` object. At `test/plugins/test_smartplaylist.py:171:11`, `:206:11`
+    and `:249:11`, the reference `i.evaluate_template` gets a `side_effect`, and `i` is a
+    `Mock` (line 170) or a `MagicMock` (lines 201 and 242). These are references, not calls.
+    Find Usages at `beets/dbcore/db.py:695:9` (`evaluate_template`) lists 16 usages, and not
+    these three lines. The name has no wavy underline, and Error Description at `:171:11`
+    shows no text.
+
+  The window did not show Find Usages of `_subcommand_for_name`, `_fetch_va_genres`,
+  `_filter_valid`, `_format_genres` and `make_search_result`. For these methods, the audit run
+  of 2026-11-22 (a development build of the plugin code of main @ d63e284, the same PyCharm
+  build) gave `ide_find_usages` lists without these calls. That run also gave the error of
+  `ide_find_definition` at `stages.py:88:30`.
+- **beets: Find Usages does not list some calls that Go to Declaration resolves (#220).** For
+  six methods (no row), the Find Usages window and `ide_find_usages` give the same list, and
+  the list does not have calls at which Go to Declaration jumps to the method:
+  - `add_all_common_options` (`beets/ui/__init__.py:615:9`): 1 usage. Not listed:
+    `beets/ui/commands/list.py:46`, `beetsplug/bareasc.py:75`, `beetsplug/duplicates.py:139`,
+    `beetsplug/limit.py:68` and `beetsplug/random.py:73`. The jump was seen at
+    `beets/ui/commands/list.py:46:17`.
+  - `fetch_genres` (`beetsplug/lastgenre/client.py:69:9`): 1 usage. Not listed:
+    `test/plugins/test_lastgenre.py:225` and `:229`. The jump was seen at `:225:29`.
+  - `_make_album_match` (`beets/test/helper.py:831:9`): 4 usages. Not listed:
+    `test/ui/test_ui_importer.py:66`. The jump was seen at `:66:35`.
+  - `create_mediafile_fixture` (`beets/test/helper.py:377:9`): 8 usages. Not listed:
+    `test/dbcore/test_query.py:606` and `:610`. The jump was seen at `:606:28`.
+  - `dispatch_events` (`beetsplug/bpd/__init__.py:297:9`): 3 usages. Not listed:
+    `test/plugins/test_bpd.py:240:20`, `:242:20`, `:261:20` and `:264:20`. The jump was seen
+    at each of these positions.
+  - `send_command` (`test/plugins/test_bpd.py:158:9`): 32 usages. Not listed: `:201:31`,
+    `:558:31`, `:564:32` and `:565:33` of the same file. The jump was seen at each of these
+    positions.
+
+  For the first four methods, `ide_find_definition` at the call of the jump returns the
+  method. **Not equal to the IDE, a defect of the tool (#322):** at 10 call positions, Go to
+  Declaration jumps to the method, and `ide_find_definition` gives the error "Could not resolve
+  symbol definition". These are the calls of `dispatch_events` and `send_command` above, a call
+  of `send_commands` (`test/plugins/test_bpd.py:438`) and a call of `add_duplicate_action`
+  (`test/ui/test_ui_importer.py:98`). #322 has the positions and the detail.
+- **beets: 2 dynamic usages of `send_commands`.** Find Usages at
+  `test/plugins/test_bpd.py:163:9` (`send_commands`, no row) lists 28 usages in "Usages in
+  Project Files", and the group "Dynamic usages in Project Files" > "Untyped (probable) usage"
+  with lines 438 and 545. The code vision text of line 163 is "30 usages (2 dynamic)". At both
+  lines the receiver is a parameter with no annotation. The tool gives 30 rows: the rows of
+  lines 438 and 545 have `match` `DYNAMIC`, and the 28 other rows have no `match`, as for the
+  probable usage of `BeetsPlugin` in the bullet "173 usages of `BeetsPlugin`".
 - **beets: no scope for Python subtypes.** `hier-sub-ImportHelper-production-scope` gives the
   same 92 subtypes as a call with no scope. `PySubTypesHierarchyTreeStructure.buildChildren`
   calls `PyClassInheritorsSearch.search(PyClass, boolean)`, which takes no scope (bytecode of

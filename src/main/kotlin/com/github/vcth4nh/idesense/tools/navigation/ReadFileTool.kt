@@ -72,10 +72,13 @@ class ReadFileTool : AbstractMcpTool() {
             }
         }
 
+        if (!qualifiedName.isNullOrBlank()) {
+            requireSmartMode(project)
+        }
+
         return suspendingReadAction {
             val virtualFile = when {
                 !qualifiedName.isNullOrBlank() -> {
-                    requireSmartMode(project)
                     val element = findClassByName(project, qualifiedName)
                         ?: return@suspendingReadAction createErrorResult("Class not found: $qualifiedName")
                     element.containingFile?.virtualFile
