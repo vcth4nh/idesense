@@ -748,6 +748,23 @@ class RunTest(unittest.TestCase):
         self.assertEqual(0, server.requests)
         self.assertEqual([], os.listdir(out), "no manifest.json")
 
+    def test_run_gives_one_line_for_an_absent_key_file_and_a_fleet_port(self):
+        d, path = self.keyfile([record([site("a.go", 3)])])
+        server, _ = fake(self, lambda tool, args: page([]))
+        out = os.path.join(d, "audit")
+        fleet = "http://127.0.0.1:29174/mcp/streamable-http"
+        for keys_file, url, text in ((os.path.join(d, "absent.jsonl"), server.url, "absent.jsonl"),
+                                     (path, fleet, "fleet IDE port")):
+            with self.subTest(text):
+                err = io.StringIO()
+                with contextlib.redirect_stdout(err), contextlib.redirect_stderr(err):
+                    code = audit.main(["run", "-keys", keys_file, "-url", url, "-project", "/p", "-n", "10",
+                                       "-seed", "1", "-repeats", "1", "-out", out])
+                self.assertEqual((2, 1), (code, len(err.getvalue().splitlines())), err.getvalue())
+                self.assertIn(text, err.getvalue())
+        self.assertEqual(0, server.requests)
+        self.assertFalse(os.path.exists(out))
+
     def test_wait_ready_polls_until_smart_mode(self):
         server, client = fake(self, lambda tool, args: {})
         server.dumb = [True, True]

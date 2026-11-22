@@ -40,30 +40,39 @@ is the product of its tree: the lines of `caddy-plant-1` go to `accepted/caddy.j
 `<build>` names the plugin build, for example the seven hex digits of its commit. The command runs
 each audit of `audits.json` on the IDE of its product, at the slot path of its tree. It holds the
 lock of the benchmark IDEs while the audits run. It refuses an `-out` folder that exists, a fleet
-port, and an input that is absent. Then it prints one verdict line for each audit and one total
-line:
+port, and an input that is absent. Before it makes the `-out` folder, it reads the plugin version
+of each IDE: when an IDE that an audit uses gives no version, it stops at once and makes no
+folder. Then it prints one verdict line for each audit and one total line:
 
 ```
-<audit>: <result> | lines <n>, new <n>, gone <n>, no cause <n>, no permission: <causes>
+<audit>: <result> | lines <n>, new <n>, gone <n>, not audited <n>, no cause <n>, no permission: <causes>
   new  <disagreement line>
   gone <accepted line>
+  not audited <accepted line>
 total: <result> | audits <n>: pass <n>, fail <n>, wait <n>
 ```
+
+A `gone` line is an accepted line of a symbol that the result audited, and the result does not
+have the line now. A `not audited` line is an accepted line of a symbol that the result did not
+audit, for example a symbol that a sample run did not pick. A `not audited` line gives `wait`,
+never `pass`. When the IDE was not ready (dumb mode) for a call of a `symbols` audit, that audit
+gets `wait` and one line `<audit>: wait | <result folder>: the IDE was not ready for <n> calls;
+run the audit again`.
 
 | Path in `-out` | Content |
 |---|---|
 | `manifest.json` | The recorded manifest: the pins, the IDEs of the machine, the commit, the plugin version of each IDE, the SHA-256 of each key file and calls file |
 | `<audit>/results.jsonl`, `<audit>/summary.md` | The result of a `symbols` audit |
 | `<audit>.jsonl` | The result of a `callers` or `dyn` audit |
-| `verdict.json` | `{"result": <total>, "audits": [{"name", "verdict": {"result", "new", "gone", "no_cause", "no_permission"}}, ...]}` |
+| `verdict.json` | `{"result": <total>, "audits": [{"name", "verdict": {"result", "new", "gone", "not_audited", "no_cause", "no_permission"}}, ...]}`. The verdict of a `symbols` audit in which the IDE was not ready also has `reason`. |
 
 | Exit code | Meaning |
 |---|---|
 | 0 | `pass` |
 | 1 | `fail` |
 | 3 | `wait` |
-| 2 | No audit ran or no verdict: another holder has the lock, `-out` exists, an input is absent, or a result, the accepted list or the causes file cannot be read |
-| 4 | An audit stopped before its end: the IDE stayed in dumb mode, or the server version changed. No verdict. |
+| 2 | No audit ran or no verdict: another holder has the lock, `-out` exists, an input is absent, an IDE that an audit uses gives no plugin version, or a result, the accepted list or the causes file cannot be read |
+| 4 | An audit stopped before its end: the IDE stayed in dumb mode at the start, or the server version changed. No verdict. |
 
 ## One audit
 
@@ -78,12 +87,16 @@ the accepted list. `-name` is a name of `audits.json`. The input is the result o
 ```
 
 `check` exits as `run` does (0, 1, 3, or 2 for a bad input). `propose` keeps the lines of the other
-audits. A line that stays keeps its cause, a new line gets the cause null, and a line that the
-result no longer has goes out.
+audits, and the lines of each symbol that the result did not audit, with their causes. A line that
+stays keeps its cause, a new line gets the cause null, and a line of an audited symbol that the
+result no longer has goes out. Both refuse (exit 2, one line) a result with no record, a result
+whose server version changed during the run, a `symbols` result in which the IDE was not ready for
+a call, and an input of another form, for example a `dyn` file as `-callers`.
 
 The audits can also run one at a time, with no verdict. `symbols run`, `callers callers` and
 `callers dyn` hold the lock, print the warnings of the manifest, and write a recorded manifest
-next to their result. `-project` is the slot path of the tree (`$B/trees/slots.json`).
+next to their result. An absent key file, calls file or `-ids` file, and a fleet port, give one
+line and exit 2. `-project` is the slot path of the tree (`$B/trees/slots.json`).
 
 ```bash
 ./live-test/run.py audit symbols run -keys <key file> -url <mcp url> -project <slot path> -n 200 -seed 1 -repeats 3 -out <folder>
@@ -120,12 +133,15 @@ the whole line without `cause`.
 
 **A cause** in `causes.json`:
 
-```json
-{"<name>": {"text": "...", "issue": 218, "permitted": "2026-11-22"}}
+```
+{"<name>": {"text": "<text>", "issue": <number or null>, "permitted": "<YYYY-MM-DD>" or null}}
 ```
 
-`issue` is the number of an open issue, or null. `permitted` is the date on which the owner of
-the repository permitted the cause, or null.
+Each cause has the three fields. `text` has one or more characters. `issue` is the number of an
+open issue, or null. `permitted` is the date on which the owner of the repository permitted the
+cause, or null. Another value makes `check` and `run` stop with exit 2. An accepted line with no
+`audit`, `tool` or `symbol`, or with a `cause` that is no name and not null, makes `check`,
+`propose` and `run` stop with exit 2.
 
 ## Accept a disagreement
 

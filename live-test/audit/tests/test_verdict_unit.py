@@ -3,6 +3,7 @@ import io
 import json
 import os
 import shutil
+import socket
 import tempfile
 import unittest
 from unittest import mock
@@ -47,8 +48,21 @@ class VerdictTest(unittest.TestCase):
 
     def test_the_lists_of_the_verdict(self):
         v = verdict([A], [{**A, "cause": "zz"}, {**B, "cause": None}], OK)
-        self.assertEqual({"result": "wait", "new": [], "gone": [{**B, "cause": None}], "no_cause": [],
-                          "no_permission": ["zz"]}, v)
+        self.assertEqual({"result": "wait", "new": [], "gone": [{**B, "cause": None}], "not_audited": [],
+                          "no_cause": [], "no_permission": ["zz"]}, v)
+
+    def test_an_accepted_line_of_a_symbol_that_the_result_did_not_audit_waits(self):
+        accepted = [{**A, "cause": "c"}, {**B, "cause": "c"}]
+        v = verdict([A], accepted, OK, audited={"s1"})
+        self.assertEqual(("wait", [], [{**B, "cause": "c"}]), (v["result"], v["gone"], v["not_audited"]))
+        v = verdict([], accepted, OK, audited={"s1"})
+        self.assertEqual(("wait", [{**A, "cause": "c"}], [{**B, "cause": "c"}]),
+                         (v["result"], v["gone"], v["not_audited"]))
+        self.assertEqual("wait", verdict([], accepted, OK, audited=set())["result"])
+        # A new line still fails, and with each symbol audited the line is gone and the result passes.
+        self.assertEqual("fail", verdict([A, {**A, "symbol": "s3"}], accepted, OK, audited={"s1", "s3"})["result"])
+        v = verdict([A], accepted, OK, audited={"s1", "s2"})
+        self.assertEqual(("pass", [{**B, "cause": "c"}], []), (v["result"], v["gone"], v["not_audited"]))
 
 
 def lines_file(path, lines):
@@ -174,6 +188,12 @@ class ProposeTest(unittest.TestCase):
         self.assertEqual([other, {**A, "cause": "c"}, {**changed, "cause": None}, {**new, "cause": None}],
                          audit_verdict.propose([new, changed, A], accepted, "x"))
 
+    def test_propose_keeps_the_line_of_a_symbol_that_the_result_did_not_audit(self):
+        kept = {**B, "cause": "c2"}
+        accepted = [{**A, "cause": "c"}, kept, {**A, "symbol": "s0", "cause": "c"}]
+        self.assertEqual([{**A, "cause": "c"}, kept],
+                         audit_verdict.propose([A], accepted, "x", audited={"s0", "s1"}))
+
 
 ENTRIES = [{"name": "caddy-symbols", "tree": "caddy", "kind": "symbols", "keys": "caddy/symbols.jsonl",
             "calls": None, "n": 10, "seed": 1, "repeats": 1, "ids": None},
@@ -287,6 +307,109 @@ class MainTest(unittest.TestCase):
                     with open(path, encoding="utf-8") as f:
                         self.assertEqual(accepted, f.read(), "propose writes nothing")
 
+    def accepted_lines(self):
+        with open(os.path.join(self.accepted, "caddy.jsonl"), encoding="utf-8") as f:
+            return [json.loads(line) for line in f]
+
+    def test_a_result_that_did_not_audit_an_accepted_symbol_waits_and_propose_keeps_its_line(self):
+        self.main("propose", "-name", "caddy-plant-1-callers", "-callers", self.callers, "-accepted", self.accepted)
+        lines = [{**line, "cause": "c"} for line in self.accepted_lines()]
+        lines_file(os.path.join(self.accepted, "caddy.jsonl"), lines)
+        with open(os.path.join(self.accepted, "causes.json"), "w", encoding="utf-8") as f:
+            json.dump(OK, f)
+        self.assertEqual(0, self.check()[0], "each accepted symbol is audited: pass")
+        small = os.path.join(self.dir, "small.jsonl")
+        lines_file(small, CALLER_ROWS[:2])  # the row x only: z is not audited
+        code, out = self.main("check", "-name", "caddy-plant-1-callers", "-callers", small, "-accepted", self.accepted)
+        self.assertEqual(3, code, out)
+        self.assertIn("caddy-plant-1-callers: wait | lines 1, new 0, gone 0, not audited 1, no cause 0", out)
+        self.assertIn(f"  not audited {json.dumps(lines[1])}", out)
+        code, out = self.main("propose", "-name", "caddy-plant-1-callers", "-callers", small, "-accepted", self.accepted)
+        self.assertEqual(0, code, out)
+        self.assertIn("not audited 1", out)
+        self.assertEqual(lines, self.accepted_lines(), "the line of z keeps its cause")
+
+    def test_a_result_with_no_record_or_a_changed_server_version_is_refused(self):
+        keys_file = os.path.join(self.dir, "symbols.jsonl")
+        keys.save_keys(keys_file, [SYMBOL, CLEAN])
+        meta = {"id": "_meta", "version_start": "2.1.1-dev.12", "version_end": "2.1.1-dev.13"}
+        for what, name, kind, rows, text in (
+                ("callers, no record", "caddy-plant-1-callers", "-callers", CALLER_ROWS[:1], "no record"),
+                ("callers, version", "caddy-plant-1-callers", "-callers", [meta, *CALLER_ROWS[1:]], "server version"),
+                ("symbols, no record", "caddy-symbols", "-symbols", SYMBOL_RESULTS[:1], "no record"),
+                ("symbols, version", "caddy-symbols", "-symbols", [meta, *SYMBOL_RESULTS[1:]], "server version")):
+            with self.subTest(what):
+                if kind == "-callers":
+                    lines_file(self.callers, rows)
+                    given = [kind, self.callers]
+                else:
+                    lines_file(os.path.join(self.dir, "res", "results.jsonl"), rows)
+                    given = [kind, os.path.join(self.dir, "res"), "-keys", keys_file]
+                for command in ("check", "propose"):
+                    code, out = self.main(command, "-name", name, *given, "-accepted", self.accepted)
+                    self.assertEqual((2, 1), (code, len(out.splitlines())), out)
+                    self.assertIn(text, out)
+        self.assertFalse(os.path.exists(self.accepted), "propose writes nothing")
+
+    def test_a_cause_with_a_bad_field_is_a_one_line_error(self):
+        lines_file(os.path.join(self.accepted, "caddy.jsonl"), [{**A, "audit": "caddy-plant-1-callers", "cause": "c"}])
+        good = {"text": "t", "issue": None, "permitted": "2026-11-22"}
+        for bad in ({"permitted": False}, {"permitted": True}, {"permitted": 20261122}, {"permitted": "2026-13-01"},
+                    {"permitted": "2026-11-22x"}, {"permitted": "22.11.2026"}, {"text": ""}, {"text": None},
+                    {"issue": "218"}, {"issue": True}, {"issue": 2.5}, {"permitted": None, "text": 7}):
+            with self.subTest(bad):
+                with open(os.path.join(self.accepted, "causes.json"), "w", encoding="utf-8") as f:
+                    json.dump({"c": {**good, **bad}}, f)
+                code, out = self.check()
+                self.assertEqual((2, 1), (code, len(out.splitlines())), out)
+                self.assertIn("causes.json", out)
+        with open(os.path.join(self.accepted, "causes.json"), "w", encoding="utf-8") as f:
+            json.dump({"c": {"text": "t", "issue": None}}, f)
+        self.assertEqual(2, self.check()[0], "a cause with no field permitted")
+        for fine in (good, {**good, "issue": 218, "permitted": None}):
+            with open(os.path.join(self.accepted, "causes.json"), "w", encoding="utf-8") as f:
+                json.dump({"c": fine}, f)
+            self.assertEqual(1, self.check()[0], fine)
+
+    def test_a_bad_input_is_a_one_line_error_with_exit_2(self):
+        dyn = os.path.join(self.dir, "dyn.jsonl")
+        lines_file(dyn, DYN_ROWS)
+        path = os.path.join(self.accepted, "caddy.jsonl")
+        line = {**A, "audit": "caddy-plant-1-callers", "marked": [], "cause": "c"}
+        no_id = [CALLER_ROWS[0], {"levels": {}, "error": "x"}]
+        not_object = [CALLER_ROWS[0], [1, 2]]
+        for what, result, accepted in (("a dyn file as -callers", dyn, [line]),
+                                       ("a result row with no id", no_id, [line]),
+                                       ("a result row that is no object", not_object, [line]),
+                                       ("an accepted line with no audit field", CALLER_ROWS,
+                                        [{k: v for k, v in line.items() if k != "audit"}]),
+                                       ("an accepted cause that is a list", CALLER_ROWS, [{**line, "cause": ["c"]}]),
+                                       ("an accepted pair of another form", CALLER_ROWS,
+                                        [{**line, "miss": [[1, "f"], ["f", 1]]}])):
+            with self.subTest(what):
+                if isinstance(result, list):
+                    lines_file(self.callers, result)
+                    result = self.callers
+                lines_file(path, accepted)
+                for command in ("check", "propose"):
+                    code, out = self.main(command, "-name", "caddy-plant-1-callers", "-callers", result,
+                                          "-accepted", self.accepted)
+                    self.assertEqual((2, 1), (code, len(out.splitlines())), out)
+                    self.assertNotIn("Traceback", out)
+                self.assertEqual(accepted, self.accepted_lines(), "propose writes nothing")
+
+    def test_check_refuses_a_symbols_result_in_which_the_ide_was_not_ready(self):
+        keys_file = os.path.join(self.dir, "symbols.jsonl")
+        keys.save_keys(keys_file, [SYMBOL, CLEAN])
+        not_ready = result("go:m.B", "ide_find_definition", error="tool: index_not_ready: dumb mode")
+        lines_file(os.path.join(self.dir, "res", "results.jsonl"), SYMBOL_RESULTS + [not_ready, not_ready])
+        for command in ("check", "propose"):
+            code, out = self.main(command, "-name", "caddy-symbols", "-symbols", os.path.join(self.dir, "res"),
+                                  "-keys", keys_file, "-accepted", self.accepted)
+            self.assertEqual((2, 1), (code, len(out.splitlines())), out)
+            self.assertIn("the IDE was not ready for 2 calls; run the audit again", out)
+        self.assertFalse(os.path.exists(self.accepted), "propose writes nothing")
+
     def run_setup(self):
         keys.save_keys(os.path.join(self.root, "keys", "caddy", "symbols.jsonl"), [SYMBOL])
         os.makedirs(os.path.join(self.root, "trees"))
@@ -322,7 +445,7 @@ class MainTest(unittest.TestCase):
         self.assertIn(json.dumps(line), out)
         self.assertIn("total: fail", out)
         self.assertEqual({"result": "fail", "audits": [{"name": "caddy-symbols", "verdict": {
-            "result": "fail", "new": [line], "gone": [], "no_cause": [], "no_permission": []}}]},
+            "result": "fail", "new": [line], "gone": [], "not_audited": [], "no_cause": [], "no_permission": []}}]},
             self.verdict_file("run1"))
         self.assertEqual({"/bench/trees/caddy"}, {c["args"]["project_path"] for c in server.calls if "args" in c})
         lines_file(os.path.join(self.accepted, "caddy.jsonl"), [{**line, "cause": "c"}])
@@ -333,7 +456,7 @@ class MainTest(unittest.TestCase):
         self.assertIn("caddy-symbols: pass", out)
         self.assertIn("total: pass", out)
         self.assertEqual({"result": "pass", "audits": [{"name": "caddy-symbols", "verdict": {
-            "result": "pass", "new": [], "gone": [], "no_cause": [], "no_permission": []}}]},
+            "result": "pass", "new": [], "gone": [], "not_audited": [], "no_cause": [], "no_permission": []}}]},
             self.verdict_file("run2"))
         # The folder run2 exists now: no second run into it.
         self.assertEqual(2, self.main(*self.run_args(server, "run2"))[0])
@@ -404,6 +527,42 @@ class MainTest(unittest.TestCase):
         self.assertEqual(2, code)
         self.assertIn("bench.runner batch b1", out)
         self.assertEqual(0, server.requests)
+
+    def test_run_stops_at_once_when_an_ide_of_the_list_gives_no_version(self):
+        server = self.run_setup()
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            closed = f"http://127.0.0.1:{s.getsockname()[1]}/mcp/streamable-http"
+        out_dir = os.path.join(self.dir, "run1")
+        with mock.patch.object(audit_symbols, "READY_TIMEOUT", 0.2), \
+                mock.patch.object(audit_symbols, "READY_POLL", 0.05):
+            for _ in range(2):  # the same -out again: the first run left no folder
+                code, out = self.main("run", "-url-goland", closed, "-url-pycharm", server.url, "-out", out_dir,
+                                      "-accepted", self.accepted)
+                self.assertEqual((2, 1), (code, len(out.splitlines())), out)
+                self.assertIn(closed, out)
+                self.assertFalse(os.path.exists(out_dir))
+            # An IDE that no audit of the list uses (PyCharm here) stops nothing; the manifest names its error.
+            code, out = self.main("run", "-url-goland", server.url, "-url-pycharm", closed, "-out", out_dir,
+                                  "-accepted", self.accepted)
+        self.assertEqual(1, code, out)
+        with open(os.path.join(out_dir, "manifest.json"), encoding="utf-8") as f:
+            plugin = json.load(f)["plugin"]
+        self.assertEqual("2.1.1-dev.12", plugin["caddy"])
+        self.assertTrue(plugin["beets"].startswith("unknown ("), plugin)
+
+    def test_run_gives_wait_to_a_symbols_audit_in_which_the_ide_was_not_ready(self):
+        server = self.run_setup()
+        server.answer = lambda tool, args: ({"error": "index_not_ready", "message": "dumb mode"}
+                                            if tool == "ide_find_usages" else definition("a.go", 1))
+        code, out = self.main(*self.run_args(server, "run1"))
+        self.assertEqual(3, code, out)
+        self.assertIn("caddy-symbols: wait | ", out)
+        self.assertIn("the IDE was not ready for 1 calls; run the audit again", out)
+        self.assertIn("total: wait | audits 1: pass 0, fail 0, wait 1", out)
+        v = self.verdict_file("run1")["audits"][0]["verdict"]
+        self.assertEqual(("wait", [], []), (v["result"], v["new"], v["gone"]))
+        self.assertIn("the IDE was not ready for 1 calls", v["reason"])
 
 
 class TrackedFilesTest(unittest.TestCase):

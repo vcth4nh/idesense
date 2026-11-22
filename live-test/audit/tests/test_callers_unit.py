@@ -273,6 +273,27 @@ class MainTest(unittest.TestCase):
         self.assertEqual(0, server.requests)
         self.assertFalse(os.path.exists(self.out))
 
+    def test_an_absent_file_and_a_fleet_port_are_one_line_errors(self):
+        server = FakeMcp(hierarchy_answer)
+        self.addCleanup(server.close)
+        absent = os.path.join(self.dir, "absent.jsonl")
+        fleet = "http://127.0.0.1:29174/mcp/streamable-http"
+        for what, argv in (("an absent key file", ["callers", "-url", server.url, "-project", "/p", "-keys", absent,
+                                                   "-calls", self.calls, "-out", self.out, "-n", "2"]),
+                           ("an absent calls file", ["callers", "-url", server.url, "-project", "/p", "-keys",
+                                                     self.keys, "-calls", absent, "-out", self.out, "-n", "2"]),
+                           ("an absent ids file", self.args(server, "callers", "-ids", absent)),
+                           ("a fleet port", ["callers", "-url", fleet, "-project", "/p", "-keys", self.keys,
+                                             "-calls", self.calls, "-out", self.out, "-n", "2"])):
+            with self.subTest(what):
+                out = io.StringIO()
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+                    code = callers.main(argv)
+                self.assertEqual((2, 1), (code, len(out.getvalue().splitlines())), out.getvalue())
+                self.assertIn(fleet if what == "a fleet port" else absent, out.getvalue())
+        self.assertEqual(0, server.requests)
+        self.assertFalse(os.path.exists(self.out))
+
     def test_dumb_mode_gives_exit_4_and_no_file(self):
         server = FakeMcp(hierarchy_answer)
         self.addCleanup(server.close)

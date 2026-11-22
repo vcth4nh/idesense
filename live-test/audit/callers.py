@@ -20,6 +20,8 @@ pages (`usages`). Each node or usage row counts as the outermost function that h
 function is no answer line: it counts in `usage_marks["in no function"]`.
 
 The score is `keyrecord.score`: a `dnc` line is ignored. A node or a row with an absolute path is outside the tree.
+An absent or unreadable key, calls or `-ids` file, an id of the `-ids` file that the key file does not hold, and a
+URL with a fleet IDE port give one line and exit 2, with no call to the IDE.
 Both commands hold the lock of the benchmark IDEs (exit 2 when another holder has it, with no call to the IDE),
 and wait until the IDE is in smart mode (exit 4 after `READY_TIMEOUT` seconds, with no result file). They read
 `serverInfo.version` before the first call and after the last row. When the two versions differ, the command
@@ -309,20 +311,24 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "callers" and (args.ids is None) == (args.n is None):
         parser.error("callers: give -n or -ids")
-    records = [r for r in keys.load_keys(args.keys) if r["id"] != "_meta"]
     try:
+        records = [r for r in keys.load_keys(args.keys) if r["id"] != "_meta"]
         if args.ids is not None:
             with open(args.ids, encoding="utf-8") as f:
-                records = pick(records, [line.strip() for line in f if line.strip()])
+                ids = [line.strip() for line in f if line.strip()]
+            try:
+                records = pick(records, ids)
+            except ValueError as e:
+                raise ValueError(f"{args.ids}: {e}") from None
         elif args.command == "callers":
             records = sample(records, args.n, args.seed)
         else:
             records = traced(records)
-    except ValueError as e:
-        print(f"{args.ids}: {e}", file=sys.stderr)
+        calls = keys.load_keys(args.calls)
+        client = McpClient(args.url, args.project)
+    except (OSError, ValueError) as e:
+        print(f"{e}. No call to the IDE.", file=sys.stderr)
         return EXIT_INPUT
-    calls = keys.load_keys(args.calls)
-    client = McpClient(args.url, args.project)
     manifest.warn()
     try:
         with ide_lock(f"audit.callers {args.command} {args.out}"):

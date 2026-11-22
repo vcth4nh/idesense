@@ -6,7 +6,8 @@
 `run` holds the lock of the benchmark IDEs (`common.lock.ide_lock`) while it runs. When another holder
 has the lock, it prints its message and exits 2, with no call to the IDE. `run_folder` is one `run` with no
 lock: `audit.verdict run` calls it and holds the lock itself. `run` refuses a folder that
-has `results.jsonl` or `results.jsonl.part` (exit code 2, no call to the IDE). It waits until the IDE
+has `results.jsonl` or `results.jsonl.part` (exit code 2, no call to the IDE). An absent or unreadable key file and
+a URL with a fleet IDE port give one line and exit 2, with no call to the IDE. It waits until the IDE
 is in smart mode (exit code 4 after `READY_TIMEOUT` seconds, with no result file). It reads
 `serverInfo.version` before the first probe and after the last one. It writes `results.jsonl` and
 `summary.md` into the folder. When the two versions differ, the first line of `summary.md` says so and the
@@ -84,6 +85,7 @@ OUTSIDE = (".venv/", "node_modules/", "vendor/", ".git/")
 NOT_READY = "index_not_ready"  # the error code of the plugin in dumb mode (McpExceptions.kt)
 EXIT_OLD_RESULTS = 2
 EXIT_BUSY = 2
+EXIT_INPUT = 2
 EXIT_VERSION_CHANGED = 3
 EXIT_NOT_READY = 4
 AUTO_CLASSES = ("absent", "config", "decoy", "error", "flake", "marked", "miss")
@@ -635,9 +637,13 @@ def run_folder(keys_file: str, url: str, project: str, n: int, seed: int, repeat
         if os.path.exists(old):
             print(f"{old} exists. Use a new -out folder, or move the old results away.", file=sys.stderr)
             return EXIT_OLD_RESULTS
-    records = [r for r in keys.load_keys(keys_file) if r["id"] != "_meta"]
+    try:
+        records = [r for r in keys.load_keys(keys_file) if r["id"] != "_meta"]
+        client = McpClient(url, project)
+    except (OSError, ValueError) as e:
+        print(f"{e}. No call to the IDE.", file=sys.stderr)
+        return EXIT_INPUT
     chosen = sample(records, n, seed)
-    client = McpClient(url, project)
     reason = wait_ready(client, READY_TIMEOUT, READY_POLL)
     if reason is not None:
         print(f"The IDE is not in smart mode after {READY_TIMEOUT:.0f} s ({reason}). No result file.", file=sys.stderr)

@@ -139,15 +139,20 @@ owner of the repository permits each cause. Then for each audit:
 - `fail`: the audit found a line that the accepted list does not hold. A changed line is a new
   line.
 - `wait`: no new line, but an accepted line that stays has no cause, or its cause has no
-  permission.
-- `pass`: each found line is on the list with a permitted cause.
+  permission, or an accepted line is of a symbol that the audit did not ask about (`not audited`,
+  for example a symbol that a sample run did not pick).
+- `pass`: each found line is on the list with a permitted cause, and the audit asked about each
+  symbol of the list.
 
-An accepted line that the audit no longer finds is reported as `gone`, and it does not change the
-result. The total of a full run is `fail` when an audit fails, else `wait` when an audit waits,
-else `pass`. The verdict needs no earlier build: it compares one build with the keys and the list.
+An accepted line of a symbol that the audit asked about, and that the audit no longer finds, is
+reported as `gone`, and it does not change the result. The total of a full run is `fail` when an
+audit fails, else `wait` when an audit waits, else `pass`. The verdict needs no earlier build: it
+compares one build with the keys and the list.
 
-When the IDE is not in smart mode, the audit waits for it. When the server version differs between
-the start and the end of an audit, the audit gives no verdict: another build ran in between.
+When the IDE is not in smart mode at the start, the audit waits for it. When the IDE is not ready
+for a call during a `symbols` audit, that audit gets `wait`, not `fail`: run it again. When the
+server version differs between the start and the end of an audit, the audit gives no verdict:
+another build ran in between.
 
 **Limit.** The audit sees only the lines of an answer. A changed field, a changed note or a
 changed error text that keeps the lines passes. The suites see these changes.
