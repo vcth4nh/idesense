@@ -316,6 +316,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   Java or Kotlin declaration. For `public /* c */ static void m() {}` the line was
   `public /* c */ static m(): void`, and a line comment also brought the next keyword after `//`.
   The line is now `public static m(): void` (#282).
+- `ide_file_structure` gives a Python function no modifiers, as each other Python node. A static
+  method, a class method, `__new__`, `__init_subclass__` and `__class_getitem__` had the modifier
+  `STATICMETHOD` or `CLASSMETHOD`, the name of an enum constant of PyCharm and no keyword of the
+  source (#280).
 
 ## [2.1.0] - 2026-11-09
 

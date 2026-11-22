@@ -21,7 +21,8 @@ import com.intellij.psi.PsiElement
  * `toString()` is overridden to yield source-form modifier text ("abstract public",
  * "private final static", etc., including PHP 8.4 `public(set)`). Guarded against
  * accidental matches in other languages by rejecting outputs containing `@`, since
- * Java's default `Object.toString()` returns `"ClassName@hashcode"`.
+ * Java's default `Object.toString()` returns `"ClassName@hashcode"`, and by keeping the
+ * text only when the class of the value has its own `toString` (see [hasOwnToString]).
  *
  * Languages without a modifier concept (Python, Go) silently return empty.
  *
@@ -48,7 +49,7 @@ internal object UniversalModifiers {
             val text = invokeString(sub, "getText") ?: continue
             return splitKeywords(withoutAnnotationsAndComments(sub, text))
         }
-        invokeNoArg(value, "getModifier")?.let { mod ->
+        invokeNoArg(value, "getModifier")?.takeIf(::hasOwnToString)?.let { mod ->
             val text = mod.toString()
             if (text.isNotBlank() && '@' !in text) return splitKeywords(text)
         }
@@ -87,6 +88,14 @@ internal object UniversalModifiers {
         }
         return result.toString()
     }
+
+    /**
+     * True when the `toString` of [value] is not the default of `Object` or `Enum`. The default
+     * gives a class name or the name of an enum constant, which is no keyword of the source
+     * (`STATICMETHOD` of `PyFunction.getModifier()`, #280).
+     */
+    private fun hasOwnToString(value: Any): Boolean =
+        value.javaClass.getMethod("toString").declaringClass.let { it != Any::class.java && it != Enum::class.java }
 
     private fun splitKeywords(text: String): List<String> =
         text.trim().split(Regex("\\s+"))

@@ -17,6 +17,19 @@ interface TextHolder {
     fun getText(): String
 }
 
+/** A public stand-in for a PHP or Python PSI element: it has `getModifier()` and no modifier list. */
+interface ModifierObjectHolder : PsiElement {
+    fun getModifier(): Any?
+}
+
+/** A stand-in for the Python `PyAstFunction.Modifier`: an enum with the default `toString`. */
+enum class FunctionModifier { CLASSMETHOD, STATICMETHOD }
+
+/** A stand-in for the PHP `PhpModifier`: its own `toString` gives the keywords of the source. */
+class SourceModifier(private val text: String) {
+    override fun toString(): String = text
+}
+
 /**
  * [UniversalModifiers.extract] and the failure of a reflective getter: a cancellation leaves the
  * call, each other failure gives the empty result.
@@ -27,6 +40,11 @@ class UniversalModifiersUnitTest : TestCase() {
         Proxy.newProxyInstance(T::class.java.classLoader, arrayOf(T::class.java)) { _, method, _ ->
             if (method.name == "getModifierList") getter() else null
         } as T
+
+    private fun modifierObjectHolder(modifier: Any): ModifierObjectHolder =
+        Proxy.newProxyInstance(ModifierObjectHolder::class.java.classLoader, arrayOf(ModifierObjectHolder::class.java)) { _, method, _ ->
+            if (method.name == "getModifier") modifier else null
+        } as ModifierObjectHolder
 
     private fun textHolder(text: String): TextHolder =
         Proxy.newProxyInstance(TextHolder::class.java.classLoader, arrayOf(TextHolder::class.java)) { _, _, _ ->
@@ -64,6 +82,18 @@ class UniversalModifiersUnitTest : TestCase() {
     fun testPlainExceptionGivesEmptyResult() {
         val holder = element<ModifierHolder> { throw IllegalStateException("broken") }
         assertEquals(emptyList<String>(), UniversalModifiers.extract(holder))
+    }
+
+    // `PyFunction.getModifier()` returns an enum constant. Its name is no keyword of the source (#280).
+    fun testModifierEnumWithDefaultToStringGivesEmptyResult() {
+        assertEquals(emptyList<String>(), UniversalModifiers.extract(modifierObjectHolder(FunctionModifier.STATICMETHOD)))
+        assertEquals(emptyList<String>(), UniversalModifiers.extract(modifierObjectHolder(FunctionModifier.CLASSMETHOD)))
+    }
+
+    /** Passes on the old code and on the new code: the result for PHP does not change. */
+    fun testModifierWithOwnToStringGivesModifiers() {
+        val holder = modifierObjectHolder(SourceModifier("abstract public"))
+        assertEquals(listOf("abstract", "public"), UniversalModifiers.extract(holder))
     }
 
     private fun assertThrows(type: Class<out Throwable>, block: () -> Unit) {
