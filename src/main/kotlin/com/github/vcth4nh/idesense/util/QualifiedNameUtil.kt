@@ -49,7 +49,10 @@ object QualifiedNameUtil {
      * @return qualified name, or null when no provider or fallback handles the element.
      */
     fun getQualifiedName(element: PsiElement): String? {
-        for (candidate in generateSequence(element) { it.parent }.takeWhile { it !is PsiFile }) {
+        // A file element goes to the providers too, but not its directory (#187).
+        val candidates = if (element is PsiFile) sequenceOf(element)
+            else generateSequence(element) { it.parent }.takeWhile { it !is PsiFile }
+        for (candidate in candidates) {
             for (provider in QualifiedNameProvider.EP_NAME.extensionList) {
                 try {
                     val adjusted = provider.adjustElementToCopy(candidate) ?: candidate
@@ -146,6 +149,9 @@ object QualifiedNameUtil {
     }
 
     private fun rustFallback(element: PsiElement): String? {
+        // The name of a file element is its file name ("pathutil.rs"), so no module path can be
+        // built from it. Only the provider knows the path of a module file (#187).
+        if (element is PsiFile) return null
         val namedElementClass = rsNamedElementClass ?: return null
         if (!namedElementClass.isInstance(element)) return null
         return try {

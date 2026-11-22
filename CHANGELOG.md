@@ -209,6 +209,14 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - The toolbar actions Clear History, Export History and Refresh of the IdeSense tool window update
   on a background thread. They updated on the EDT, so each update of the toolbar waited for the
   EDT. The IDE logged `to grab EDT for` lines for them (#128).
+- A Rust module file as a result gets the module path of RustRover as its `qualifiedName`, and the
+  `kind` `MODULE`. For example, `ide_find_definition` at `mod pathutil;` gave `crate::pathutil.rs`
+  and `SYMBOL`. It now gives `globset::pathutil` and `MODULE`, the name that Copy Reference gives.
+  When RustRover gives no module path, `qualifiedName` is `null`. A file as a result now also goes
+  to the qualified-name providers of the other languages. In IntelliJ IDEA, a Gradle build script
+  can now get the Gradle path of its project (#187).
+- A PHP class constant gets the `kind` `CONSTANT`, as a PHP constant outside a class. It had the
+  `kind` `CLASS`, because the type name "Class constant" of PhpStorm contains "class" (#180).
 
 ## [2.1.0] - 2026-11-09
 
