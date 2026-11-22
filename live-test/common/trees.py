@@ -24,6 +24,14 @@ product as `make` does, checks the slot against the master manifest, and adds th
 tree to SLOTS_FILE. It exits 2 when the slot folder SLOTS_ROOT/<slot id> exists or another tree
 of SLOTS_FILE has the slot id. A failed `slot` leaves its slot folder: remove it before the next
 `slot`. The master tree and its manifest stay as they are.
+
+    python3 -m common.trees digests
+
+`digests` prints one line `<tree>: ok|different|absent` for each tree of WT/live-test/keygen/trees.json: `ok` when
+BENCH/trees/<tree>.manifest has the tracked SHA-256, `different` when it has another, `absent` when there is no
+manifest. It exits 1 when one tree is `different`. keygen/trees.json holds, for each tree, its product, the SHA-256
+of its manifest and its plant: null, or the arguments `-lang`, `-names` and `-shared` of `keygen.plant make` with
+the tree of the product as the source.
 """
 import hashlib
 import json
@@ -43,6 +51,7 @@ GIT_AUTHOR = ["-c", "user.name=bench", "-c", "user.email=bench@localhost"]
 SLOTS_ROOT = settings.slots_root()
 SLOTS_FILE = BENCH + "/trees/slots.json"
 SLOT_AUTHOR = ["-c", "user.name=dev", "-c", "user.email=dev@localhost"]
+RECIPES_FILE = os.path.join(WT, "live-test", "keygen", "trees.json")
 
 # The .idea files of live-test/real-products/_setup/<product>/bootstrap.sh, with the same text.
 CADDY_WORKSPACE = """<?xml version="1.0" encoding="UTF-8"?>
@@ -154,6 +163,12 @@ def _digest(path: str) -> str:
             for chunk in iter(lambda: f.read(1 << 20), b""):
                 h.update(chunk)
     return h.hexdigest()
+
+
+def manifest_digest(manifest_path: str) -> str:
+    """The SHA-256 of the bytes of the manifest file, hex."""
+    with open(manifest_path, "rb") as f:
+        return hashlib.sha256(f.read()).hexdigest()
 
 
 def write_manifest(root: str, files: list[str], path: str) -> None:
@@ -278,8 +293,23 @@ def make_slot(tree: str, trees: str = TREES, root: str = SLOTS_ROOT, slots_file:
 
 
 def main(argv: list[str]) -> int:
+    if argv == ["digests"]:
+        with open(RECIPES_FILE, encoding="utf-8") as f:
+            recipes = json.load(f)
+        different = False
+        for tree, recipe in recipes.items():
+            manifest = os.path.join(TREES, tree + ".manifest")
+            if not os.path.isfile(manifest):
+                state = "absent"
+            elif manifest_digest(manifest) == recipe["manifest_sha256"]:
+                state = "ok"
+            else:
+                state, different = "different", True
+            print(f"{tree}: {state}")
+        return 1 if different else 0
     if len(argv) != 2 or argv[0] not in ("make", "verify", "slot"):
-        print("usage: python3 -m common.trees make <product> | verify <product> | slot <tree>", file=sys.stderr)
+        print("usage: python3 -m common.trees make <product> | verify <product> | slot <tree> | digests",
+              file=sys.stderr)
         return 2
     command, name = argv
     if command == "slot":

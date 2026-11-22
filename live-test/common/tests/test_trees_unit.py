@@ -1,4 +1,6 @@
+import contextlib
 import hashlib
+import io
 import json
 import os
 import shutil
@@ -237,6 +239,69 @@ class SlotTest(TreeTestCase):
         trees.commit_and_prepare(other, ["a.txt"], None)
         self.assertEqual("bench <bench@localhost>|bench <bench@localhost>|Initial commit\n",
                          git_out(other, "log", "--format=%an <%ae>|%cn <%ce>|%s"))
+
+
+class DigestTest(TreeTestCase):
+    def test_manifest_digest_is_sha256_of_the_bytes(self):
+        data = "0123  a.txt\n".encode("utf-8") + bytes(range(256)) + "1234  sub/م.txt\n".encode("utf-8")
+        path = os.path.join(self.tmp, "tree.manifest")
+        with open(path, "wb") as f:
+            f.write(data)
+        self.assertEqual(hashlib.sha256(data).hexdigest(), trees.manifest_digest(path))
+
+    def digests(self, trees_dir, recipes):
+        recipes_file = os.path.join(self.tmp, "trees.json")
+        with open(recipes_file, "w", encoding="utf-8") as f:
+            json.dump(recipes, f)
+        out = io.StringIO()
+        with mock.patch.object(trees, "TREES", trees_dir), \
+                mock.patch.object(trees, "RECIPES_FILE", recipes_file), contextlib.redirect_stdout(out):
+            code = trees.main(["digests"])
+        return code, out.getvalue()
+
+    def test_digests_reports_ok_different_and_absent(self):
+        # A temp data root with three trees: a manifest with the tracked digest, one with another, none.
+        trees_dir = os.path.join(self.tmp, "trees")
+        write(trees_dir, "caddy.manifest", "0123  main.go\n")
+        write(trees_dir, "caddy-plant-1.manifest", "4567  main.go\n")
+        plant = {"lang": "go", "names": ["A", "B", "C", "D"], "shared": "E"}
+        recipes = {
+            "caddy": {"product": "caddy", "manifest_sha256": hashlib.sha256(b"0123  main.go\n").hexdigest(),
+                      "plant": None},
+            "caddy-plant-1": {"product": "caddy", "manifest_sha256": "0" * 64, "plant": plant},
+            "beets": {"product": "beets", "manifest_sha256": "1" * 64, "plant": None},
+        }
+
+        self.assertEqual((1, "caddy: ok\ncaddy-plant-1: different\nbeets: absent\n"),
+                         self.digests(trees_dir, recipes))
+
+        # An absent tree is no error: a machine can have no trees yet.
+        del recipes["caddy-plant-1"]
+        self.assertEqual((0, "caddy: ok\nbeets: absent\n"), self.digests(trees_dir, recipes))
+
+
+class RecipeFileTest(unittest.TestCase):
+    """The tracked keygen/trees.json itself."""
+
+    def test_tracked_recipes(self):
+        with open(trees.RECIPES_FILE, encoding="utf-8") as f:
+            recipes = json.load(f)
+        self.assertEqual(sorted(TREE_NAMES), sorted(recipes))
+        for tree, recipe in recipes.items():
+            with self.subTest(tree=tree):
+                self.assertEqual(["manifest_sha256", "plant", "product"], sorted(recipe))
+                self.assertIn(recipe["product"], trees.PRODUCTS)
+                self.assertEqual(trees.product_of(tree), recipe["product"])
+                self.assertRegex(recipe["manifest_sha256"], r"\A[0-9a-f]{64}\Z")
+                plant = recipe["plant"]
+                if "-plant-" not in tree:
+                    self.assertIsNone(plant)
+                    continue
+                self.assertEqual(["lang", "names", "shared"], sorted(plant))
+                self.assertIn(plant["lang"], ("go", "python"))
+                self.assertEqual(4, len(plant["names"]))
+                self.assertEqual(4, len(set(plant["names"])))
+                self.assertNotIn(plant["shared"], plant["names"])
 
 
 if __name__ == "__main__":
