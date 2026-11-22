@@ -318,6 +318,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - `ide_find_symbol` and the name anchors in GoLand order a Go embedded field (kind
   `ANONYMOUS_FIELD`) as a value, after the declarations of the same name. It could come before the
   type that it embeds when its file sorted first (#286).
+- `ide_find_definition`, `ide_find_class` and `ide_find_symbol` give the kind `TYPE_ALIAS` to a
+  Kotlin type alias, as for a Rust or a TypeScript type alias. It was `SYMBOL`. The
+  `qualifiedName` of a Kotlin type alias stays `null`, as in the IDE. Part of #278.
 
 ## [2.1.0] - 2026-11-09
 

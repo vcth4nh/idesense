@@ -14,10 +14,12 @@ import com.github.vcth4nh.idesense.tools.navigation.FindImplementationsTool
 import com.github.vcth4nh.idesense.tools.navigation.FindFileTool
 import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.FindDefinitionTool
+import com.github.vcth4nh.idesense.tools.navigation.FindSymbolTool
 import com.github.vcth4nh.idesense.tools.navigation.TypeHierarchyTool
 import com.github.vcth4nh.idesense.tools.navigation.ReadFileTool
 import com.github.vcth4nh.idesense.tools.models.DefinitionResult
 import com.github.vcth4nh.idesense.tools.models.FindFileResult
+import com.github.vcth4nh.idesense.tools.models.FindSymbolResult
 import com.github.vcth4nh.idesense.tools.models.FindUsagesResult
 import com.github.vcth4nh.idesense.tools.models.ReadFileResult
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
@@ -644,6 +646,20 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         }
 
         assertTrue("Full preview should include method name", definition.preview.contains("doWork"))
+    }
+
+    fun testFindSymbolGivesTypeAliasKindForKotlinTypeAlias() = runBlocking {
+        // #278: a Kotlin type alias had the kind SYMBOL.
+        myFixture.addFileToProject("Aliases.kt", "typealias ProbeAlias = String")
+
+        val result = FindSymbolTool().execute(project, buildJsonObject { put("query", "ProbeAlias") })
+
+        val text = (result.content.first() as ContentBlock.Text).text
+        assertFalse("Find symbol should succeed: $text", result.isError)
+        val symbols = json.decodeFromString<FindSymbolResult>(text).symbols
+        val alias = symbols.singleOrNull { it.name == "ProbeAlias" && it.file.endsWith("Aliases.kt") }
+        assertNotNull("The alias should be found, got: $symbols", alias)
+        assertEquals("TYPE_ALIAS", alias!!.kind)
     }
 
     fun testReadFileToolValidation() = runBlocking {
