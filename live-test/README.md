@@ -207,7 +207,9 @@ The measured times of each product are in `_setup/<folder>/notes.md`.
    is down. For a JavaScript product use `npm ci --ignore-scripts`: it runs no script of the
    product and no install script of a package.
 5. **Import check.** `--open-product <folder>`, then compare some tool calls with the IDE
-   itself. Record the times and the memory in `_setup/<folder>/notes.md`.
+   itself. Record the times and the memory in `_setup/<folder>/notes.md`. A product that the
+   IDE imports with Gradle needs one restart with `ide_restart` after its first sync: see
+   "Kotlin rows fail after an IDE restart with empty results" in "Troubleshooting".
 6. **Canary rows.** Add the rows with the id prefix `canary-` that pin the project model (see
    "Canary rows" in CONVENTIONS.md).
 7. **Sweep.** Draft the probe rows, run them, and give each row a class: OK, EMPTY, ERROR or
@@ -616,25 +618,35 @@ rule "Mimic the IDE" in the root [AGENTS.md](../AGENTS.md)).
 - **Kotlin rows fail after an IDE restart with empty results (`"classes": []`,
   `"qualifiedName": null`), and `idea.log` has `Initial load of project-level (project=kotlin)
   libraries. There are 0 libraries to load.`** — the Kotlin fixture lost its Gradle model. The
-  IDE keeps the modules of a Gradle sync in
-  `<system dir>/projects/kotlin.<hash>/external_build_system/modules/`. It writes these files
-  at its next save, not at the sync. Seen on IntelliJ IDEA 2026.3 after the update from 2026.2:
-  the first start with the new system folder ran the sync, and the harness stopped the IDE four
-  minutes later, before these files existed. The log of the next start has the model of the
-  cache (`There are 2 libraries to load`) and then `Apply JPS storage (iml files)`. Each later
-  start has `There are 0 libraries to load` and no new sync, and 74 of the 119 Kotlin rows
-  failed. To repair:
+  IDE keeps the modules of a Gradle sync in its workspace model. It writes them to
+  `<system dir>/projects/kotlin.<hash>/external_build_system/modules/` only at a save of the
+  project after the model commit. In `serverMode` such a save does not come by itself. Seen on
+  IntelliJ IDEA 2026.3 with the product `exposed`: the only project save after a sync came 1 to
+  5 s before `External system: commit model`, and `idea.log` had no other save of that project
+  in the next 10 and 14 minutes. A stop with SIGTERM, which the harness uses for a project
+  switch, saves no project: `idea.log` goes from `Index dispose started` to `IDE SHUTDOWN` in
+  less than 0.2 s. A graceful exit saves each project: `ide_restart` goes through
+  `ApplicationImpl.exit`, which calls `saveAndCloseProjectsOnExit`
+  (`lib/intellij.platform.ide.impl.jar`, IU-263.7307.200), and the module files got the time of
+  that restart. Seen on IntelliJ IDEA 2026.3 after the update from 2026.2: the first start with
+  the new system folder ran the sync, and the harness stopped the IDE four minutes later,
+  before these files existed. The log of the next start has the model of the cache (`There are
+  2 libraries to load`) and then `Apply JPS storage (iml files)`. Each later start has `There
+  are 0 libraries to load` and no new sync, and 74 of the 119 Kotlin rows failed. To repair:
 
   1. Stop the IDE. Move `external_build_system`, `project-model-cache` and `cache-state.xml`
      out of `<system dir>/projects/kotlin.<hash>/`, and start the IDE. It runs the sync again:
      `idea.log` has `Gradle (kotlin): Execution RESOLVE_PROJECT:<n> is finished`.
-  2. Before the next stop, check that the folder `external_build_system/modules/` exists. Seen:
-     the IDE wrote it 2 seconds after one sync and 5 minutes after another one. If it does not
-     exist, restart the IDE one time with `ide_restart`: seen two times, the module files of a
-     project had the time of that restart.
+  2. When the sync has ended, restart the IDE one time with `ide_restart` (a deploy also does
+     it). Then check that the folder `external_build_system/modules/` exists. Do not wait for a
+     save in `serverMode`: two observations saw these files 2 seconds and 5 minutes after a
+     sync, but with the product `exposed` no save came in 10 and 14 minutes.
 
   The same holds for a product that the IDE imports with Gradle, and after each move to a new
-  version of the IDE, because the new version has a new system folder.
+  version of the IDE, because the new version has a new system folder. For such a product, the
+  restart of step 2 must come after its first sync and before the first project switch
+  (#276). The setup step is in the `notes.md` of the product (for example
+  `real-products/_setup/exposed/notes.md`).
 - **Java or Kotlin rows differ after an edit of fixture files from outside the IDE** — the
   IDE has not seen the change (seen on IntelliJ IDEA). Before the run, call `ide_sync_files`
   with only `project_path` for each project, `java` and `kotlin`.
