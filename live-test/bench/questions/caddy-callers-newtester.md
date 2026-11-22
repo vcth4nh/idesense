@@ -1,0 +1,5 @@
+The repository at {root} is a checkout of the project caddy. Work only with this checkout.
+
+Find each function or method of this repository that calls the function `NewTester` of the package `caddytest`, which is declared at caddytest/caddytest.go:68. Find also each function or method that calls one of these callers. Do not go further than these two levels. A call inside a function literal counts for the function or method declaration that holds the literal. Test code counts. A file counts also when the build for this machine does not compile it. Answer with the line that holds the name of each such function or method in its declaration. Do not list `NewTester` itself.
+
+Answer with JSON only: {"sites": ["<path relative to the repository root>:<line number>", ...]}

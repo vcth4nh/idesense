@@ -4,6 +4,27 @@ Snapshot-based regression suite for the IdeSense plugin. Drives real
 HTTP POST requests against running JetBrains IDEs and diffs the responses
 against committed `fixtures/_snapshots/<lang>/expected/<tool>.jsonl` files.
 
+## The four instruments
+
+`live-test/` has four instruments. The two suites compare the output of a tool with a blessed
+snapshot. The audit and the agent batch compare answers with keys that no IDE made. The method of
+each instrument, its limits and what a result can claim are in [METHOD.md](METHOD.md).
+
+| Instrument | Compares | Truth | Result | Cost | Command |
+|---|---|---|---|---|---|
+| Fixture suite | The output of each tool on small projects, one for each language | Snapshot | Pass or fail for each row | No money; the fleet IDEs | `./live-test/run.py` |
+| Product suite | The output of each tool on the products of `real-products/products.json` | Snapshot | Pass or fail for each row | No money; one IDE restart for each product | `./live-test/run.py --suite real-products` |
+| Audit ([audit/README.md](audit/README.md)) | The answers of the tools for each symbol of a key file, with no agent | Key | `pass`, `fail` or `wait` | No money; the benchmark IDEs | `./live-test/run.py audit verdict run ...` |
+| Agent batch ([bench/README.md](bench/README.md)) | The answers of a coding agent with and without the plugin | Key | Numbers for each arm, and the differences between the arms | Money for each run (the batch `main` had 468 runs and cost 23.09 USD: `bench/ledger/2026-11-18-main.md`) | `./live-test/run.py bench runner batch -plan <plan> -batch <name>` |
+
+The key makers are in [keygen/README.md](keygen/README.md). A person who wants to score an agent
+on the questions of the benchmark, with no harness, reads
+[bench/questions/README.md](bench/questions/README.md). The suites use the fleet IDEs. The audit
+and the batch use two benchmark IDEs with their own folders and ports, and never call a fleet IDE.
+`./live-test/run.py <package> <module> [args]` runs a command of the packages `audit`, `bench`,
+`keygen` and `common` from any folder. With no module, `./live-test/run.py <package>` prints one
+line with the modules of the package.
+
 A second suite runs the same tools on pinned real products. See "Real products" below.
 
 Run both suites after each change of tool behavior and before a release (see "Run the suites
@@ -25,7 +46,7 @@ against a new build").
 The harness has unit tests that need no IDE and no product checkout:
 
 ```bash
-python3 -B -m unittest discover -s live-test -p "test_*_unit.py"
+python3 -B -m unittest discover -s live-test -t live-test -p "test_*_unit.py"
 ```
 
 ## Per-IDE fixture setup
@@ -411,7 +432,7 @@ shutdown writes the old state over it. This sequence works:
    rename over `mcp-plugin.xml` (`os.replace` in Python).
 4. Start the IDE.
 
-`fleet.py` uses this sequence for `recentProjects.xml` and `trusted-paths.xml`. Do not write
+`suite/fleet.py` uses this sequence for `recentProjects.xml` and `trusted-paths.xml`. Do not write
 at a fixed time after `ide_restart`: the new process can read its settings some seconds after
 the old one ends (seen on GoLand 2026.2: the new server started 7 s after the shutdown line).
 
@@ -447,7 +468,7 @@ fleet process, so the harness never restarts it. Run rows against it with `--url
    - Remove `.lock`.
    - Remove `options/recentProjects.xml`, else the throwaway IDE opens the fleet projects.
    - Add the throwaway project to `options/trusted-paths.xml` (the format of
-     `trust_project_paths` in `fleet.py`).
+     `trust_project_paths` in `suite/fleet.py`).
    - Change `serverPort` in `options/mcp-plugin.xml` to a free port, for example 29199. With
      the fleet port the throwaway server cannot bind, and each call goes to the fleet IDE. To
      check the first-run defaults, keep only the `serverPort` option.

@@ -1,0 +1,35 @@
+{
+  "question": "beets-impls-model",
+  "old_ids": [
+    "beets-impls-Model"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "impls",
+  "lang": "python",
+  "symbol": "py:beets.dbcore.db.Model",
+  "name": "Model",
+  "answer": {
+    "required": [
+      "beets/library/models.py:50",
+      "beets/library/models.py:277",
+      "beets/library/models.py:669",
+      "beets/test/fixtures.py:20",
+      "test/dbcore/test_db.py:33",
+      "test/dbcore/test_db.py:45",
+      "test/dbcore/test_db.py:58",
+      "test/dbcore/test_db.py:72",
+      "test/dbcore/test_db.py:82",
+      "test/dbcore/test_db.py:116"
+    ],
+    "forbidden": [],
+    "not_counted": []
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "structure: seeded choice (seed 1) among 3 classes with 10 or more required subclasses, fewer than 25 % of them with the name in the class line, outside test code"
+  },
+  "key_file": "beets/hierarchy.jsonl",
+  "source": "reflection in the interpreter of the product"
+}

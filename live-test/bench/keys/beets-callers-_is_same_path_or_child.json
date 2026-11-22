@@ -1,0 +1,33 @@
+{
+  "question": "beets-callers-_is_same_path_or_child",
+  "old_ids": [
+    "beets-callers-_is_same_path_or_child"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "callers",
+  "lang": "python",
+  "symbol": "py:beets.dbcore.pathutils._is_same_path_or_child",
+  "name": "_is_same_path_or_child",
+  "answer": {
+    "required": [
+      "beets/dbcore/pathutils.py:32",
+      "beets/dbcore/query.py:277",
+      "beets/dbcore/query.py:330",
+      "beets/dbcore/types.py:395",
+      "beets/library/migrations.py:226",
+      "beets/library/models.py:136"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beets/dbcore/pathutils.py:13"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded sample (seed 1) of 4 among 53 candidates with 2 or more level-2 callers, 40 or fewer required lines and no test declaration; levels 1: 1, 2: 5"
+  },
+  "key_file": "beets/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

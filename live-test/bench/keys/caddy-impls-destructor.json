@@ -1,0 +1,34 @@
+{
+  "question": "caddy-impls-destructor",
+  "old_ids": [
+    "caddy-impls-Destructor"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "impls",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.Destructor",
+  "name": "Destructor",
+  "answer": {
+    "required": [
+      "listen.go:118",
+      "listen.go:196",
+      "listen.go:240",
+      "listen.go:288",
+      "listeners.go:593",
+      "listeners.go:627",
+      "logging.go:291",
+      "modules/caddypki/acmeserver/acmeserver.go:379",
+      "modules/caddytls/connpolicy.go:1082"
+    ],
+    "forbidden": [],
+    "not_counted": []
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "structure: the fewest required implementers (9) among 3 interfaces (not `caddy.Validator`) with no dnc implementer and 3 or more required implementers with no method of their own"
+  },
+  "key_file": "caddy/symbols.jsonl",
+  "source": "name resolution of the Go compiler library (go/types)"
+}

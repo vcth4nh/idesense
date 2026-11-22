@@ -1,0 +1,8 @@
+{"ts":"2026-01-01T00:00:00+00:00","ms":5,"method":"initialize","tool":null,"arguments":null,"refused":false,"is_error":false,"bytes":210,"status":200,"server_version":"0.0.1-test"}
+{"ts":"2026-01-01T00:00:00+00:00","ms":1,"method":null,"tool":null,"arguments":null,"refused":false,"is_error":true,"bytes":0,"status":405}
+{"ts":"2026-01-01T00:00:01+00:00","ms":3,"method":"tools/list","tool":null,"arguments":null,"refused":false,"is_error":false,"bytes":4000,"status":200}
+{"ts":"2026-01-01T00:00:02+00:00","ms":120,"method":"tools/call","tool":"ide_find_usages","arguments":{"file":"pkg/a.go","line":3,"column":6,"pageSize":2},"refused":false,"is_error":false,"bytes":900,"status":200}
+{"ts":"2026-01-01T00:00:02+00:00","ms":80,"method":"tools/call","tool":"ide_find_definition","arguments":{"file":"pkg/b.go","line":8,"column":2},"refused":false,"is_error":false,"bytes":300,"status":200}
+{"ts":"2026-01-01T00:00:03+00:00","ms":90,"method":"tools/call","tool":"ide_find_usages","arguments":{"cursor":"c1"},"refused":false,"is_error":false,"bytes":400,"status":200}
+{"ts":"2026-01-01T00:00:04+00:00","ms":0,"method":"tools/call","tool":"ide_restart","arguments":{},"refused":true,"is_error":true,"bytes":90,"status":200}
+{"ts":"2026-01-01T00:00:05+00:00","ms":60,"method":"tools/call","tool":"ide_find_definition","arguments":{"file":"pkg/a.go","line":30,"column":1},"refused":false,"is_error":true,"bytes":160,"status":200}

@@ -1,0 +1,38 @@
+{
+  "question": "beets-refs-importermixin.setup_singleton_importer",
+  "old_ids": [
+    "beets-refs-ImporterMixin.setup_singleton_importer",
+    "beets-refs-control"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "py:beets.test.helper.ImporterMixin.setup_singleton_importer",
+  "name": "setup_singleton_importer",
+  "answer": {
+    "required": [
+      "test/plugins/test_edit.py:722",
+      "test/plugins/test_filefilter.py:67",
+      "test/test_importer.py:289",
+      "test/test_importer.py:558",
+      "test/test_importer.py:1567",
+      "test/test_importer.py:1954",
+      "test/test_importer.py:2019",
+      "test/test_importer.py:2407",
+      "test/test_importer.py:2525",
+      "test/test_importer.py:2532"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beets/test/helper.py:607"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded choice (seed 1) among 127 `method` records of beets/unique-used.jsonl with 3 or more required lines"
+  },
+  "key_file": "beets/unique-used.jsonl",
+  "source": "token scan of a unique name, proven by a second scan and a run-time trace"
+}

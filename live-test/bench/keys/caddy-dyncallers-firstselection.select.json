@@ -1,0 +1,32 @@
+{
+  "question": "caddy-dyncallers-firstselection.select",
+  "old_ids": [
+    "caddy-dyncallers-FirstSelection.Select"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "dyncallers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddyhttp/reverseproxy.FirstSelection.Select",
+  "name": "Select",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/reverseproxy/selectionpolicies.go:678",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:531"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddyhttp/reverseproxy/reverseproxy.go:626",
+      "modules/caddyhttp/reverseproxy/selectionpolicies.go:371",
+      "modules/caddyhttp/reverseproxy/selectionpolicies.go:513",
+      "modules/caddyhttp/reverseproxy/selectionpolicies.go:594"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "dynamic: seeded sample (seed 1) of 10 among 70 candidates; static 1, trace 1, possible 3"
+  },
+  "key_file": "caddy/dyncallers.jsonl",
+  "source": "run-time trace of the test suite"
+}

@@ -1,0 +1,33 @@
+{
+  "question": "caddy-refs-dispenser.getcontextstring",
+  "old_ids": [
+    "caddy-refs-Dispenser.GetContextString"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "refs",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/caddyconfig/caddyfile.Dispenser.GetContextString",
+  "name": "GetContextString",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/celmatcher.go:252",
+      "modules/caddyhttp/matchers.go:1225",
+      "modules/caddyhttp/matchers.go:1666",
+      "modules/caddyhttp/vars.go:297",
+      "modules/caddytls/matchers.go:257"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "caddyconfig/caddyfile/dispenser.go:494",
+      "caddyconfig/caddyfile/dispenser.go:496"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded choice (seed 1) among 456 `method` records with 3 or more required lines"
+  },
+  "key_file": "caddy/symbols.jsonl",
+  "source": "name resolution of the Go compiler library (go/types)"
+}

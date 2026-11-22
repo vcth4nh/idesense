@@ -1,0 +1,31 @@
+{
+  "question": "beets-refs-_fetch_va_genres",
+  "old_ids": [
+    "beets-refs-_fetch_va_genres"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "py:beetsplug.lastgenre.LastGenrePlugin._fetch_va_genres",
+  "name": "_fetch_va_genres",
+  "answer": {
+    "required": [
+      "beetsplug/lastgenre/__init__.py:577",
+      "test/plugins/test_lastgenre.py:182",
+      "test/plugins/test_lastgenre.py:194",
+      "test/plugins/test_lastgenre.py:204"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beetsplug/lastgenre/__init__.py:520"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "method `_fetch_va_genres` of `LastGenrePlugin`"
+  },
+  "key_file": "beets/unique-used.jsonl",
+  "source": "token scan of a unique name, proven by a second scan and a run-time trace"
+}

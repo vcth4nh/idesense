@@ -1,0 +1,238 @@
+[
+  {
+    "name": "caddy-symbols",
+    "tree": "caddy",
+    "kind": "symbols",
+    "keys": "caddy/symbols.jsonl",
+    "calls": null,
+    "n": 100000,
+    "seed": 1,
+    "repeats": 1,
+    "ids": null
+  },
+  {
+    "name": "caddy-plant-1-plant",
+    "tree": "caddy-plant-1",
+    "kind": "symbols",
+    "keys": "caddy-plant-1/plant.jsonl",
+    "calls": null,
+    "n": 100000,
+    "seed": 1,
+    "repeats": 3,
+    "ids": null
+  },
+  {
+    "name": "caddy-plant-2-plant",
+    "tree": "caddy-plant-2",
+    "kind": "symbols",
+    "keys": "caddy-plant-2/plant.jsonl",
+    "calls": null,
+    "n": 100000,
+    "seed": 1,
+    "repeats": 3,
+    "ids": null
+  },
+  {
+    "name": "caddy-plant-3-plant",
+    "tree": "caddy-plant-3",
+    "kind": "symbols",
+    "keys": "caddy-plant-3/plant.jsonl",
+    "calls": null,
+    "n": 100000,
+    "seed": 1,
+    "repeats": 3,
+    "ids": null
+  },
+  {
+    "name": "beets-unique-used",
+    "tree": "beets",
+    "kind": "symbols",
+    "keys": "beets/unique-used.jsonl",
+    "calls": null,
+    "n": 100000,
+    "seed": 1,
+    "repeats": 1,
+    "ids": null
+  },
+  {
+    "name": "beets-hierarchy",
+    "tree": "beets",
+    "kind": "symbols",
+    "keys": "beets/hierarchy.jsonl",
+    "calls": null,
+    "n": 100000,
+    "seed": 1,
+    "repeats": 1,
+    "ids": null
+  },
+  {
+    "name": "beets-plant-1-plant",
+    "tree": "beets-plant-1",
+    "kind": "symbols",
+    "keys": "beets-plant-1/plant.jsonl",
+    "calls": null,
+    "n": 100000,
+    "seed": 1,
+    "repeats": 3,
+    "ids": null
+  },
+  {
+    "name": "beets-plant-2-plant",
+    "tree": "beets-plant-2",
+    "kind": "symbols",
+    "keys": "beets-plant-2/plant.jsonl",
+    "calls": null,
+    "n": 100000,
+    "seed": 1,
+    "repeats": 3,
+    "ids": null
+  },
+  {
+    "name": "beets-plant-3-plant",
+    "tree": "beets-plant-3",
+    "kind": "symbols",
+    "keys": "beets-plant-3/plant.jsonl",
+    "calls": null,
+    "n": 100000,
+    "seed": 1,
+    "repeats": 3,
+    "ids": null
+  },
+  {
+    "name": "caddy-callers-sample40",
+    "tree": "caddy",
+    "kind": "callers",
+    "keys": "caddy/callers.jsonl",
+    "calls": "caddy/calls.jsonl",
+    "n": 40,
+    "seed": 1,
+    "repeats": null,
+    "ids": null
+  },
+  {
+    "name": "beets-callers-sample40",
+    "tree": "beets",
+    "kind": "callers",
+    "keys": "beets/callers.jsonl",
+    "calls": "beets/calls.jsonl",
+    "n": 40,
+    "seed": 1,
+    "repeats": null,
+    "ids": null
+  },
+  {
+    "name": "caddy-callers-calls1",
+    "tree": "caddy",
+    "kind": "callers",
+    "keys": "caddy/callers.jsonl",
+    "calls": "caddy/calls.jsonl",
+    "n": null,
+    "seed": null,
+    "repeats": null,
+    "ids": [
+      "go:github.com/caddyserver/caddy/v2.InstanceID",
+      "go:github.com/caddyserver/caddy/v2.Logging.openLogs",
+      "go:github.com/caddyserver/caddy/v2.NewContextWithCause",
+      "go:github.com/caddyserver/caddy/v2/caddytest.NewTester",
+      "go:github.com/caddyserver/caddy/v2/modules/caddytls/distributedstek.Provider.rotateKeys",
+      "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.celMatcherStringListMacroExpander",
+      "go:github.com/caddyserver/caddy/v2.newSharedQUICState"
+    ]
+  },
+  {
+    "name": "caddy-plant-2-callers-calls1",
+    "tree": "caddy-plant-2",
+    "kind": "callers",
+    "keys": "caddy-plant-2/callers.jsonl",
+    "calls": "caddy-plant-2/calls.jsonl",
+    "n": null,
+    "seed": null,
+    "repeats": null,
+    "ids": [
+      "go:github.com/caddyserver/caddy/v2.Replacer.Resolve",
+      "go:github.com/caddyserver/caddy/v2/modules/caddytls.TLS.getAutomationPolicyForName"
+    ]
+  },
+  {
+    "name": "caddy-plant-3-callers-calls1",
+    "tree": "caddy-plant-3",
+    "kind": "callers",
+    "keys": "caddy-plant-3/callers.jsonl",
+    "calls": "caddy-plant-3/calls.jsonl",
+    "n": null,
+    "seed": null,
+    "repeats": null,
+    "ids": [
+      "go:github.com/caddyserver/caddy/v2/modules/caddyhttp/reverseproxy.Upstream.refreshState"
+    ]
+  },
+  {
+    "name": "beets-callers-calls1",
+    "tree": "beets",
+    "kind": "callers",
+    "keys": "beets/callers.jsonl",
+    "calls": "beets/calls.jsonl",
+    "n": null,
+    "seed": null,
+    "repeats": null,
+    "ids": [
+      "py:beetsplug.bpd.BaseServer._notification_done",
+      "py:beets.ui.commands.import_.display.ChangeRepresentation.print_layout",
+      "py:beetsplug.importadded.ImportAddedPlugin.write_file_mtime",
+      "py:test.plugins.test_bpd.MPCClient.serialise_command",
+      "py:beetsplug.mpdstats.MPDStats.update_rating",
+      "py:beets.autotag.match.Match.disambig_string",
+      "py:beets.dbcore.pathutils._is_same_path_or_child"
+    ]
+  },
+  {
+    "name": "beets-plant-1-callers-calls1",
+    "tree": "beets-plant-1",
+    "kind": "callers",
+    "keys": "beets-plant-1/callers.jsonl",
+    "calls": "beets-plant-1/calls.jsonl",
+    "n": null,
+    "seed": null,
+    "repeats": null,
+    "ids": [
+      "py:beetsplug.discogs.DiscogsPlugin.select_cover_art"
+    ]
+  },
+  {
+    "name": "beets-plant-2-callers-calls1",
+    "tree": "beets-plant-2",
+    "kind": "callers",
+    "keys": "beets-plant-2/callers.jsonl",
+    "calls": "beets-plant-2/calls.jsonl",
+    "n": null,
+    "seed": null,
+    "repeats": null,
+    "ids": [
+      "plant:python:beets-plant-2:LastGenrePlugin._fetch_va_genres"
+    ]
+  },
+  {
+    "name": "beets-plant-3-callers-calls1",
+    "tree": "beets-plant-3",
+    "kind": "callers",
+    "keys": "beets-plant-3/callers.jsonl",
+    "calls": "beets-plant-3/calls.jsonl",
+    "n": null,
+    "seed": null,
+    "repeats": null,
+    "ids": [
+      "plant:python:beets-plant-3:Database.migration_exists"
+    ]
+  },
+  {
+    "name": "caddy-dyncallers",
+    "tree": "caddy",
+    "kind": "dyn",
+    "keys": "caddy/dyncallers.jsonl",
+    "calls": "caddy/calls.jsonl",
+    "n": null,
+    "seed": null,
+    "repeats": null,
+    "ids": null
+  }
+]

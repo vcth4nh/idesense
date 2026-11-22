@@ -1,0 +1,30 @@
+{
+  "rule": "The questions whose mean of score.exact over the stored arm C runs of both models in the batches main, calls1 and calls2 (data of 2026-11-20) is below 1.0, lowest mean first and then by name, at most 12, with at least one for each pair of product and family that has such a question.",
+  "questions": [
+    "caddy-impls-adminrouter",
+    "caddy-impls-unmarshaler",
+    "caddy-impls-destructor",
+    "caddy-refs-listenreusable",
+    "caddy-refs-servertype",
+    "beets-callers-baseserver._notification_done",
+    "beets-plant1-callers-discogsplugin.select_cover_art",
+    "beets-callers-_is_same_path_or_child",
+    "beets-impls-cleanupmodulesmixin",
+    "beets-refs-bytestring_path",
+    "caddy-callers-newcontextwithcause",
+    "caddy-rename-app.provision"
+  ],
+  "arms": [
+    {
+      "arm": "C"
+    },
+    {
+      "arm": "PF"
+    }
+  ],
+  "models": [
+    "claude-haiku-5-5",
+    "claude-opus-5-5"
+  ],
+  "runs": 1
+}

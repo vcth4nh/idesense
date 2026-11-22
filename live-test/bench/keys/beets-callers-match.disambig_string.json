@@ -1,0 +1,33 @@
+{
+  "question": "beets-callers-match.disambig_string",
+  "old_ids": [
+    "beets-callers-Match.disambig_string"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "callers",
+  "lang": "python",
+  "symbol": "py:beets.autotag.match.Match.disambig_string",
+  "name": "disambig_string",
+  "answer": {
+    "required": [
+      "beets/ui/commands/import_/display.py:67",
+      "beets/ui/commands/import_/display.py:367",
+      "beets/ui/commands/import_/display.py:384",
+      "beets/ui/commands/import_/session.py:39",
+      "beets/ui/commands/import_/session.py:126",
+      "beets/ui/commands/import_/session.py:400"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beets/autotag/match.py:130"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "property: seeded choice (seed 1) among 13 candidates with property true, 1 or more level-2 callers and no test declaration; levels 1: 2, 2: 4"
+  },
+  "key_file": "beets/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}

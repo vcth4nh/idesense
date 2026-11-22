@@ -1,0 +1,45 @@
+{
+  "question": "caddy-plant3-callers-upstream.refreshstate",
+  "old_ids": [
+    "caddy-plant3-callers-Upstream.refreshState"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy-plant-3",
+  "family": "callers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddyhttp/reverseproxy.Upstream.refreshState",
+  "name": "refreshState",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/reverseproxy/active_health_test.go:67",
+      "modules/caddyhttp/reverseproxy/healthchecks.go:297",
+      "modules/caddyhttp/reverseproxy/healthchecks.go:391",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:36",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:77",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:176",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:246",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:388",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:531",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:548",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:624",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:679",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:702",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:728",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:755",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:814",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:865",
+      "modules/caddyhttp/reverseproxy/selectionpolicies_test.go:921"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddyhttp/reverseproxy/hosts.go:266"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "plant: most required lines (18); levels 1: 16, 2: 2"
+  },
+  "key_file": "caddy-plant-3/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}
