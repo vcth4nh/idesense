@@ -1446,7 +1446,11 @@ class BatchTest(CaddyCase):
                  ("no model", dict(good, models=[]), "models: no list of one or more model names"),
                  ("an unknown key", dict(good, batch="b2"), "unknown key 'batch'"),
                  ("an option of the batch", dict(good, arms=[{"arm": "C", "plugin-version": "1.0"}]),
-                  "arms: unknown key 'plugin-version' in ")]
+                  "arms: unknown key 'plugin-version' in "),
+                 ("arm PS with no aid", dict(good, arms=[{"arm": "C"}, {"arm": "PS"}]),
+                  "arms: {'arm': 'PS'}: arm PS needs -aid skill or -aid rule"),
+                 ("a variant on arm PFG", dict(good, arms=[{"arm": "PFG", "variant": "guide"}]),
+                  "arms: {'arm': 'PFG', 'variant': 'guide'}: -variant is for the arms P, PS and PF, not for arm PFG")]
         calls, fake = self.fake_run([])
         with mock.patch.object(runner, "run_one", fake):
             for what, plan, problem in cases:
@@ -1466,6 +1470,44 @@ class BatchTest(CaddyCase):
         for option in ({"dry-run": True}, {"plugin-version": "1.0"}, {"batch": "b2"}):
             with self.assertRaises(runner.SetupError):
                 runner.plan_args({"question": KEY["question"], "model": MODEL, "arm": "C", **option}, "b1")
+
+    def test_batch_refuses_a_folder_that_holds_another_plan(self):
+        plan = self.plan({"arm": "C"})
+        calls, fake = self.fake_run([])
+        with mock.patch.object(runner, "run_one", fake):
+            code, _, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
+        self.assertEqual((0, 1), (code, len(calls)), err)
+        stored = os.path.join(self.runs, "b1", "plan.json")
+        with open(stored, encoding="utf-8") as f:
+            text = f.read()
+        # A record with the outcome api_error that a single run left: a start that goes on would move its folder.
+        os.makedirs(self.folder("PF"))
+        write(os.path.join(self.folder("PF"), "run.json"), json.dumps({"outcome": "api_error", "reason": "r"}))
+        listing = self.listing()
+        for what, stored_text in (("another plan", None), ("no JSON", "{not json")):
+            with self.subTest(what):
+                if stored_text is not None:
+                    write(stored, stored_text)
+                before = stored_text or text
+                other = self.plan({"arm": "C"}, {"arm": "PF"})
+                calls.clear()
+                with mock.patch.object(runner, "run_one", fake):
+                    code, out, err = self.main("batch", "-plan", other, "-batch", "b1", "-jobs", "1")
+                self.assertEqual((2, "", []), (code, out, calls))
+                self.assertIn(f"runner: batch b1: {stored} holds another plan; use a new batch name", err)
+                with open(stored, encoding="utf-8") as f:
+                    self.assertEqual(before, f.read(), "no write")
+                self.assertEqual(listing, self.listing(), "no folder moves")
+        # The same plan (a resume) runs as before, also when the stored plan has another format.
+        write(stored, json.dumps(json.loads(text)))
+        plan = self.plan({"arm": "C"})
+        calls.clear()
+        with mock.patch.object(runner, "run_one", fake):
+            code, out, err = self.main("batch", "-plan", plan, "-batch", "b1", "-jobs", "1")
+        self.assertEqual((0, []), (code, calls), err)
+        self.assertIn("batch b1: 1 runs, 1 finished before, 0 to run", out)
+        with open(stored, encoding="utf-8") as f:
+            self.assertEqual(text, f.read())
 
     def test_batch_takes_the_version_of_the_ide(self):
         self.caddy_args("C")  # the tracked question of caddy

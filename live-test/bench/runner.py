@@ -107,9 +107,11 @@ path of a plan file. A plan with a problem (`planfile.problems`) exits 2 before 
 (`planfile.expand`) holds the options of `run` without the dash, for example
 `{"question": "caddy-refs-ca", "arm": "PS", "model": "claude-opus-5-5", "n": 1, "aid": "skill"}` (`plan_args`). The
 batch folder gets `plan.json`, the plan as JSON with 2 spaces of indent (a later start of the batch writes it again),
-before the first run. Each run of the batch gets the option `-plugin-version` of the batch. With no option, `batch`
-reads the version of the IDE of each product one time before its first run (`ide_version`), and each run of the
-product gets it as its expected version; an IDE that gives no version exits 2 before the first run. The runs of one
+before the first run. When the batch folder holds a `plan.json` with another plan (another JSON value, or no JSON),
+`batch` exits 2 before any run and any write: a batch is one plan, so use a new batch name. Each run of the batch
+gets the option `-plugin-version` of the batch. With no option, `batch` reads the version of the IDE of each product
+one time before its first run (`ide_version`), and each run of the product gets it as its expected version; an IDE
+that gives no version exits 2 before the first run. The runs of one
 question and one model are neighbours, in a random order (`-seed`); the groups keep the order of their first run
 line. A run whose folder has `run.json` is skipped, except
 a record with the outcome `api_error` that a single `run` left: that folder moves to `<run id>.api-error-<k>/`. A run
@@ -896,6 +898,16 @@ def run_batch(plan: str, batch: str, jobs: int = 2, seed: int = 1, plugin_versio
     if len(set(ids)) != len(ids):
         print(f"runner: {plan}: two plan lines have the same run id", file=sys.stderr)
         return 2
+    stored = os.path.join(RUNS, batch, "plan.json")
+    if os.path.exists(stored):
+        try:
+            with open(stored, encoding="utf-8") as f:
+                same = json.load(f) == spec
+        except (OSError, ValueError):
+            same = False
+        if not same:
+            print(f"runner: batch {batch}: {stored} holds another plan; use a new batch name", file=sys.stderr)
+            return 2
     todo = [a for a in batch_order(runs, seed) if not _finished(os.path.join(RUNS, batch, run_id_of(a)))]
     print(f"batch {batch}: {len(runs)} runs, {len(runs) - len(todo)} finished before, {len(todo)} to run", flush=True)
     versions = {}  # product -> the version of its IDE before the first run

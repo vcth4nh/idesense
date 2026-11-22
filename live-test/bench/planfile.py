@@ -14,9 +14,12 @@ A plan is a JSON object with the fields FIELDS, for example
 `runner.ARMS`) and can have `aid` (of `runner.AIDS`) and `variant` (of `runner.VARIANTS`). `problems` gives each
 problem of a plan: a missing or unknown key, a `rule` with no text, a list (`questions`, `arms`, `models`) that is
 empty or holds an item two times, a question that is not in `qfiles.names()`, a bad arm entry, a model that is no
-text, and `runs` that is no whole number of 1 or more. `expand` gives the run lines of a valid plan: question x model
-x arm entry x run number `n` in 1..`runs`, in this order. A run line is `{"question", "arm", "model", "n"}` and the
-other keys of the arm entry: the options of `runner run` (`runner batch` runs them).
+text, and `runs` that is no whole number of 1 or more. A bad arm entry is also an entry whose options do not fit
+together, for example arm `PS` with no `aid`, `aid` on another arm, or `variant` on an arm that takes none: the
+argument check of `runner run` (`runner.plan_args` and `runner._check_args`) on one run line of the entry. `expand`
+gives the run lines of a valid plan: question x model x arm entry x run number `n` in 1..`runs`, in this order. A run
+line is `{"question", "arm", "model", "n"}` and the other keys of the arm entry: the options of `runner run` (`runner
+batch` runs them).
 
 `check` prints `<plan>: <n> runs` for each valid plan and `<plan>: <problem>` for each problem of another plan, then
 the count of the problems. It exits 1 when a plan has a problem.
@@ -32,6 +35,10 @@ PLANS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "plans")
 FIELDS = ("rule", "questions", "arms", "models", "runs")
 ARM_FIELDS = ("arm", "aid", "variant")
 LISTS = (("questions", "question names"), ("arms", "arm entries"), ("models", "model names"))
+# The other parts of the plan in the check of the options of one arm entry: valid names, so that only the options of
+# the entry can fail.
+CHECK_PLAN = {"questions": ["q"], "models": ["m"], "runs": 1}
+CHECK_BATCH = "check"
 
 
 def load(path_or_name: str) -> dict:
@@ -48,6 +55,13 @@ def _arm_problems(entry) -> list[str]:
     for key, known in (("arm", runner.ARMS), ("aid", runner.AIDS), ("variant", runner.VARIANTS)):
         if key in entry and entry[key] not in known:
             out.append(f"arms: unknown {key} {entry[key]!r}")
+    if not out:
+        # The argument check of `runner run` on one run line of the entry; CHECK_PLAN gives the other options.
+        line = expand({**CHECK_PLAN, "arms": [entry]})[0]
+        try:
+            runner._check_args(runner.plan_args(line, CHECK_BATCH))
+        except runner.SetupError as e:
+            out.append(f"arms: {entry!r}: {e}")
     return out
 
 

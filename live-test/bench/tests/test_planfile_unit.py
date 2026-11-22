@@ -75,6 +75,14 @@ class ProblemsTest(unittest.TestCase):
              "arms: unknown key 'dry-run' in {'arm': 'C', 'dry-run': True}"),
             ("an unknown aid", dict(SAMPLE, arms=[{"arm": "PS", "aid": "book"}]), "arms: unknown aid 'book'"),
             ("an unknown variant", dict(SAMPLE, arms=[{"arm": "P", "variant": "x"}]), "arms: unknown variant 'x'"),
+            ("arm PS with no aid", dict(SAMPLE, arms=[{"arm": "C"}, {"arm": "PS"}]),
+             "arms: {'arm': 'PS'}: arm PS needs -aid skill or -aid rule"),
+            ("an aid on another arm", dict(SAMPLE, arms=[{"arm": "P", "aid": "skill"}]),
+             "arms: {'arm': 'P', 'aid': 'skill'}: -aid is for arm PS only, not for arm P"),
+            ("a variant on an arm that takes none", dict(SAMPLE, arms=[{"arm": "PFN", "variant": "guide"}]),
+             "arms: {'arm': 'PFN', 'variant': 'guide'}: -variant is for the arms P, PS and PF, not for arm PFN"),
+            ("a variant on arm C", dict(SAMPLE, arms=[{"arm": "C", "variant": "instructions"}]),
+             "arms: {'arm': 'C', 'variant': 'instructions'}: -variant is for the arms P, PS and PF, not for arm C"),
             ("no object", ["caddy-impls-validator"], "the plan is no JSON object"),
         ]
         for what, plan, problem in cases:
@@ -117,6 +125,13 @@ class LoadTest(unittest.TestCase):
         self.assertTrue(lines[4].startswith("absent: no plan (FileNotFoundError: "), lines[4])
         self.assertEqual("4 problems", lines[5])
         self.assertEqual(6, len(lines))
+
+    def test_check_refuses_a_bad_combination_of_arm_options(self):
+        write(os.path.join(planfile.PLANS, "ps.json"), json.dumps(dict(SAMPLE, arms=[{"arm": "C"}, {"arm": "PS"}])))
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(1, planfile.main(["check", "ps"]))
+        self.assertEqual("ps: arms: {'arm': 'PS'}: arm PS needs -aid skill or -aid rule\n1 problem\n", out.getvalue())
 
 
 class TrackedPlansTest(unittest.TestCase):
