@@ -1345,7 +1345,3 @@ def main() -> int:
 
     print(f"ALL: {total_pass} passed, {total_fail} failed")
     return 0 if total_fail == 0 else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

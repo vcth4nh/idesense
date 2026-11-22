@@ -22,7 +22,8 @@ on the questions of the benchmark, with no harness, reads
 [bench/questions/README.md](bench/questions/README.md). The suites use the fleet IDEs. The audit
 and the batch use two benchmark IDEs with their own folders and ports, and never call a fleet IDE.
 `./live-test/run.py <package> <module> [args]` runs a command of the packages `audit`, `bench`,
-`keygen` and `common` from any folder.
+`keygen` and `common` from any folder. With no module, `./live-test/run.py <package>` prints one
+line with the modules of the package.
 
 A second suite runs the same tools on pinned real products. See "Real products" below.
 
