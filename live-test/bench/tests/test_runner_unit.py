@@ -965,11 +965,7 @@ class RunTest(RunnerCase):
         self.assertEqual("no_answer", rec["outcome"])
         self.assertEqual(0.0123, rec["cost_usd"])
 
-    def test_budget_and_docker_failure(self):
-        code, rec, _, _ = self.start("C", fixture="budget.jsonl")
-        self.assertEqual((0, "budget"), (code, rec["outcome"]))
-        self.assertEqual(20.0412, rec["cost_usd"])
-        shutil.rmtree(self.folder("C"))
+    def test_docker_failure(self):
         code, rec, _, _ = self.start("C", fixture=None, exit=125)
         self.assertEqual((1, "error", 125), (code, rec["outcome"], rec["exit_code"]))
 
@@ -1273,8 +1269,8 @@ class ParserTest(unittest.TestCase):
         self.assertEqual("stopped", runner.outcome_of("stopped", 137, None, False))
         self.assertEqual("no_answer", runner.outcome_of("exit", 1, None, False))
         self.assertEqual("error", runner.outcome_of("exit", 125, None, False))
-        self.assertEqual("budget", runner.outcome_of("exit", 1, {"subtype": "success", "is_error": True,
-                                                                  "terminal_reason": "budget_exhausted"}, False))
+        self.assertEqual("error", runner.outcome_of("exit", 1, {"subtype": "error_max_budget_usd", "is_error": True,
+                                                                 "terminal_reason": "budget_exhausted"}, False))
         self.assertEqual("no_answer", runner.outcome_of(
             "exit", 1, {"subtype": "error_max_structured_output_retries", "is_error": True}, False))
         self.assertEqual("error", runner.outcome_of("exit", 1, {"subtype": "error_during_execution"}, False))

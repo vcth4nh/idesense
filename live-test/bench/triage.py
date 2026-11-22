@@ -124,7 +124,7 @@ BENCH_IDES = ("goland", "pycharm")  # the IDEs of the benchmark: their folders i
 PF_BASED = ("PFN", "PFR", "PFL", "PFG", "PFI", "PFS")
 EXCLUDED = ("invalid", "api_error", "key_leak")       # no measurement: counted, not in any mean
 ANSWER_OUTCOMES = ("ok",)                              # the score of run.json counts
-FAILED = ("timeout", "budget", "no_answer", "error")   # a run of the agent with no usable answer: f1 0, exact False
+FAILED = ("timeout", "no_answer", "error")             # a run of the agent with no usable answer: f1 0, exact False
 # `stopped` runs are only in the adoption table.
 ANCHOR_PHRASES = ("No named element at position", "Could not resolve symbol", "Symbol not found in project files",
                   "File not found")

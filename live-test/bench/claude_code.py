@@ -50,7 +50,7 @@ def flags(prompt: str, model: str, schema: dict) -> list[str]:
     """The arguments of `claude` of each run. The prompt comes first, before the options with
     more than one value (`--mcp-config`, `--tools`)."""
     return ["-p", prompt, "--model", model, "--effort", "medium", "--output-format", "stream-json", "--verbose",
-            "--no-session-persistence", "--permission-mode", "bypassPermissions", "--max-budget-usd", "20",
+            "--no-session-persistence", "--permission-mode", "bypassPermissions",
             "--json-schema", json.dumps(schema, separators=(",", ":")), "--strict-mcp-config"]
 
 

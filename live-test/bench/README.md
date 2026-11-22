@@ -279,7 +279,7 @@ finished run.
 | `answer`, `invalid`, `score` | The answer lines, the entries that cannot be read, the score |
 | `leak_words` | The count of each word that can name the benchmark in the transcript |
 
-The outcomes: `ok`; `no_answer`, `budget`, `timeout` and `error` (no usable answer); `stopped`
+The outcomes: `ok`; `no_answer`, `timeout` and `error` (no usable answer); `stopped`
 (`-stop-after-tools`); `invalid`, `api_error` and `key_leak` (no measurement). The module text of
 `runner.py` gives the rule of each outcome.
 

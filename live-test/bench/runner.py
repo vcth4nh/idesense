@@ -84,8 +84,7 @@ Guards of each run, in this order:
 
 Outcome: `key_leak`; `invalid` (see above); `timeout`; `stopped` (`-stop-after-tools`); `api_error` (the result
 event has the terminal reason `api_error`: the API refused or failed, for example with no key or a revoked key; the
-run is no measurement); `budget` (the result event has the subtype `error_max_budget_usd` or the terminal reason
-`budget_exhausted`); `no_answer` (no result event, the subtype `error_max_structured_output_retries`, or no readable
+run is no measurement); `no_answer` (no result event, the subtype `error_max_structured_output_retries`, or no readable
 `structured_output`); `error` (a result event with `is_error` true or another error subtype, a docker exit code of
 DOCKER_ERRORS with no result event, or an exception of the runner); else `ok`. The reason of `error` and
 `api_error`: the exception of the runner, else `<subtype> / <terminal_reason> / <api_error_status>: <the first
@@ -276,8 +275,6 @@ def outcome_of(ended: str, exit_code: int | None, result: dict | None, readable:
         return "error" if exit_code in DOCKER_ERRORS else "no_answer"
     if result.get("terminal_reason") == "api_error":
         return "api_error"
-    if result.get("subtype") == "error_max_budget_usd" or result.get("terminal_reason") == "budget_exhausted":
-        return "budget"
     if result.get("subtype") == "error_max_structured_output_retries":
         return "no_answer"
     if result.get("is_error") is True or result.get("subtype") != "success":

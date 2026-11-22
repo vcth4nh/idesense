@@ -459,7 +459,7 @@ class TablesTest(unittest.TestCase):
             run("PS", "stopped", question=x, aid="rule", stop=5, sc=score(1, 0, 1)),
             run("PF", question=x, sc=score(2, 0, 0)),
             run("PF", question=x, model=HAIKU, sc=score(0, 1, 2)),
-            run("C", question=y, sc=score(2, 0, 0)), run("C", "budget", question=y, n=2),
+            run("C", question=y, sc=score(2, 0, 0)), run("C", "timeout", question=y, n=2),
             run("PF", question=y, sc=score(0, 1, 2)),
             run("C", "invalid", question=z), run("PF", question=z, sc=score(0, 1, 2)),
         ]
