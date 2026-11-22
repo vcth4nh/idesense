@@ -173,6 +173,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `Find-usages handler  threw on findReferencesToHighlight` for the handler of PyCharm for a class.
   The name of an anonymous class is now the class name without the package, for example
   `PyFindUsagesHandlerFactory$1`. The entry for a named class does not change (#206).
+- `ide_explain_symbol` gives `usageCount: 200` and `usagesTruncated: true` for a symbol with more
+  than 200 usages. For a Go symbol, the count was 200, 201 or 202, and equal calls gave different
+  values. The search of the IDE gives usages from more than one thread, and some usages arrive
+  after the tool stops the search. The tool counted these usages too (#215).
 - The companion skill (`SKILL.md`, `tools-reference.md`) had wrong or absent facts about the
   tools. It now says that the `subtypes` of `ide_type_hierarchy` is a flat list, that a fresh
   `ide_find_usages` search takes the `symbol` anchor or a position, and that `ide_find_file` and
