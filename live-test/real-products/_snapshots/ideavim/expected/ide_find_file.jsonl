@@ -1,0 +1,3 @@
+{"id":"find-file-VimscriptParser.java-generated","result":{"files":[{"directory":"vim-engine/build/generated-src/antlr/main","name":"VimscriptParser.java","path":"vim-engine/build/generated-src/antlr/main/VimscriptParser.java"}],"hasMore":false,"offset":0,"pageSize":25,"query":"VimscriptParser.java","totalCollected":1,"warnings":null}}
+{"id":"find-file-build.gradle.kts-paged","result":{"counts":{"files":10},"hasMore":true,"offset":0,"pageSize":10,"totalCollected":22}}
+{"id":"find-file-nosuchfile.xyz-no-match","result":{"files":[],"hasMore":false,"offset":0,"pageSize":25,"query":"nosuchfile.xyz","totalCollected":0,"warnings":null}}

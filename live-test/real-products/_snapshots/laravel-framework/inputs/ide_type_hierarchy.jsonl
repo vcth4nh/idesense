@@ -1,0 +1,5 @@
+{"id":"hier-sub-Facade","tool":"ide_type_hierarchy","params":{"column":16,"direction":"subtypes","file":"src/Illuminate/Support/Facades/Facade.php","line":19}}
+{"id":"hier-sub-Model","tool":"ide_type_hierarchy","params":{"column":16,"direction":"subtypes","file":"src/Illuminate/Database/Eloquent/Model.php","line":44},"compare":"shape"}
+{"id":"hier-sub-Relation","tool":"ide_type_hierarchy","params":{"column":16,"direction":"subtypes","file":"src/Illuminate/Database/Eloquent/Relations/Relation.php","line":24}}
+{"id":"hier-super-MorphToMany","tool":"ide_type_hierarchy","params":{"column":7,"direction":"supertypes","file":"src/Illuminate/Database/Eloquent/Relations/MorphToMany.php","line":18}}
+{"id":"hier-super-Repository-byname","tool":"ide_type_hierarchy","params":{"className":"Repository","direction":"supertypes"}}

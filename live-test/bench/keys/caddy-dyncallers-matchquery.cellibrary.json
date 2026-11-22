@@ -1,0 +1,28 @@
+{
+  "question": "caddy-dyncallers-matchquery.cellibrary",
+  "old_ids": [
+    "caddy-dyncallers-MatchQuery.CELLibrary"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "dyncallers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.MatchQuery.CELLibrary",
+  "name": "CELLibrary",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/celmatcher.go:122"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddyhttp/matchers.go:1033"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "dynamic: seeded sample (seed 1) of 10 among 70 candidates; static 0, trace 1, possible 0"
+  },
+  "key_file": "caddy/dyncallers.jsonl",
+  "source": "run-time trace of the test suite"
+}

@@ -1,0 +1,5 @@
+{"id":"hier-callee-ExceptionsHandler.next-d1","tool":"ide_call_hierarchy","params":{"column":10,"direction":"callees","file":"packages/core/exceptions/exceptions-handler.ts","line":14,"maxDepth":1}}
+{"id":"hier-caller-Catch-d1","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"packages/common/decorators/core/catch.decorator.ts","line":21,"maxDepth":1}}
+{"id":"hier-caller-isNil-d1","tool":"ide_call_hierarchy","params":{"column":14,"direction":"callers","file":"packages/common/utils/shared.utils.ts","line":54,"maxDepth":1}}
+{"id":"hier-caller-isNil-d2","tool":"ide_call_hierarchy","params":{"column":14,"direction":"callers","file":"packages/common/utils/shared.utils.ts","line":54,"maxDepth":2},"compare":"shape"}
+{"id":"hier-caller-selectExceptionFilterMetadata-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"selectExceptionFilterMetadata"}}

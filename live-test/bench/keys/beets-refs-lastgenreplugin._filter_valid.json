@@ -1,0 +1,40 @@
+{
+  "question": "beets-refs-lastgenreplugin._filter_valid",
+  "old_ids": [
+    "beets-refs-LastGenrePlugin._filter_valid"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "py:beetsplug.lastgenre.LastGenrePlugin._filter_valid",
+  "name": "_filter_valid",
+  "answer": {
+    "required": [
+      "beetsplug/lastgenre/__init__.py:363",
+      "beetsplug/lastgenre/__init__.py:396",
+      "beetsplug/lastgenre/__init__.py:510",
+      "test/plugins/test_lastgenre.py:318",
+      "test/plugins/test_lastgenre.py:325",
+      "test/plugins/test_lastgenre.py:331",
+      "test/plugins/test_lastgenre.py:337",
+      "test/plugins/test_lastgenre.py:346",
+      "test/plugins/test_lastgenre.py:355",
+      "test/plugins/test_lastgenre.py:358",
+      "test/plugins/test_lastgenre.py:369"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beetsplug/lastgenre/__init__.py:360",
+      "beetsplug/lastgenre/__init__.py:399",
+      "test/plugins/test_lastgenre.py:312"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "natural name: the IDE list of this method lacks required lines (name-rule probe)"
+  },
+  "key_file": "beets/unique-used.jsonl",
+  "source": "token scan of a unique name, proven by a second scan and a run-time trace"
+}

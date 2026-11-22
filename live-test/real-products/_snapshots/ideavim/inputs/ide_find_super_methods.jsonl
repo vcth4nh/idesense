@@ -1,0 +1,5 @@
+{"id":"super-IjVimEditor.fileSize","tool":"ide_find_super_methods","params":{"column":16,"file":"src/main/java/com/maddyhome/idea/vim/newapi/IjVimEditor.kt","line":105}}
+{"id":"super-KeyGroup.registerRequiredShortcutKeys-java","tool":"ide_find_super_methods","params":{"column":15,"file":"src/main/java/com/maddyhome/idea/vim/group/KeyGroup.java","line":102}}
+{"id":"super-MotionLeftBaseAction.getOffset","tool":"ide_find_super_methods","params":{"column":16,"file":"vim-engine/src/main/kotlin/com/maddyhome/idea/vim/action/motion/leftright/MotionLeftAction.kt","line":27}}
+{"id":"super-VimShortcutKeyAction.actionPerformed-platform","tool":"ide_find_super_methods","params":{"column":16,"file":"src/main/java/com/maddyhome/idea/vim/action/VimShortcutKeyAction.kt","line":82}}
+{"id":"super-VimShortcutKeyAction.handlePythonConsoleKey-negative","tool":"ide_find_super_methods","params":{"column":15,"file":"src/main/java/com/maddyhome/idea/vim/action/VimShortcutKeyAction.kt","line":131}}

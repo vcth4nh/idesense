@@ -1,0 +1,9 @@
+{"id":"canary-def-DcSctpMessage-into-dependency","tool":"ide_find_definition","params":{"column":30,"file":"jvb/src/main/java/org/jitsi/videobridge/datachannel/protocol/DataChannelPacket.java","line":42}}
+{"id":"canary-def-PacketInfo-from-java-cross-module","tool":"ide_find_definition","params":{"column":40,"file":"jvb/src/main/java/org/jitsi/videobridge/relay/RelayedPacketInfo.java","line":25}}
+{"id":"def-Conference.getEncodingsManager-via-synthetic-property","tool":"ide_find_definition","params":{"column":20,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/Endpoint.kt","line":423}}
+{"id":"def-DataChannelStack-from-kotlin","tool":"ide_find_definition","params":{"column":36,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/Endpoint.kt","line":150}}
+{"id":"def-EndpointMessageTransportEventHandler-from-java","tool":"ide_find_definition","params":{"column":50,"file":"jvb/src/main/java/org/jitsi/videobridge/Conference.java","line":70}}
+{"id":"def-JsonNodeFactory.objectNode-into-dependency","tool":"ide_find_definition","params":{"column":65,"file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/transform/node/Node.kt","line":57}}
+{"id":"def-LoudestConfig.routeLoudestOnly-via-jvmstatic-getter","tool":"ide_find_definition","params":{"column":60,"file":"jvb/src/main/java/org/jitsi/videobridge/Conference.java","line":215}}
+{"id":"def-SctpConfig.config-via-import-alias","tool":"ide_find_definition","params":{"column":35,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/Endpoint.kt","line":145}}
+{"id":"def-cdebug-into-kotlin-dependency","tool":"ide_find_definition","params":{"column":16,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/Endpoint.kt","line":553}}

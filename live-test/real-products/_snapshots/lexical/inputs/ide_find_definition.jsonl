@@ -1,0 +1,11 @@
+{"id":"canary-def-DecoratorNode-ts-paths","tool":"ide_find_definition","params":{"column":32,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":128}}
+{"id":"canary-def-Doc-into-dependency","tool":"ide_find_definition","params":{"column":9,"file":"packages/lexical-yjs/src/Utils.ts","line":37}}
+{"id":"def-$getRoot-reexport","tool":"ide_find_definition","params":{"column":15,"file":"packages/lexical-playground/src/nodes/ImageComponent.tsx","line":431}}
+{"id":"def-DecoratorNode-from-flow-stub","tool":"ide_find_definition","params":{"column":52,"file":"packages/lexical-react/flow/LexicalDecoratorBlockNode.js.flow","line":20}}
+{"id":"def-ElementNode-cross-file","tool":"ide_find_definition","params":{"column":36,"file":"packages/lexical/src/nodes/LexicalParagraphNode.ts","line":50}}
+{"id":"def-ImageComponent-jsx-lazy","tool":"ide_find_definition","params":{"column":8,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":304}}
+{"id":"def-ImageResizer-jsx-tag","tool":"ide_find_definition","params":{"column":12,"file":"packages/lexical-playground/src/nodes/ImageComponent.tsx","line":507},"parked":315}
+{"id":"def-LexicalNode-in-flow-stub","tool":"ide_find_definition","params":{"column":42,"file":"packages/lexical/flow/Lexical.js.flow","line":925}}
+{"id":"def-__showCaption-member","tool":"ide_find_definition","params":{"column":14,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":274}}
+{"id":"def-lazy-into-types-react","tool":"ide_find_definition","params":{"column":30,"file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":53}}
+{"id":"def-useLexicalComposerContext-subpath-alias","tool":"ide_find_definition","params":{"column":9,"file":"packages/lexical-playground/src/nodes/ImageComponent.tsx","line":13}}

@@ -1,0 +1,6 @@
+{"id":"find-class-AnAction-libraries-scope","tool":"ide_find_class","params":{"query":"AnAction","scope":"project_and_libraries"},"parked":316}
+{"id":"find-class-Command","tool":"ide_find_class","params":{"query":"Command"}}
+{"id":"find-class-Mode","tool":"ide_find_class","params":{"query":"Mode"}}
+{"id":"find-class-MotActHan-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"pageSize":25,"query":"MotActHan"}}
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-VimEditor","tool":"ide_find_class","params":{"query":"VimEditor"}}

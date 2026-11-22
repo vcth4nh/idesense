@@ -1,0 +1,9 @@
+{"id":"canary-find-class-HttpException","tool":"ide_find_class","params":{"query":"HttpException"}}
+{"id":"find-class-AppModule","tool":"ide_find_class","params":{"pageSize":100,"query":"AppModule"}}
+{"id":"find-class-AppModule-lang-javascript","tool":"ide_find_class","params":{"language":"javascript","query":"AppModule"}}
+{"id":"find-class-AppModule-paged","tool":"ide_find_class","params":{"pageSize":10,"query":"AppModule"},"compare":"shape"}
+{"id":"find-class-BadReqExc-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"BadReqExc"}}
+{"id":"find-class-ExpressAdapter","tool":"ide_find_class","params":{"query":"ExpressAdapter"}}
+{"id":"find-class-Kafka-libraries-scope","tool":"ide_find_class","params":{"query":"Kafka","scope":"project_and_libraries"}}
+{"id":"find-class-Observable-libraries-scope-paged","tool":"ide_find_class","params":{"pageSize":25,"query":"Observable","scope":"project_and_libraries"},"compare":"shape"}
+{"id":"find-class-zzqNoSuchClassXyz-no-match","tool":"ide_find_class","params":{"query":"zzqNoSuchClassXyz"}}

@@ -1,0 +1,5 @@
+{"id":"explain-AppModule-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"AppModule"},"parked":274}
+{"id":"explain-Catch-pos","tool":"ide_explain_symbol","params":{"column":17,"file":"packages/common/decorators/core/catch.decorator.ts","line":21}}
+{"id":"explain-HttpException-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"HttpException"},"compare":"shape"}
+{"id":"explain-ParseFilePipe-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"ParseFilePipe"}}
+{"id":"explain-transform-ambiguous","tool":"ide_explain_symbol","params":{"symbol":"transform"},"compare":"shape"}

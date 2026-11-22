@@ -1,0 +1,5 @@
+{"id":"hier-callee-Arr.get-d1","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callees","file":"src/Illuminate/Collections/Arr.php","line":487,"maxDepth":1},"compare":"shape"}
+{"id":"hier-caller-Arr.accessible-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"Arr::accessible"}}
+{"id":"hier-caller-Arr.pull-production-scope","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callers","file":"src/Illuminate/Collections/Arr.php","line":941,"maxDepth":1,"scope":"production"}}
+{"id":"hier-caller-Arr.random-d2","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callers","file":"src/Illuminate/Collections/Arr.php","line":971,"maxDepth":2}}
+{"id":"hier-caller-Arr.wrap-d1","tool":"ide_call_hierarchy","params":{"column":28,"direction":"callers","file":"src/Illuminate/Collections/Arr.php","line":1326,"maxDepth":1}}

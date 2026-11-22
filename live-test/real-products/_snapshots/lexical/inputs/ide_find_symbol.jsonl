@@ -1,0 +1,5 @@
+{"id":"find-symbol-ParagraphNode","tool":"ide_find_symbol","params":{"query":"ParagraphNode"}}
+{"id":"find-symbol-ParagraphNode-lang-javascript","tool":"ide_find_symbol","params":{"language":"javascript","query":"ParagraphNode"}}
+{"id":"find-symbol-ParagraphNode.createDOM-qualified","tool":"ide_find_symbol","params":{"query":"ParagraphNode.createDOM"}}
+{"id":"find-symbol-createDOM-paged","tool":"ide_find_symbol","params":{"pageSize":25,"query":"createDOM"},"compare":"shape"}
+{"id":"find-symbol-zzqNoSuchSymbolXyz-no-match","tool":"ide_find_symbol","params":{"query":"zzqNoSuchSymbolXyz"}}

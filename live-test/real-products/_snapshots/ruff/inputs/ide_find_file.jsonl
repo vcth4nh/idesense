@@ -1,0 +1,4 @@
+{"id":"find-file-builtins.pyi-vendored","tool":"ide_find_file","params":{"query":"builtins.pyi"},"parked":271}
+{"id":"find-file-codes.rs","tool":"ide_find_file","params":{"query":"codes.rs"},"parked":271}
+{"id":"find-file-generated.rs","tool":"ide_find_file","params":{"query":"generated.rs"}}
+{"id":"find-file-nosuchfile","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}

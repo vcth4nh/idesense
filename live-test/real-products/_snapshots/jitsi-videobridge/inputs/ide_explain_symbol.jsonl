@@ -1,0 +1,3 @@
+{"id":"explain-AimdRateControl-name","tool":"ide_explain_symbol","params":{"symbol":"AimdRateControl"}}
+{"id":"explain-LoudestConfig.routeLoudestOnly-pos","tool":"ide_explain_symbol","params":{"column":13,"file":"jvb/src/main/kotlin/org/jitsi/videobridge/LoudestConfig.kt","line":26}}
+{"id":"explain-PotentialPacketHandler-name","tool":"ide_explain_symbol","params":{"symbol":"PotentialPacketHandler"}}

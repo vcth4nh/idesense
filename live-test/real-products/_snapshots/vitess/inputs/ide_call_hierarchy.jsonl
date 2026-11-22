@@ -1,0 +1,5 @@
+{"id":"hier-callee-Errorf-d2","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callees","file":"go/vt/vterrors/vterrors.go","line":143,"maxDepth":2}}
+{"id":"hier-callee-yyParsePooled-d1","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callees","file":"go/vt/sqlparser/parser.go","line":51,"maxDepth":1}}
+{"id":"hier-caller-Errorf-d1","tool":"ide_call_hierarchy","params":{"column":6,"direction":"callers","file":"go/vt/vterrors/vterrors.go","line":143,"maxDepth":1},"compare":"shape"}
+{"id":"hier-caller-Route.TryExecute-d1","tool":"ide_call_hierarchy","params":{"column":21,"direction":"callers","file":"go/vt/vtgate/engine/route.go","line":110,"maxDepth":1}}
+{"id":"hier-caller-yyParsePooled-bysymbol","tool":"ide_call_hierarchy","params":{"direction":"callers","maxDepth":1,"symbol":"yyParsePooled"}}

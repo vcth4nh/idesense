@@ -1,0 +1,68 @@
+{
+  "question": "caddy-plant2-refs-replacer.resolve",
+  "old_ids": [
+    "caddy-plant2-refs"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy-plant-2",
+  "family": "refs",
+  "lang": "go",
+  "symbol": "plant:go:caddy-plant-2:Replacer.GetString",
+  "name": "Resolve",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/caddyauth/caddyauth_test.go:177",
+      "modules/caddyhttp/caddyauth/caddyauth_test.go:188",
+      "modules/caddyhttp/replacer_test.go:316",
+      "modules/caddyhttp/replacer_test.go:345",
+      "modules/caddyhttp/replacer_test.go:350",
+      "modules/caddyhttp/replacer_test.go:384",
+      "modules/caddyhttp/replacer_test.go:389",
+      "modules/caddyhttp/reverseproxy/fastcgi/fastcgi.go:314",
+      "modules/caddyhttp/reverseproxy/fastcgi/fastcgi.go:344",
+      "modules/caddyhttp/server.go:1266",
+      "modules/caddyhttp/urlpatternmatcher_test.go:277",
+      "modules/caddyhttp/urlpatternmatcher_test.go:279"
+    ],
+    "forbidden": [
+      "modules/caddyevents/app.go:230",
+      "modules/caddyevents/app_test.go:102",
+      "modules/caddyevents/app_test.go:109",
+      "modules/caddyevents/app_test.go:112",
+      "modules/caddyevents/app_test.go:124",
+      "modules/caddyevents/app_test.go:138",
+      "modules/caddyevents/handshake_bench_test.go:111",
+      "modules/caddyhttp/autohttps.go:876",
+      "modules/caddyhttp/reverseproxy/httptransport.go:822",
+      "modules/caddypki/adminapi.go:56",
+      "modules/caddytls/acmeissuer.go:207",
+      "modules/caddytls/automation.go:369",
+      "modules/caddytls/capools.go:233",
+      "modules/caddytls/capools.go:318",
+      "modules/caddytls/connpolicy.go:148",
+      "modules/caddytls/tls.go:261",
+      "modules/caddytls/tls.go:432",
+      "modules/caddytls/tls.go:531",
+      "modules/caddytls/tls.go:575",
+      "modules/caddytls/tls_wildcard_test.go:82"
+    ],
+    "not_counted": [
+      "context.go:524",
+      "context.go:530",
+      "modules/caddyevents/app.go:202",
+      "modules/caddyevents/app.go:207",
+      "modules/caddytls/tls.go:599",
+      "modules/caddytls/tls.go:605",
+      "modules/caddytls/tls.go:614",
+      "replacer.go:109",
+      "replacer.go:111"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "the planted record with the most required lines (12)"
+  },
+  "key_file": "caddy-plant-2/plant.jsonl",
+  "source": "planted name: the state of the tree before the rename"
+}

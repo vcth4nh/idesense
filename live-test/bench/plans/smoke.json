@@ -1,0 +1,19 @@
+{
+  "rule": "The first question name in sorted order with the product caddy and the family impls, and the first with the product beets, the family refs and the tree beets.",
+  "questions": [
+    "caddy-impls-adminrouter",
+    "beets-refs-_fetch_va_genres"
+  ],
+  "arms": [
+    {
+      "arm": "C"
+    },
+    {
+      "arm": "PF"
+    }
+  ],
+  "models": [
+    "claude-haiku-5-5"
+  ],
+  "runs": 1
+}

@@ -1,0 +1,6 @@
+{"id":"canary-find-file-Carbon.php","tool":"ide_find_file","params":{"query":"Carbon.php"}}
+{"id":"find-file-Carbon.php-libraries-scope","tool":"ide_find_file","params":{"query":"Carbon.php","scope":"project_and_libraries"},"parked":271}
+{"id":"find-file-Repository.php","tool":"ide_find_file","params":{"pageSize":50,"query":"Repository.php"}}
+{"id":"find-file-composer.json-paged","tool":"ide_find_file","params":{"pageSize":25,"query":"composer.json"},"compare":"shape"}
+{"id":"find-file-model.stub","tool":"ide_find_file","params":{"query":"model.stub"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}

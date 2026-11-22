@@ -1,0 +1,3 @@
+{"id":"hier-super-ImageNode","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"packages/lexical-playground/src/nodes/ImageNode.tsx","line":128}}
+{"id":"hier-super-ParagraphNode","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"packages/lexical/src/nodes/LexicalParagraphNode.ts","line":50}}
+{"id":"hier-super-ParagraphNode-byname","tool":"ide_type_hierarchy","params":{"className":"ParagraphNode","direction":"supertypes"},"parked":269}

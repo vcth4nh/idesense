@@ -1,0 +1,4 @@
+{"id":"super-FStringMissingPlaceholders.fix_title","tool":"ide_find_super_methods","params":{"column":8,"file":"crates/ruff_linter/src/rules/pyflakes/rules/f_string_missing_placeholders.rs","line":66}}
+{"id":"super-UnusedImport.FIX_AVAILABILITY-const","tool":"ide_find_super_methods","params":{"column":11,"file":"crates/ruff_linter/src/rules/pyflakes/rules/unused_import.rs","line":159}}
+{"id":"super-UnusedImport.message-attribute-macro","tool":"ide_find_super_methods","params":{"column":8,"file":"crates/ruff_linter/src/rules/pyflakes/rules/unused_import.rs","line":162}}
+{"id":"super-lines_before-none","tool":"ide_find_super_methods","params":{"column":8,"file":"crates/ruff_python_trivia/src/tokenizer.rs","line":41}}

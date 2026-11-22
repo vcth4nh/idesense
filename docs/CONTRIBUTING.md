@@ -247,13 +247,20 @@ no pull request starts no Build run.
 ### Live tests
 
 The live-test harness runs the tools against running IDEs and compares the results with blessed
-snapshots. CI does not run it. For a change of tool behavior and for a release, run both suites
+snapshots. CI does not run the live suites. The unit tests of the harness run in CI (see "CI").
+For a change of tool behavior and for a release, run both suites
 (`./live-test/run.py --suite all`): see "Run the suites against a new build" in
 [live-test/README.md](../live-test/README.md). The commands, the deploy and the bless rules are
 in that file and in [live-test/AGENTS.md](../live-test/AGENTS.md).
 
 After a live run, read `idea.log` of each IDE (see "A defect that no row shows" in
 [live-test/README.md](../live-test/README.md#troubleshooting)).
+
+The audit compares the answers of the tools with keys that no IDE made. Run it after a change of a
+usage, implementation or caller tool ([live-test/audit/README.md](../live-test/audit/README.md)).
+The agent batch measures a coding agent with and without the plugin, and it costs money
+([live-test/bench/README.md](../live-test/bench/README.md)). The method of each instrument is in
+[live-test/METHOD.md](../live-test/METHOD.md).
 
 ## Evidence for a platform claim
 
@@ -289,6 +296,7 @@ the newer push tests both commits.
 |---|---|---|
 | Build | always | `./gradlew buildPlugin`; uploads the plugin as an artifact. |
 | Test | always | `./gradlew check`: the unit tests and the platform tests. |
+| Harness tests | always | The unit tests of the live-test harness: `python3 -B -m unittest discover -s live-test -t live-test -p "test_*_unit.py"` (Python 3.10), and `go test ./...` in `live-test/keygen/gokeys`. The release draft does not wait for it. |
 | Verify plugin | on a push to `main` only | `./gradlew verifyPlugin`. |
 | Release draft | on a push to `main` only, after Build, Test and Verify plugin | Replaces the draft release (see "Release"). |
 
@@ -443,7 +451,8 @@ issue has only `component: source`. An issue about two parts gets one label for 
 | `component: skill` | The agent skill in `src/main/resources/skill/`. |
 | `component: docs` | `README.md`, `AGENTS.md`, `CHANGELOG.md` and `docs/`. |
 | `component: test` | The unit tests and the platform tests in `src/test/`. |
-| `component: live-test` | All of `live-test/`: the harness, the fixture suite, the real-product suite and its documents. |
+| `component: live-test` | The two snapshot suites in `live-test/`: the fixture suite, the real-product suite, their harness and their documents. Also the parts that all instruments share: `live-test/common/`, `live-test/run.py`, `live-test/manifest.json` and `live-test/METHOD.md`. |
+| `component: benchmark` | The audit and the agent benchmark in `live-test/audit/`, `live-test/bench/` and `live-test/keygen/`. |
 | `component: build` | The Gradle build, the GitHub workflows, the dependencies and the release. |
 
 ### Severity

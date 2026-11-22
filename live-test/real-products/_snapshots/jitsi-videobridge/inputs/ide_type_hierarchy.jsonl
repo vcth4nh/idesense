@@ -1,0 +1,8 @@
+{"id":"canary-hier-super-DataChannelPacket","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"jvb/src/main/java/org/jitsi/videobridge/datachannel/protocol/DataChannelPacket.java","line":26}}
+{"id":"hier-sub-MessageHandler","tool":"ide_type_hierarchy","params":{"column":12,"direction":"subtypes","file":"jvb/src/main/kotlin/org/jitsi/videobridge/message/BridgeChannelMessage.kt","line":107}}
+{"id":"hier-sub-Node","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/transform/node/Node.kt","line":46}}
+{"id":"hier-sub-Node-production-scope","tool":"ide_type_hierarchy","params":{"column":14,"direction":"subtypes","file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/transform/node/Node.kt","line":46,"scope":"production"}}
+{"id":"hier-sub-PacketInfo","tool":"ide_type_hierarchy","params":{"column":12,"direction":"subtypes","file":"jitsi-media-transform/src/main/kotlin/org/jitsi/nlj/PacketInfo.kt","line":117}}
+{"id":"hier-sub-PotentialPacketHandler","tool":"ide_type_hierarchy","params":{"column":18,"direction":"subtypes","file":"jvb/src/main/java/org/jitsi/videobridge/PotentialPacketHandler.java","line":22}}
+{"id":"hier-super-AimdRateControl-java-qualified-classname","tool":"ide_type_hierarchy","params":{"className":"org.jitsi_modified.impl.neomedia.rtp.remotebitrateestimator.AimdRateControl","direction":"supertypes"}}
+{"id":"hier-super-EndpointMessageTransport","tool":"ide_type_hierarchy","params":{"column":14,"direction":"supertypes","file":"jvb/src/main/java/org/jitsi/videobridge/EndpointMessageTransport.java","line":48}}

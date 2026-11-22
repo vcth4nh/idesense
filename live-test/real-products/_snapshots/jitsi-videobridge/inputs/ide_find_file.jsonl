@@ -1,0 +1,6 @@
+{"id":"find-file-Conference.java","tool":"ide_find_file","params":{"query":"Conference.java"}}
+{"id":"find-file-DePacketizer.java","tool":"ide_find_file","params":{"query":"DePacketizer.java"}}
+{"id":"find-file-RtpPacket.kt-production-scope","tool":"ide_find_file","params":{"query":"RtpPacket.kt","scope":"project_production_files"},"parked":271}
+{"id":"find-file-capture_1_incoming_participant_1_rtp_and_rtcp.pcap","tool":"ide_find_file","params":{"query":"capture_1_incoming_participant_1_rtp_and_rtcp.pcap"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-pom.xml-paged","tool":"ide_find_file","params":{"pageSize":2,"query":"pom.xml"},"compare":"shape"}

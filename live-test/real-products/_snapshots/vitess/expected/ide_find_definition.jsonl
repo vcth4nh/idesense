@@ -1,0 +1,11 @@
+{"id":"canary-def-fetchClusters-ts-cross-file","result":{"column":14,"enclosingScope":null,"file":"web/vtadmin/src/api/http.ts","kind":"CONSTANT","line":138,"name":"fetchClusters","qualifiedName":"fetchClusters"}}
+{"id":"canary-def-pflag.FlagSet-into-dependency","result":{"enclosingScope":null,"file":"flag.go","kind":"STRUCT","name":"FlagSet","qualifiedName":"pflag.FlagSet"}}
+{"id":"def-BindVariable-via-import-alias","result":{"column":9,"enclosingScope":[],"file":"proto/query.proto","kind":"MESSAGE","line":236,"name":"BindVariable","qualifiedName":null}}
+{"id":"def-Cluster-ts-into-giant-dts","result":{"column":11,"enclosingScope":null,"file":"web/vtadmin/src/proto/vtadmin.d.ts","kind":"CLASS","line":1574,"name":"Cluster","qualifiedName":"vtadmin.Cluster"}}
+{"id":"def-HttpOkResponse-ts-cross-file","result":{"column":18,"enclosingScope":null,"file":"web/vtadmin/src/api/responseTypes.ts","kind":"INTERFACE","line":17,"name":"HttpOkResponse","qualifiedName":"HttpOkResponse"}}
+{"id":"def-Primitive-cross-file","result":{"column":2,"enclosingScope":null,"file":"go/vt/vtgate/engine/primitive.go","kind":"INTERFACE","line":258,"name":"Primitive","qualifiedName":"engine.Primitive"}}
+{"id":"def-Route.Inputs-promoted","result":{"column":25,"enclosingScope":null,"file":"go/vt/vtgate/planbuilder/operators/operator.go","kind":"METHOD","line":112,"name":"Inputs","qualifiedName":"operators.unaryOperator.Inputs"}}
+{"id":"def-mainLookup-into-giant-file","result":{"column":5,"enclosingScope":null,"file":"go/mysql/collations/vindex/collate/tables.go","kind":"VARIABLE","line":69051,"name":"mainLookup","qualifiedName":"collate.mainLookup"}}
+{"id":"def-proto.Clone-into-dependency","result":{"enclosingScope":null,"file":"merge.go","kind":"FUNCTION","name":"Clone","qualifiedName":"proto.Clone"}}
+{"id":"def-sqltypes.Type-via-alias","result":{"column":6,"enclosingScope":null,"file":"go/sqltypes/type.go","kind":"TYPE_ALIAS","line":25,"name":"Type","qualifiedName":"sqltypes.Type"}}
+{"id":"def-yyParserImpl-into-generated","result":{"column":6,"enclosingScope":null,"file":"go/vt/sqlparser/sql.go","kind":"STRUCT","line":12753,"name":"yyParserImpl","qualifiedName":"sqlparser.yyParserImpl"}}

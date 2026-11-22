@@ -1,0 +1,7 @@
+{"id":"find-class-NoSuchTypeXyz-no-match","tool":"ide_find_class","params":{"query":"NoSuchTypeXyz"}}
+{"id":"find-class-ParsedQuery","tool":"ide_find_class","params":{"query":"ParsedQuery"}}
+{"id":"find-class-ParsedQuery-lang-go","tool":"ide_find_class","params":{"language":"Go","query":"ParsedQuery"}}
+{"id":"find-class-ParsedQuery-lang-typescript","tool":"ide_find_class","params":{"language":"TypeScript","query":"ParsedQuery"}}
+{"id":"find-class-PrimDesc-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"PrimDesc"}}
+{"id":"find-class-Primitive","tool":"ide_find_class","params":{"query":"Primitive"}}
+{"id":"find-class-Route","tool":"ide_find_class","params":{"query":"Route"}}

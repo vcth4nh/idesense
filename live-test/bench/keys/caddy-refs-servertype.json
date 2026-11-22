@@ -1,0 +1,63 @@
+{
+  "question": "caddy-refs-servertype",
+  "old_ids": [
+    "caddy-refs-ServerType"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "refs",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile.ServerType",
+  "name": "ServerType",
+  "answer": {
+    "required": [
+      "caddyconfig/httpcaddyfile/addresses.go:80",
+      "caddyconfig/httpcaddyfile/addresses.go:195",
+      "caddyconfig/httpcaddyfile/addresses.go:270",
+      "caddyconfig/httpcaddyfile/builtins_test.go:124",
+      "caddyconfig/httpcaddyfile/builtins_test.go:265",
+      "caddyconfig/httpcaddyfile/builtins_test.go:328",
+      "caddyconfig/httpcaddyfile/builtins_test.go:401",
+      "caddyconfig/httpcaddyfile/directives_test.go:154",
+      "caddyconfig/httpcaddyfile/directives_test.go:174",
+      "caddyconfig/httpcaddyfile/directives_test.go:221",
+      "caddyconfig/httpcaddyfile/httptype.go:41",
+      "caddyconfig/httpcaddyfile/httptype.go:59",
+      "caddyconfig/httpcaddyfile/httptype.go:385",
+      "caddyconfig/httpcaddyfile/httptype.go:475",
+      "caddyconfig/httpcaddyfile/httptype.go:566",
+      "caddyconfig/httpcaddyfile/httptype.go:1610",
+      "caddyconfig/httpcaddyfile/httptype.go:1930",
+      "caddyconfig/httpcaddyfile/httptype_test.go:97",
+      "caddyconfig/httpcaddyfile/httptype_test.go:240",
+      "caddyconfig/httpcaddyfile/httptype_test.go:260",
+      "caddyconfig/httpcaddyfile/options_test.go:54",
+      "caddyconfig/httpcaddyfile/options_test.go:121",
+      "caddyconfig/httpcaddyfile/options_test.go:174",
+      "caddyconfig/httpcaddyfile/pkiapp.go:198",
+      "caddyconfig/httpcaddyfile/pkiapp_test.go:37",
+      "caddyconfig/httpcaddyfile/pkiapp_test.go:79",
+      "caddyconfig/httpcaddyfile/pkiapp_test.go:171",
+      "caddyconfig/httpcaddyfile/tlsapp.go:36",
+      "caddyconfig/httpcaddyfile/tlsapp_test.go:69"
+    ],
+    "forbidden": [
+      "caddyconfig/caddyfile/adapter.go:28",
+      "caddyconfig/caddyfile/adapter.go:33",
+      "caddyconfig/caddyfile/adapter.go:50",
+      "caddyconfig/caddyfile/adapter.go:111"
+    ],
+    "not_counted": [
+      "caddyconfig/caddyfile/adapter.go:110",
+      "caddyconfig/httpcaddyfile/httptype.go:55",
+      "caddyconfig/httpcaddyfile/httptype.go:56"
+    ]
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded choice (seed 1) among 433 `type` records with 3 or more required lines"
+  },
+  "key_file": "caddy/symbols.jsonl",
+  "source": "name resolution of the Go compiler library (go/types)"
+}

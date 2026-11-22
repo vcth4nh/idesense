@@ -1,5 +1,6 @@
 package com.github.vcth4nh.idesense.tools.navigation.structure
 
+import com.github.vcth4nh.idesense.tools.navigation.hierarchy.rethrowIfCancellation
 import com.intellij.psi.PsiElement
 
 /**
@@ -79,9 +80,9 @@ internal object UniversalModifiers {
 
     private fun invokeNoArg(target: Any, method: String): Any? = runCatching {
         target.javaClass.getMethod(method).invoke(target)
-    }.getOrNull()
+    }.onFailure(::rethrowIfCancellation).getOrNull()
 
     private fun invokeString(target: Any, method: String): String? = runCatching {
         target.javaClass.getMethod(method).invoke(target) as? String
-    }.getOrNull()?.takeIf { it.isNotBlank() }
+    }.onFailure(::rethrowIfCancellation).getOrNull()?.takeIf { it.isNotBlank() }
 }

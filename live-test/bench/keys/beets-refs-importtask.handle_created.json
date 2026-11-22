@@ -1,0 +1,33 @@
+{
+  "question": "beets-refs-importtask.handle_created",
+  "old_ids": [
+    "beets-refs-ImportTask.handle_created"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "py:beets.importer.tasks.ImportTask.handle_created",
+  "name": "handle_created",
+  "answer": {
+    "required": [
+      "beets/importer/stages.py:75",
+      "beets/importer/stages.py:88",
+      "beets/importer/stages.py:143",
+      "beets/importer/stages.py:183",
+      "beets/importer/stages.py:258",
+      "beets/importer/tasks.py:1360"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "beets/importer/tasks.py:544"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "natural name: the IDE list of this method lacks required lines (name-rule probe)"
+  },
+  "key_file": "beets/unique-used.jsonl",
+  "source": "token scan of a unique name, proven by a second scan and a run-time trace"
+}

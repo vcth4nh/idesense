@@ -1,0 +1,9 @@
+{"id":"find-file-App.tsx","tool":"ide_find_file","params":{"query":"App.tsx"},"parked":271}
+{"id":"find-file-App.tsx-directory-part","tool":"ide_find_file","params":{"pageSize":100,"query":"src/App.tsx"},"parked":271}
+{"id":"find-file-App.tsx-production-scope","tool":"ide_find_file","params":{"query":"App.tsx","scope":"project_production_files"}}
+{"id":"find-file-Doc.d.ts-libraries-scope","tool":"ide_find_file","params":{"query":"Doc.d.ts","scope":"project_and_libraries"},"compare":"shape","parked":271}
+{"id":"find-file-LexicalNode.ts","tool":"ide_find_file","params":{"pageSize":100,"query":"LexicalNode.ts"},"parked":271}
+{"id":"find-file-index.ts-paged","tool":"ide_find_file","params":{"pageSize":10,"query":"index.ts"},"compare":"shape","parked":271}
+{"id":"find-file-types.ts","tool":"ide_find_file","params":{"query":"types.ts"},"parked":271}
+{"id":"find-file-utils.ts","tool":"ide_find_file","params":{"pageSize":100,"query":"utils.ts"},"parked":271}
+{"id":"find-file-zzqNoSuchFile.ts-no-match","tool":"ide_find_file","params":{"query":"zzqNoSuchFile.ts"}}

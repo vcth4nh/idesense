@@ -1,0 +1,52 @@
+{
+  "question": "beets-plant2-refs-importtask.apply_changes",
+  "old_ids": [
+    "beets-plant2-refs",
+    "beets-plant2-refs-ImportTask"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets-plant-2",
+  "family": "refs",
+  "lang": "python",
+  "symbol": "plant:python:beets-plant-2:ImportTask.handle_created",
+  "name": "apply_changes",
+  "answer": {
+    "required": [
+      "beets/importer/stages.py:75",
+      "beets/importer/stages.py:88",
+      "beets/importer/stages.py:143",
+      "beets/importer/stages.py:183",
+      "beets/importer/stages.py:258",
+      "beets/importer/tasks.py:1360"
+    ],
+    "forbidden": [
+      "beetsplug/lastgenre/__init__.py:577",
+      "beetsplug/smartplaylist.py:224",
+      "beetsplug/smartplaylist.py:301",
+      "beetsplug/titlecase.py:154",
+      "beetsplug/titlecase.py:157",
+      "beetsplug/titlecase.py:164",
+      "beetsplug/titlecase.py:243",
+      "test/plugins/test_lastgenre.py:182",
+      "test/plugins/test_lastgenre.py:194",
+      "test/plugins/test_lastgenre.py:204",
+      "test/plugins/test_smartplaylist.py:187",
+      "test/plugins/test_smartplaylist.py:224",
+      "test/plugins/test_smartplaylist.py:267",
+      "test/plugins/test_titlecase.py:293"
+    ],
+    "not_counted": [
+      "beets/importer/tasks.py:544",
+      "beetsplug/lastgenre/__init__.py:520",
+      "beetsplug/smartplaylist.py:386",
+      "beetsplug/titlecase.py:172"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "plant: the most required lines (6) among 4 planted records of beets-plant-2"
+  },
+  "key_file": "beets-plant-2/plant.jsonl",
+  "source": "planted name: the state of the tree before the rename"
+}

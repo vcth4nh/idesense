@@ -1,0 +1,5 @@
+{"id":"find-symbol-PingTablet","tool":"ide_find_symbol","params":{"pageSize":100,"query":"PingTablet"}}
+{"id":"find-symbol-PingTablet-lang-go","tool":"ide_find_symbol","params":{"language":"Go","pageSize":100,"query":"PingTablet"}}
+{"id":"find-symbol-PingTablet-lang-typescript","tool":"ide_find_symbol","params":{"language":"TypeScript","pageSize":100,"query":"PingTablet"}}
+{"id":"find-symbol-PingTablet-paged","tool":"ide_find_symbol","params":{"pageSize":5,"query":"PingTablet"},"compare":"shape"}
+{"id":"find-symbol-Route.TryExecute-qualified","tool":"ide_find_symbol","params":{"query":"Route.TryExecute"}}

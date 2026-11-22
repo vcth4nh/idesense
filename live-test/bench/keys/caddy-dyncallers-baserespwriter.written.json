@@ -1,0 +1,29 @@
+{
+  "question": "caddy-dyncallers-baserespwriter.written",
+  "old_ids": [
+    "caddy-dyncallers-baseRespWriter.Written"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "dyncallers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2/modules/caddyhttp.baseRespWriter.Written",
+  "name": "Written",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/responsewriter_test.go:47",
+      "modules/caddyhttp/responsewriter_test.go:104"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "modules/caddyhttp/responsewriter_test.go:31"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "dynamic: seeded sample (seed 1) of 10 among 70 candidates; static 0, trace 2, possible 0"
+  },
+  "key_file": "caddy/dyncallers.jsonl",
+  "source": "run-time trace of the test suite"
+}

@@ -58,3 +58,38 @@
 	url = https://github.com/rolldown/rolldown
 	shallow = true
 	ignore = dirty
+[submodule "live-test/real-products/jitsi-videobridge"]
+	path = live-test/real-products/jitsi-videobridge
+	url = https://github.com/jitsi/jitsi-videobridge
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/nest"]
+	path = live-test/real-products/nest
+	url = https://github.com/nestjs/nest
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/vitess"]
+	path = live-test/real-products/vitess
+	url = https://github.com/vitessio/vitess
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/laravel-framework"]
+	path = live-test/real-products/laravel-framework
+	url = https://github.com/laravel/framework
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/ruff"]
+	path = live-test/real-products/ruff
+	url = https://github.com/astral-sh/ruff
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/ideavim"]
+	path = live-test/real-products/ideavim
+	url = https://github.com/JetBrains/ideavim
+	shallow = true
+	ignore = dirty
+[submodule "live-test/real-products/lexical"]
+	path = live-test/real-products/lexical
+	url = https://github.com/meta/lexical
+	shallow = true
+	ignore = dirty

@@ -585,7 +585,8 @@ Each entry gives the contract, the consequence for the code, and the class that 
   cancellation. `rethrowIfCancellation` (in `HierarchyTreeWalker.kt`) unwraps and rethrows a
   `CancellationException` or a `ControlFlowException` for `HierarchyTreeWalker`,
   `ImplementationLocations.Collector` and the reflective searches and getters of the
-  `SuperMethodsProvider` implementations (#210). The block can run more than one time, so the
+  `SuperMethodsProvider` implementations (#210), and for the reflective getters of
+  `UniversalModifiers`. The block can run more than one time, so the
   state that it fills starts empty in each run (`FindUsagesTool` clears its warnings and notes).
   Broad catches remain in `BrowserBackedResolver.resolve`, `HierarchyTreeWalker.resolveTarget`,
   `RustTypeHierarchyImpl`, `ClassResolver` and `QualifiedNameUtil`.

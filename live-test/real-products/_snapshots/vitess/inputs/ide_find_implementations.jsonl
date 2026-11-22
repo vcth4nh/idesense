@@ -1,0 +1,6 @@
+{"id":"canary-impls-Primitive","tool":"ide_find_implementations","params":{"column":2,"file":"go/vt/vtgate/engine/primitive.go","line":258,"pageSize":500}}
+{"id":"impls-Primitive.TryExecute","tool":"ide_find_implementations","params":{"column":3,"file":"go/vt/vtgate/engine/primitive.go","line":262,"pageSize":100}}
+{"id":"impls-Route-struct-empty","tool":"ide_find_implementations","params":{"column":6,"file":"go/vt/vtgate/engine/route.go","line":51,"pageSize":100}}
+{"id":"impls-SQLNode","tool":"ide_find_implementations","params":{"column":6,"file":"go/vt/sqlparser/ast.go","line":33,"pageSize":500}}
+{"id":"impls-SQLNode-paged","tool":"ide_find_implementations","params":{"column":6,"file":"go/vt/sqlparser/ast.go","line":33,"pageSize":50},"compare":"shape"}
+{"id":"impls-Statement","tool":"ide_find_implementations","params":{"column":2,"file":"go/vt/sqlparser/ast.go","line":41,"pageSize":500}}

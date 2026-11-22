@@ -1,0 +1,8 @@
+{"id":"canary-find-class-LexicalNode","tool":"ide_find_class","params":{"query":"LexicalNode"}}
+{"id":"find-class-DecoratorNode","tool":"ide_find_class","params":{"query":"DecoratorNode"}}
+{"id":"find-class-Doc-libraries-scope","tool":"ide_find_class","params":{"query":"Doc","scope":"project_and_libraries"}}
+{"id":"find-class-ImageNode","tool":"ide_find_class","params":{"query":"ImageNode"}}
+{"id":"find-class-ImgNode-fuzzy","tool":"ide_find_class","params":{"fuzzySearch":true,"query":"ImgNode"}}
+{"id":"find-class-LexicalNode-lang-javascript","tool":"ide_find_class","params":{"language":"javascript","query":"LexicalNode"}}
+{"id":"find-class-LexicalNode-lang-typescript","tool":"ide_find_class","params":{"language":"typescript","query":"LexicalNode"}}
+{"id":"find-class-zzqNoSuchClassXyz-no-match","tool":"ide_find_class","params":{"query":"zzqNoSuchClassXyz"}}

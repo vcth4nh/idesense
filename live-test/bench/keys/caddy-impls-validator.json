@@ -1,0 +1,49 @@
+{
+  "question": "caddy-impls-validator",
+  "old_ids": [
+    "caddy-impls-control"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "impls",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.Validator",
+  "name": "Validator",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/app.go:125",
+      "modules/caddyhttp/encode/encode.go:44",
+      "modules/caddyhttp/encode/gzip/gzip.go:33",
+      "modules/caddyhttp/encode/gzip/gzip_precompressed.go:13",
+      "modules/caddyhttp/fileserver/matcher.go:65",
+      "modules/caddyhttp/headers/headers.go:44",
+      "modules/caddyhttp/map/map.go:39",
+      "modules/caddyhttp/matchers.go:118",
+      "modules/caddyhttp/matchers.go:172",
+      "modules/caddyhttp/matchers.go:1569",
+      "modules/caddyhttp/reverseproxy/copyresponse.go:90",
+      "modules/caddyhttp/reverseproxy/selectionpolicies.go:82",
+      "modules/caddyhttp/reverseproxy/selectionpolicies.go:187",
+      "modules/caddyhttp/templates/templates.go:373",
+      "modules/caddyhttp/vars.go:263",
+      "modules/caddytls/capools.go:638",
+      "modules/caddytls/matchers.go:157",
+      "modules/caddytls/matchers.go:268",
+      "modules/caddytls/tls.go:54",
+      "modules/internal/network/networkproxy.go:21",
+      "modules/logging/filters.go:327",
+      "modules/logging/filters.go:458",
+      "modules/logging/filters.go:581",
+      "modules/logging/filters.go:828"
+    ],
+    "forbidden": [],
+    "not_counted": []
+  },
+  "pick": {
+    "sample": "control",
+    "rule": "seeded choice (seed 1) among 10 interfaces with 10 or more required implementers and no dnc implementer"
+  },
+  "key_file": "caddy/symbols.jsonl",
+  "source": "name resolution of the Go compiler library (go/types)"
+}

@@ -1,0 +1,6 @@
+{"id":"find-file-http.ts","tool":"ide_find_file","params":{"query":"http.ts"}}
+{"id":"find-file-nosuchfile.xyz-no-match","tool":"ide_find_file","params":{"query":"nosuchfile.xyz"}}
+{"id":"find-file-primitive.go","tool":"ide_find_file","params":{"query":"primitive.go"}}
+{"id":"find-file-primitive.go-paged","tool":"ide_find_file","params":{"pageSize":2,"query":"primitive.go"},"compare":"shape"}
+{"id":"find-file-select_cases.json-testdata","tool":"ide_find_file","params":{"query":"select_cases.json"}}
+{"id":"find-file-vtadmin.d.ts-giant","tool":"ide_find_file","params":{"query":"vtadmin.d.ts"},"parked":271}

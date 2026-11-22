@@ -1,0 +1,44 @@
+{
+  "question": "caddy-refs-sharedlistener",
+  "old_ids": [
+    "caddy-refs-sharedListener"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy",
+  "family": "refs",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.sharedListener",
+  "name": "sharedListener",
+  "answer": {
+    "required": [
+      "listen.go:101",
+      "listen.go:107",
+      "listen.go:120",
+      "listen.go:203",
+      "listen.go:217",
+      "listen.go:234"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "listen.go:135",
+      "listen.go:142",
+      "listen.go:155",
+      "listen.go:160",
+      "listen.go:168",
+      "listen.go:187",
+      "listen.go:188",
+      "listen.go:193",
+      "listen.go:195",
+      "listen.go:196",
+      "listen.go:287",
+      "listeners.go:592"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "build: the most off-Linux lines (6) among 31 records with an off-Linux line"
+  },
+  "key_file": "caddy/symbols.jsonl",
+  "source": "name resolution of the Go compiler library (go/types)"
+}

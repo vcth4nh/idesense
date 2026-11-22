@@ -1,0 +1,29 @@
+{
+  "question": "beets-impls-cleanupmodulesmixin",
+  "old_ids": [
+    "beets-impls-CleanupModulesMixin"
+  ],
+  "product": "beets",
+  "pin": "v2.14.1",
+  "tree": "beets",
+  "family": "impls",
+  "lang": "python",
+  "symbol": "py:beets.test.helper.CleanupModulesMixin",
+  "name": "CleanupModulesMixin",
+  "answer": {
+    "required": [
+      "test/plugins/test_play.py:23",
+      "test/plugins/test_play.py:33",
+      "test/plugins/test_play.py:183",
+      "test/util/test_art_resize.py:15"
+    ],
+    "forbidden": [],
+    "not_counted": []
+  },
+  "pick": {
+    "sample": "random",
+    "rule": "random: seeded choice (seed 1) among 68 classes with 3 or more required subclasses"
+  },
+  "key_file": "beets/hierarchy.jsonl",
+  "source": "reflection in the interpreter of the product"
+}

@@ -1,0 +1,4 @@
+{"id":"explain-Settings-ambiguous","tool":"ide_explain_symbol","params":{"symbol":"Settings"},"parked":269}
+{"id":"explain-SourceCodeSnippet","tool":"ide_explain_symbol","params":{"symbol":"SourceCodeSnippet"}}
+{"id":"explain-Violation-position","tool":"ide_explain_symbol","params":{"column":11,"file":"crates/ruff_linter/src/violation.rs","line":49},"compare":"shape"}
+{"id":"explain-is_docstring_stmt-position","tool":"ide_explain_symbol","params":{"column":8,"file":"crates/ruff_python_ast/src/helpers.rs","line":1256}}

@@ -1,0 +1,4 @@
+{"id":"file-structure-ImageNode.tsx","tool":"ide_file_structure","params":{"file":"packages/lexical-playground/src/nodes/ImageNode.tsx"},"compare":"shape"}
+{"id":"file-structure-LexicalNode.ts","tool":"ide_file_structure","params":{"file":"packages/lexical/src/LexicalNode.ts"}}
+{"id":"file-structure-LexicalParagraphNode.ts","tool":"ide_file_structure","params":{"file":"packages/lexical/src/nodes/LexicalParagraphNode.ts"}}
+{"id":"file-structure-LexicalRichText.js.flow","tool":"ide_file_structure","params":{"file":"packages/lexical-rich-text/flow/LexicalRichText.js.flow"}}

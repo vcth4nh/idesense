@@ -23,6 +23,21 @@
     {"folder": "lychee", "ide": "phpstorm", "repo": "LycheeOrg/Lychee", "pin": "v7.7.3",
      "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
     {"folder": "rolldown", "ide": "rustrover", "repo": "rolldown/rolldown", "pin": "v1.2.4",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "jitsi-videobridge", "ide": "intellij", "repo": "jitsi/jitsi-videobridge", "pin": "stable/jitsi-meet_11248",
+     "license": "Apache-2.0", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "nest", "ide": "webstorm", "repo": "nestjs/nest", "pin": "v12.0.0",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "vitess", "ide": "goland", "repo": "vitessio/vitess", "pin": "v24.0.3",
+     "license": "Apache-2.0", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "laravel-framework", "ide": "phpstorm", "repo": "laravel/framework", "pin": "v13.25.0",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "ruff", "ide": "rustrover", "repo": "astral-sh/ruff", "pin": "0.16.3",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900},
+    {"folder": "ideavim", "ide": "intellij", "repo": "JetBrains/ideavim", "pin": "2.46.0",
+     "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900,
+     "ideOwnedFiles": [".idea/misc.xml"]},
+    {"folder": "lexical", "ide": "webstorm", "repo": "meta/lexical", "pin": "v0.50.0",
      "license": "MIT", "tier": "core", "requestTimeoutSeconds": 60, "readyTimeoutSeconds": 900}
   ]
 }

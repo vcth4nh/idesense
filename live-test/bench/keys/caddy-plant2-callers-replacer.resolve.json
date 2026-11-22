@@ -1,0 +1,49 @@
+{
+  "question": "caddy-plant2-callers-replacer.resolve",
+  "old_ids": [
+    "caddy-plant2-callers-Replacer.Resolve"
+  ],
+  "product": "caddy",
+  "pin": "v2.11.7",
+  "tree": "caddy-plant-2",
+  "family": "callers",
+  "lang": "go",
+  "symbol": "go:github.com/caddyserver/caddy/v2.Replacer.Resolve",
+  "name": "Resolve",
+  "answer": {
+    "required": [
+      "modules/caddyhttp/caddyauth/caddyauth_test.go:34",
+      "modules/caddyhttp/caddyauth/caddyauth_test.go:75",
+      "modules/caddyhttp/caddyauth/caddyauth_test.go:110",
+      "modules/caddyhttp/caddyauth/caddyauth_test.go:148",
+      "modules/caddyhttp/caddyauth/caddyauth_test.go:175",
+      "modules/caddyhttp/caddyauth/caddyauth_test.go:186",
+      "modules/caddyhttp/replacer_test.go:87",
+      "modules/caddyhttp/replacer_test.go:327",
+      "modules/caddyhttp/replacer_test.go:375",
+      "modules/caddyhttp/reverseproxy/fastcgi/fastcgi.go:169",
+      "modules/caddyhttp/reverseproxy/fastcgi/fastcgi.go:265",
+      "modules/caddyhttp/reverseproxy/fastcgi/fastcgi_test.go:368",
+      "modules/caddyhttp/reverseproxy/fastcgi/fastcgi_test.go:445",
+      "modules/caddyhttp/server.go:551",
+      "modules/caddyhttp/server.go:1224",
+      "modules/caddyhttp/server_test.go:72",
+      "modules/caddyhttp/server_test.go:97",
+      "modules/caddyhttp/server_test.go:127",
+      "modules/caddyhttp/server_test.go:149",
+      "modules/caddyhttp/server_test.go:170",
+      "modules/caddyhttp/server_test.go:1390",
+      "modules/caddyhttp/urlpatternmatcher_test.go:262"
+    ],
+    "forbidden": [],
+    "not_counted": [
+      "replacer.go:111"
+    ]
+  },
+  "pick": {
+    "sample": "hard",
+    "rule": "plant: most required lines (22); levels 1: 8, 2: 14"
+  },
+  "key_file": "caddy-plant-2/callers.jsonl",
+  "source": "calls of the syntax tree, proven by SSA (Go) or by a trace (Python)"
+}
