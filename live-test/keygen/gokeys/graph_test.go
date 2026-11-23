@@ -164,7 +164,8 @@ func TestGraphStepKinds(t *testing.T) {
 	// o.Area() selects the method that Outer promotes from Base.
 	checkSteps(t, r, "promoted", `embedded Base.Area lit=false iface=""`)
 	checkSteps(t, r, "goDefer", `direct spawned lit=false iface=""`, `direct deferred lit=false iface=""`)
-	checkSteps(t, r, "inLiteral", `direct target lit=true iface=""`)
+	// The call of the literal itself has no name (TestGraphCallWithNoCalleeName).
+	checkSteps(t, r, "inLiteral", `direct target lit=true iface=""`, `other null lit=false iface=""`)
 	checkSteps(t, r, "recurse", `direct recurse lit=false iface=""`)
 	checkSteps(t, r, "init", `direct target lit=false iface=""`)
 	for _, c := range []struct{ name, id, kind, container string }{
@@ -236,6 +237,96 @@ func TestGraphOtherCalls(t *testing.T) {
 	checkCallsAt(t, r, "methodValue", 88, 36)
 }
 
+// A named type of a function body and an unnamed struct type are implementers. Each one gets
+// the method Size from an embedded field, and no package-level type implements Sizer.
+func TestGraphLocalAndUnnamedStructImplementers(t *testing.T) {
+	r := graphResult(t)
+	sizerSize := `iface="go:example.com/graph.Sizer.Size"`
+	checkSteps(t, r, "viaSizer", "iface SizeA.Size lit=false "+sizerSize, "iface SizeB.Size lit=false "+sizerSize)
+	checkCallsAt(t, r, "viaSizer", 130, 39)
+}
+
+// The ids of two unnamed struct types whose first occurrences start at one position differ.
+func TestGraphUnnamedStructIDsAreUnique(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, text string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("go.mod", "module example.com/tie\n\ngo 1.26\n")
+	write("a.go", `package tie
+
+type I interface{ M() int }
+
+type J interface{ N() int }
+
+type A struct{}
+
+func (A) M() int { return 1 }
+
+type B struct{}
+
+func (B) N() int { return 2 }
+
+func f() {
+	_ = struct {
+		A
+		F struct{ B }
+	}{}.F
+}
+`)
+	_, ifaces, _, _, err := extractGraph(dir, "linux", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, i := range ifaces {
+		for _, m := range i.Methods {
+			for _, im := range m.Impls {
+				got = append(got, m.Name+" "+im.Type)
+			}
+		}
+	}
+	want := []string{"M go:example.com/tie.A", "M struct@a.go:16:6", "N go:example.com/tie.B", "N struct@a.go:16:6#2"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("implementers:\n got  %q\n want %q", got, want)
+	}
+}
+
+// A call through a module interface whose type mentions a type parameter gives one entry other.
+// Getter[int] has the concrete method Get() int.
+func TestGraphGenericInterfaceWithTypeParameterIsOther(t *testing.T) {
+	r := graphResult(t)
+	other := `other null lit=false iface=""`
+	checkSteps(t, r, "viaGetterParam", other)
+	checkCallsAt(t, r, "viaGetterParam", 153, 54)
+	checkSteps(t, r, "viaParamIface", other)
+	checkCallsAt(t, r, "viaParamIface", 155, 70)
+	checkSteps(t, r, "viaGetterInt", `iface T.Get lit=false iface="go:example.com/graph.Getter.Get"`)
+	checkCallsAt(t, r, "viaGetterInt", 151, 49)
+}
+
+// A call whose operand is no name gives one entry other at its left parenthesis. A conversion
+// gives no entry, and l[0]() stays at the name l.
+func TestGraphCallWithNoCalleeName(t *testing.T) {
+	r := graphResult(t)
+	other := `other null lit=false iface=""`
+	checkSteps(t, r, "noName", `direct getF lit=false iface=""`, other, other, other)
+	var got []string
+	for _, c := range graphFunc(t, r, "noName").Calls {
+		got = append(got, fmt.Sprintf("%d:%d", c.Line, c.Col))
+	}
+	if want := []string{"161:2", "161:8", "162:12", "163:8"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("noName: calls at %q, want %q", got, want)
+	}
+	checkSteps(t, r, "indexed", other)
+	checkCallsAt(t, r, "indexed", 168, 28)
+	if c := graphFunc(t, r, "inLiteral").Calls; len(c) != 2 || c[1].Line != 96 || c[1].Col != 21 {
+		t.Errorf("inLiteral: calls %+v, want the call of the literal at 96:21", c)
+	}
+}
+
 // The build is linux with no test file, and the call in the initializer of a package-level
 // variable (graph.go:106) belongs to no function.
 func TestGraphNoTestTypeNoOtherBuildNoPackageLevelCall(t *testing.T) {
@@ -262,13 +353,16 @@ func TestGraphNoTestTypeNoOtherBuildNoPackageLevelCall(t *testing.T) {
 }
 
 // Holder selects the methods of its embedded field Shape: the module declares no function for
-// them, so the method is null. Pair is generic and testShape is in a test file: no entry.
+// them, so the method is null. Pair is generic and testShape is in a test file: no entry. The
+// local type sized and the unnamed struct type of unnamedSizer implement Sizer, with an id of
+// their position.
 func TestGraphInterfaceTable(t *testing.T) {
 	r := graphResult(t)
 	g := "graph.go"
 	impl := func(typ string, line, col int, method *Pos, own bool) GraphImpl {
 		return GraphImpl{Type: graphPkg + typ, TypeDecl: cpos(g, line, col), Method: method, Own: own}
 	}
+	sized, unnamed := "go:example.com/graph.sized@graph.go:133:7", "struct@graph.go:142:9"
 	want := []GraphIface{{Rec: "iface", ID: graphPkg + "Shape", Name: "Shape", Decl: cpos(g, 7, 6), Methods: []GraphMethod{
 		{ID: graphPkg + "Shape.Area", Name: "Area", Decl: cpos(g, 8, 2), Impls: []GraphImpl{
 			impl("Circle", 18, 6, at(g, 20, 15), true),
@@ -281,6 +375,15 @@ func TestGraphInterfaceTable(t *testing.T) {
 			impl("Holder", 37, 6, nil, false),
 			impl("Rect", 30, 6, at(g, 34, 14), true),
 			impl("Square", 25, 6, at(g, 27, 15), true),
+		}},
+	}}, {Rec: "iface", ID: graphPkg + "Sizer", Name: "Sizer", Decl: cpos(g, 112, 6), Methods: []GraphMethod{
+		{ID: graphPkg + "Sizer.Label", Name: "Label", Decl: cpos(g, 114, 2), Impls: []GraphImpl{
+			{Type: sized, TypeDecl: cpos(g, 133, 7), Method: at(g, 128, 16)},
+			{Type: unnamed, TypeDecl: cpos(g, 142, 9), Method: at(g, 128, 16)},
+		}},
+		{ID: graphPkg + "Sizer.Size", Name: "Size", Decl: cpos(g, 113, 2), Impls: []GraphImpl{
+			{Type: sized, TypeDecl: cpos(g, 133, 7), Method: at(g, 120, 14)},
+			{Type: unnamed, TypeDecl: cpos(g, 142, 9), Method: at(g, 124, 14)},
 		}},
 	}}}
 	if !reflect.DeepEqual(r.ifaces, want) {
@@ -295,11 +398,13 @@ func TestGraphOutputAndTwoRunsEqual(t *testing.T) {
 	r := graphResult(t)
 	for _, want := range []string{
 		"config linux: 1 packages of the patterns, ",
-		`functions: 28, with id "" 1` + "\n",
-		"calls: 22, direct 7, embedded 1, iface 10, other 4\n",
-		"interfaces: 1\n",
+		`functions: 40, with id "" 1` + "\n",
+		"calls: 33, direct 8, embedded 1, iface 13, other 11\n",
+		"interfaces: 2\n",
 		"generic types (no implementer): 1, 1 with each method name of a module interface\n",
-		"calls on a value of a type parameter (kind other): 1\n",
+		"named types of a function body: 2, 1 implement a module interface\n",
+		"unnamed struct types with an embedded field: 1, 1 implement a module interface\n",
+		"calls through a type that mentions a type parameter (kind other): 3\n",
 		"method expressions of an interface type (I.M(v), kind iface): 1\n",
 		"time: ",
 	} {
@@ -327,8 +432,8 @@ func TestGraphOutputAndTwoRunsEqual(t *testing.T) {
 		`"impls":[{"type":"go:example.com/graph.Circle","type_decl":{"file":"graph.go","line":18,"col":6},` +
 		`"method":{"file":"graph.go","line":20,"col":15},"own":true},` +
 		`{"type":"go:example.com/graph.Holder","type_decl":{"file":"graph.go","line":37,"col":6},"method":null,"own":false},`
-	if last := lines[len(lines)-1]; !strings.HasPrefix(last, wantIface) {
-		t.Errorf("last line:\n got  %s\n want the start %s", last, wantIface)
+	if first := lines[len(r.funcs)]; !strings.HasPrefix(first, wantIface) {
+		t.Errorf("first iface line:\n got  %s\n want the start %s", first, wantIface)
 	}
 	again := runGraphCmd(graphTree)
 	if again.err != nil {

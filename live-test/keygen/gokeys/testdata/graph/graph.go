@@ -106,3 +106,63 @@ func recurse(n int) int {
 var initial = target()
 
 func init() { target() }
+
+// Sizer has no package-level implementer. The local type in localSizer and the unnamed struct
+// in unnamedSizer implement it with the methods of their embedded fields.
+type Sizer interface {
+	Size() int
+	Label() string
+}
+
+// SizeA, SizeB and Labeler each have one method of Sizer.
+type SizeA struct{}
+
+func (SizeA) Size() int { return 8 }
+
+type SizeB struct{}
+
+func (SizeB) Size() int { return 9 }
+
+type Labeler struct{}
+
+func (Labeler) Label() string { return "label" }
+
+func viaSizer(z Sizer) int { return z.Size() }
+
+func localSizer() Sizer {
+	type sized struct {
+		SizeA
+		Labeler
+	}
+	type unused struct{ SizeA }
+	return sized{}
+}
+
+func unnamedSizer() Sizer {
+	return &struct {
+		SizeB
+		Labeler
+	}{}
+}
+
+// Getter is a generic module interface. T implements Getter[int].
+type Getter[V any] interface{ Get() V }
+
+func viaGetterInt(g Getter[int]) int { return g.Get() }
+
+func viaGetterParam[V any](g Getter[V]) V { return g.Get() }
+
+func viaParamIface[V any](x any) V { return x.(interface{ Get() V }).Get() }
+
+func getF() func() int { return target }
+
+// noName has calls whose operand is no name, and two conversions.
+func noName(x any, ch chan func()) {
+	getF()()
+	x.(func())()
+	(<-ch)()
+	_ = []byte("x")
+	_ = (*Rect)(nil)
+}
+
+func indexed(l []func()) { l[0]() }

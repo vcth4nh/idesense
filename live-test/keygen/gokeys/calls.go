@@ -234,20 +234,7 @@ func calleeIdents(f *ast.File) map[*ast.Ident]bool {
 		if !ok {
 			return true
 		}
-		e := c.Fun
-		for {
-			e = ast.Unparen(e)
-			switch ix := e.(type) {
-			case *ast.IndexExpr:
-				e = ix.X
-				continue
-			case *ast.IndexListExpr:
-				e = ix.X
-				continue
-			}
-			break
-		}
-		switch e := e.(type) {
+		switch e := callOperand(c).(type) {
 		case *ast.Ident:
 			out[e] = true
 		case *ast.SelectorExpr:
@@ -256,6 +243,24 @@ func calleeIdents(f *ast.File) map[*ast.Ident]bool {
 		return true
 	})
 	return out
+}
+
+// callOperand gives the function operand of the call c with no parentheses around it and with
+// no index expression (explicit type arguments).
+func callOperand(c *ast.CallExpr) ast.Expr {
+	e := c.Fun
+	for {
+		e = ast.Unparen(e)
+		switch ix := e.(type) {
+		case *ast.IndexExpr:
+			e = ix.X
+			continue
+		case *ast.IndexListExpr:
+			e = ix.X
+			continue
+		}
+		return e
+	}
 }
 
 // callUses adds the uses of configuration ci in the module files of the package p: each
