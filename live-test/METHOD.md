@@ -55,7 +55,7 @@ tracked command is made by hand when the key is made.
 | Go callers | `gokeys calls`: each use of a function declaration, with the declaration that holds it and whether it is a call | `gokeys calls -check`: the static calls of the SSA form of the program (`go/ssa`) must give the same pairs of caller and callee in each configuration. |
 | Python callers | `callkeys pycalls`: the uses of the unique-name keys, with the outermost `def` that holds each use (from the syntax tree) | `callkeys tracecheck`: each call site that a trace of the test suite logs for the target and for its direct callers must be in a function of the key. |
 | Go callers through an interface value | `callkeys dynmake`: the static callers, and the callers that a run-time trace of the test suite logs (`gokeys trace` makes a copy of the tree in which each target logs its call stack; no line of a file moves) | Each traced caller must be a static caller, or it must hold a call site of an interface method that the target implements. A target that breaks this rule gets no key. |
-| Go call traces | `gokeys graph`: the call graph of the Linux build from the Go compiler library (`go/types`), with the calls through an embedded field and the calls through an interface of the tree. `tracekeys make` makes the trace key of a target from it. | Three proofs (section 3.4): `gokeys graph -check` compares the graph with the SSA form of the same build; each step of a run-time trace of the test suite must be in the key; for four targets, a reader checked each step in the source. |
+| Go call traces | `gokeys graph`: the call graph of the Linux build from the Go compiler library (`go/types`), with the calls through an embedded field and the calls through an interface of the tree. `tracekeys make` makes the trace key of a target from it. | Three proofs (section 3.4): `gokeys graph -check` compares the graph with the SSA form of the same build; each call that a run-time trace of the test suite logs into a function of the key must be a step of the graph, or a call that is no step by the rule; for four targets, a reader checked each step in the source. |
 
 A planted tree exists because a Python method with a common name has no key that a scan can prove.
 The plant makes a common name whose key is known. In such a tree a text search finds the uses of
@@ -154,7 +154,10 @@ compile. A step line wins over a `dnc` line.
 
 - `gokeys graph -check`: the SSA form of the same build (`go/ssa`) must give the same pairs of a
   call line and a callee.
-- A run-time trace of the test suite: each step that the trace logs must be in the key. A step
+- A run-time trace of the test suite: each call that the trace logs into a function of the key
+  must be a step of the graph, or a call that is no step by the rule. For a key of the complete
+  form, such a step of the graph is a step of the key. For a key of the start-set form, a correct
+  call can come from a function outside the key, so only the graph can judge the call. A step
   that no test takes stays in the key, so this check works in one direction only.
 - By hand, when the key was made: for four targets, a reader checked each step in the source, and
   the key gives the same lines.
