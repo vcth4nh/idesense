@@ -6,6 +6,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.impl.FakePsiElement
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import java.nio.file.Files
 import java.nio.file.Path
@@ -53,19 +54,23 @@ class FileStructureToolTest : BasePlatformTestCase() {
         assertTrue("No lambda node in: $text", text.contains("lambda$"))
     }
 
-    private fun structureOfLambdaClass(show: List<String>?): String = runBlocking {
+    private fun structureOfLambdaClass(show: List<String>?): String {
         // Not addFileToProject: the tool resolves the path through the local file system, on the disk.
         val path = Files.createDirectories(Path.of(project.basePath!!)).resolve("Lam.java")
         try {
             Files.writeString(path, "class Lam {\n    void run() {\n        Runnable r = () -> {};\n    }\n}\n")
             LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)!!
-            val result = FileStructureTool().execute(project, buildJsonObject {
-                put("file", "Lam.java")
-                if (show != null) put("show", buildJsonArray { show.forEach { add(JsonPrimitive(it)) } })
-            })
-            val text = (result.content.first() as ContentBlock.Text).text
-            assertFalse("The call must succeed: $text", result.isError)
-            text
+            // The IDE indexes the new file. The call must not meet that dumb mode.
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+            return runBlocking {
+                val result = FileStructureTool().execute(project, buildJsonObject {
+                    put("file", "Lam.java")
+                    if (show != null) put("show", buildJsonArray { show.forEach { add(JsonPrimitive(it)) } })
+                })
+                val text = (result.content.first() as ContentBlock.Text).text
+                assertFalse("The call must succeed: $text", result.isError)
+                text
+            }
         } finally {
             Files.deleteIfExists(path)
         }
