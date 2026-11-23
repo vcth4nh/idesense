@@ -431,7 +431,7 @@ class StopTest(BenchIdeTestCase):
         self.assertTrue(lines, "the script has no kill")
         for line in lines:
             before = line[:kill.search(line).end()]
-            self.assertRegex(before, r'\bours_by_(cmdline|launch) "\$\w+" && kill\s$', line)
+            self.assertRegex(before, r'\b(ours_by_(cmdline|launch)|recorded_child) "\$\w+"( "\$\w+")? && kill\s$', line)
         code = "\n".join(script_code_lines())
         for name in ("ours_by_cmdline", "ours_by_launch"):
             body = re.search(r"^%s\(\) \{\n(.*?)\n\}" % name, code, re.S | re.M)
@@ -443,6 +443,45 @@ class StopTest(BenchIdeTestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         time.sleep(0.5)
         self.assertIsNone(foreign.poll(), "stop signalled a foreign pid")
+
+    def fake_ide(self, *extra):
+        """A fake IDE with one child named dbus-monitor, one child of another name, and a free
+        dbus-monitor that is no child of it. Returns the IDE, the three children and the free one."""
+        name = os.path.join(self.tmp, "dbus-monitor")
+        os.symlink("/bin/sleep", name)
+        code = ("import subprocess, sys, time\n"
+                "a = subprocess.Popen([sys.argv[1], '60']); b = subprocess.Popen(['sleep', '60'])\n"
+                "print(a.pid, b.pid, flush=True); time.sleep(60)\n")
+        mark = os.path.join(self.ide_dir, "system")
+        ide = subprocess.Popen([sys.executable, "-c", code, name, mark], stdout=subprocess.PIPE, text=True)
+        free = subprocess.Popen([name, "60"])
+        self.addCleanup(lambda: (free.poll() is None and free.kill(), free.wait()))
+        mon, other = map(int, ide.stdout.readline().split())
+        for pid in (mon, other):
+            self.addCleanup(lambda pid=pid: os.path.exists("/proc/%d" % pid) and os.kill(pid, 9))
+        self.addCleanup(lambda: (ide.poll() is None and ide.kill(), ide.wait()))
+        self.write_pid_file(ide.pid)
+        return ide, mon, other, free
+
+    def gone(self, pid):
+        for _ in range(50):
+            try:
+                with open("/proc/%d/stat" % pid) as f:
+                    if f.read().rsplit(")", 1)[1].split()[0] == "Z":
+                        return True
+            except OSError:
+                return True
+            time.sleep(0.1)
+        return False
+
+    def test_stop_ends_the_dbus_monitor_child_of_the_ide_only(self):
+        ide, mon, other, free = self.fake_ide()
+        r = self.run_script("stop", "goland")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertEqual(ide.wait(timeout=10), -15)
+        self.assertTrue(self.gone(mon), "the dbus-monitor child of the IDE still runs")
+        self.assertTrue(os.path.exists("/proc/%d" % other), "a child of another name got a signal")
+        self.assertIsNone(free.poll(), "a dbus-monitor that is no child of the IDE got a signal")
 
 
 if __name__ == "__main__":

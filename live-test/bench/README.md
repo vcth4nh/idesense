@@ -180,6 +180,10 @@ live-test/bench/ide/bench-ide.sh status goland     # serverInfo.version and the 
 live-test/bench/ide/bench-ide.sh stop pycharm
 ```
 
+`bench-ide.sh stop` also ends the `dbus-monitor` child of the IDE, because this child does not end
+with the IDE. The fleet stop has the same rule: see "Stop" in
+["Operate the IDEs"](../README.md#operate-the-ides).
+
 `bench-ide.sh` takes no lock: change the build with `bench build -start`. Stop a benchmark IDE
 only when no command holds the lock (see "Before and after a batch").
 
