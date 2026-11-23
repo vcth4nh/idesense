@@ -1600,7 +1600,7 @@ Get the hierarchical structure of a source file, similar to the IDE's Structure 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `file` | string | Yes | Path to the file relative to project root |
-| `show` | array of strings | No | Optional list of filter category names to show. Omit to use language defaults. Per-language values (* = on by default): python: `fields`*, `inherited`; java: `anonymous_classes`, `fields`*, `inherited`, `lambdas`*, `non_public`*; kotlin: `inherited`, `non_public`*, `properties`*; javascript/typescript: `fields`*, `inherited`, `inherited_from_object`*; php: `anonymous_classes`, `inherited`, `lambdas`*, `constants`*, `includes`*, `private_members`*, `properties`*, `protected_members`*; go: `package_structure`*, `private_members`*; rust: `macro_expanded`. |
+| `show` | array of strings | No | Optional list of filter category names to show. Omit to use language defaults. Per-language values (* = on by default): python: `fields`*, `inherited`; java: `anonymous_classes`, `fields`*, `inherited`, `lambdas`, `non_public`*; kotlin: `inherited`, `non_public`*, `properties`*; javascript/typescript: `fields`*, `inherited`, `inherited_from_object`*; php: `anonymous_classes`, `inherited`, `lambdas`, `constants`*, `includes`*, `private_members`*, `properties`*, `protected_members`*; go: `package_structure`*, `private_members`*; rust: `macro_expanded`. |
 | `sort` | string | No | Optional sort order. One of `"visibility"` (groups public/exported before non-public). Default: declaration order. No-op for Python and JS/TS. |
 
 **Example Request:**

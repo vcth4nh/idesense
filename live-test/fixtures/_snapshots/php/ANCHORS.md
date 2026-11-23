@@ -129,6 +129,7 @@ fails when this file is stale.
 | line:col | probe id | tool | source |
 |---|---|---|---|
 | — | file-structure-Quirks | file_structure | — |
+| — | file-structure-Quirks-lambdas | file_structure | — |
 | 7:7 | usage-Quirks-class | find_usages | `class Quirks {` |
 | 12:28 | usage-qNameRebind-callable-array | find_usages | `public static function qNameRebind(string $x): int {` |
 | 45:22 | def-self-class | find_definition | `$callable = [self::class, 'qNameRebind'];` |
