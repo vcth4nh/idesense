@@ -1673,7 +1673,7 @@ Common `error` codes:
 
 A missing file, a symbol that is not found and a rename conflict return `tool_error`. The `message` names the cause.
 
-For a `file` that the IDE does not find, `ide_file_structure`, `ide_diagnostics`, `ide_read_file` and `ide_refactor_rename` give the message `File not found: <path>. If the file exists on the disk, the IDE does not know it yet: call ide_sync_files, then call again.` `ide_file_structure`, `ide_read_file` and `ide_refactor_rename` do not refresh the file system for the `file`: a file that was created outside the IDE gives this error until `ide_sync_files` makes it known.
+A `file` that the IDE does not find gives the message `File not found: <path>`. `ide_file_structure`, `ide_read_file` and `ide_refactor_rename` do not refresh the file system for the `file`, so a file that was created outside the IDE is not found until `ide_sync_files` makes it known. For a file of the project that is on the disk and that the IDE does not know yet, these three tools give the message `File not found: <path>. The file is on the disk, but the IDE does not know it yet: call ide_sync_files, then call again.`
 
 ### Example Tool Error Response
 

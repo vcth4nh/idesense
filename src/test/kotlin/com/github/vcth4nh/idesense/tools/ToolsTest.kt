@@ -279,8 +279,9 @@ class ToolsTest : BasePlatformTestCase() {
         assertTrue("Should error with invalid file", result.isError)
     }
 
-    // The error for a file that the IDE does not find tells the caller to sync the files (#314).
-    fun testFileNotFoundTellsTheCallerToSyncTheFiles() = runBlocking {
+    // A path that is not on the disk gives the plain text: ide_sync_files cannot help (#314).
+    // ide_diagnostics refreshes the file system before its lookup, so it always gives the plain text.
+    fun testFileNotFoundForAPathThatIsNotOnTheDiskIsThePlainText() = runBlocking {
         val path = "nonexistent/Missing.java"
         val file = buildJsonObject { put("file", path) }
         val results = mapOf(
@@ -295,12 +296,7 @@ class ToolsTest : BasePlatformTestCase() {
 
         for ((tool, result) in results) {
             assertTrue("$tool: ${errorText(result)}", result.isError)
-            assertEquals(
-                tool,
-                "File not found: $path. If the file exists on the disk, the IDE does not know it yet: " +
-                    "call ide_sync_files, then call again.",
-                result.structuredContent?.get("message")?.jsonPrimitive?.content,
-            )
+            assertEquals(tool, "File not found: $path", result.structuredContent?.get("message")?.jsonPrimitive?.content)
         }
     }
 

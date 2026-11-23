@@ -7,9 +7,10 @@ object ErrorMessages {
     fun missingRequiredParam(param: String) = "Missing required parameter: $param"
 
     // File errors
-    /** A file that the caller named and that the IDE does not find (#314). */
-    fun fileNotFound(path: String) =
-        "File not found: $path. If the file exists on the disk, the IDE does not know it yet: " +
+    fun fileNotFound(path: String) = "File not found: $path"
+    /** A file of the project that is on the disk and that the IDE does not know yet (#314). */
+    fun fileNotKnownYet(path: String) =
+        "File not found: $path. The file is on the disk, but the IDE does not know it yet: " +
             "call ${ToolNames.SYNC_FILES}, then call again."
     const val DOCUMENT_NOT_FOUND = "Could not get document for file"
     const val DEFINITION_FILE_NOT_FOUND = "Definition file not found"

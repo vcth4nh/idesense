@@ -1,6 +1,5 @@
 package com.github.vcth4nh.idesense.tools.refactoring
 
-import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
 import com.github.vcth4nh.idesense.tools.models.RefactoringResult
@@ -272,7 +271,7 @@ class RenameSymbolTool : AbstractMcpTool() {
             ?: return RenameValidation(
                 element = DummyNamedElement,
                 oldName = "",
-                error = ErrorMessages.fileNotFound(file)
+                error = fileNotFoundMessage(project, file)
             )
 
         val oldName = psiFile.name

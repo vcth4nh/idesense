@@ -1,6 +1,5 @@
 package com.github.vcth4nh.idesense.tools.navigation
 
-import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.handlers.displayLanguageName
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
@@ -96,7 +95,7 @@ class FileStructureTool : AbstractMcpTool() {
 
         return suspendingReadAction {
             val psiFile = getPsiFile(project, file)
-                ?: return@suspendingReadAction createErrorResult(ErrorMessages.fileNotFound(file))
+                ?: return@suspendingReadAction createErrorResult(fileNotFoundMessage(project, file))
 
             val builder = LanguageStructureViewBuilder.getInstance().getStructureViewBuilder(psiFile)
                 ?: return@suspendingReadAction createErrorResult(

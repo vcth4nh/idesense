@@ -1,6 +1,5 @@
 package com.github.vcth4nh.idesense.tools.intelligence
 
-import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.server.BuildDiagnosticsCacheService
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
@@ -122,7 +121,7 @@ class GetDiagnosticsTool : AbstractMcpTool() {
             requireSmartMode(project)
 
             val virtualFile = resolveFile(project, filePath)
-                ?: return createErrorResult(ErrorMessages.fileNotFound(filePath))
+                ?: return createErrorResult("File not found: $filePath")
 
             val fileEditorManager = FileEditorManager.getInstance(project)
             val analysisResult = DiagnosticsAnalysisService.getInstance(project).analyzeFile(
