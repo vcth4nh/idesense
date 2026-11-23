@@ -1,2 +1,3 @@
 {"id":"explain-Config-ambiguous","tool":"ide_explain_symbol","params":{"symbol":"Config"},"compare":"shape","parked":269}
 {"id":"explain-UrlReaderPredicateMux-pos","tool":"ide_explain_symbol","params":{"column":14,"file":"packages/backend-defaults/src/entrypoints/urlReader/lib/UrlReaderPredicateMux.ts","line":41}}
+{"id":"explain-useApi-bysymbol","tool":"ide_explain_symbol","params":{"symbol":"useApi"},"parked":343}

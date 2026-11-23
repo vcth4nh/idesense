@@ -1,4 +1,7 @@
 {"id":"canary-hier-callee-determineDestinationTopic-d1","tool":"ide_call_hierarchy","params":{"column":13,"direction":"callees","file":"plugins/events-node/src/api/SubTopicEventRouter.ts","line":40,"maxDepth":1}}
 {"id":"hier-caller-determineSubTopic-d2","tool":"ide_call_hierarchy","params":{"column":22,"direction":"callers","file":"plugins/events-node/src/api/SubTopicEventRouter.ts","line":38,"maxDepth":2}}
 {"id":"hier-caller-escapeRegExp-d1","tool":"ide_call_hierarchy","params":{"column":14,"direction":"callers","file":"packages/backend-defaults/src/lib/escapeRegExp.ts","line":22,"maxDepth":1}}
+{"id":"hier-caller-escapeRegExp-production-scope","tool":"ide_call_hierarchy","params":{"column":14,"direction":"callers","file":"packages/backend-defaults/src/lib/escapeRegExp.ts","line":22,"maxDepth":1,"scope":"production"}}
+{"id":"hier-caller-escapeRegExp-test-scope","tool":"ide_call_hierarchy","params":{"column":14,"direction":"callers","file":"packages/backend-defaults/src/lib/escapeRegExp.ts","line":22,"maxDepth":1,"scope":"test"}}
+{"id":"hier-caller-escapeRegExp-this-module-scope","tool":"ide_call_hierarchy","params":{"column":14,"direction":"callers","file":"packages/backend-defaults/src/lib/escapeRegExp.ts","line":22,"maxDepth":1,"scope":"this_module"}}
 {"id":"hier-caller-useApi-d1","tool":"ide_call_hierarchy","params":{"column":17,"direction":"callers","file":"packages/frontend-plugin-api/src/apis/system/useApi.tsx","line":48,"maxDepth":1},"compare":"shape"}
