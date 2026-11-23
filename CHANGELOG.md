@@ -352,6 +352,15 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   index. It returned the outline that the structure view of the language gives in dumb mode, with
   no error: in IntelliJ IDEA a Java outline with no types and no initializers, with the same lines
   as the full outline. In RustRover the call failed with `internal_error` (#174).
+- `ide_file_structure` no longer starts a synchronous refresh of the file system inside its read
+  action. For a file that was on the disk but not yet known to the IDE, for example after a
+  `git pull`, the IDE logged the SEVERE entry "Do not perform a synchronous refresh under read
+  lock" and did not refresh, and the tool answered `File not found: <path>` with no hint.
+  `ide_type_hierarchy` with a position and `ide_refactor_rename` had the same refresh. These tools
+  now do no refresh there. For a `file` that the IDE does not find, `ide_file_structure`,
+  `ide_diagnostics`, `ide_read_file` and `ide_refactor_rename` answer
+  `File not found: <path>. If the file exists on the disk, the IDE does not know it yet: call
+  ide_sync_files, then call again.` (#314).
 
 ## [2.1.0] - 2026-11-09
 

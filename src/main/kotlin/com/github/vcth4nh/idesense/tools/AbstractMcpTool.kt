@@ -471,14 +471,22 @@ abstract class AbstractMcpTool : McpTool {
 
     /**
      * Resolves a file path to a [VirtualFile].
-     * Uses refreshAndFindFileByPath to ensure externally created files are visible.
      * Supports workspace projects by trying module content roots when basePath resolution fails.
+     *
+     * With [refresh] (the default), a synchronous refresh first makes a file that was created
+     * outside the IDE visible. Use it only outside a read action: under a read lock the platform
+     * does no synchronous refresh, and it logs an error (#314). Inside a read action pass
+     * `refresh = false`: a file that the IDE does not know yet then gives null.
      *
      * @param project The project context
      * @param relativePath Path relative to project root, or absolute path
+     * @param refresh Whether to refresh the file system first
      * @return The VirtualFile, or null if not found
      */
-    protected fun resolveFile(project: Project, relativePath: String): VirtualFile? {
+    protected fun resolveFile(project: Project, relativePath: String, refresh: Boolean = true): VirtualFile? {
+        val fileSystem = LocalFileSystem.getInstance()
+        val find: (String) -> VirtualFile? = if (refresh) fileSystem::refreshAndFindFileByPath else fileSystem::findFileByPath
+
         // Absolute paths are validated against project roots before resolving
         if (relativePath.startsWith("/") || relativePath.startsWith("\\")) {
             val canonical = File(relativePath).canonicalPath
@@ -487,7 +495,7 @@ abstract class AbstractMcpTool : McpTool {
                 canonical.startsWith(File(root).canonicalPath + File.separator)
             }
             if (!withinProject) return null
-            return LocalFileSystem.getInstance().refreshAndFindFileByPath(canonical)
+            return find(canonical)
         }
 
         // Try project basePath first
@@ -495,7 +503,7 @@ abstract class AbstractMcpTool : McpTool {
         if (basePath != null) {
             val canonical = File(basePath, relativePath).canonicalPath
             if (canonical.startsWith(File(basePath).canonicalPath + File.separator)) {
-                val file = LocalFileSystem.getInstance().refreshAndFindFileByPath(canonical)
+                val file = find(canonical)
                 if (file != null) return file
             }
         }
@@ -505,7 +513,7 @@ abstract class AbstractMcpTool : McpTool {
             if (rootPath != basePath) {
                 val canonical = File(rootPath, relativePath).canonicalPath
                 if (canonical.startsWith(File(rootPath).canonicalPath + File.separator)) {
-                    val file = LocalFileSystem.getInstance().refreshAndFindFileByPath(canonical)
+                    val file = find(canonical)
                     if (file != null) return file
                 }
             }
@@ -515,14 +523,15 @@ abstract class AbstractMcpTool : McpTool {
     }
 
     /**
-     * Gets the PSI file for a given path.
+     * Gets the PSI file for a given path, with no refresh of the file system: call it inside a
+     * read action. A file that the IDE does not know yet gives null (see [resolveFile]).
      *
      * @param project The project context
      * @param relativePath Path relative to project root
      * @return The PsiFile, or null if not found
      */
     protected fun getPsiFile(project: Project, relativePath: String): PsiFile? {
-        val virtualFile = resolveFile(project, relativePath) ?: return null
+        val virtualFile = resolveFile(project, relativePath, refresh = false) ?: return null
         return PsiManager.getInstance(project).findFile(virtualFile)
     }
 

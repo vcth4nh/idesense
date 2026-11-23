@@ -1,5 +1,6 @@
 package com.github.vcth4nh.idesense.tools.navigation
 
+import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.constants.ParamNames
 import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
@@ -84,6 +85,7 @@ class ReadFileTool : AbstractMcpTool() {
                     element.containingFile?.virtualFile
                 }
                 !filePath.isNullOrBlank() -> PsiUtils.resolveVirtualFileAnywhere(project, filePath)
+                    ?: return@suspendingReadAction createErrorResult(ErrorMessages.fileNotFound(filePath))
                 else -> null
             } ?: return@suspendingReadAction createErrorResult("File not found: ${filePath ?: qualifiedName}")
 
