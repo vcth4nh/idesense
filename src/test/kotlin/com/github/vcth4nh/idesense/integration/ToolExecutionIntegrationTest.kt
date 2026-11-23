@@ -699,6 +699,14 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         assertEquals("probe.nest.Holder.Inner", hit!!.qualifiedName)
     }
 
+    fun testKotlinTypeAliasWithNoNameGivesNoQualifiedName() {
+        // #278: broken code; the Kotlin PSI gives no fqName, so the fallback gives null and no exception.
+        val file = myFixture.addFileToProject("Broken.kt", "package probe.broken\n\ntypealias = Int")
+        val alias = com.intellij.psi.util.PsiTreeUtil.findChildOfType(file, org.jetbrains.kotlin.psi.KtTypeAlias::class.java)
+        assertNotNull("The parser should make a type alias", alias)
+        assertNull(com.github.vcth4nh.idesense.util.QualifiedNameUtil.getQualifiedName(alias!!))
+    }
+
     fun testEnclosingScopeOfFileAndDirectoryIsEmpty() {
         // #285: the walk must not go up the directories.
         val file = myFixture.addFileToProject("a/b/Scope.txt", "x")

@@ -26,6 +26,8 @@ class FindDefinitionOnDiskTest : BasePlatformTestCase() {
 
     override fun setUp() {
         super.setUp()
+        // ide_find_definition resolves a path through LocalFileSystem. The files of
+        // myFixture.addFileToProject live in the in-memory temp:// file system, so it cannot find them.
         val root = Files.createDirectories(Path.of(project.basePath!!).resolve("defdisk"))
         write(root, "pkg/Defs.kt", "package probe.def\n\ntypealias DefAlias = String\n")
         write(root, "pkg/Use.kt", "package probe.use\n\nimport probe.def.DefAlias\n\nval x: DefAlias = \"\"\n")
@@ -37,6 +39,9 @@ class FindDefinitionOnDiskTest : BasePlatformTestCase() {
     override fun tearDown() {
         try {
             PsiTestUtil.removeSourceRoot(module, sourceRoot)
+            // The files are real files on the disk: the fixture does not remove them.
+            val dir = Path.of(project.basePath!!).resolve("defdisk")
+            if (Files.exists(dir)) Files.walk(dir).use { it.sorted(Comparator.reverseOrder()).forEach(Files::delete) }
         } catch (e: Throwable) {
             addSuppressedException(e)
         } finally {

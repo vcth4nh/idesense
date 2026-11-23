@@ -134,8 +134,8 @@ object QualifiedNameUtil {
     }
 
     private fun kotlinTypeAliasFqName(element: PsiElement): String? = try {
-        // FqName.toString() is the dotted name; the root FqName gives "" and is not blank-checked away
-        element.javaClass.getMethod("getFqName").invoke(element)?.toString()?.takeIf { it.isNotBlank() }
+        // getFqName is null for an alias with no name (broken code)
+        element.javaClass.getMethod("getFqName").invoke(element)?.toString()
     } catch (e: Exception) {
         LOG.debug("Kotlin type alias fqName threw for ${element.javaClass.simpleName}: ${e.message}")
         null
