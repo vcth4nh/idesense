@@ -286,18 +286,30 @@ class FileStructureTool : AbstractMcpTool() {
         internal fun nodeName(presentableText: String?, element: Any?): String? {
             val text = presentableText?.takeIf { it.isNotBlank() }
                 ?: return "{}".takeIf { jsObjectLiteralClass?.isInstance(element) == true }
-            val name = text.replace(WHITE_SPACE, " ")
-            val cut = ('\n' in text || '\r' in text) && name.length > MAX_NAME_LENGTH
-            return if (cut) name.take(MAX_NAME_LENGTH - 1).let { if (it.last().isHighSurrogate()) it.dropLast(1) else it } + "…" else name
+            return oneLine(text)
         }
 
         /**
-         * The signature of a node: the location text of the IDE, as one line. Each run of white
-         * space becomes one space, and white space at the two ends goes away, as the Structure
-         * window shows the text in one row. The text is not cut. A blank text gives no signature.
+         * The signature of a node: the location text of the IDE, as one line. White space at the
+         * two ends goes away, and then the rule of a name applies (#335): each run of white space
+         * becomes one space, as the Structure window shows the text in one row, and a text that had
+         * a line break is cut at [MAX_NAME_LENGTH] characters. In WebStorm the location text of an
+         * OpenAPI node is its description, which can have many lines. A blank text gives no
+         * signature.
          */
         internal fun nodeSignature(locationString: String?): String? =
-            locationString?.takeIf { it.isNotBlank() }?.replace(WHITE_SPACE, " ")?.trim()
+            locationString?.takeIf { it.isNotBlank() }?.let { oneLine(it.trim()) }
+
+        /**
+         * [text] as one line: each run of white space becomes one space. A text that had a line
+         * break and is longer than [MAX_NAME_LENGTH] is cut after [MAX_NAME_LENGTH] - 1 characters,
+         * with no half of a surrogate pair, and ends with `…`. Another text stays complete.
+         */
+        private fun oneLine(text: String): String {
+            val line = text.replace(WHITE_SPACE, " ")
+            val cut = ('\n' in text || '\r' in text) && line.length > MAX_NAME_LENGTH
+            return if (cut) line.take(MAX_NAME_LENGTH - 1).let { if (it.last().isHighSurrogate()) it.dropLast(1) else it } + "…" else line
+        }
 
         /**
          * The line of the navigation element of [psi], where the Structure window goes. The node

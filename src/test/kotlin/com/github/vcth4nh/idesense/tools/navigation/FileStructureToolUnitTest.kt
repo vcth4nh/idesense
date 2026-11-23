@@ -47,7 +47,8 @@ class FileStructureToolUnitTest : TestCase() {
         assertNull(name(" \n "))
     }
 
-    // #335: the signature of a node (the location text of the IDE) is one line, and it is not cut.
+    // #335: the signature of a node (the location text of the IDE) is one line. A signature that had
+    // a line break is cut at 80 characters, as a name.
     private fun signature(text: String?) = FileStructureTool.nodeSignature(text)
 
     fun testSignatureWithLineBreaksIsOneLine() =
@@ -71,10 +72,29 @@ class FileStructureToolUnitTest : TestCase() {
     fun testSignatureOfOneLineStaysAsItIs() =
         assertEquals("(a: Int, b: Int): Unit", signature("(a: Int, b: Int): Unit"))
 
-    fun testLongSignatureOfSeveralLinesStaysWhole() {
-        val text = "a".repeat(60) + "\n   " + "b".repeat(60) + "\n\n" + "c".repeat(60)
-        val result = signature(text)
-        assertEquals("a".repeat(60) + " " + "b".repeat(60) + " " + "c".repeat(60), result)
-        assertFalse(result!!.contains("…"))
+    fun testLongSignatureOfSeveralLinesIsCutTo80CharactersThatEndWithAnEllipsis() {
+        val result = signature("a".repeat(60) + "\n   " + "b".repeat(60) + "\n\n" + "c".repeat(60))
+        assertEquals("a".repeat(60) + " " + "b".repeat(18) + "…", result)
+        assertEquals(80, result!!.length)
     }
+
+    fun testSignatureWithACarriageReturnLongerThan80IsCut() =
+        assertEquals("a".repeat(50) + " " + "b".repeat(28) + "…", signature("a".repeat(50) + "\r\n" + "b".repeat(50)))
+
+    fun testSignatureWithALineBreakOf80CharactersAfterTheWhiteSpaceRuleIsNotCut() =
+        assertEquals("a".repeat(40) + " " + "b".repeat(39), signature("a".repeat(40) + "\n" + " ".repeat(40) + "b".repeat(39)))
+
+    fun testSignatureWithALineBreakOf81CharactersIsCut() =
+        assertEquals("a".repeat(40) + " " + "b".repeat(38) + "…", signature("a".repeat(40) + "\n" + "b".repeat(40)))
+
+    // Character 79 is the first half of a surrogate pair: the cut keeps no half of the pair.
+    fun testSignatureCutKeepsNoHalfOfASurrogatePair() =
+        assertEquals("a".repeat(78) + "…", signature("a".repeat(78) + "😀\n" + "b".repeat(10)))
+
+    fun testLongSignatureWithNoLineBreakStaysWhole() =
+        assertEquals("a".repeat(60) + " " + "b".repeat(60), signature("a".repeat(60) + " \t  " + "b".repeat(60)))
+
+    // The white space at the two ends goes away first: the text left has no line break.
+    fun testLongSignatureWithLineBreaksOnlyAtTheTwoEndsStaysWhole() =
+        assertEquals("a".repeat(100), signature("\n  " + "a".repeat(100) + "\r\n"))
 }
