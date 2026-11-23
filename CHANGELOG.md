@@ -262,6 +262,20 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   (#284). The IDE can also cancel an operation while the call is still active, for example when
   the index is not ready after an IDE start. Then the client gets the same answer as before, and
   the log gets one warning line with no exception (#127).
+- The command history gives the new status CANCELLED to a tool call that ends because its
+  coroutine is cancelled, for example when a change of the host or the port in the settings
+  starts the server again. The entry has the duration and the text "The call was cancelled
+  before it ended, for example because the server stopped." It kept the status PENDING, the same
+  as a call that still runs. The status filter of the IdeSense tool window has the new value
+  CANCELLED. A project that closes gets no update (#284).
+- A tool call that meets the time limit of a service of the IDE gives the new error
+  `ide_service_timeout`, with the text "A service of the IDE did not answer in its time limit
+  (<the text of the timeout>). The limit belongs to the IDE, not to this request. Try again
+  later." It gave `internal_error` with the text of a Kotlin coroutine timeout, for example when
+  the TypeScript service of WebStorm did not answer in 20 s. The command history gets the status
+  ERROR with the same text, and the log gets a warning and no error. The SEVERE entry "Failed to
+  process command ... - timed out" does not change: the JavaScript plugin writes it, and the IDE
+  names IdeSense as the plugin to blame because the call of IdeSense is on the stack (#333).
 - `ide_sync_files` no longer logs two SEVERE entries ("Cannot run synchronous
   submitTransactionAndWait" and "Write-unsafe context!") that name IdeSense as the plugin to blame.
   Each request ran with the modality `ModalityState.any()`, and the platform permits no document
@@ -343,20 +357,6 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `ide_find_symbol`, give the kind `TYPE_ALIAS` to a Kotlin type alias, as for a Rust or a
   TypeScript type alias. It was `SYMBOL`. The `qualifiedName` of a Kotlin type alias does not
   change. Part of #278.
-- The command history gives the new status CANCELLED to a tool call that ends because its
-  coroutine is cancelled, for example when a change of the host or the port in the settings
-  starts the server again. The entry has the duration and the text "The call was cancelled
-  before it ended, for example because the server stopped." It kept the status PENDING, the same
-  as a call that still runs. The status filter of the IdeSense tool window has the new value
-  CANCELLED. A project that closes gets no update (#284).
-- A tool call that meets the time limit of a service of the IDE gives the new error
-  `ide_service_timeout`, with the text "A service of the IDE did not answer in its time limit
-  (<the text of the timeout>). The limit belongs to the IDE, not to this request. Try again
-  later." It gave `internal_error` with the text of a Kotlin coroutine timeout, for example when
-  the TypeScript service of WebStorm did not answer in 20 s. The command history gets the status
-  ERROR with the same text, and the log gets a warning and no error. The SEVERE entry "Failed to
-  process command ... - timed out" does not change: the JavaScript plugin writes it, and the IDE
-  names IdeSense as the plugin to blame because the call of IdeSense is on the stack (#333).
 
 ## [2.1.0] - 2026-11-09
 
