@@ -58,7 +58,8 @@ object ErrorMessages {
     const val MSG_MULTIPLE_PROJECTS = "Multiple projects are open. Please specify 'project_path' parameter with one of the available project paths. For workspace projects, use the sub-project path."
 
     // Index errors
-    const val INDEX_NOT_READY = "IDE is in dumb mode, indexes not available"
+    const val INDEX_NOT_READY = "IDE is in dumb mode, indexes not available. Wait for the end of the indexing " +
+        "(${ToolNames.INDEX_STATUS} shows isDumbMode: false), then call again."
 
     // Tool/method errors
     fun toolNotFound(name: String) = "Tool not found: $name"

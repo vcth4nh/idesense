@@ -1684,12 +1684,12 @@ A missing file, a symbol that is not found and a rename conflict return `tool_er
     "content": [
       {
         "type": "text",
-        "text": "{\"error\":\"index_not_ready\",\"message\":\"IDE is in dumb mode, indexes not available\"}"
+        "text": "{\"error\":\"index_not_ready\",\"message\":\"IDE is in dumb mode, indexes not available. Wait for the end of the indexing (ide_index_status shows isDumbMode: false), then call again.\"}"
       }
     ],
     "structuredContent": {
       "error": "index_not_ready",
-      "message": "IDE is in dumb mode, indexes not available"
+      "message": "IDE is in dumb mode, indexes not available. Wait for the end of the indexing (ide_index_status shows isDumbMode: false), then call again."
     }
   }
 }

@@ -58,6 +58,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - `ide_find_file` builds its name matcher with `NameUtil.buildMatcher(pattern).build()`, not with the
   overload that takes `NameUtil.MatchingCaseSensitivity`. JetBrains scheduled that overload for
   removal from the build 262 on. The matcher is the same: it ignores case (#255).
+- The message of `index_not_ready` for a call that starts in dumb mode tells the caller what to do:
+  "IDE is in dumb mode, indexes not available. Wait for the end of the indexing (ide_index_status
+  shows isDumbMode: false), then call again." It had only the first sentence. The message of a
+  call that comes to its wait limit for the index does not change.
 
 ### Removed
 - The default server name and port for JetBrains Aqua (`aqua-idesense`, port 29180). JetBrains

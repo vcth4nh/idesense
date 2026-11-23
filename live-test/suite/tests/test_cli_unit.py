@@ -424,7 +424,8 @@ ANSWERS = {
             "hasMore": False, "totalCollected": 4, "offset": 2, "pageSize": 2, "nextCursor": None, "stale": False, "truncated": False},
     "bug": {"error": "internal_error", "message": "boom"},
 }
-NOT_READY = {"error": "index_not_ready", "message": "IDE is in dumb mode, indexes not available"}
+NOT_READY = {"error": "index_not_ready", "message": "IDE is in dumb mode, indexes not available. Wait for the end of "
+             "the indexing (ide_index_status shows isDumbMode: false), then call again."}
 
 
 def fake_post(answers):
