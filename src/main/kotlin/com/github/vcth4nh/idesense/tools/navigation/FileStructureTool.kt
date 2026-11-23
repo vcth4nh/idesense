@@ -89,6 +89,10 @@ class FileStructureTool : AbstractMcpTool() {
             ?.toSet()
         val sortOrder: String? = arguments["sort"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
 
+        // In dumb mode a structure view gives a reduced text or throws: the Java view leaves out the
+        // types and the initializers, and the Rust view throws IndexNotReadyException (#174).
+        requireSmartMode(project)
+
         return suspendingReadAction {
             val psiFile = getPsiFile(project, file)
                 ?: return@suspendingReadAction createErrorResult("File not found: $file")

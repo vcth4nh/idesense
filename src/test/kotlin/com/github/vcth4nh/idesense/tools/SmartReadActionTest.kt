@@ -464,17 +464,21 @@ class SmartReadActionTest : BasePlatformTestCase() {
         }
     }
 
-    // A tool with no dumb mode check reads in a plain read action: it answers in dumb mode.
-    fun testFileStructureAnswersInDumbMode() {
-        inDumbMode {
-            val result = runBlocking {
-                withTimeout(CALL_TIMEOUT_MS) {
-                    FileStructureTool().execute(project, buildJsonObject { put("file", SHAPE_FILE) })
-                }
-            }
-            val structure = json.decodeFromString<FileStructureResult>(text(result))
-            assertTrue(structure.structure, structure.structure.contains("Shape"))
+    // ide_file_structure checks for dumb mode (#174). In dumb mode the Java structure view gives
+    // an outline with no types and no initializers, and the Rust structure view throws.
+    fun testFileStructureGivesIndexNotReadyInDumbMode() {
+        val args = buildJsonObject { put("file", SHAPE_FILE) }
+        var error: Throwable? = null
+        DumbModeTestUtils.runInDumbModeSynchronously(project) {
+            error = runCatching {
+                runBlocking { withTimeout(CALL_TIMEOUT_MS) { FileStructureTool().execute(project, args) } }
+            }.exceptionOrNull()
         }
+
+        assertTrue("Expected index_not_ready, got $error", error is IndexNotReadyException)
+        assertEquals(ErrorMessages.INDEX_NOT_READY, error!!.message)
+        val structure = json.decodeFromString<FileStructureResult>(text(runTool(FileStructureTool(), args))).structure
+        assertTrue("The outline in smart mode has the types: $structure", structure.contains("area(): double"))
     }
 
     // ide_read_file checks for dumb mode only for a class name: a read by path answers in dumb mode.

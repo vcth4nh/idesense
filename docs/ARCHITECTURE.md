@@ -114,6 +114,14 @@ repository, and an entry here.
   language. It cuts only a name that had a line break and is longer than 80 characters, after 79
   characters, and adds `…`. A name with no line break stays complete, so a long function signature
   stays whole (#199) (`FileStructureTool.nodeName`).
+- **`ide_file_structure` in dumb mode: `index_not_ready`.** The Structure window shows an outline in
+  dumb mode, but the text of a node can be reduced then. The Java structure view calls
+  `DumbService.isDumb` and leaves out the types and the initializers (`PsiMethodTreeElement`,
+  `JavaVariableBaseTreeElement`; `plugins/java/lib/java-impl.jar` of IC-251.26927.53,
+  `intellij.java.structureView.jar` of IU-262.8665.337). Such an outline has the same lines as the
+  full outline, so the caller cannot see that it is reduced. In RustRover the structure view throws
+  the platform `IndexNotReadyException` in dumb mode. The tool checks for dumb mode as the other
+  tools that need the index (#174) (`FileStructureTool.doExecute`).
 
 ## Project Structure
 

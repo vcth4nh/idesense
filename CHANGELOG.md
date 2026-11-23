@@ -344,6 +344,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `ide_find_symbol`, give the kind `TYPE_ALIAS` to a Kotlin type alias, as for a Rust or a
   TypeScript type alias. It was `SYMBOL`. The `qualifiedName` of a Kotlin type alias does not
   change. Part of #278.
+- `ide_file_structure` returns `index_not_ready` in dumb mode, as the other tools that need the
+  index. It returned the outline that the structure view of the language gives in dumb mode, with
+  no error: in IntelliJ IDEA a Java outline with no types and no initializers, with the same lines
+  as the full outline. In RustRover the call failed with `internal_error` (#174).
 
 ## [2.1.0] - 2026-11-09
 
