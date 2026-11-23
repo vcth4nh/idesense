@@ -112,9 +112,10 @@ The POOLS. `make` writes each record one time, with the first pool that applies,
 `-seed` is 1 by default. The output gives the count of the functions and of the steps of each kind, the count of the
 functions in each size group of SIZE_GROUPS (by the count of `functions` of the complete form), the count of the
 records of each pool, the id of each `large` record with its count of functions and its count of functions with a
-`plain` of LARGE_DEPTH or less, and the time. Errors: two functions with one decl line, a callee that is no function
-of the graph, an `-extra` entry with no function or no interface method of its id, fewer candidates than `-large`,
-and a function of a record with no record in calls.jsonl.
+`plain` of LARGE_DEPTH or less, and the time. Errors: an input file that cannot be read or that holds no valid JSON,
+a line of the graph file with a `rec` other than `func` and `iface`, two functions with one decl line, a callee that
+is no function of the graph, an `-extra` entry with no target, an `-extra` entry with no function or no interface
+method of its id, fewer candidates than `-large`, and a function of a record with no record in calls.jsonl.
 """
 import argparse
 import collections
@@ -156,10 +157,24 @@ def _group(lo: int, hi: int | None) -> str:
     return f"{lo}+" if hi is None else f"{lo}-{hi}"
 
 
+def _load(path: str, lines: bool = True):
+    """The records of a JSON-lines file, or (lines false) the value of a JSON file. A file that cannot be read and
+    a file with no valid JSON are a TraceKeysError."""
+    try:
+        if lines:
+            return keys.load_keys(path)
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except OSError as e:
+        raise TraceKeysError(f"{path}: {e.strerror or e}") from None
+    except ValueError as e:
+        raise TraceKeysError(f"{path}: no valid JSON: {e}") from None
+
+
 def load_graph(path: str) -> tuple[list[dict], list[dict]]:
     """The functions and the interfaces of a graph file, in the order of the file."""
     funcs, ifaces = [], []
-    for rec in keys.load_keys(path):
+    for rec in _load(path):
         if rec.get("rec") == "func":
             funcs.append(rec)
         elif rec.get("rec") == "iface":
@@ -439,11 +454,8 @@ def main(argv: list[str]) -> int:
     try:
         if args.command == "make":
             funcs, ifaces = load_graph(args.graph)
-            extra = []
-            if args.extra:
-                with open(args.extra, encoding="utf-8") as f:
-                    extra = json.load(f)
-            records, stats = make_records(funcs, ifaces, keys.load_keys(args.calls), extra, args.large, args.seed)
+            extra = _load(args.extra, lines=False) if args.extra else []
+            records, stats = make_records(funcs, ifaces, _load(args.calls), extra, args.large, args.seed)
             keys.save_keys(args.out, records)
             print("\n".join(_make_lines(stats, time.monotonic() - start)))
     except TraceKeysError as e:

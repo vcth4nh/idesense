@@ -106,8 +106,8 @@ benchmark holds only the lines of its answer (see
 `callers.jsonl` and `dyncallers.jsonl` hold the keys of the functions that are targets. A
 `calls.jsonl` file is no key: it holds the uses of each function declaration, and the caller keys
 and the caller audit read it. `trace.jsonl` holds one trace key for each target of its pools. A
-`graph.jsonl` file is no key: it holds the call graph of the Linux build, and the trace keys and
-the trace audit read it.
+`graph.jsonl` file is no key: it holds the call graph of the Linux build, and the trace keys read
+it.
 
 A proof "by hand" has no tracked command: a maintainer makes it when the key is made.
 

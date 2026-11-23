@@ -13,7 +13,7 @@ from common import keyrecord as keys
 from keygen import tracekeys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-BENCHDIR = os.path.dirname(os.path.dirname(HERE))
+LIVE_TEST_DIR = os.path.dirname(os.path.dirname(HERE))
 
 I_RUN = "go:m.I.Run"
 J_RUN = "go:m.J.Run"
@@ -30,12 +30,12 @@ def fn(key, file, line=1, calls=()):
             "container": container, "decl": at(file, line), "end": line + 5, "calls": list(calls)}
 
 
-def call(line, col, callee, kind="direct", lit=False, iface=""):
-    return {"line": line, "col": col, "callee": callee, "kind": kind, "lit": lit, "iface": iface}
+def call(line, col, callee, kind="direct", lit=False, iface_id=""):
+    return {"line": line, "col": col, "callee": callee, "kind": kind, "lit": lit, "iface": iface_id}
 
 
-def use(file, line, col, in_, call=True, configs=("linux", "windows", "darwin"), lit=False):
-    return {"file": file, "line": line, "col": col, "call": call, "in": in_, "lit": lit, "configs": list(configs)}
+def use(file, line, col, in_, is_call=True, configs=("linux", "windows", "darwin"), lit=False):
+    return {"file": file, "line": line, "col": col, "call": is_call, "in": in_, "lit": lit, "configs": list(configs)}
 
 
 def calls_of(funcs, uses=None):
@@ -66,8 +66,8 @@ def base_funcs():
         fn("T", "t.go", calls=[call(2, 2, D["A"])]),  # a step out of the target
         fn("A", "a.go", calls=[call(2, 2, D["T"])]),
         fn("B", "b.go", calls=[call(2, 4, D["A"], "embedded")]),
-        fn("C", "c.go", calls=[call(2, 4, D["T"], "iface", iface=J_RUN),  # U is a second callee, on no way
-                               call(2, 4, D["U"], "iface", iface=J_RUN)]),
+        fn("C", "c.go", calls=[call(2, 4, D["T"], "iface", iface_id=J_RUN),  # U is a second callee, on no way
+                               call(2, 4, D["U"], "iface", iface_id=J_RUN)]),
         fn("D", "d.go", calls=[call(2, 9, D["A"], lit=True)]),
         fn("E", "e.go", calls=[call(2, 2, D["D"]), call(3, 2, D["W.T"]), call(4, 2, None, "other")]),
         fn("F", "f.go", calls=[call(2, 2, D["C"])]),
@@ -84,8 +84,8 @@ BASE_USES = {
           use("t_windows.go", 5, 2, at("t_windows.go", 3), configs=("windows",)),
           use("k.go", 2, 2, at("k.go"))],  # in no function of the graph
     "A": [use("t.go", 2, 2, D["T"]), use("b.go", 2, 4, D["B"]), use("d.go", 2, 9, D["D"], lit=True),
-          use("v.go", 3, 9, D["V"], call=False),  # a value use
-          use("f.go", 2, 4, D["F"], call=False),  # a value use on the line of the step F -> C
+          use("v.go", 3, 9, D["V"], is_call=False),  # a value use
+          use("f.go", 2, 4, D["F"], is_call=False),  # a value use on the line of the step F -> C
           use("a.go", 9, 5, None)],  # a call outside each function
     "D": [use("e.go", 2, 2, D["E"])],
 }
@@ -184,7 +184,8 @@ class CompleteFormTest(unittest.TestCase):
         funcs = [fn("T", "t.go"),
                  fn("P", "p.go", calls=[call(2, 2, t)]),
                  fn("Q", "q.go", calls=[call(2, 2, t)]),
-                 fn("C", "c.go", calls=[call(2, 4, p, "iface", iface=J_RUN), call(2, 4, q, "iface", iface=J_RUN)]),
+                 fn("C", "c.go", calls=[call(2, 4, p, "iface", iface_id=J_RUN),
+                                        call(2, 4, q, "iface", iface_id=J_RUN)]),
                  fn("R", "r.go", calls=[call(2, 2, p), call(2, 10, q)])]  # two calls on one line
         rec = by_id(make(funcs, extra=[{"target": "go:m.T"}])[0], "go:m.T")
         self.assertEqual(6, len(rec["steps"]))
@@ -196,8 +197,8 @@ class CompleteFormTest(unittest.TestCase):
 
     def test_a_step_out_of_the_target_is_kept_and_not_required(self):
         # T -> A is an interface call with a second callee Q outside N: a call inside T makes no partial interface.
-        funcs = [fn("T", "t.go", calls=[call(2, 2, at("a.go"), "iface", iface=J_RUN),
-                                        call(2, 2, at("q.go"), "iface", iface=J_RUN)]),
+        funcs = [fn("T", "t.go", calls=[call(2, 2, at("a.go"), "iface", iface_id=J_RUN),
+                                        call(2, 2, at("q.go"), "iface", iface_id=J_RUN)]),
                  fn("A", "a.go", calls=[call(2, 2, at("t.go"))]),
                  fn("Q", "q.go")]
         rec = by_id(make(funcs, extra=[{"target": "go:m.T"}])[0], "go:m.T")
@@ -213,6 +214,25 @@ class CompleteFormTest(unittest.TestCase):
         self.assertIn({"caller": at("t.go"), "call": at("t.go", 2, 2), "callee": at("a.go"), "kind": "direct",
                        "lit": False}, base["steps"])
         self.assertNotIn(("t.go", 2), required_lines(base) | dnc_lines(base))
+
+    def test_two_ways_of_different_length_and_kind(self):
+        # X calls T through an interface (1 step), and X -> A -> B -> T is a direct way of 3 steps.
+        funcs = [fn("T", "t.go"),
+                 fn("X", "x.go", calls=[call(2, 4, at("t.go"), "iface", iface_id=J_RUN), call(3, 2, at("a.go"))]),
+                 fn("A", "a.go", calls=[call(2, 2, at("b.go"))]),
+                 fn("B", "b.go", calls=[call(2, 2, at("t.go"))])]
+        rec = by_id(make(funcs, extra=[{"target": "go:m.T"}])[0], "go:m.T")
+        self.assertEqual({"X": (1, 3, 3), "A": (2, 2, 2), "B": (1, 1, 1)}, distances(rec, "X", "A", "B"))
+        self.assertEqual((2, False, ["iface"]), (rec["depth"], rec["cycle"], rec["hops"]))
+
+    def test_a_cycle_of_two_functions(self):
+        funcs = [fn("T", "t.go"),
+                 fn("A", "a.go", calls=[call(2, 2, at("t.go")), call(3, 2, at("b.go"))]),
+                 fn("B", "b.go", calls=[call(2, 2, at("a.go"))])]
+        rec = by_id(make(funcs, extra=[{"target": "go:m.T"}])[0], "go:m.T")
+        self.assertEqual({"A": (1, 1, 1), "B": (2, 2, 2)}, distances(rec, "A", "B"))
+        self.assertEqual((2, True, ["cycle"]), (rec["depth"], rec["cycle"], rec["hops"]))
+        self.assertEqual({("a.go", 2), ("a.go", 3), ("b.go", 2)}, required_lines(rec))
 
     def test_a_required_line_wins_over_a_use_on_the_same_line(self):
         rec = complete(self.records, "T")
@@ -258,7 +278,7 @@ class StartSetTest(unittest.TestCase):
                   fn("W", "w.go"),  # not in the file of a start
                   fn("Z3", "s4.go", 5)]
         by_id(funcs, "go:m.K4.Run")["calls"].append(call(2, 2, at("s4.go", 5)))  # a start reaches Z3
-        uses = {**BASE_USES, "Z": [use("y.go", 2, 2, at("y.go")), use("y.go", 3, 7, at("y.go"), call=False)]}
+        uses = {**BASE_USES, "Z": [use("y.go", 2, 2, at("y.go")), use("y.go", 3, 7, at("y.go"), is_call=False)]}
         records, stats = make(funcs, [iface("I", "Run", STARTS)], uses)
         self.assertEqual([f"go:m.Z from {I_RUN}"], [r["id"] for r in records if r["pool"] == "empty"])
         rec = by_id(records, f"go:m.Z from {I_RUN}")
@@ -411,8 +431,44 @@ class CommandTest(unittest.TestCase):
         self.assertIn("go:m.None", stderr)
         self.assertFalse(os.path.exists(self.out))
 
+    def make_args(self, **paths):
+        """The arguments of `make`; a keyword (graph, calls, extra) gives another path to its option."""
+        paths = {"graph": self.graph, "calls": self.calls, "extra": self.extra, **paths}
+        return ["make", "-out", self.out] + [x for k, v in paths.items() for x in (f"-{k}", v)]
+
+    def test_cli_reports_a_missing_input_file_with_exit_code_2(self):
+        with open(self.extra, "w", encoding="utf-8") as f:
+            json.dump([], f)
+        missing = os.path.join(self.dir, "none.json")
+        for option in ("graph", "calls", "extra"):
+            with self.subTest(option):
+                code, _, stderr = run_main(self.make_args(**{option: missing}))
+                self.assertEqual((2, f"tracekeys: {missing}: No such file or directory\n"), (code, stderr))
+                self.assertFalse(os.path.exists(self.out))
+
+    def test_cli_reports_bad_json_of_the_extra_file_with_exit_code_2(self):
+        with open(self.extra, "w", encoding="utf-8") as f:
+            f.write('[{"target": ')
+        code, _, stderr = run_main(self.make_args())
+        self.assertEqual(2, code)
+        self.assertTrue(stderr.startswith(f"tracekeys: {self.extra}: no valid JSON: "), stderr)
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_cli_reports_a_line_of_another_rec_and_an_extra_entry_with_no_target(self):
+        with open(self.extra, "w", encoding="utf-8") as f:
+            json.dump([], f)
+        write_jsonl(self.graph, self.funcs + self.ifaces + [{"rec": "other"}])
+        self.assertEqual((2, "", f"tracekeys: {self.graph}: a line with the rec 'other'\n"),
+                         run_main(self.make_args()))
+        write_jsonl(self.graph, self.funcs + self.ifaces)
+        with open(self.extra, "w", encoding="utf-8") as f:
+            json.dump([{"from": I_RUN}], f)
+        self.assertEqual((2, "", f"tracekeys: an -extra entry with no target: {{'from': '{I_RUN}'}}\n"),
+                         run_main(self.make_args()))
+        self.assertFalse(os.path.exists(self.out))
+
     def test_module_runs_as_a_command(self):
-        proc = subprocess.run([sys.executable, "-B", "-m", "keygen.tracekeys", "make", "-h"], cwd=BENCHDIR,
+        proc = subprocess.run([sys.executable, "-B", "-m", "keygen.tracekeys", "make", "-h"], cwd=LIVE_TEST_DIR,
                               capture_output=True, text=True, timeout=60)
         self.assertEqual(0, proc.returncode, proc.stderr)
         self.assertIn("-graph", proc.stdout)
