@@ -397,6 +397,9 @@ Searches for classes and interfaces by name using the IDE's class index.
 }
 ```
 
+`line` and `column` are `null` for a class with no position, for example a compiled class that the
+IDE cannot match to the decompiled text of its class file.
+
 ---
 
 ### ide_find_file

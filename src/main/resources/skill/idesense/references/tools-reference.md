@@ -40,7 +40,9 @@ Handles packages, compiled classes, and library sources (`jar://` URLs).
 ### ide_find_class
 Search for class-like/type declarations by name using IDE's Go to Class index (Ctrl+N / Cmd+O equivalent): classes, interfaces, enums, records, structs, traits, objects, annotations, and similar type declarations. Not methods/fields/functions — use `ide_find_symbol` or `ide_search_text` for those.
 
-**Returns**: `{ classes: [{name, qualifiedName?, kind, file, line, column}], query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
+**Returns**: `{ classes: [{name, qualifiedName?, kind, file, line?, column?}], query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }`
+
+`line` and `column` are `null` for a class with no position, for example a compiled class that the IDE cannot match to the decompiled text of its class file.
 
 Project results use relative paths; dependency/library results may use absolute paths or `jar://` URLs.
 Exact (case-insensitive) by default; with `fuzzySearch: true`, IDE camelCase/substring matching applies (`USvc` → `UserService`).

@@ -99,6 +99,11 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `candidates` list. They now take each item with the exact name, and the message of an ambiguous
   name gives the number of all matches. The exact mode of `ide_find_symbol` had the same cause: it
   lost an exact name that came after its collection cap (#131).
+- `ide_find_class` with a scope that holds libraries no longer fails with `internal_error`
+  "Wrong offset: -1" when the IDE cannot match a compiled class to the decompiled text of its class
+  file. The result keeps such a class with `line` and `column` `null`, as Go to Class lists it.
+  When the IDE gives no document for the file of a class, the match also has no line and column;
+  it had line 1 and column 1 (#316).
 - `ide_search_text` with `context` `code`, `comments` or `strings` returns each match whose
   `contextType` has the related label. The filter was the occurrence mask of the word index, which
   is a different classification: matches in plain text, in HTML and in JSON strings were absent from

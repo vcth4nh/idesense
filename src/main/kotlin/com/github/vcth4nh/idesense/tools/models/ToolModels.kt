@@ -308,8 +308,10 @@ data class SymbolMatch(
     val qualifiedName: String?,
     val kind: String,
     val file: String,
-    val line: Int,
-    val column: Int,
+    // Null for a class of ide_find_class with no position, for example a compiled class that the IDE
+    // cannot match to the decompiled text of its class file (#316).
+    val line: Int?,
+    val column: Int?,
 )
 
 /**

@@ -43,6 +43,16 @@ class FindClassTool : AbstractMcpTool() {
         private val LOG = logger<FindClassTool>()
         private const val DEFAULT_PAGE_SIZE = 25
         private const val MAX_PAGE_SIZE = PaginationService.MAX_PAGE_SIZE
+
+        /**
+         * The key of [match] for the dedup and for the seen keys of the pagination. A match with no
+         * position also has its qualified name in the key: two nested classes with the same name in
+         * one class file have the same file and no line (#316).
+         */
+        internal fun matchKey(match: SymbolMatch): String {
+            val key = "${match.file}:${match.line}:${match.column}:${match.name}"
+            return if (match.line == null) "$key:${match.qualifiedName}" else key
+        }
     }
 
     override val name = ToolNames.FIND_CLASS
@@ -124,7 +134,7 @@ class FindClassTool : AbstractMcpTool() {
 
             val serializedResults = classes.map { cls ->
                 PaginationService.SerializedResult(
-                    key = "${cls.file}:${cls.line}:${cls.column}:${cls.name}",
+                    key = matchKey(cls),
                     data = json.encodeToJsonElement(cls)
                 )
             }
@@ -173,11 +183,11 @@ class FindClassTool : AbstractMcpTool() {
         val classes = searchAndConvertClasses(project, query, searchScope, limit + seenKeys.size, languageFilter, fuzzySearch)
 
         return classes.asSequence()
-            .filter { cls -> "${cls.file}:${cls.line}:${cls.column}:${cls.name}" !in seenKeys }
+            .filter { cls -> matchKey(cls) !in seenKeys }
             .take(limit)
             .map { cls ->
                 PaginationService.SerializedResult(
-                    key = "${cls.file}:${cls.line}:${cls.column}:${cls.name}",
+                    key = matchKey(cls),
                     data = json.encodeToJsonElement(cls)
                 )
             }
@@ -224,7 +234,7 @@ class FindClassTool : AbstractMcpTool() {
             val results = popupResults.candidates
                 .mapNotNull { convertToSymbolMatch(it.item, project, scope, languageFilter) }
                 .filter { fuzzySearch || it.name.equals(popupResults.localPattern, ignoreCase = true) }
-                .distinctBy { "${it.file}:${it.line}:${it.column}:${it.name}" }
+                .distinctBy { matchKey(it) }
             if (results.size >= limit ||
                 popupResults.candidates.size < popupLimit ||
                 popupLimit >= popupLimitCap
@@ -239,7 +249,7 @@ class FindClassTool : AbstractMcpTool() {
         return BuiltInSearchScopeResolver.resolveGlobalScope(project, scope)
     }
 
-    private fun convertToSymbolMatch(item: NavigationItem, project: Project, scope: GlobalSearchScope, languageFilter: String? = null): SymbolMatch? {
+    internal fun convertToSymbolMatch(item: NavigationItem, project: Project, scope: GlobalSearchScope, languageFilter: String? = null): SymbolMatch? {
         val element = extractPsiElement(item) ?: return null
         val targetElement = element.navigationElement ?: element
 
@@ -267,7 +277,7 @@ class FindClassTool : AbstractMcpTool() {
 
         val qualifiedName = QualifiedNameUtil.getQualifiedName(targetElement)
 
-        val line = getLineNumber(project, targetElement) ?: 1
+        val position = lineAndColumn(project, targetElement)
         val kind = determineKind(targetElement)
 
         return SymbolMatch(
@@ -275,8 +285,8 @@ class FindClassTool : AbstractMcpTool() {
             qualifiedName = qualifiedName,
             kind = kind,
             file = relativePath,
-            line = line,
-            column = getColumnNumber(project, targetElement) ?: 1,
+            line = position?.first,
+            column = position?.second,
         )
     }
 
@@ -295,17 +305,18 @@ class FindClassTool : AbstractMcpTool() {
     }
 
 
-    private fun getLineNumber(project: Project, element: PsiElement): Int? {
+    /**
+     * The 1-based line and column of [element], or null when it has no position. A compiled class
+     * has the text offset -1 when the IDE cannot match it to the decompiled text of its class file:
+     * `ClsElementImpl.getTextOffset` returns -1 for an element with no mirror (#316).
+     */
+    private fun lineAndColumn(project: Project, element: PsiElement): Pair<Int, Int>? {
         val psiFile = element.containingFile ?: return null
         val document = PsiDocumentManager.getInstance(project).getDocument(psiFile) ?: return null
-        return document.getLineNumber(element.textOffset) + 1
-    }
-
-    private fun getColumnNumber(project: Project, element: PsiElement): Int? {
-        val psiFile = element.containingFile ?: return null
-        val document = PsiDocumentManager.getInstance(project).getDocument(psiFile) ?: return null
-        val lineNumber = document.getLineNumber(element.textOffset)
-        return element.textOffset - document.getLineStartOffset(lineNumber) + 1
+        val offset = element.textOffset
+        if (offset < 0 || offset > document.textLength) return null
+        val lineIndex = document.getLineNumber(offset)
+        return lineIndex + 1 to offset - document.getLineStartOffset(lineIndex) + 1
     }
 
     private fun determineKind(element: PsiElement): String {
