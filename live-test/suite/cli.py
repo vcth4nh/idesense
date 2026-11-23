@@ -98,12 +98,6 @@ def normalize(obj: Any, project_root: str, drop_fields: set[str] = DROP_FIELDS, 
                 continue
             if no_position and k in ("line", "column"):
                 continue
-            if k == "enclosingScope" and isinstance(v, list) and v and v[0] == "/":
-                # A FILE node's enclosing *directory*, as a path-segment array:
-                # machine-specific and redundant with `file`. (Scope-NAME chains
-                # like ['ShapeCollection','Add'] are relative — kept as semantic
-                # signal.)
-                continue
             v = normalize(v, project_root, drop_fields, sort_arrays)
             if sort_arrays and k in SORTABLE_ARRAYS and isinstance(v, list):
                 v = sorted(v, key=_sort_key)

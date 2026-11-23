@@ -284,10 +284,9 @@ are handed), never off library install locations — so a new host, install
 manager, SDK version, or renamed checkout needs **zero** maintenance. A line
 shift in a library file changes no row. A new qualified name or base name of a
 library symbol (after an IDE or a toolchain update) still changes the row.
-`enclosingScope` is kept — it is usually the enclosing method/class scope (a relative name chain like `['ShapeCollection',
-'Add']`), which is real signal; only its absolute-*directory* form (a FILE
-node's folder, `['/','home',…,'src']`) is dropped as machine-specific and
-redundant with `file`.
+`enclosingScope` is kept: it is the enclosing method or class scope (a relative name
+chain like `['ShapeCollection', 'Add']`), which is real signal. A file node or a
+directory node has an empty list (#285), so the field holds no path of the machine.
 
 ## Fixture-edit safety
 
