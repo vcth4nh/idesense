@@ -170,17 +170,70 @@ def open_projects(url: str, post) -> list[str] | None:
     return [p["path"] for p in result.get("available_projects", []) if "workspace" not in p]
 
 
+# The process name of a child that the IDE starts on Linux to watch the colour scheme of the desktop.
+# The child does not end with the IDE: it runs on with a new parent, so each stop would leave one.
+_LEFTOVER_CHILD = "dbus-monitor"
+
+
+def _stat(pid: int) -> tuple[str, int, int] | None:
+    """The process name, the parent PID and the start time of a process, or None when it is gone.
+
+    The name can hold spaces and brackets, so the fields of /proc/<pid>/stat start after the last
+    ')'. The start time is field 22."""
+    try:
+        text = os.fsdecode(Path(f"/proc/{pid}/stat").read_bytes())
+    except OSError:
+        return None
+    head, _, rest = text.rpartition(")")
+    fields = rest.split()
+    return head.partition("(")[2], int(fields[1]), int(fields[19])
+
+
+def _leftover_children(pid: int) -> list[tuple[int, int]]:
+    """The PID and the start time of each direct child of `pid` with the name _LEFTOVER_CHILD."""
+    try:
+        pids = [int(entry.name) for entry in Path("/proc").iterdir() if entry.name.isdigit()]
+    except OSError:
+        return []
+    children = []
+    for child in pids:
+        stat = _stat(child)
+        if stat is not None and stat[:2] == (_LEFTOVER_CHILD, pid):
+            children.append((child, stat[2]))
+    return children
+
+
+def _stop_leftover_children(children: list[tuple[int, int]]) -> None:
+    """SIGTERM to each child that still runs with the same name and start time.
+
+    A PID with another name or start time is a new process that got the PID again: no signal."""
+    for pid, start in children:
+        stat = _stat(pid)
+        if stat is None or stat[0] != _LEFTOVER_CHILD or stat[2] != start:
+            continue
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            pass
+
+
 def _stop(proc: IdeProcess, timeout: float, key: str) -> str | None:
-    """SIGTERM, then wait until the process is gone. Never SIGKILL: the IDE must save its state."""
+    """SIGTERM, then wait until the process is gone. Never SIGKILL: the IDE must save its state.
+
+    When the IDE is gone, its _LEFTOVER_CHILD children get a SIGTERM too. While the IDE runs, they
+    are its children, so an IDE that does not stop in the timeout keeps them."""
+    children = _leftover_children(proc.pid)
     try:
         os.kill(proc.pid, signal.SIGTERM)
     except ProcessLookupError:
+        _stop_leftover_children(children)
         return None
     deadline = time.monotonic() + timeout
     while Path(f"/proc/{proc.pid}").exists():
         if time.monotonic() >= deadline:
             return f"{key} did not stop in {timeout:.0f} s"
         time.sleep(0.2)
+    _stop_leftover_children(children)
     return None
 
 

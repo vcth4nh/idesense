@@ -399,7 +399,9 @@ this itself when it restarts an IDE.
   Find it with a pattern that does not match your own shell, for example
   `pgrep -af 'paths\.selector=[G]oLand'`.
 - **Stop.** Send SIGTERM to the JVM, and wait until the process is gone (the harness waits
-  90 s). Never use SIGKILL: the IDE saves its state at the shutdown.
+  90 s). Never use SIGKILL: the IDE saves its state at the shutdown. The harness then also
+  stops the `dbus-monitor` child of the JVM, because this child does not end with the JVM (for
+  a stop by hand, see step 8 of "Throwaway IDE").
 - **Trap: the launcher is not the JVM.** A stop of the launcher can leave the JVM alive (seen
   on WebStorm 2026.2 with `bin/webstorm`). A start after that only gives its arguments to the
   running instance and opens nothing. Stop the JVM first.
@@ -504,9 +506,11 @@ fleet process, so the harness never restarts it. Run rows against it with `--url
    proof is then the JVM by its config path and `idea.log`, and for an IDE with a window also
    `DISPLAY` (see "Throwaway IDE with a display").
 8. **Stop and clean.** Find the JVM by its config path, never by the product name: the fleet
-   instance has the same name. Send SIGTERM, wait until the process is gone, and delete
-   `<throwaway root>`. Do not use `pkill -f` with a pattern that your own shell line holds: it
-   can stop that shell.
+   instance has the same name. Before the SIGTERM, note the PID of the `dbus-monitor` child of
+   the JVM (`pgrep -P <JVM PID> -x dbus-monitor`). Send SIGTERM to the JVM, and wait until the
+   process is gone. Then send SIGTERM to the noted PID: this child does not end with the IDE.
+   Delete `<throwaway root>`. Do not use `pkill -f` with a pattern that your own shell line
+   holds: it can stop that shell.
 
 **With no path override, the fleet IDE gets the project.** A wrong variable name or an
 unreadable VM options file leaves the default folders. The new process then finds the fleet

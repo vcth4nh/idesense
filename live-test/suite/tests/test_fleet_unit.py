@@ -4,6 +4,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -574,6 +575,172 @@ class StartStopTest(unittest.TestCase):
         proc = self.running('trap "" TERM\necho $$ > "$OUT"\nexec sleep 60\n')
         self.assertEqual("demo did not stop in 1 s", fleet._stop(proc, 1.0, "demo"))
         self.assertTrue(Path(f"/proc/{proc.pid}").exists())
+
+
+NO_PID = 2 ** 22  # Linux gives each PID below this limit (PID_MAX_LIMIT), so no process has it
+
+# A stand-in for an IDE. It starts a stand-in `dbus-monitor` (when argv[1] names one) and one `sleep`
+# child, prints their PIDs and waits. With argv[2] "ignore" it ignores SIGTERM, as an IDE that does
+# not stop. Each of these processes ends by itself after 300 s, also when a cleanup fails.
+STAND_IN_IDE = """
+import signal, subprocess, sys, time
+quiet = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL}
+children = [subprocess.Popen(["sleep", "300"], executable=sys.argv[1], **quiet)] if sys.argv[1] else []
+children.append(subprocess.Popen(["sleep", "300"], **quiet))
+if sys.argv[2] == "ignore":
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+print(*(c.pid for c in children), flush=True)
+time.sleep(300)
+"""
+
+
+def proc_stat(pid):
+    """(name, state, start time) of a process from /proc/<pid>/stat, or None when it is gone.
+
+    The name can hold spaces and brackets, so the other fields start after the last ')'."""
+    try:
+        text = Path(f"/proc/{pid}/stat").read_text()
+    except OSError:
+        return None
+    head, _, rest = text.rpartition(")")
+    fields = rest.split()
+    return head.partition("(")[2], fields[0], int(fields[19])
+
+
+def runs(pid, start):
+    """True while the process with this PID and start time runs. A zombie has ended."""
+    stat = proc_stat(pid)
+    return stat is not None and stat[2] == start and stat[1] != "Z"
+
+
+def ends(pid, start, within=30.0):
+    """True when the process ends in `within` seconds. It polls: under load a fixed wait is no proof."""
+    deadline = time.monotonic() + within
+    while runs(pid, start):
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(0.05)
+    return True
+
+
+@unittest.skipUnless(Path("/proc/self/stat").exists(), "needs the /proc file system of Linux")
+class StopLeftoverChildTest(unittest.TestCase):
+    """Real processes: a Python process stands in for the IDE, and `sleep` with the process name
+    `dbus-monitor` stands in for its child. A test signals only the processes that it started."""
+
+    def link(self, name):
+        """A link with the name `name` to `sleep`: a process that runs it has the process name `name`."""
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, d)
+        (d / name).symlink_to(shutil.which("sleep"))
+        return d / name
+
+    def end_at_cleanup(self, pid, start):
+        self.addCleanup(lambda: runs(pid, start) and os.kill(pid, signal.SIGKILL))
+
+    def stand_in_ide(self, with_dbus_monitor=True, ignore_term=False):
+        """Start a stand-in IDE. Returns its IdeProcess and {process name: (PID, start time)} of its children."""
+        link = self.link("dbus-monitor")
+        ide = subprocess.Popen([sys.executable, "-c", STAND_IN_IDE, str(link) if with_dbus_monitor else "",
+                                "ignore" if ignore_term else ""],
+                               stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True)
+        # The reaper ends the zombie of the stand-in IDE: else /proc keeps its PID, and _stop waits for it.
+        reaper = threading.Thread(target=ide.wait)
+        reaper.start()
+        self.addCleanup(reaper.join)
+        self.addCleanup(ide.kill)  # Popen.kill sends no signal after the end of the process
+        self.addCleanup(ide.stdout.close)
+        children = {}
+        for pid in map(int, ide.stdout.readline().split()):
+            name, _, start = proc_stat(pid)
+            self.end_at_cleanup(pid, start)
+            children[name] = (pid, start)
+        self.assertEqual({"dbus-monitor", "sleep"} if with_dbus_monitor else {"sleep"}, set(children))
+        if with_dbus_monitor:
+            self.assertEqual("dbus-monitor\n", Path(f"/proc/{children['dbus-monitor'][0]}/comm").read_text())
+        return fleet.IdeProcess(ide.pid, link, link.parent, {}, str(link.parent)), children
+
+    def own_child(self, name):
+        """A `sleep` child of this test with the process name `name`. Returns (PID, start time)."""
+        child = subprocess.Popen(["sleep", "300"], executable=str(self.link(name)),
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        self.addCleanup(child.wait)
+        self.addCleanup(child.kill)
+        stat = proc_stat(child.pid)
+        self.assertEqual(name, stat[0])
+        return child.pid, stat[2]
+
+    def signals(self, call, lost=()):
+        """Run `call` and record each signal that it sends. A PID in `lost` acts as a process that ended
+        just before the signal; each other signal goes out."""
+        sent, kill = [], os.kill
+
+        def record(pid, sig):
+            sent.append((pid, sig))
+            if pid in lost:
+                raise ProcessLookupError(pid)
+            kill(pid, sig)
+        with mock.patch.object(fleet.os, "kill", side_effect=record):
+            return call(), sent
+
+    def test_stop_ends_the_dbus_monitor_child_of_the_ide_and_no_other_child(self):
+        proc, children = self.stand_in_ide()
+        err, sent = self.signals(lambda: fleet._stop(proc, 60.0, "demo"))
+        self.assertIsNone(err)
+        self.assertTrue(ends(*children["dbus-monitor"]), "the dbus-monitor child runs on after the stop of its IDE")
+        self.assertTrue(runs(*children["sleep"]))
+        self.assertEqual([(proc.pid, signal.SIGTERM), (children["dbus-monitor"][0], signal.SIGTERM)], sent)
+
+    def test_children_of_an_ide_that_does_not_stop_get_no_signal(self):
+        # The IDE still runs and owns its children; the error text is the same as before.
+        proc, children = self.stand_in_ide(ignore_term=True)
+        err, sent = self.signals(lambda: fleet._stop(proc, 1.0, "demo"))
+        self.assertEqual("demo did not stop in 1 s", err)
+        self.assertEqual([(proc.pid, signal.SIGTERM)], sent)
+        self.assertTrue(Path(f"/proc/{proc.pid}").exists())
+        self.assertTrue(runs(*children["dbus-monitor"]))
+
+    def test_ide_with_no_dbus_monitor_child_stops_as_before(self):
+        proc, children = self.stand_in_ide(with_dbus_monitor=False)
+        err, sent = self.signals(lambda: fleet._stop(proc, 60.0, "demo"))
+        self.assertIsNone(err)
+        self.assertFalse(Path(f"/proc/{proc.pid}").exists())
+        self.assertEqual([(proc.pid, signal.SIGTERM)], sent)
+        self.assertTrue(runs(*children["sleep"]))
+
+    def test_dbus_monitor_child_of_an_ide_that_ended_before_the_signal_is_stopped_too(self):
+        # The IDE ends between the read of its children and the SIGTERM: os.kill finds no process.
+        proc, children = self.stand_in_ide()
+        err, sent = self.signals(lambda: fleet._stop(proc, 60.0, "demo"), lost={proc.pid})
+        self.assertIsNone(err)
+        self.assertTrue(ends(*children["dbus-monitor"]), "the dbus-monitor child runs on after the end of its IDE")
+        self.assertTrue(runs(*children["sleep"]))
+        self.assertEqual([(proc.pid, signal.SIGTERM), (children["dbus-monitor"][0], signal.SIGTERM)], sent)
+
+    def test_kept_child_that_is_not_the_same_process_now_gets_no_signal(self):
+        dbus_monitor, start = self.own_child("dbus-monitor")
+        other = self.own_child("sleep")
+        for case, record in {"another start time (the PID was used again)": (dbus_monitor, start + 1),
+                             "another process name (the PID was used again)": other,
+                             "no process with this PID": (NO_PID, 0)}.items():
+            with self.subTest(case):
+                self.assertEqual((None, []), self.signals(lambda: fleet._stop_leftover_children([record])))
+        self.assertTrue(runs(*other))
+        # The control: the same record with the right start time gets the signal.
+        self.assertEqual((None, [(dbus_monitor, signal.SIGTERM)]),
+                         self.signals(lambda: fleet._stop_leftover_children([(dbus_monitor, start)])))
+        self.assertTrue(ends(dbus_monitor, start))
+
+    def test_signal_error_at_a_kept_child_is_no_error_of_the_stop(self):
+        record = self.own_child("dbus-monitor")
+        for error in (ProcessLookupError, PermissionError):
+            with self.subTest(error.__name__):
+                with mock.patch.object(fleet.os, "kill", side_effect=error) as kill:
+                    self.assertIsNone(fleet._stop_leftover_children([record]))
+                kill.assert_called_once_with(record[0], signal.SIGTERM)
+
+    def test_ide_that_is_gone_has_no_child(self):
+        self.assertEqual([], fleet._leftover_children(NO_PID))
 
 
 if __name__ == "__main__":
