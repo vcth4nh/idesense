@@ -1330,7 +1330,7 @@ Retrieves a depth-limited type hierarchy (supertypes and subtypes) for a class o
 **Response Notes:**
 - `supertypes` is a tree. Each entry has its own `supertypes` list, down to `maxDepth` levels. The list is `null` when the entry has none.
 - `subtypes` is one flat list of the subtypes, up to `maxDepth` levels. Its entries have no `supertypes` and no link to their parent.
-- Each entry also has `line`, `column` and `enclosingScope`. `enclosingScope` is `null` when `qualifiedName` has a value.
+- Each entry also has `line`, `column` and `enclosingScope`. `enclosingScope` is `null` when `qualifiedName` has a value. An entry for a file or a directory (no qualified name) has an empty list.
 
 **Kind Values:**
 - `CLASS` - Concrete class

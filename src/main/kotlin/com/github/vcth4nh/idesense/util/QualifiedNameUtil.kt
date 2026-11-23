@@ -41,6 +41,10 @@ object QualifiedNameUtil {
         try { Class.forName("com.goide.psi.GoAnonymousFieldDefinition") } catch (_: ClassNotFoundException) { null }
     }
 
+    private val ktTypeAliasClass: Class<*>? by lazy {
+        try { Class.forName("org.jetbrains.kotlin.psi.KtTypeAlias") } catch (_: ClassNotFoundException) { null }
+    }
+
     private val rsNamedElementClass: Class<*>? by lazy {
         try { Class.forName("org.rust.lang.core.psi.ext.RsNamedElement") } catch (_: ClassNotFoundException) { null }
     }
@@ -51,6 +55,7 @@ object QualifiedNameUtil {
      *  - PyCharm's PyQualifiedNameOwner (covers PyTargetExpression cases the upstream provider misses)
      *  - Go: builds package.Function / package.Receiver.Method via reflection on GoFile + GoMethodDeclaration
      *  - Rust: walks PSI ancestors joining names with ::
+     *  - Kotlin type alias: the fully qualified name of the Kotlin PSI (#278)
      *
      * Must be called inside a read action.
      *
@@ -58,7 +63,10 @@ object QualifiedNameUtil {
      */
     fun getQualifiedName(element: PsiElement): String? {
         // A file element goes to the providers too, but not its directory (#187).
-        val candidates = if (element is PsiFile) sequenceOf(element)
+        // A Kotlin type alias gets no name from the providers. The walk over the parents would give
+        // the name of its class when the alias is nested (#278), so the walk does not run for it.
+        val isTypeAlias = ktTypeAliasClass?.isInstance(element) == true
+        val candidates = if (element is PsiFile || isTypeAlias) sequenceOf(element)
             else generateSequence(element) { it.parent }.takeWhile { it !is PsiFile }
         for (candidate in candidates) {
             for (provider in QualifiedNameProvider.EP_NAME.extensionList) {
@@ -74,6 +82,10 @@ object QualifiedNameUtil {
                 }
             }
         }
+
+        // Fallback 0: Kotlin type alias. The IDE gives no name (KotlinQualifiedNameProvider has no case
+        // for KtTypeAlias); the tool gives package + name, as KtNamedDeclaration.getFqName does (#278).
+        if (isTypeAlias) return kotlinTypeAliasFqName(element)
 
         // Fallback 1: PyTargetExpression and similar implement PyQualifiedNameOwner directly.
         val pyOwner = pyQualifiedNameOwnerClass
@@ -119,6 +131,14 @@ object QualifiedNameUtil {
      */
     fun formatRustQualifiedName(ancestorChain: List<String>, name: String): String {
         return if (ancestorChain.isEmpty()) name else ancestorChain.joinToString("::") + "::" + name
+    }
+
+    private fun kotlinTypeAliasFqName(element: PsiElement): String? = try {
+        // getFqName is null for an alias with no name (broken code)
+        element.javaClass.getMethod("getFqName").invoke(element)?.toString()
+    } catch (e: Exception) {
+        LOG.debug("Kotlin type alias fqName threw for ${element.javaClass.simpleName}: ${e.message}")
+        null
     }
 
     private fun goFallback(element: PsiElement): String? {

@@ -662,6 +662,58 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         assertEquals("TYPE_ALIAS", alias!!.kind)
     }
 
+    private suspend fun symbolsNamed(
+        tool: com.github.vcth4nh.idesense.tools.McpTool, name: String, file: String,
+    ): List<com.github.vcth4nh.idesense.tools.models.SymbolMatch> {
+        val r = tool.execute(project, buildJsonObject { put("query", name) })
+        val text = (r.content.first() as ContentBlock.Text).text
+        assertFalse("Search should succeed: $text", r.isError)
+        val all = if (tool is FindSymbolTool) json.decodeFromString<FindSymbolResult>(text).symbols
+        else json.decodeFromString<com.github.vcth4nh.idesense.tools.models.FindClassResult>(text).classes
+        return all.filter { it.name == name && it.file.endsWith(file) }
+    }
+
+    fun testKotlinTypeAliasHasFullyQualifiedName() = runBlocking {
+        // #278: the IDE gives no qualified name for a Kotlin type alias; the tools give package + name.
+        myFixture.addFileToProject("pkg/Aliases.kt", "package probe.pkg\n\ntypealias PkgAlias = String")
+        myFixture.addFileToProject("RootAlias.kt", "typealias RootAlias = String")
+
+        for (tool in listOf<com.github.vcth4nh.idesense.tools.McpTool>(
+            FindSymbolTool(), com.github.vcth4nh.idesense.tools.navigation.FindClassTool(),
+        )) {
+            val pkg = symbolsNamed(tool, "PkgAlias", "Aliases.kt").singleOrNull()
+            assertNotNull("${tool.name}: PkgAlias should be found", pkg)
+            assertEquals(tool.name, "probe.pkg.PkgAlias", pkg!!.qualifiedName)
+            val root = symbolsNamed(tool, "RootAlias", "RootAlias.kt").singleOrNull()
+            assertNotNull("${tool.name}: RootAlias should be found", root)
+            assertEquals(tool.name, "RootAlias", root!!.qualifiedName)
+        }
+    }
+
+    fun testKotlinNestedTypeAliasHasFullyQualifiedName() = runBlocking {
+        // #278: an alias inside a class gets the name of the class in front of it.
+        myFixture.addFileToProject("Holder.kt", "package probe.nest\n\nclass Holder {\n    typealias Inner = String\n}")
+
+        val hit = symbolsNamed(FindSymbolTool(), "Inner", "Holder.kt").singleOrNull()
+        assertNotNull("Inner should be found", hit)
+        assertEquals("probe.nest.Holder.Inner", hit!!.qualifiedName)
+    }
+
+    fun testKotlinTypeAliasWithNoNameGivesNoQualifiedName() {
+        // #278: broken code; the Kotlin PSI gives no fqName, so the fallback gives null and no exception.
+        val file = myFixture.addFileToProject("Broken.kt", "package probe.broken\n\ntypealias = Int")
+        val alias = com.intellij.psi.util.PsiTreeUtil.findChildOfType(file, org.jetbrains.kotlin.psi.KtTypeAlias::class.java)
+        assertNotNull("The parser should make a type alias", alias)
+        assertNull(com.github.vcth4nh.idesense.util.QualifiedNameUtil.getQualifiedName(alias!!))
+    }
+
+    fun testEnclosingScopeOfFileAndDirectoryIsEmpty() {
+        // #285: the walk must not go up the directories.
+        val file = myFixture.addFileToProject("a/b/Scope.txt", "x")
+        assertEquals(emptyList<String>(), com.github.vcth4nh.idesense.util.PsiUtils.getEnclosingScope(file))
+        assertEquals(emptyList<String>(), com.github.vcth4nh.idesense.util.PsiUtils.getEnclosingScope(file.parent!!))
+    }
+
     fun testReadFileToolValidation() = runBlocking {
         val tool = ReadFileTool()
 
