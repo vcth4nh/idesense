@@ -1669,6 +1669,7 @@ Common `error` codes:
 | Parameter validation failed (a schema failure includes a `violations` array; a bad `symbol` or `file`/`line`/`column` anchor, for example both or neither, has only `message`) | `invalid_arguments` |
 | The `scope` matches no files: the project has no production (or test) source roots | `scope_matches_no_files` |
 | The IDE's index does not match a file (temporary, the IDE rebuilds it; retry later) | `index_out_of_sync` |
+| A service of the IDE did not answer in its time limit, for example the TypeScript service of WebStorm (temporary; call again later) | `ide_service_timeout` |
 | Generic tool failure | `tool_error` |
 | Unexpected server error | `internal_error` |
 | Project resolution errors | `no_project_open` / `project_not_found` / `multiple_projects_open` |

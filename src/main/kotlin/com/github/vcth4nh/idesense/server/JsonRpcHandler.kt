@@ -16,6 +16,9 @@ import com.github.vcth4nh.idesense.tools.schema.ArgumentValidator
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
@@ -38,6 +41,9 @@ class JsonRpcHandler @JvmOverloads constructor(
 
     companion object {
         private val LOG = logger<JsonRpcHandler>()
+
+        /** The history text of a call whose coroutine is cancelled (#284). */
+        private const val CANCELLED_CALL_TEXT = "The call was cancelled before it ended, for example because the server stopped."
     }
 
     suspend fun handleRequest(jsonString: String): String? =
@@ -224,11 +230,30 @@ class JsonRpcHandler @JvmOverloads constructor(
 
             structuredToolError(request.id, McpErrors.fromException(e))
         } catch (e: Exception) {
-            // A cancelled call leaves here. A cancellation in an active call gets the usual answer (#127).
-            val cancellation = cancellationInActiveCall(e)
             val duration = System.currentTimeMillis() - startTime
+            // A cancelled call leaves here, and its history entry gets the status CANCELLED (#284).
+            // A cancellation in an active call gets the usual answer (#127).
+            val cancellation = try {
+                cancellationInActiveCall(e)
+            } catch (callCancellation: Throwable) {
+                recordCancelledCall(project, commandEntry, duration)
+                throw callCancellation
+            }
+            // A timeout is also a cancellation. A timeout in a cancelled call left above; in an
+            // active call it gets its own answer, so it comes before the cancellation branch.
+            val serviceTimeout = McpErrors.serviceTimeoutIn(e)
+            if (serviceTimeout != null && !currentCoroutineContext().isActive) {
+                // A timeout inside an exception that is no cancellation, in a cancelled call: the
+                // path of the cancellation of the call.
+                recordCancelledCall(project, commandEntry, duration)
+                currentCoroutineContext().ensureActive()
+            }
             val indexMismatch = McpErrors.isIndexMismatch(e)
-            if (cancellation != null) {
+            if (serviceTimeout != null) {
+                // A time limit of a service of the IDE, not a plugin bug: no ERROR report, a
+                // retryable body instead (#333).
+                LOG.warn("Tool '$toolName' met the time limit of a service of the IDE: $serviceTimeout")
+            } else if (cancellation != null) {
                 LOG.warn("Tool '$toolName' was cancelled: $cancellation")
             } else if (indexMismatch) {
                 // A platform index state, not a plugin bug: no ERROR report, a retryable body instead.
@@ -237,19 +262,21 @@ class JsonRpcHandler @JvmOverloads constructor(
                 LOG.error("Tool execution failed: $toolName", e)
             }
 
+            val body = when {
+                serviceTimeout != null -> McpErrors.serviceTimeout(serviceTimeout)
+                indexMismatch -> McpErrors.indexOutOfSync()
+                else -> McpErrors.generic("internal_error", e.message ?: ErrorMessages.UNKNOWN_ERROR)
+            }
+
             updateHistorySafely(
                 project = project,
                 commandEntry = commandEntry,
                 status = CommandStatus.ERROR,
-                result = e.message,
+                result = if (serviceTimeout != null) body["message"]?.jsonPrimitive?.content else e.message,
                 duration = duration
             )
 
-            structuredToolError(
-                request.id,
-                if (indexMismatch) McpErrors.indexOutOfSync()
-                else McpErrors.generic("internal_error", e.message ?: ErrorMessages.UNKNOWN_ERROR)
-            )
+            structuredToolError(request.id, body)
         }
     }
 
@@ -282,6 +309,21 @@ class JsonRpcHandler @JvmOverloads constructor(
             } else {
                 LOG.warn("Failed to update command history for ${commandEntry.toolName}", e)
             }
+        }
+    }
+
+    /**
+     * Sets the status CANCELLED on the history entry of a call whose coroutine is cancelled, for
+     * example because the server stops (#284). A disposed project gets no update, because its
+     * service container throws a cancellation (#127). The call leaves with no log entry, so a
+     * cancellation of the update gets no log entry either.
+     */
+    private suspend fun recordCancelledCall(project: Project, commandEntry: CommandEntry, duration: Long) {
+        if (project.isDisposed) return
+        try {
+            updateHistorySafely(project, commandEntry, CommandStatus.CANCELLED, CANCELLED_CALL_TEXT, duration)
+        } catch (_: Exception) {
+            // updateHistorySafely throws only a cancellation of the update, because the call is cancelled.
         }
     }
 

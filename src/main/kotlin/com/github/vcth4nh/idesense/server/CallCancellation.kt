@@ -11,7 +11,8 @@ import kotlinx.coroutines.isActive
  *
  * - [e] is no cancellation: returns null. The caller handles [e] as before.
  * - The coroutine of the call is cancelled, for example because the server stops: throws the
- *   cancellation. It leaves the block with no log entry, no history update and no answer.
+ *   cancellation. It leaves the block with no log entry and no answer. Before it leaves,
+ *   `processToolCall` sets the status CANCELLED on the history entry of the call (#284).
  * - The coroutine of the call is still active, so the client still waits: returns the
  *   cancellation. Examples are the `ServiceNotReadyException` of an index that is not ready and
  *   the `AlreadyDisposedException` of a disposed service. The caller gives its usual answer and

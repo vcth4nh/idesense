@@ -3,6 +3,11 @@ package com.github.vcth4nh.idesense.server
 import com.github.vcth4nh.idesense.exceptions.IndexNotReadyException
 import com.github.vcth4nh.idesense.tools.schema.Violation
 import junit.framework.TestCase
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.*
 
 class McpErrorsUnitTest : TestCase() {
@@ -37,6 +42,23 @@ class McpErrorsUnitTest : TestCase() {
         assertFalse(McpErrors.isIndexMismatch(RuntimeException("something else")))
         assertFalse(McpErrors.isIndexMismatch(RuntimeException()))
         assertEquals("index_out_of_sync", McpErrors.indexOutOfSync()["error"]?.jsonPrimitive?.content)
+    }
+
+    fun testServiceTimeoutDetectedDirectlyAndAsCause() {
+        val timeout = runBlocking { runCatching { withTimeout(1) { delay(10_000) } }.exceptionOrNull() }
+            as TimeoutCancellationException
+        assertSame(timeout, McpErrors.serviceTimeoutIn(timeout))
+        assertSame(timeout, McpErrors.serviceTimeoutIn(RuntimeException(IllegalStateException(timeout))))
+        assertNull(McpErrors.serviceTimeoutIn(CancellationException("cancelled")))
+        assertNull(McpErrors.serviceTimeoutIn(RuntimeException("Timed out waiting for 1 ms")))
+
+        val body = McpErrors.serviceTimeout(timeout)
+        assertEquals("ide_service_timeout", body["error"]?.jsonPrimitive?.content)
+        assertEquals(
+            "A service of the IDE did not answer in its time limit (${timeout.message}). The limit belongs " +
+                "to the IDE, not to this request. Try again later.",
+            body["message"]?.jsonPrimitive?.content
+        )
     }
 
     fun testInvalidScopeShape() {

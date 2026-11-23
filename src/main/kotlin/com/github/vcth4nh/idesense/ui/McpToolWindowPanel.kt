@@ -355,6 +355,7 @@ class CommandListCellRenderer : ListCellRenderer<CommandEntry> {
             CommandStatus.SUCCESS -> JBColor(0x59A869, 0x59A869)
             CommandStatus.ERROR -> JBColor(0xE05555, 0xE05555)
             CommandStatus.PENDING -> JBColor(0xD9A343, 0xD9A343)
+            CommandStatus.CANCELLED -> JBColor.GRAY
         }
 
         // Background
@@ -391,7 +392,7 @@ class FilterToolbar(
 
         // Status filter
         add(JBLabel("Status:"))
-        statusComboBox = JComboBox(arrayOf("All", "SUCCESS", "ERROR", "PENDING")).apply {
+        statusComboBox = JComboBox(arrayOf("All", "SUCCESS", "ERROR", "PENDING", "CANCELLED")).apply {
             addActionListener { notifyFilterChanged() }
         }
         add(statusComboBox)
