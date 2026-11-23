@@ -579,14 +579,24 @@ class StartStopTest(unittest.TestCase):
 
 NO_PID = 2 ** 22  # Linux gives each PID below this limit (PID_MAX_LIMIT), so no process has it
 
-# A stand-in for an IDE. It starts a stand-in `dbus-monitor` (when argv[1] names one) and one `sleep`
-# child, prints their PIDs and waits. With argv[2] "ignore" it ignores SIGTERM, as an IDE that does
-# not stop. Each of these processes ends by itself after 300 s, also when a cleanup fails.
+# A stand-in for a child process. It gives itself the process name argv[1], prints one line and waits.
+# A link with that name to `sleep` is no stand-in: a multi-call `sleep` refuses a name that is not its own.
+STAND_IN_CHILD = """
+import sys, time
+open("/proc/self/comm", "w").write(sys.argv[1])
+print(flush=True)
+time.sleep(300)
+"""
+
+# A stand-in for an IDE. It starts one stand-in child for each process name in argv[1], prints their
+# PIDs when each child has its name, and waits. With argv[2] "ignore" it ignores SIGTERM, as an IDE
+# that does not stop. Each of these processes ends by itself after 300 s, also when a cleanup fails.
 STAND_IN_IDE = """
 import signal, subprocess, sys, time
-quiet = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL}
-children = [subprocess.Popen(["sleep", "300"], executable=sys.argv[1], **quiet)] if sys.argv[1] else []
-children.append(subprocess.Popen(["sleep", "300"], **quiet))
+children = [subprocess.Popen([sys.executable, "-c", sys.argv[3], name], stdin=subprocess.DEVNULL,
+                             stdout=subprocess.PIPE) for name in sys.argv[1].split()]
+for child in children:
+    child.stdout.readline()
 if sys.argv[2] == "ignore":
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
 print(*(c.pid for c in children), flush=True)
@@ -625,24 +635,17 @@ def ends(pid, start, within=30.0):
 
 @unittest.skipUnless(Path("/proc/self/stat").exists(), "needs the /proc file system of Linux")
 class StopLeftoverChildTest(unittest.TestCase):
-    """Real processes: a Python process stands in for the IDE, and `sleep` with the process name
-    `dbus-monitor` stands in for its child. A test signals only the processes that it started."""
-
-    def link(self, name):
-        """A link with the name `name` to `sleep`: a process that runs it has the process name `name`."""
-        d = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, d)
-        (d / name).symlink_to(shutil.which("sleep"))
-        return d / name
+    """Real processes: a Python process stands in for the IDE, and a Python process with the process
+    name `dbus-monitor` stands in for its child. A test signals only the processes that it started."""
 
     def end_at_cleanup(self, pid, start):
         self.addCleanup(lambda: runs(pid, start) and os.kill(pid, signal.SIGKILL))
 
     def stand_in_ide(self, with_dbus_monitor=True, ignore_term=False):
         """Start a stand-in IDE. Returns its IdeProcess and {process name: (PID, start time)} of its children."""
-        link = self.link("dbus-monitor")
-        ide = subprocess.Popen([sys.executable, "-c", STAND_IN_IDE, str(link) if with_dbus_monitor else "",
-                                "ignore" if ignore_term else ""],
+        ide = subprocess.Popen([sys.executable, "-c", STAND_IN_IDE,
+                                "dbus-monitor sleep" if with_dbus_monitor else "sleep",
+                                "ignore" if ignore_term else "", STAND_IN_CHILD],
                                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True)
         # The reaper ends the zombie of the stand-in IDE: else /proc keeps its PID, and _stop waits for it.
         reaper = threading.Thread(target=ide.wait)
@@ -658,14 +661,16 @@ class StopLeftoverChildTest(unittest.TestCase):
         self.assertEqual({"dbus-monitor", "sleep"} if with_dbus_monitor else {"sleep"}, set(children))
         if with_dbus_monitor:
             self.assertEqual("dbus-monitor\n", Path(f"/proc/{children['dbus-monitor'][0]}/comm").read_text())
-        return fleet.IdeProcess(ide.pid, link, link.parent, {}, str(link.parent)), children
+        return fleet.IdeProcess(ide.pid, Path("/nonexistent"), Path("/nonexistent"), {}, "/"), children
 
     def own_child(self, name):
-        """A `sleep` child of this test with the process name `name`. Returns (PID, start time)."""
-        child = subprocess.Popen(["sleep", "300"], executable=str(self.link(name)),
-                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL)
+        """A stand-in child of this test with the process name `name`. Returns (PID, start time)."""
+        child = subprocess.Popen([sys.executable, "-c", STAND_IN_CHILD, name],
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.PIPE)
         self.addCleanup(child.wait)
         self.addCleanup(child.kill)
+        self.addCleanup(child.stdout.close)
+        child.stdout.readline()  # the child has its process name now
         stat = proc_stat(child.pid)
         self.assertEqual(name, stat[0])
         return child.pid, stat[2]
