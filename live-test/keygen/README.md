@@ -16,9 +16,10 @@ B="${BENCH_ROOT:-$HOME/dev/idesense-bench}"
 
 | Path | Content |
 |---|---|
-| `gokeys/` | The Go command `gokeys`: Go keys from the Go compiler library (`extract`), their proof (`accept`), the calls file (`calls`), the occurrences of a name (`idents`), a copy of a tree for a run-time trace (`trace`) |
+| `gokeys/` | The Go command `gokeys`: Go keys from the Go compiler library (`extract`), their proof (`accept`), the calls file (`calls`), the call graph of one build (`graph`), the occurrences of a name (`idents`), a copy of a tree for a run-time trace (`trace`) |
 | `pykeys.py` | Python keys: the unique-name scan (`unique`) and the class hierarchy by reflection (`hierarchy`) |
 | `callkeys.py` | Caller keys of two levels (`pycalls`, `make`), their trace proof (`targets`, `tracecheck`), and caller keys through an interface value (`dyntargets`, `dynmake`) |
+| `tracekeys.py` | Trace keys of a Go product: each call step on each way to a target (`make`) |
 | `plant.py` | Planted trees: one shared name for four methods, and the key from the state before the rename |
 | `pytest_plugin/trace_plugin.py` | A pytest plugin that logs the callers of target functions |
 | `trees.json` | The recipe and the digest of each benchmark tree |
@@ -28,7 +29,8 @@ The module text at the top of each Python file gives each option, each file form
 code. The Go command `gokeys` has no such text: `gokeys <command> -h` gives the options of a
 command, and the exit code is 0 for success, 1 for a failure and 2 for a usage error. The
 formats of its files are in the module texts of `common/keyrecord.py` (the key records of
-`extract`) and `callkeys.py` (the calls file, the targets file and the trace file).
+`extract`), `callkeys.py` (the calls file, the targets file and the trace file) and
+`tracekeys.py` (the graph file).
 The key record format is in the module text of [`common/keyrecord.py`](../common/keyrecord.py).
 A key holds positions, names and classes, and no source text of a product.
 
@@ -98,10 +100,14 @@ benchmark holds only the lines of its answer (see
 | `calls.jsonl` | each tree | `gokeys calls` (Go), `callkeys pycalls` (Python) | No key |
 | `callers.jsonl` | each tree | `callkeys make` | Go: `gokeys calls -check`; Python: `callkeys targets`, a trace, `callkeys tracecheck` |
 | `dyncallers.jsonl` | caddy | `callkeys dyntargets`, `gokeys trace`, a test run, `callkeys dynmake` | the rule of `dynmake` |
+| `graph.jsonl` | caddy | `gokeys graph -goos linux` | No key |
+| `trace.jsonl` | caddy | `tracekeys make` | `gokeys graph -check`; by hand: four targets (below) |
 
 `callers.jsonl` and `dyncallers.jsonl` hold the keys of the functions that are targets. A
 `calls.jsonl` file is no key: it holds the uses of each function declaration, and the caller keys
-and the caller audit read it.
+and the caller audit read it. `trace.jsonl` holds one trace key for each target of its pools. A
+`graph.jsonl` file is no key: it holds the call graph of the Linux build, and the trace keys and
+the trace audit read it.
 
 A proof "by hand" has no tracked command: a maintainer makes it when the key is made.
 
@@ -113,6 +119,8 @@ A proof "by hand" has no tracked command: a maintainer makes it when the key is 
   compare its records of the shared name with the records of `plant.jsonl`.
 - `plant.jsonl` of a Python plant: the test suite of the planted tree gives the result of the
   base tree, and the call sites that a run-time trace logs are compared with the key.
+- `trace.jsonl`: a reader checks each step of four targets in the source, and the trace records
+  of these targets give the same lines.
 
 `plant make` itself checks only the rename: each occurrence of the shared name is a renamed
 position, and no original name is left.
@@ -272,6 +280,32 @@ only after a decision. Then `./live-test/run.py bench qfiles check -data` shows 
 question whose answer differs from the new file. A changed key file of a tracked question goes
 into a commit that a maintainer reviews ([METHOD.md](../METHOD.md), section 6, and step 4 of "A
 new question" in [bench/README.md](../bench/README.md#a-new-question)).
+
+### Trace keys
+
+A trace key holds, for one target function, each call step on each way to it, at any depth
+([METHOD.md](../METHOD.md), section 3.4). Its source is the call graph of the Linux build of the
+tree. Write the graph, then the trace records:
+
+```bash
+(cd live-test/keygen/gokeys && go build -o "$B/scratch/gokeys-bin" .)
+"$B/scratch/gokeys-bin" graph -tree "$B/trees/caddy" -goos linux -out "$B/keys/caddy/graph.jsonl" -check
+./live-test/run.py keygen tracekeys make -graph "$B/keys/caddy/graph.jsonl" \
+  -calls "$B/keys/caddy/calls.jsonl" -out "$B/keys/caddy/trace.jsonl" \
+  [-extra <file.json>] [-large <n> -seed <s>]
+```
+
+`graph` loads one build (`-goos`; GOARCH is amd64) with no test file. `-check` compares the steps
+of the graph with the SSA form of the same build: the pairs of a call line and a callee, and the
+methods that the types of a conversion select. Its exit code is 1 when a pair is on one side only,
+or when the interface table does not have a selected method.
+
+`make` reads `calls.jsonl` for the `dnc` lines of a record. It writes one record for each target
+of its pools. A pool is a rule that chooses targets, for example by the count of the functions on
+the ways to a target. `-extra` adds the targets of a JSON list, and `-large <n>` adds n targets
+with a large trace for the audit. The output gives the count of the functions in each size group
+and the count of the records of each pool. The module text of `tracekeys.py` gives the record
+format, the pools and the distances of each function to the target.
 
 ## Tests
 

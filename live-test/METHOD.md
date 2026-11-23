@@ -55,6 +55,7 @@ tracked command is made by hand when the key is made.
 | Go callers | `gokeys calls`: each use of a function declaration, with the declaration that holds it and whether it is a call | `gokeys calls -check`: the static calls of the SSA form of the program (`go/ssa`) must give the same pairs of caller and callee in each configuration. |
 | Python callers | `callkeys pycalls`: the uses of the unique-name keys, with the outermost `def` that holds each use (from the syntax tree) | `callkeys tracecheck`: each call site that a trace of the test suite logs for the target and for its direct callers must be in a function of the key. |
 | Go callers through an interface value | `callkeys dynmake`: the static callers, and the callers that a run-time trace of the test suite logs (`gokeys trace` makes a copy of the tree in which each target logs its call stack; no line of a file moves) | Each traced caller must be a static caller, or it must hold a call site of an interface method that the target implements. A target that breaks this rule gets no key. |
+| Go call traces | `gokeys graph`: the call graph of the Linux build from the Go compiler library (`go/types`), with the calls through an embedded field and the calls through an interface of the tree. `tracekeys make` makes the trace key of a target from it. | Three proofs (section 3.4): `gokeys graph -check` compares the graph with the SSA form of the same build; each step of a run-time trace of the test suite must be in the key; for four targets, a reader checked each step in the source. |
 
 A planted tree exists because a Python method with a common name has no key that a scan can prove.
 The plant makes a common name whose key is known. In such a tree a text search finds the uses of
@@ -112,6 +113,51 @@ a caller with the proof `trace` only can come or go. A second run does not alway
 that is equal byte for byte. The repeat check of "Caller keys through an interface value" in
 [keygen/README.md](keygen/README.md#caller-keys-through-an-interface-value) says which difference
 changes an answer.
+
+### 3.4 Trace keys
+
+A trace key holds each call step on each way to a target function, at any depth. A question has
+one of two forms. The complete form asks for each step on each way to the target. The start-set
+form starts from each method that implements one interface method, and asks for each step on a
+way from one of these methods to the target.
+
+The rule of a call step for Go:
+
+1. A call counts for the function or method that the Go compiler selects. A method that a struct
+   gets from an embedded struct is the method of the embedded struct.
+2. A call of a method of an interface that the repository declares counts for the method of each
+   type of the repository that implements the interface (no type of a test file).
+3. A call of a function value, and a call of a method of an interface that a library declares,
+   count for nothing.
+4. A function literal is a part of the function that holds it. A call after `go` or `defer`
+   counts.
+5. A call outside a function body is no step. A line that names a function and does not call it
+   is no step. A declaration line is no step.
+6. Conditions do not count: a call that the code holds is a step, also when no run can take it.
+7. Only the build for Linux (amd64) counts, and no file whose name ends with `_test.go`.
+8. A call inside the target itself is no step (the trace stops at the first entry).
+
+So the key tells which code can call the target by the types. It does not tell which code ran in
+a test.
+
+**The answer line.** The answer has one line for each step: the line that holds the name of the
+called function in the call expression. A line with two steps counts one time, for example a call
+through an interface with two implementations on a way. The key record keeps each step with its
+caller, its callee and its kind.
+
+**The `dnc` lines.** The key does not count these lines: the declaration line of the target and
+of each function on a way, a line that uses such a function as a value, and a call of such a
+function outside a function body, in a test file, or in a file that the Linux build does not
+compile. A step line wins over a `dnc` line.
+
+**The three proofs.**
+
+- `gokeys graph -check`: the SSA form of the same build (`go/ssa`) must give the same pairs of a
+  call line and a callee.
+- A run-time trace of the test suite: each step that the trace logs must be in the key. A step
+  that no test takes stays in the key, so this check works in one direction only.
+- By hand, when the key was made: for four targets, a reader checked each step in the source, and
+  the key gives the same lines.
 
 ## 4. The audit
 

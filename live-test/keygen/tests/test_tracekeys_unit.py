@@ -1,0 +1,422 @@
+import contextlib
+import io
+import json
+import os
+import random
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+from common import keyrecord as keys
+from keygen import tracekeys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+BENCHDIR = os.path.dirname(os.path.dirname(HERE))
+
+I_RUN = "go:m.I.Run"
+J_RUN = "go:m.J.Run"
+
+
+def at(file, line=1, col=6):
+    return {"file": file, "line": line, "col": col}
+
+
+def fn(key, file, line=1, calls=()):
+    """A function of the graph. `key` is `Name` or `Type.Name`; the id is `go:m.<key>`."""
+    container, _, name = key.rpartition(".")
+    return {"rec": "func", "id": f"go:m.{key}", "kind": "method" if container else "func", "name": name,
+            "container": container, "decl": at(file, line), "end": line + 5, "calls": list(calls)}
+
+
+def call(line, col, callee, kind="direct", lit=False, iface=""):
+    return {"line": line, "col": col, "callee": callee, "kind": kind, "lit": lit, "iface": iface}
+
+
+def use(file, line, col, in_, call=True, configs=("linux", "windows", "darwin"), lit=False):
+    return {"file": file, "line": line, "col": col, "call": call, "in": in_, "lit": lit, "configs": list(configs)}
+
+
+def calls_of(funcs, uses=None):
+    """The records of calls.jsonl for the functions of a graph; `uses` maps a function key to its uses."""
+    uses = uses or {}
+    return [{"id": f["id"], "lang": "go", "kind": f["kind"], "name": f["name"], "container": f["container"],
+             "decl": f["decl"], "end": f["end"], "configs": ["linux", "windows", "darwin"],
+             "uses": uses.get(f["id"][len("go:m."):], [])} for f in funcs]
+
+
+def iface(name, method, starts, decl_file="i.go", more=()):
+    """A module interface with one method whose implementers are K<i> with their own method at `starts[i]`."""
+    impls = [{"type": f"go:m.K{i}", "type_decl": at(s["file"], 30), "method": s, "own": True}
+             for i, s in enumerate(starts, 1)]
+    return {"rec": "iface", "id": f"go:m.{name}", "name": name, "decl": at(decl_file),
+            "methods": [{"id": f"go:m.{name}.{method}", "name": method, "decl": at(decl_file, 2, 2),
+                         "impls": impls + list(more)}]}
+
+
+# The small graph. Each function is at line 1 of its own file.
+D = {k: at(f) for k, f in (("T", "t.go"), ("A", "a.go"), ("B", "b.go"), ("C", "c.go"), ("D", "d.go"),
+                           ("E", "e.go"), ("F", "f.go"), ("G", "g.go"), ("U", "u.go"), ("V", "v.go"),
+                           ("W.T", "w_t.go"))}
+
+
+def base_funcs():
+    return [
+        fn("T", "t.go", calls=[call(2, 2, D["A"])]),  # a step out of the target
+        fn("A", "a.go", calls=[call(2, 2, D["T"])]),
+        fn("B", "b.go", calls=[call(2, 4, D["A"], "embedded")]),
+        fn("C", "c.go", calls=[call(2, 4, D["T"], "iface", iface=J_RUN),  # U is a second callee, on no way
+                               call(2, 4, D["U"], "iface", iface=J_RUN)]),
+        fn("D", "d.go", calls=[call(2, 9, D["A"], lit=True)]),
+        fn("E", "e.go", calls=[call(2, 2, D["D"]), call(3, 2, D["W.T"]), call(4, 2, None, "other")]),
+        fn("F", "f.go", calls=[call(2, 2, D["C"])]),
+        fn("G", "g.go", calls=[call(2, 2, D["B"]), call(3, 2, D["G"])]),  # a self recursion: the cycle
+        fn("U", "u.go"),
+        fn("V", "v.go"),
+        fn("W.T", "w_t.go"),  # a function outside the way with the name of the target
+    ]
+
+
+BASE_USES = {
+    "T": [use("a.go", 2, 2, D["A"]),
+          use("x_test.go", 4, 2, at("x_test.go", 3)),  # X -> T in a test file only
+          use("t_windows.go", 5, 2, at("t_windows.go", 3), configs=("windows",)),
+          use("k.go", 2, 2, at("k.go"))],  # in no function of the graph
+    "A": [use("t.go", 2, 2, D["T"]), use("b.go", 2, 4, D["B"]), use("d.go", 2, 9, D["D"], lit=True),
+          use("v.go", 3, 9, D["V"], call=False),  # a value use
+          use("f.go", 2, 4, D["F"], call=False),  # a value use on the line of the step F -> C
+          use("a.go", 9, 5, None)],  # a call outside each function
+    "D": [use("e.go", 2, 2, D["E"])],
+}
+
+
+def starts_funcs():
+    """The small graph with the methods K1.Run .. K6.Run of the interface method I.Run: K1 calls C, K2 calls F."""
+    return base_funcs() + [fn("K1.Run", "s1.go", calls=[call(2, 2, D["C"])]),
+                           fn("K2.Run", "s2.go", calls=[call(2, 2, D["F"])])] + [
+        fn(f"K{i}.Run", f"s{i}.go") for i in range(3, 7)]
+
+
+STARTS = [at(f"s{i}.go") for i in range(1, 7)]
+
+
+def by_id(records, rid):
+    return next(r for r in records if r["id"] == rid)
+
+
+def complete(records, key):
+    rec = by_id(records, f"go:m.{key}")
+    assert rec["form"] == "complete", rec["form"]
+    return rec
+
+
+def decls(functions):
+    return [f'{f["decl"]["file"]}:{f["decl"]["line"]}' for f in functions]
+
+
+def distances(rec, *keys_):
+    ids = {f"go:m.{k}": k for k in keys_}
+    return {ids[f["id"]]: (f["any"], f["direct"], f["plain"]) for f in rec["functions"] if f["id"] in ids}
+
+
+def lines(rec, cls):
+    return {(s["file"], s["line"]) for s in rec["sites"] if s["class"] == cls}
+
+
+def dnc_lines(rec):
+    return lines(rec, "dnc")
+
+
+def required_lines(rec):
+    return lines(rec, "required")
+
+
+def make(funcs, ifaces=(), uses=None, extra=(), large=0, seed=1):
+    return tracekeys.make_records(funcs, list(ifaces), calls_of(funcs, uses), list(extra), large, seed)
+
+
+def write_jsonl(path, records):
+    with open(path, "w", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec) + "\n")
+
+
+def run_main(argv):
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = tracekeys.main(argv)
+    return code, out.getvalue(), err.getvalue()
+
+
+class CompleteFormTest(unittest.TestCase):
+    def setUp(self):
+        self.records, self.stats = make(base_funcs(), uses=BASE_USES)
+
+    def test_complete_record_of_a_small_graph(self):
+        rec = complete(self.records, "T")
+        self.assertEqual(("go:m.T", "go", "func", "T", "", at("t.go"), "graph", "complete", "complete", None),
+                         tuple(rec[k] for k in ("id", "lang", "kind", "name", "container", "decl", "source", "form",
+                                                "pool", "from")))
+        self.assertEqual(["a.go:1", "b.go:1", "c.go:1", "d.go:1", "e.go:1", "f.go:1", "g.go:1"],
+                         decls(rec["functions"]))
+        self.assertEqual({"A": (1, 1, 1), "B": (2, 2, 2), "D": (2, 2, 2), "E": (3, 3, None), "C": (1, None, None),
+                          "G": (3, 3, 3)},
+                         distances(rec, "A", "B", "D", "E", "C", "G"))  # (any, direct, plain)
+        self.assertEqual((3, True, ["cycle", "embedded", "iface", "lit"], True),
+                         (rec["depth"], rec["cycle"], rec["hops"], rec["partial_iface"]))
+        self.assertIn(("v.go", 3), dnc_lines(rec))  # value use; x_test.go line is dnc too
+        self.assertEqual({("t.go", 1), ("a.go", 1), ("b.go", 1), ("c.go", 1), ("d.go", 1), ("e.go", 1), ("f.go", 1),
+                          ("g.go", 1),  # the decls
+                          ("x_test.go", 4), ("t_windows.go", 5), ("k.go", 2), ("v.go", 3), ("f.go", 2), ("a.go", 9)},
+                         dnc_lines(rec))
+        self.assertEqual({("a.go", 2), ("b.go", 2), ("c.go", 2), ("d.go", 2), ("e.go", 2), ("f.go", 2), ("g.go", 2),
+                          ("g.go", 3)}, required_lines(rec))
+        self.assertEqual(8, rec["required"])
+        self.assertEqual([at("w_t.go")], rec["decoys"])
+        self.assertEqual({"caller": at("c.go"), "call": at("c.go", 2, 4), "callee": at("t.go"), "kind": "iface",
+                          "lit": False}, next(s for s in rec["steps"] if s["caller"] == at("c.go")))
+        self.assertEqual(9, len(rec["steps"]))  # the 8 required steps and T -> A; no step to U or to W.T
+        self.assertEqual(rec["sites"], sorted(rec["sites"], key=lambda s: (s["file"], s["line"], s["col"])))
+
+    def test_one_line_with_two_steps_is_one_required_line(self):
+        t, p, q = at("t.go"), at("p.go"), at("q.go")
+        funcs = [fn("T", "t.go"),
+                 fn("P", "p.go", calls=[call(2, 2, t)]),
+                 fn("Q", "q.go", calls=[call(2, 2, t)]),
+                 fn("C", "c.go", calls=[call(2, 4, p, "iface", iface=J_RUN), call(2, 4, q, "iface", iface=J_RUN)]),
+                 fn("R", "r.go", calls=[call(2, 2, p), call(2, 10, q)])]  # two calls on one line
+        rec = by_id(make(funcs, extra=[{"target": "go:m.T"}])[0], "go:m.T")
+        self.assertEqual(6, len(rec["steps"]))
+        self.assertEqual([at("c.go", 2, 4), at("p.go", 2, 2), at("q.go", 2, 2), at("r.go", 2, 2), at("r.go", 2, 10)],
+                         [{k: s[k] for k in ("file", "line", "col")} for s in rec["sites"] if s["class"] == "required"])
+        self.assertEqual(4, rec["required"])
+        self.assertEqual({("c.go", 2), ("p.go", 2), ("q.go", 2), ("r.go", 2)}, required_lines(rec))
+        self.assertFalse(rec["partial_iface"])  # both callees are on a way
+
+    def test_a_step_out_of_the_target_is_kept_and_not_required(self):
+        # T -> A is an interface call with a second callee Q outside N: a call inside T makes no partial interface.
+        funcs = [fn("T", "t.go", calls=[call(2, 2, at("a.go"), "iface", iface=J_RUN),
+                                        call(2, 2, at("q.go"), "iface", iface=J_RUN)]),
+                 fn("A", "a.go", calls=[call(2, 2, at("t.go"))]),
+                 fn("Q", "q.go")]
+        rec = by_id(make(funcs, extra=[{"target": "go:m.T"}])[0], "go:m.T")
+        self.assertIn({"caller": at("t.go"), "call": at("t.go", 2, 2), "callee": at("a.go"), "kind": "iface",
+                       "lit": False}, rec["steps"])
+        self.assertEqual(({("a.go", 2)}, 1), (required_lines(rec), rec["required"]))
+        self.assertNotIn(("t.go", 2), dnc_lines(rec))
+        self.assertEqual((False, [], 1, False), (rec["cycle"], rec["hops"], rec["depth"], rec["partial_iface"]))
+        score = keys.score({("a.go", 2), ("t.go", 2)}, rec)
+        self.assertEqual((1, 1, 0), (score["tp"], score["fp"], score["miss"]))
+        # In the small graph too, T -> A is a step of the record and its line is no site.
+        base = complete(self.records, "T")
+        self.assertIn({"caller": at("t.go"), "call": at("t.go", 2, 2), "callee": at("a.go"), "kind": "direct",
+                       "lit": False}, base["steps"])
+        self.assertNotIn(("t.go", 2), required_lines(base) | dnc_lines(base))
+
+    def test_a_required_line_wins_over_a_use_on_the_same_line(self):
+        rec = complete(self.records, "T")
+        self.assertIn({**at("f.go", 2, 2), "class": "required", "why": "step"}, rec["sites"])
+        self.assertIn({**at("f.go", 2, 4), "class": "dnc", "why": "use"}, rec["sites"])
+        self.assertEqual("required", keys.line_classes(rec)[("f.go", 2)])
+
+    def test_statistics(self):
+        self.assertEqual(11, self.stats["functions"])
+        self.assertEqual({"direct": 8, "embedded": 1, "iface": 2}, self.stats["steps"])
+        # T 7, A 7 (T -> A is a step on the way to A), U 2 (C, F), B 1, C 1, D 1, W.T 1; E, F, G, V 0.
+        self.assertEqual({"1-9": 7, "10-19": 0, "20-39": 0, "40-79": 0, "80+": 0}, self.stats["sizes"])
+        self.assertEqual({"complete": 2, "from": 0, "empty": 0, "extra": 0, "large": 0}, self.stats["pools"])
+        self.assertEqual(["go:m.A", "go:m.T"], sorted(r["id"] for r in self.records))
+
+
+class StartSetTest(unittest.TestCase):
+    def test_start_set_record(self):
+        funcs = starts_funcs()
+        records, _ = make(funcs, [iface("I", "Run", STARTS)], BASE_USES,
+                          extra=[{"target": "go:m.T", "from": I_RUN}, {"target": "go:m.C", "from": I_RUN}])
+        rec = by_id(records, f"go:m.T from {I_RUN}")
+        self.assertEqual(("from", "extra", at("t.go")), (rec["form"], rec["pool"], rec["decl"]))
+        self.assertEqual({"id": I_RUN, "name": "Run", "container": "I", "decl": at("i.go", 2, 2), "starts": STARTS,
+                          "on_way": 2, "second_iface": True}, rec["from"])
+        # T -> A is no step of the walk: A, and B, D, E, G above it, are in no way from a start.
+        self.assertEqual(["c.go:1", "f.go:1", "s1.go:1", "s2.go:1"], decls(rec["functions"]))
+        self.assertEqual({("s1.go", 2), ("s2.go", 2), ("f.go", 2), ("c.go", 2)}, required_lines(rec))
+        self.assertEqual(4, len(rec["steps"]))
+        self.assertEqual({("t.go", 1), ("c.go", 1), ("f.go", 1), ("s1.go", 1), ("s2.go", 1),
+                          ("x_test.go", 4), ("t_windows.go", 5), ("k.go", 2)}, dnc_lines(rec))
+        # Below C each way is direct: no start needs a second interface call.
+        rec_c = by_id(records, f"go:m.C from {I_RUN}")
+        self.assertEqual((2, False), (rec_c["from"]["on_way"], rec_c["from"]["second_iface"]))
+        self.assertEqual({"K1.Run": (1, 1, 1), "K2.Run": (2, 2, 2)}, distances(rec_c, "K1.Run", "K2.Run"))
+
+    def test_empty_pool_and_its_rule(self):
+        funcs = starts_funcs()
+        funcs += [fn("Z", "s3.go", 5),  # in the file of a start, with a caller that no start reaches
+                  fn("Z2", "s3.go", 8),  # no caller
+                  fn("Z4", "s5.go", 5, calls=[call(6, 2, at("s5.go", 5))]),  # only a call of itself
+                  fn("Y", "y.go", calls=[call(2, 2, at("s3.go", 5)), call(3, 2, at("w.go"))]),
+                  fn("W", "w.go"),  # not in the file of a start
+                  fn("Z3", "s4.go", 5)]
+        by_id(funcs, "go:m.K4.Run")["calls"].append(call(2, 2, at("s4.go", 5)))  # a start reaches Z3
+        uses = {**BASE_USES, "Z": [use("y.go", 2, 2, at("y.go")), use("y.go", 3, 7, at("y.go"), call=False)]}
+        records, stats = make(funcs, [iface("I", "Run", STARTS)], uses)
+        self.assertEqual([f"go:m.Z from {I_RUN}"], [r["id"] for r in records if r["pool"] == "empty"])
+        rec = by_id(records, f"go:m.Z from {I_RUN}")
+        self.assertEqual(("from", [], [], 0, 0, False, [], False, []),
+                         (rec["form"], rec["functions"], rec["steps"], rec["required"], rec["depth"], rec["cycle"],
+                          rec["hops"], rec["partial_iface"], rec["decoys"]))
+        self.assertEqual((STARTS, 0, False),
+                         (rec["from"]["starts"], rec["from"]["on_way"], rec["from"]["second_iface"]))
+        self.assertEqual([{**at("s3.go", 5), "class": "dnc", "why": "decl"},
+                          {**at("y.go", 3, 7), "class": "dnc", "why": "use"}], rec["sites"])
+        self.assertEqual(1, stats["pools"]["empty"])
+
+    def test_from_pool_needs_own_starts_and_its_required_bounds(self):
+        starts = [at(f"s{i}.go") for i in range(1, 32)]
+        targets = {"T7": 7, "T8": 8, "T40": 40, "T41": 41}
+        k1_calls, line, first = [], 2, {}
+        for name, n in targets.items():
+            first[name] = line
+            for _ in range(n):
+                k1_calls.append(call(line, 2, at(f"{name.lower()}.go")))
+                line += 1
+        k1_calls.append(call(first["T40"], 20, at("t40.go")))  # T40: 41 calls on its 40 lines
+        k1_calls.sort(key=lambda c: (c["line"], c["col"]))
+        funcs = ([fn("K1.Run", "s1.go", calls=k1_calls)] + [fn(f"K{i}.Run", f"s{i}.go") for i in range(2, 32)]
+                 + [fn(name, f"{name.lower()}.go") for name in targets])
+        own_false = {"type": "go:m.K1x", "type_decl": at("s1.go", 40), "method": starts[0], "own": False}
+        no_method = {"type": "go:m.Holder", "type_decl": at("h.go"), "method": None, "own": False}
+        k6_promoted = {"type": "go:m.K6", "type_decl": at("s6.go", 30), "method": starts[5], "own": False}
+        ifaces = [iface("I", "Run", starts[:6], more=[own_false, no_method]),  # 6 starts, each own
+                  iface("J", "Run", starts[:5], "j.go", more=[k6_promoted]),  # 6 starts, K6.Run is no own method
+                  iface("L", "Run", starts[:5], "l.go"),  # 5 starts
+                  iface("M", "Run", starts[:30], "m.go"),  # 30 starts
+                  iface("N", "Run", starts[:31], "n.go")]  # 31 starts
+        records, stats = make(funcs, ifaces)
+        self.assertEqual(sorted(f"go:m.{t} from go:m.{i}.Run" for t in ("T8", "T40") for i in ("I", "M")),
+                         sorted(r["id"] for r in records if r["pool"] == "from"))
+        rec = by_id(records, f"go:m.T8 from {I_RUN}")
+        self.assertEqual((8, ["s1.go:1"], 1, starts[:6]),
+                         (rec["required"], decls(rec["functions"]), rec["from"]["on_way"], rec["from"]["starts"]))
+        self.assertEqual(0, stats["pools"]["empty"])
+
+
+class PoolTest(unittest.TestCase):
+    @staticmethod
+    def star(target, callers, iface_callers=0):
+        """The target and its callers; each caller calls the target, the last `iface_callers` through an interface."""
+        t = at(f"{target.lower()}.go")
+        out = [fn(target, t["file"])]
+        for i in range(callers):
+            kind = "iface" if i >= callers - iface_callers else "direct"
+            out.append(fn(f"{target}c{i}", f"{target.lower()}c{i}.go", calls=[call(2, 2, t, kind)]))
+        return out
+
+    @classmethod
+    def setUpClass(cls):
+        funcs = []
+        for name, n in (("K4", 4), ("K5", 5), ("K79", 79), ("K80", 80), ("L1", 201), ("L3", 201)):
+            funcs += cls.star(name, n)
+        funcs += cls.star("L2", 201, iface_callers=1)  # 201 functions, 200 on a plain way
+        funcs += cls.star("L4", 180)  # 180 + 22 functions, 200 on a plain way of 20 steps or fewer
+        prev = at("l4.go")
+        for i in range(1, 23):
+            funcs.append(fn(f"Chain{i}", f"chain{i}.go", calls=[call(2, 2, prev)]))
+            prev = at(f"chain{i}.go")
+        cls.funcs = funcs
+
+    def test_pool_bounds_extra_and_large(self):
+        records, stats = make(self.funcs, extra=[{"target": "go:m.K80"}, {"target": "go:m.K5"}], large=1)
+        pools = {r["id"]: r["pool"] for r in records}
+        self.assertEqual({"go:m.K5": "complete", "go:m.K79": "complete", "go:m.K80": "extra"},
+                         {k: v for k, v in pools.items() if k.startswith("go:m.K")})
+        self.assertEqual([5, 79, 80], [len(by_id(records, f"go:m.K{n}")["functions"]) for n in (5, 79, 80)])
+        expected = random.Random(1).sample(["go:m.L1", "go:m.L3"], 1)
+        self.assertEqual(expected, [k for k, v in pools.items() if v == "large"])
+        self.assertEqual([{"id": expected[0], "functions": 201, "plain": 201}], stats["large"])
+        self.assertEqual("complete", by_id(records, expected[0])["form"])
+        other = random.Random(7).sample(["go:m.L1", "go:m.L3"], 1)
+        self.assertEqual(other, [r["id"] for r in make(self.funcs, large=1, seed=7)[0] if r["pool"] == "large"])
+        # A record of an earlier pool is no candidate.
+        records = make(self.funcs, extra=[{"target": "go:m.L1"}], large=1)[0]
+        self.assertEqual(["go:m.L3"], [r["id"] for r in records if r["pool"] == "large"])
+        with self.assertRaises(tracekeys.TraceKeysError):
+            make(self.funcs, large=3)
+
+    def test_statistics_of_the_pools(self):
+        records, stats = make(self.funcs, extra=[{"target": "go:m.K80"}], large=2)
+        self.assertEqual(981, stats["functions"])
+        self.assertEqual({"direct": 972, "embedded": 0, "iface": 1}, stats["steps"])
+        # K4, K5 and Chain13..Chain21; Chain3..Chain12; Chain1, Chain2; K79; K80, L1, L2, L3, L4.
+        self.assertEqual({"1-9": 11, "10-19": 10, "20-39": 2, "40-79": 1, "80+": 5}, stats["sizes"])
+        counts = {p: sum(1 for r in records if r["pool"] == p) for p in tracekeys.POOLS}
+        self.assertEqual(counts, stats["pools"])
+        self.assertEqual({"complete": 19, "from": 0, "empty": 0, "extra": 1, "large": 2}, counts)  # K5, K79, Chain1..17
+        self.assertEqual(["go:m.L1", "go:m.L3"], sorted(e["id"] for e in stats["large"]))
+
+
+class ErrorTest(unittest.TestCase):
+    def test_errors(self):
+        funcs = base_funcs()
+        cases = {
+            "no record": (funcs, calls_of(funcs)[1:], []),  # T has no record in calls.jsonl
+            "one decl line": (funcs + [fn("T2", "t.go")], calls_of(funcs), []),
+            "callee": (funcs + [fn("Q", "q.go", calls=[call(2, 2, at("none.go"))])], calls_of(funcs), []),
+            "extra target": (funcs, calls_of(funcs), [{"target": "go:m.None"}]),
+            "extra from": (funcs, calls_of(funcs), [{"target": "go:m.T", "from": "go:m.None.Run"}]),
+        }
+        for name, (f, c, extra) in cases.items():
+            with self.subTest(name), self.assertRaises(tracekeys.TraceKeysError):
+                tracekeys.make_records(f, [], c, extra)
+
+
+class CommandTest(unittest.TestCase):
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir)
+        self.graph, self.calls, self.extra, self.out = (os.path.join(self.dir, n) for n in (
+            "graph.jsonl", "calls.jsonl", "extra.json", "trace.jsonl"))
+        self.funcs, self.ifaces = starts_funcs(), [iface("I", "Run", STARTS)]
+        write_jsonl(self.graph, self.funcs + self.ifaces)
+        write_jsonl(self.calls, calls_of(self.funcs, BASE_USES))
+
+    def test_load_graph_gives_the_functions_and_the_interfaces(self):
+        self.assertEqual((self.funcs, self.ifaces), tracekeys.load_graph(self.graph))
+
+    def test_cli_make_writes_records_sorted_by_id(self):
+        with open(self.extra, "w", encoding="utf-8") as f:
+            json.dump([{"target": "go:m.T", "from": I_RUN}, {"target": "go:m.U"}], f)
+        code, stdout, stderr = run_main(["make", "-graph", self.graph, "-calls", self.calls, "-out", self.out,
+                                         "-extra", self.extra])
+        self.assertEqual((0, ""), (code, stderr))
+        written = keys.load_keys(self.out)
+        ids = [r["id"] for r in written]
+        self.assertEqual(["go:m.A", "go:m.T", f"go:m.T from {I_RUN}", "go:m.U"], ids)
+        self.assertEqual(sorted(ids), ids)
+        expected, _ = make(self.funcs, self.ifaces, BASE_USES, [{"target": "go:m.T", "from": I_RUN},
+                                                                {"target": "go:m.U"}])
+        self.assertEqual(sorted(expected, key=lambda r: r["id"]), written)
+        self.assertIn("make: 17 functions, steps: direct 10, embedded 1, iface 2", stdout)
+        self.assertIn("functions on the way of the complete form: 1-9 ", stdout)
+        self.assertIn("records: complete 2, from 0, empty 0, extra 2, large 0", stdout)
+        self.assertIn("time: ", stdout)
+
+    def test_cli_reports_an_error_with_exit_code_2(self):
+        with open(self.extra, "w", encoding="utf-8") as f:
+            json.dump([{"target": "go:m.None"}], f)
+        code, _, stderr = run_main(["make", "-graph", self.graph, "-calls", self.calls, "-out", self.out,
+                                    "-extra", self.extra])
+        self.assertEqual(2, code)
+        self.assertIn("tracekeys: ", stderr)
+        self.assertIn("go:m.None", stderr)
+        self.assertFalse(os.path.exists(self.out))
+
+    def test_module_runs_as_a_command(self):
+        proc = subprocess.run([sys.executable, "-B", "-m", "keygen.tracekeys", "make", "-h"], cwd=BENCHDIR,
+                              capture_output=True, text=True, timeout=60)
+        self.assertEqual(0, proc.returncode, proc.stderr)
+        self.assertIn("-graph", proc.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()
