@@ -3,5 +3,5 @@
 {"id":"def-AutomaticPrefetchPlugin-lazy-getter","result":{"column":2,"enclosingScope":null,"file":"types.d.ts","kind":"CONSTRUCTOR","line":861,"name":"constructor","qualifiedName":"AutomaticPrefetchPlugin"}}
 {"id":"def-Compiler-new-require","result":{"column":2,"enclosingScope":null,"file":"lib/Compiler.js","kind":"CONSTRUCTOR","line":195,"name":"constructor","qualifiedName":"Compiler"}}
 {"id":"def-Dependency-jsdoc-require","result":{"column":7,"enclosingScope":null,"file":"lib/graph/Dependency.js","kind":"CLASS","line":208,"name":"Dependency","qualifiedName":"Dependency"}}
-{"id":"def-WeakTupleMap-import-type-path","result":{"column":1,"file":"lib/util/WeakTupleMap.js","kind":"FILE","line":1,"name":"WeakTupleMap.js","qualifiedName":null}}
+{"id":"def-WeakTupleMap-import-type-path","result":{"column":1,"enclosingScope":[],"file":"lib/util/WeakTupleMap.js","kind":"FILE","line":1,"name":"WeakTupleMap.js","qualifiedName":null}}
 {"id":"def-tap-into-tapable","result":{"column":2,"enclosingScope":null,"file":"node_modules/tapable/tapable.d.ts","kind":"METHOD","line":69,"name":"tap","qualifiedName":"Hook.tap"}}
