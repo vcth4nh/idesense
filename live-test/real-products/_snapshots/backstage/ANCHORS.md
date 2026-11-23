@@ -41,6 +41,9 @@ file is stale.
 | line:col | probe id | tool | identifier |
 |---|---|---|---|
 | 22:14 | hier-caller-escapeRegExp-d1 | call_hierarchy | `escapeRegExp` |
+| 22:14 | hier-caller-escapeRegExp-production-scope | call_hierarchy | `escapeRegExp` |
+| 22:14 | hier-caller-escapeRegExp-test-scope | call_hierarchy | `escapeRegExp` |
+| 22:14 | hier-caller-escapeRegExp-this-module-scope | call_hierarchy | `escapeRegExp` |
 | 22:14 | usage-escapeRegExp | find_usages | `escapeRegExp` |
 
 ## packages/backend-plugin-api/src/services/definitions/UrlReaderService.ts
@@ -165,6 +168,7 @@ file is stale.
 |---|---|---|
 | canary-find-class-GithubEventRouter | find_class | `{"query":"GithubEventRouter"}` |
 | explain-Config-ambiguous | explain_symbol | `{"symbol":"Config"}` |
+| explain-useApi-bysymbol | explain_symbol | `{"symbol":"useApi"}` |
 | find-class-Config | find_class | `{"pageSize":100,"query":"Config"}` |
 | find-class-CustomErrorBase-lang-typescript | find_class | `{"language":"typescript","query":"CustomErrorBase"}` |
 | find-class-EntityProvider | find_class | `{"query":"EntityProvider"}` |
@@ -182,6 +186,7 @@ file is stale.
 | find-file-zzqNoSuchFile.ts-no-match | find_file | `{"query":"zzqNoSuchFile.ts"}` |
 | find-symbol-GithubEventRouter.determineSubTopic-qualified | find_symbol | `{"query":"GithubEventRouter.determineSubTopic"}` |
 | find-symbol-determineSubTopic | find_symbol | `{"query":"determineSubTopic"}` |
+| find-symbol-useApi | find_symbol | `{"query":"useApi"}` |
 | find-symbol-zzqNoSuchSymbolXyz-no-match | find_symbol | `{"query":"zzqNoSuchSymbolXyz"}` |
 | hier-sub-EventRouter-byname | type_hierarchy | `{"className":"EventRouter","direction":"subtypes"}` |
 | search-text-GithubEventRouter | search_text | `{"query":"GithubEventRouter"}` |

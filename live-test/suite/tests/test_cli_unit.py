@@ -304,6 +304,29 @@ class RowSnapshotTest(unittest.TestCase):
                                           "/p", product=True))
 
 
+class NormalizeCompiledClassTest(unittest.TestCase):
+    CLASS_REF = {"column": 20, "enclosingScope": None,
+                 "file": "spring-core/build/libs/spring-javapoet-repack-0.10.0.jar!/org/springframework/javapoet/ClassName.class",
+                 "kind": "CLASS", "line": 7, "name": "ClassName",
+                 "qualifiedName": "org.springframework.javapoet.ClassName"}
+    WITHOUT_POSITION = {k: v for k, v in CLASS_REF.items() if k not in ("line", "column")}
+
+    def test_compiled_class_of_the_project_loses_line_and_column(self):
+        self.assertEqual(self.WITHOUT_POSITION, run.normalize(dict(self.CLASS_REF), "/p"))
+
+    def test_compiled_class_in_a_list_loses_line_and_column(self):
+        self.assertEqual({"definitions": [self.WITHOUT_POSITION]},
+                         run.normalize({"definitions": [dict(self.CLASS_REF)]}, "/p"))
+
+    def test_project_source_file_keeps_line_and_column(self):
+        ref = {"file": "src/A.java", "line": 3, "column": 5}
+        self.assertEqual(ref, run.normalize(dict(ref), "/p"))
+
+    def test_library_class_file_is_still_its_base_name_without_position(self):
+        ref = {"file": "/lib/x/Foo.class", "line": 3, "column": 5, "name": "Foo"}
+        self.assertEqual({"file": "Foo.class", "name": "Foo"}, run.normalize(ref, "/p"))
+
+
 def rows(*specs):
     return [dict(s, _stem=s["tool"]) for s in specs]
 

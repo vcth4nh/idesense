@@ -101,6 +101,36 @@ tree_pids() {  # $1 and its descendants, by the parent links of the process tabl
   for c in $(ps -o pid= --ppid "$1" 2>/dev/null || true); do tree_pids "$c"; done
 }
 
+# The IDE starts a child dbus-monitor on Linux (it watches the colour scheme). The child does not end with the
+# IDE: it runs on with a new parent. So each end of an IDE records its direct children with this name and their
+# start time (field 22 of /proc/<pid>/stat) before the signal, and ends them when the IDE is gone, if the name and
+# the start time are the same (else the pid is a new process: no signal). The IDE that still runs keeps its children.
+LEFTOVER=dbus-monitor
+stat_of() {  # $1 = pid; prints "<name> <start time>", or fails when the process is gone
+  local t head rest
+  t="$(cat "/proc/$1/stat" 2>/dev/null)" || return 1
+  head="${t%) *}"; rest="${t##*) }"
+  set -- "${head#*(}" $rest
+  [ "$#" -ge 21 ] || return 1
+  echo "$1 ${21}"
+}
+record_children() {  # $1 = pid of an IDE; prints "<pid> <start time>" of each direct child named $LEFTOVER
+  local c s
+  for c in $(ps -o pid= --ppid "$1" 2>/dev/null || true); do
+    s="$(stat_of "$c")" || continue
+    if [ "${s% *}" = "$LEFTOVER" ]; then echo "$c ${s#* }"; fi
+  done
+}
+recorded_child() {  # $1 = pid, $2 = start time of a record: the process still has the name and the start time
+  [ "$(stat_of "$1" 2>/dev/null)" = "$LEFTOVER $2" ]
+}
+end_recorded() {  # stdin: records of record_children; call it when the IDE is gone
+  local c s
+  while read -r c s; do
+    recorded_child "$c" "$s" && kill -TERM "$c" 2>/dev/null || true
+  done
+}
+
 # --- The options file and the check of the path options (for the file and for the java command line).
 path_lines() { local k; for k in "${KEYS[@]}"; do printf -- '-Didea.%s.path=%s\n' "$k" "${P[$k]}"; done; }
 added_lines() { path_lines; printf -- '-Xmx%s\n' "$BENCH_IDE_XMX"; }  # the heap line is last: the last -Xmx wins
@@ -149,6 +179,7 @@ if [ "$cmd" = stop ]; then
   [ -n "$pid" ] || { echo "no pid file $PIDF: nothing to stop"; exit 0; }
   if ! alive "$pid"; then rm -f "$PIDF"; echo "pid $pid does not run: pid file removed"; exit 0; fi
   ours_by_cmdline "$pid" || die "the command line of pid $pid does not name $IDE_DIR/: no signal sent (stale pid file?)"
+  children="$(record_children "$pid")"
   echo "SIGTERM to pid $pid"
   ours_by_cmdline "$pid" && kill -TERM "$pid" || true
   for _ in $(seq 1 60); do alive "$pid" || break; sleep 1; done
@@ -159,6 +190,7 @@ if [ "$cmd" = stop ]; then
   fi
   alive "$pid" && die "pid $pid still runs"
   rm -f "$PIDF"
+  end_recorded <<<"$children"
   echo "stopped pid $pid"
   exit 0
 fi
@@ -354,11 +386,18 @@ lpid=$!
 echo "launched pid $lpid: ${LAUNCH[*]}"
 
 end_launched() {  # $1 = the reason. SIGKILL at once to each process of the launched tree with the marks of this launch.
-  local p
+  local p ends="" children=""
   echo "bench-ide: $1" >&2
   for p in $(tree_pids "$lpid"); do
+    ours_by_launch "$p" && ends="$ends $p" || true
+  done
+  for p in $ends; do children="$children$(record_children "$p")"$'\n'; done
+  for p in $ends; do
     ours_by_launch "$p" && kill -KILL "$p" 2>/dev/null || true
   done
+  for p in $ends; do for _ in $(seq 1 10); do alive "$p" || break; sleep 1; done; done
+  for p in $ends; do alive "$p" && ends=""; done
+  [ -z "$ends" ] || end_recorded <<<"$children"
   echo "bench-ide: SIGKILL sent; see $LAUNCH_OUT" >&2
   exit 1
 }

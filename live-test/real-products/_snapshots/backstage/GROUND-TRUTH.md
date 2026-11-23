@@ -22,6 +22,32 @@ The window checks used WebStorm 2026.3 (WS-263.7307.202) with a window, on a cop
   Find Usages of `useApi` gives 317 function calls. The search tools and their windows show
   each file one time, with its real path ([notes.md](../../_setup/backstage/notes.md),
   "Workspace packages and their symbolic links").
+- **backstage: a scope of the call hierarchy in a project with no source root.**
+  `hier-caller-escapeRegExp-production-scope` gives no caller,
+  `hier-caller-escapeRegExp-test-scope` gives 34 nodes, and
+  `hier-caller-escapeRegExp-this-module-scope` gives the 38 nodes of
+  `hier-caller-escapeRegExp-d1`. The Call Hierarchy window of WebStorm 2026.3 shows the same:
+  only the root row with the scope "Production", 34 rows with "Tests" (the 38 without the two
+  `WinstonLogger.ts` rows and their two callback rows), and with "This Module" the same 38
+  rows as with "All". The rules of the IDE (bytecode, WS-263.7307.202):
+  - The production scope takes a file in a source root that is no test file
+    (`GlobalSearchScopesCore$ProductionScopeFilter.contains`,
+    `lib/intellij.platform.analysis.jar`). The project has no source root, so this scope has no
+    file.
+  - The test scope asks each `TestSourcesFilter`
+    (`GlobalSearchScopesCore$TestScopeFilter.contains`). `JsTestSourcesFilter` of the
+    JavaScript plugin needs no test source root (`JsTestFileUtilsKt.tryIsTestFile`,
+    `plugins/javascript-plugin/lib/modules/intellij.javascript.backend.jar`): a file is a test
+    file when `JSFile.isNamedAsTest()` is true, or when its cached data says that it can have
+    tests (`mayHaveTests()`). The name pattern of `JsTestFileInfo.isTestFileName` is
+    `\.(spec|test|cy)\.m?(js|ts)x?$`, so `escapeRegExp.test.ts` is in the test scope.
+  - The caller tree of the JavaScript plugin has branches for the scopes "This Class",
+    "Production" and "Test" (`JSCallerMethodsTreeStructure.buildChildren`). It has no branch
+    for "This Module".
+
+  The scopes `project_production_files` and `project_test_files` of the search tools follow
+  only the source roots, so they give `scope_matches_no_files` in this project (the first
+  entry of this list).
 - **backstage: a usage in a string has the mark `DYNAMIC`.** `usage-escapeRegExp` gives 20
   usages: 19, and the string of `describe('escapeRegExp', ...)` at
   `packages/backend-defaults/src/lib/escapeRegExp.test.ts:18:10` with `match` `DYNAMIC`.
@@ -101,3 +127,4 @@ Each of these rows shows an open defect (see "Parked rows" in `live-test/CONVENT
 | `find-file-module.ts.hbs`, `find-file-GithubEventRouter.ts-directory-part`, `find-file-plugin.ts-directory-part` | #271 | `module.ts.hbs`: 7 files, and Go to File lists the same 7 first, then more than 30 templates below `packages/cli-module-new/`. `router/GithubEventRouter.ts`: 0, and Go to File 2 (All Places). `src/plugin.ts`: 0, and Go to File many |
 | `usage-Config-bysymbol`, `explain-Config-ambiguous` | #269 | the name `Config`, which 83 declarations share, resolves to one declaration (33 usages) with no `candidates` |
 | `search-text-GithubEventRouter`, `search-text-GithubEventRouter-code`, `search-text-GithubEventRouter-strings` | #144 | 88, 83 and 7 matches. Find in Files gives "91 matches in 16 files" on the same 88 lines. The Find tool window lists 57 matches below "Usage in string constants": 7 lines of TypeScript files, and 50 lines of code fences in 10 Markdown files, which the tool gives the label `CODE`. So `context: "strings"` leaves the 50 lines out (Find in Files with "In String Literals": "57 matches in 15 files"), and `context: "code"` returns them (the window has 33 matches below "Unclassified"). `search-text-GithubEventRouter-comments` has 1 match, as Find in Files with "In Comments" ("1 match in 1 file") |
+| `find-symbol-useApi`, `explain-useApi-bysymbol` | #343 | Go to Symbol `useApi` shows 12 rows with the exact name, and the tool gives 11: the Jest suite `describe('useApi', ...)` of `packages/frontend-plugin-api/src/apis/system/useApi.test.tsx:47` is absent. The symbol anchor uses the same search: "Ambiguous symbol 'useApi': 11 matches" |

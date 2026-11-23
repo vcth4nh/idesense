@@ -167,15 +167,17 @@ limit 2 GB.
 - No row pins a position in a compiled class. The fleet configuration has no key
   `decompiler.legal.notice.accepted`, so the text of a `.class` file is the stub of
   `ClsFileImpl` ("compiled code"), not the decompiler output. The definition of `ClassName` in
-  the JavaPoet repack jar goes to line 7, column 20 of that stub. The jar is in the project
-  (`spring-core/build/libs/`), so the harness keeps the relative path with the line and the
-  column. The text, and so the line and the column, depend on the decompiler consent. A user
-  opens a `.class` file in an editor, and the IDE shows the legal notice of the decompiler. The
-  button "Accept" writes the key (`IdeaDecompiler$LegalBurden.beforeFileOpened`,
-  `java-decompiler.jar`). The key goes to the application `PropertiesComponent`, that is the
-  component `PropertyService` in `options/other.xml` of the configuration folder
-  (`AppPropertyService`, `intellij.platform.ide.impl.jar`). No tracked file controls that state.
-  So the row `def-ClassName-into-javapoet-repack` is held. `canary-usage-Objenesis-from-repack`
+  the JavaPoet repack jar goes to line 7, column 20 of that stub. The text, and so the line and
+  the column, depend on the decompiler consent. A user opens a `.class` file in an editor, and
+  the IDE shows the legal notice of the decompiler. The button "Accept" writes the key
+  (`IdeaDecompiler$LegalBurden.beforeFileOpened`, `java-decompiler.jar`). The key goes to the
+  application `PropertiesComponent`, that is the component `PropertyService` in
+  `options/other.xml` of the configuration folder (`AppPropertyService`,
+  `intellij.platform.ide.impl.jar`). No tracked file controls that state. The jar is in the
+  project (`spring-core/build/libs/`), so the harness keeps its relative path, and it drops the
+  line and the column of each result in a `.class` file ("Path normalization" in
+  `live-test/CONVENTIONS.md`). So the row `def-ClassName-into-javapoet-repack` compares the
+  file, the name, the kind and the qualified name. `canary-usage-Objenesis-from-repack` also
   covers the repack jars.
 - The canary rows and the sources of their targets:
   - `canary-def-Mono-into-reactor`: `Mono.java` of `reactor-core` 3.8.7 (sources jar).

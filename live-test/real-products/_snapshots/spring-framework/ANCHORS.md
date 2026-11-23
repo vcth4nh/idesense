@@ -134,6 +134,12 @@ file is stale.
 |---|---|---|---|
 | 76:27 | def-StringUtils.cleanPath-from-jmh | find_definition | `cleanPath` |
 
+## spring-core/src/main/java/org/springframework/aot/generate/GeneratedTypeReference.java
+
+| line:col | probe id | tool | identifier |
+|---|---|---|---|
+| 34:16 | def-ClassName-into-javapoet-repack | find_definition | `ClassName` |
+
 ## spring-core/src/main/java/org/springframework/core/ReactiveAdapterRegistry.java
 
 | line:col | probe id | tool | identifier |
