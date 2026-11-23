@@ -272,6 +272,11 @@ and toolchain versions by classifying every file ref (`_is_library`):
   signals a plugin regression. So a hit at
   `…/mise/installs/go/1.26.1/src/fmt/print.go:64` snapshots as just `print.go`
   with its `fmt.Stringer.String` qualifiedName.
+- **Compiled classes inside the project** — a `.class` entry of a jar that the
+  build of the project makes keeps its project-relative path. `line`/`column`
+  are dropped. They are a position in the text that the IDE makes for the
+  class, and that text depends on the IDE configuration: the stub text, or the
+  decompiled text after the user accepts the legal notice of the decompiler.
 
 Absoluteness is the signal because the plugin already emits project files
 relative and library files absolute. We key off the **project root** (which we

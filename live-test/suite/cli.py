@@ -74,12 +74,16 @@ def normalize(obj: Any, project_root: str, drop_fields: set[str] = DROP_FIELDS, 
     those. Library/SDK files are reduced to basename + symbol identity (name,
     qualifiedName, kind): their directory is machine-specific and their
     line/column track the IDE's decompiler, neither of which signals a plugin
-    regression. Noisy fields are dropped and known result arrays sorted.
+    regression. A compiled class (`.class`) of the project keeps its path but
+    loses line/column too: they are a position in the text that the IDE makes
+    for the class, and that text depends on the IDE configuration.
+    Noisy fields are dropped and known result arrays sorted.
     `drop_fields` and `sort_arrays` let a product row keep the pagination
     fields and the arrival order (see row_snapshot).
     """
     if isinstance(obj, dict):
         is_lib = isinstance(obj.get("file"), str) and _is_library(obj["file"], project_root)
+        no_position = is_lib or (isinstance(obj.get("file"), str) and obj["file"].endswith(".class"))
         out: dict[str, Any] = {}
         for k, v in obj.items():
             if k in drop_fields:
@@ -92,7 +96,7 @@ def normalize(obj: Any, project_root: str, drop_fields: set[str] = DROP_FIELDS, 
                 else:
                     out[k] = v
                 continue
-            if is_lib and k in ("line", "column"):
+            if no_position and k in ("line", "column"):
                 continue
             if k == "enclosingScope" and isinstance(v, list) and v and v[0] == "/":
                 # A FILE node's enclosing *directory*, as a path-segment array:
