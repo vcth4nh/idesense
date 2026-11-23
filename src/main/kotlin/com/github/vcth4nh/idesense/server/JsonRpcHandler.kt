@@ -16,6 +16,9 @@ import com.github.vcth4nh.idesense.tools.schema.ArgumentValidator
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 
@@ -239,6 +242,12 @@ class JsonRpcHandler @JvmOverloads constructor(
             // A timeout is also a cancellation. A timeout in a cancelled call left above; in an
             // active call it gets its own answer, so it comes before the cancellation branch.
             val serviceTimeout = McpErrors.serviceTimeoutIn(e)
+            if (serviceTimeout != null && !currentCoroutineContext().isActive) {
+                // A timeout inside an exception that is no cancellation, in a cancelled call: the
+                // path of the cancellation of the call.
+                recordCancelledCall(project, commandEntry, duration)
+                currentCoroutineContext().ensureActive()
+            }
             val indexMismatch = McpErrors.isIndexMismatch(e)
             if (serviceTimeout != null) {
                 // A time limit of a service of the IDE, not a plugin bug: no ERROR report, a

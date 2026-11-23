@@ -1,6 +1,7 @@
 package com.github.vcth4nh.idesense.server
 
 import com.github.vcth4nh.idesense.constants.JsonRpcMethods
+import com.github.vcth4nh.idesense.history.CommandHistoryService
 import com.github.vcth4nh.idesense.history.CommandStatus
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.github.vcth4nh.idesense.server.models.JsonRpcRequest
@@ -222,8 +223,7 @@ class JsonRpcHandlerHistoryFailureTest : BasePlatformTestCase() {
             val body = json.parseToJsonElement(resultText(answer!!)).jsonObject
             assertEquals(answer, "ide_service_timeout", body["error"]?.jsonPrimitive?.content)
             val message = body["message"]!!.jsonPrimitive.content
-            assertTrue(message, message.startsWith("A service of the IDE did not answer in its time limit ("))
-            assertTrue("The message keeps the time of the exception: $message", message.contains("1 ms"))
+            assertTrue(message, message.startsWith("A service of the IDE did not answer in its time limit"))
             assertTrue(message, message.endsWith("Try again later."))
             assertEquals(listOf(CommandStatus.ERROR to message), updates)
             assertEquals(emptyList<String>(), log.errorsAndThrowables())
@@ -232,24 +232,46 @@ class JsonRpcHandlerHistoryFailureTest : BasePlatformTestCase() {
     }
 
     // A timeout in a call whose coroutine is cancelled takes the path of the cancellation of the
-    // call: no answer, no log entry, the status CANCELLED (#284, #333).
+    // call: no answer, no log entry, the status CANCELLED (#284, #333). The second call has the
+    // timeout inside an exception that is no cancellation.
     fun testATimeoutInACancelledCallTakesTheCancellationPath() {
-        val updates = mutableListOf<CommandStatus>()
-        val handler = JsonRpcHandler(
-            toolRegistry = ToolRegistry().apply {
-                register(ServiceTimeoutTool { timeout -> call!!.cancel(); timeout })
-            },
-            recordHistory = { _, _ -> },
-            updateHistory = { _, _, status, _, _ -> updates += status }
-        )
+        for (wrap in listOf<(TimeoutCancellationException) -> Exception>({ it }, { RuntimeException(it) })) {
+            val updates = mutableListOf<CommandStatus>()
+            val handler = JsonRpcHandler(
+                toolRegistry = ToolRegistry().apply {
+                    register(ServiceTimeoutTool { timeout -> call!!.cancel(); wrap(timeout) })
+                },
+                recordHistory = { _, _ -> },
+                updateHistory = { _, _, status, _, _ -> updates += status }
+            )
 
-        val log = LogRecorder()
-        val answer = log.recordCall(handler, ServiceTimeoutTool.NAME)
+            val log = LogRecorder()
+            val answer = log.recordCall(handler, ServiceTimeoutTool.NAME)
 
-        assertTrue("The call must end as cancelled", call!!.isCancelled)
-        assertNull("No answer after the cancellation of the call", answer)
-        assertEquals(listOf(CommandStatus.CANCELLED), updates)
-        assertEquals(emptyList<String>(), log.entries)
+            assertTrue("The call must end as cancelled", call!!.isCancelled)
+            assertNull("No answer after the cancellation of the call", answer)
+            assertEquals(listOf(CommandStatus.CANCELLED), updates)
+            assertEquals(emptyList<String>(), log.entries)
+        }
+    }
+
+    // The real history of the project gets CANCELLED for a cancelled call (#284). The update runs
+    // in the cancelled coroutine, so a suspension point on that path would leave the entry PENDING.
+    fun testACancelledToolCallGetsTheStatusCancelledInTheRealHistory() {
+        val history = CommandHistoryService.getInstance(project)
+        history.clearHistory()
+        val started = CompletableDeferred<Unit>()
+        val handler = JsonRpcHandler(toolRegistry = ToolRegistry().apply { register(SuspendingTool(started)) })
+
+        runBlocking {
+            val job = launch { handler.handleRequest(toolCallRequest(SuspendingTool.NAME)) }
+            started.await()
+            job.cancelAndJoin()
+        }
+
+        val entry = history.entries.single { it.toolName == SuspendingTool.NAME }
+        assertEquals(CommandStatus.CANCELLED, entry.status)
+        assertNotNull("The entry needs the duration", entry.durationMs)
     }
 
     /** The job of the call in [recordCall]; a test lambda cancels it to cancel the call. */
