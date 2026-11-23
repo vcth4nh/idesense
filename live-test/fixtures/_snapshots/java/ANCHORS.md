@@ -135,6 +135,7 @@ fails when this file is stale.
 | — | diagnostics-Quirks-all | diagnostics | — |
 | — | diagnostics-Quirks-errors | diagnostics | — |
 | — | file-structure-Quirks | file_structure | — |
+| — | file-structure-Quirks-lambdas | file_structure | — |
 | — | file-structure-Quirks-visibility | file_structure | — |
 | 22:59 | def-Integer.parseInt-methodref | find_definition | `var coerce = (Function<String, Integer>) Integer::parseInt;` |
 | 23:16 | def-quirkVar-coerce | find_definition | `return coerce.apply(x);` |

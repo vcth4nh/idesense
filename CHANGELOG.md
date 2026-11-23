@@ -62,6 +62,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - `ide_find_file` builds its name matcher with `NameUtil.buildMatcher(pattern).build()`, not with the
   overload that takes `NameUtil.MatchingCaseSensitivity`. JetBrains scheduled that overload for
   removal from the build 262 on. The matcher is the same: it ignores case (#255).
+- `ide_file_structure` no longer shows the lambda nodes of a Java file or a PHP file when `show` is
+  omitted: the Structure tool window of the IDE hides them in its default state. To get them, pass
+  `lambdas` in `show` (for Java `["non_public", "fields", "lambdas"]` is the old default) (#341).
 
 ### Removed
 - The default server name and port for JetBrains Aqua (`aqua-idesense`, port 29180). JetBrains

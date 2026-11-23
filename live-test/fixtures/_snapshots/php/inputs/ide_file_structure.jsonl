@@ -5,3 +5,4 @@
 {"id":"file-structure-Php8","tool":"ide_file_structure","params":{"file":"src/Php8.php"}}
 {"id":"file-structure-Php8-constants","tool":"ide_file_structure","params":{"file":"src/Php8.php","show":["constants","properties"]}}
 {"id":"file-structure-Quirks","tool":"ide_file_structure","params":{"file":"src/Quirks.php"}}
+{"id":"file-structure-Quirks-lambdas","tool":"ide_file_structure","params":{"file":"src/Quirks.php","show":["constants","includes","lambdas","private_members","properties","protected_members"]}}
