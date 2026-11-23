@@ -471,14 +471,40 @@ abstract class AbstractMcpTool : McpTool {
 
     /**
      * Resolves a file path to a [VirtualFile].
-     * Uses refreshAndFindFileByPath to ensure externally created files are visible.
      * Supports workspace projects by trying module content roots when basePath resolution fails.
+     *
+     * With [refresh] (the default), a synchronous refresh first makes a file that was created
+     * outside the IDE visible. Use it only outside a read action: under a read lock the platform
+     * does no synchronous refresh, and it logs an error (#314). Inside a read action pass
+     * `refresh = false`: a file that the IDE does not know yet then gives null.
      *
      * @param project The project context
      * @param relativePath Path relative to project root, or absolute path
+     * @param refresh Whether to refresh the file system first
      * @return The VirtualFile, or null if not found
      */
-    protected fun resolveFile(project: Project, relativePath: String): VirtualFile? {
+    protected fun resolveFile(project: Project, relativePath: String, refresh: Boolean = true): VirtualFile? {
+        val fileSystem = LocalFileSystem.getInstance()
+        val find: (String) -> VirtualFile? = if (refresh) fileSystem::refreshAndFindFileByPath else fileSystem::findFileByPath
+        return projectPaths(project, relativePath).firstNotNullOfOrNull(find)
+    }
+
+    /**
+     * The error text for a file that the caller named and that a lookup with no refresh did not
+     * find (#314). The text names ide_sync_files only for a file of the project that is on the
+     * disk: a path of [projectPaths] where a regular file is. For another path, for example a
+     * folder, a path outside the project or a path that is not on the disk, a sync cannot help.
+     */
+    protected fun fileNotFoundMessage(project: Project, path: String): String =
+        if (projectPaths(project, path).any { File(it).isFile }) ErrorMessages.fileNotKnownYet(path)
+        else ErrorMessages.fileNotFound(path)
+
+    /**
+     * The canonical paths inside the project that [relativePath] can name, in the order that
+     * [resolveFile] tries them: an absolute path inside the project root or a module content root,
+     * else the path below the project root, then below each other module content root.
+     */
+    private fun projectPaths(project: Project, relativePath: String): Sequence<String> = sequence {
         // Absolute paths are validated against project roots before resolving
         if (relativePath.startsWith("/") || relativePath.startsWith("\\")) {
             val canonical = File(relativePath).canonicalPath
@@ -486,43 +512,36 @@ abstract class AbstractMcpTool : McpTool {
             val withinProject = projectRoots.any { root ->
                 canonical.startsWith(File(root).canonicalPath + File.separator)
             }
-            if (!withinProject) return null
-            return LocalFileSystem.getInstance().refreshAndFindFileByPath(canonical)
+            if (withinProject) yield(canonical)
+            return@sequence
         }
 
         // Try project basePath first
         val basePath = project.basePath
         if (basePath != null) {
             val canonical = File(basePath, relativePath).canonicalPath
-            if (canonical.startsWith(File(basePath).canonicalPath + File.separator)) {
-                val file = LocalFileSystem.getInstance().refreshAndFindFileByPath(canonical)
-                if (file != null) return file
-            }
+            if (canonical.startsWith(File(basePath).canonicalPath + File.separator)) yield(canonical)
         }
 
         // Try module content roots (workspace sub-project support)
         for (rootPath in ProjectUtils.getModuleContentRoots(project)) {
             if (rootPath != basePath) {
                 val canonical = File(rootPath, relativePath).canonicalPath
-                if (canonical.startsWith(File(rootPath).canonicalPath + File.separator)) {
-                    val file = LocalFileSystem.getInstance().refreshAndFindFileByPath(canonical)
-                    if (file != null) return file
-                }
+                if (canonical.startsWith(File(rootPath).canonicalPath + File.separator)) yield(canonical)
             }
         }
-
-        return null
     }
 
     /**
-     * Gets the PSI file for a given path.
+     * Gets the PSI file for a given path, with no refresh of the file system: call it inside a
+     * read action. A file that the IDE does not know yet gives null (see [resolveFile]).
      *
      * @param project The project context
      * @param relativePath Path relative to project root
      * @return The PsiFile, or null if not found
      */
     protected fun getPsiFile(project: Project, relativePath: String): PsiFile? {
-        val virtualFile = resolveFile(project, relativePath) ?: return null
+        val virtualFile = resolveFile(project, relativePath, refresh = false) ?: return null
         return PsiManager.getInstance(project).findFile(virtualFile)
     }
 

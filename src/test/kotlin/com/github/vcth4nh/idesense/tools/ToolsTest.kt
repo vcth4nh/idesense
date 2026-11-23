@@ -9,6 +9,7 @@ import com.github.vcth4nh.idesense.tools.navigation.FindImplementationsTool
 import com.github.vcth4nh.idesense.tools.navigation.FindSuperMethodsTool
 import com.github.vcth4nh.idesense.tools.navigation.FindUsagesTool
 import com.github.vcth4nh.idesense.tools.navigation.FindDefinitionTool
+import com.github.vcth4nh.idesense.tools.navigation.ReadFileTool
 import com.github.vcth4nh.idesense.tools.navigation.TypeHierarchyTool
 import com.github.vcth4nh.idesense.tools.project.GetIndexStatusTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
@@ -276,6 +277,27 @@ class ToolsTest : BasePlatformTestCase() {
         })
 
         assertTrue("Should error with invalid file", result.isError)
+    }
+
+    // A path that is not on the disk gives the plain text: ide_sync_files cannot help (#314).
+    // ide_diagnostics refreshes the file system before its lookup, so it always gives the plain text.
+    fun testFileNotFoundForAPathThatIsNotOnTheDiskIsThePlainText() = runBlocking {
+        val path = "nonexistent/Missing.java"
+        val file = buildJsonObject { put("file", path) }
+        val results = mapOf(
+            "ide_file_structure" to FileStructureTool().execute(project, file),
+            "ide_diagnostics" to GetDiagnosticsTool().execute(project, file),
+            "ide_read_file" to ReadFileTool().execute(project, file),
+            "ide_refactor_rename" to RenameSymbolTool().execute(project, buildJsonObject {
+                put("file", path)
+                put("newName", "Other.java")
+            }),
+        )
+
+        for ((tool, result) in results) {
+            assertTrue("$tool: ${errorText(result)}", result.isError)
+            assertEquals(tool, "File not found: $path", result.structuredContent?.get("message")?.jsonPrimitive?.content)
+        }
     }
 
     // FindSuperMethods Tool Tests

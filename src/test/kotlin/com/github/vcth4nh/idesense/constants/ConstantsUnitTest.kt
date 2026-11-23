@@ -148,6 +148,13 @@ class ConstantsUnitTest : TestCase() {
         assertTrue(ErrorMessages.DEFINITION_FILE_NOT_FOUND.contains("file"))
     }
 
+    // The text of index_not_ready tells the caller what to do: wait for the end of the indexing.
+    fun testIndexNotReadyTellsTheCallerToWaitAndCallAgain() = assertEquals(
+        "IDE is in dumb mode, indexes not available. Wait for the end of the indexing " +
+            "(ide_index_status shows isDumbMode: false), then call again.",
+        ErrorMessages.INDEX_NOT_READY,
+    )
+
     fun testErrorMessagesSymbolErrors() {
         assertTrue(ErrorMessages.SYMBOL_NOT_RESOLVED.contains("symbol"))
         assertTrue(ErrorMessages.NO_NAMED_ELEMENT.contains("element"))

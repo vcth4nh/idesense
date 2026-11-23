@@ -792,7 +792,8 @@ class RunTest(unittest.TestCase):
         self.assertEqual([], [c for c in server.calls if c["method"] == "tools/call"])
 
     def test_not_ready_error_is_counted_apart(self):
-        not_ready = ToolError({"error": "index_not_ready", "message": "IDE is in dumb mode, indexes not available"})
+        not_ready = ToolError({"error": "index_not_ready", "message": "IDE is in dumb mode, indexes not available. Wait for "
+                               "the end of the indexing (ide_index_status shows isDumbMode: false), then call again."})
 
         def answer(tool, args):
             if tool == "ide_find_usages":

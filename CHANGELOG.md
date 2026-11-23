@@ -31,6 +31,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   of the IDE's Find Usages window. Such a usage had another type before, in most cases
   `REFERENCE`: for example `Shape` in the PHP doc comment `/** @var Shape[] */`. A caller that
   filters on `REFERENCE` no longer gets these usages (#132).
+- The message of `index_not_ready` for a call that starts in dumb mode tells the caller what to do:
+  "IDE is in dumb mode, indexes not available. Wait for the end of the indexing (ide_index_status
+  shows isDumbMode: false), then call again." It had only the first sentence. The message of a
+  call that comes to its wait limit for the index does not change.
 - `ide_find_usages` and `ide_explain_symbol` include the usages of the base declarations of a Go,
   Java, JavaScript, Kotlin, PHP, Python, Rust or TypeScript member. The result is the union of the
   usages of the member and the usages of each declaration that it overrides or implements. A usage
@@ -326,9 +330,23 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - `ide_file_structure` passes a cancellation on when the read of the modifiers of a node is
   cancelled. Before, the walk went on with empty modifiers for that node.
 - The signature of a node of `ide_file_structure` is one line, as the name. Each run of white space
-  becomes one space, and the text is not cut. In WebStorm, the signature of a node of an OpenAPI
-  YAML file is the description of the node, which can have many lines. The outline had lines that
-  were no nodes (#335).
+  becomes one space. A signature that had a line break and is longer than 80 characters is cut and
+  ends with `…`, as a name; a signature with no line break stays complete. In WebStorm, the
+  signature of a node of an OpenAPI YAML file is the description of the node, which can have many
+  lines. The outline had lines that were no nodes (#335).
+- `ide_file_structure` returns `index_not_ready` in dumb mode, as the other tools that need the
+  index. It returned the outline that the structure view of the language gives in dumb mode, with
+  no error: in IntelliJ IDEA a Java outline with no types and no initializers, with the same lines
+  as the full outline. In RustRover the call failed with `internal_error` (#174).
+- `ide_file_structure` no longer starts a synchronous refresh of the file system inside its read
+  action. For a file that was on the disk but not yet known to the IDE, for example after a
+  `git pull`, the IDE logged the SEVERE entry "Do not perform a synchronous refresh under read
+  lock" and did not refresh, and the tool answered `File not found: <path>` with no hint.
+  `ide_type_hierarchy` with a position and `ide_refactor_rename` had the same refresh. These tools
+  now do no refresh there. For a file of the project that is on the disk and that the IDE does not
+  know yet, `ide_file_structure`, `ide_read_file` and `ide_refactor_rename` answer
+  `File not found: <path>. The file is on the disk, but the IDE does not know it yet: call
+  ide_sync_files, then call again.` Each other "File not found" answer does not change (#314).
 - `ide_find_usages` no longer returns an empty or partial list of usages, and `ide_explain_symbol`
   no longer returns a `usageCount` and `topUsages` that are too low, when the IDE enters dumb mode
   during the search. The result had the warning "Find-usages handler ... threw on

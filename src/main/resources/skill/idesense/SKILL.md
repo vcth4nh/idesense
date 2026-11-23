@@ -56,6 +56,8 @@ Most tools require smart mode (IDE finished indexing). Tools that work in dumb m
 
 If you created or modified files outside the IDE (via Write/Edit tools) and an IDE search tool returns incomplete/missing results, call `ide_sync_files` first, then retry.
 
+The error `File not found: <path>. The file is on the disk, but the IDE does not know it yet: call ide_sync_files, then call again.` comes for a file of the project that is on the disk and that the IDE does not know yet: call `ide_sync_files` with that path, then call the tool again.
+
 ```json
 { "paths": ["src/new_file.java", "src/modified_file.java"] }
 ```

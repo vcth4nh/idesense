@@ -107,13 +107,25 @@ repository, and an entry here.
   `plugins/javascript-plugin/lib/modules/intellij.javascript.structureView.jar`, WS-263.7307.202).
   The File Structure popup shows such a node with an icon and no text. A text tree has no icon, so
   the tool gives the node the name `{}` and keeps its children (#198) (`FileStructureTool.nodeName`).
-- **`ide_file_structure`: a name of one line, cut at 80 characters when it had a line break and
-  is longer.** For an element with no name, the JavaScript structure view gives the source text of
-  the element, also over several lines. The popup shows the node in one row and cuts the text at the
-  width of the popup. The tool puts one space in place of each run of white space in a name of each
-  language. It cuts only a name that had a line break and is longer than 80 characters, after 79
-  characters, and adds `…`. A name with no line break stays complete, so a long function signature
-  stays whole (#199) (`FileStructureTool.nodeName`).
+- **`ide_file_structure`: a name and a signature of one line, cut at 80 characters when they had a
+  line break and are longer.** For an element with no name, the JavaScript structure view gives the
+  source text of the element, also over several lines. The popup shows the node in one row and cuts
+  the text at the width of the popup. The tool puts one space in place of each run of white space in
+  a name of each language. It cuts only a name that had a line break and is longer than 80
+  characters, after 79 characters, and adds `…`. A name with no line break stays complete, so a long
+  function signature stays whole (#199) (`FileStructureTool.nodeName`). The signature, the location
+  text of the IDE, gets the same rule after the white space at its two ends goes away: in WebStorm
+  the location text of an OpenAPI node is its description, which can have many lines (#335)
+  (`FileStructureTool.nodeSignature`).
+- **`ide_file_structure` in dumb mode: `index_not_ready`.** The Structure window shows an outline in
+  dumb mode, but the text of a node can be reduced then. The Java structure view calls
+  `DumbService.isDumb` and leaves out the types and the initializers (`PsiMethodTreeElement`,
+  `JavaVariableBaseTreeElement`; `plugins/java/lib/java-impl.jar` of IC-251.26927.53,
+  `intellij.java.structureView.jar` of IU-262.8665.337). Such an outline has the same lines as the
+  full outline, so the caller cannot see that it is reduced. In RustRover the structure view throws
+  the platform `IndexNotReadyException` in dumb mode (seen in RustRover 2026.2, RR-262.8665.323; the
+  trace is in #174). The tool checks for dumb mode as the other tools that need the index (#174)
+  (`FileStructureTool.doExecute`).
 
 ## Project Structure
 

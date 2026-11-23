@@ -1633,8 +1633,9 @@ Get the hierarchical structure of a source file, similar to the IDE's Structure 
 **Response Notes:**
 - `structure` starts with the file name and an empty line. Each node is `<modifiers> <name> [<signature>] (line N)`, indented two spaces for each level.
 - A name is one line: each run of white space becomes one space. A name that had a line break (source text of several lines) and is longer than 80 characters is cut to 80 characters that end with `…`. A name with no line break stays complete, so a long signature stays whole. A JavaScript or TypeScript object literal that the IDE shows with no text, for example an object in an array, has the name `{}`.
-- A signature is also one line: each run of white space becomes one space, and the text is not cut.
+- A signature is also one line: the white space at its two ends goes away, and then the rule of a name applies. A signature that had a line break and is longer than 80 characters is cut to 80 characters that end with `…`. A signature with no line break stays complete.
 - A file with no structure returns plain text that starts with `File is empty or has no parseable structure.`, with no JSON.
+- In dumb mode the tool returns `index_not_ready`, as the other tools that need the index. The Structure view of the IDE shows a reduced outline in dumb mode, for example a Java outline with no types.
 
 ---
 
@@ -1676,6 +1677,8 @@ Common `error` codes:
 
 A missing file, a symbol that is not found and a rename conflict return `tool_error`. The `message` names the cause.
 
+A `file` that the IDE does not find gives the message `File not found: <path>`. `ide_file_structure`, `ide_read_file` and `ide_refactor_rename` do not refresh the file system for the `file`, so a file that was created outside the IDE is not found until `ide_sync_files` makes it known. For a file of the project that is on the disk and that the IDE does not know yet, these three tools give the message `File not found: <path>. The file is on the disk, but the IDE does not know it yet: call ide_sync_files, then call again.`
+
 ### Example Tool Error Response
 
 ```json
@@ -1687,12 +1690,12 @@ A missing file, a symbol that is not found and a rename conflict return `tool_er
     "content": [
       {
         "type": "text",
-        "text": "{\"error\":\"index_not_ready\",\"message\":\"IDE is in dumb mode, indexes not available\"}"
+        "text": "{\"error\":\"index_not_ready\",\"message\":\"IDE is in dumb mode, indexes not available. Wait for the end of the indexing (ide_index_status shows isDumbMode: false), then call again.\"}"
       }
     ],
     "structuredContent": {
       "error": "index_not_ready",
-      "message": "IDE is in dumb mode, indexes not available"
+      "message": "IDE is in dumb mode, indexes not available. Wait for the end of the indexing (ide_index_status shows isDumbMode: false), then call again."
     }
   }
 }

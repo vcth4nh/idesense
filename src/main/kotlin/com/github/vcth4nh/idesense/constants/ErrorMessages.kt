@@ -8,6 +8,10 @@ object ErrorMessages {
 
     // File errors
     fun fileNotFound(path: String) = "File not found: $path"
+    /** A file of the project that is on the disk and that the IDE does not know yet (#314). */
+    fun fileNotKnownYet(path: String) =
+        "File not found: $path. The file is on the disk, but the IDE does not know it yet: " +
+            "call ${ToolNames.SYNC_FILES}, then call again."
     const val DOCUMENT_NOT_FOUND = "Could not get document for file"
     const val DEFINITION_FILE_NOT_FOUND = "Definition file not found"
 
@@ -58,7 +62,8 @@ object ErrorMessages {
     const val MSG_MULTIPLE_PROJECTS = "Multiple projects are open. Please specify 'project_path' parameter with one of the available project paths. For workspace projects, use the sub-project path."
 
     // Index errors
-    const val INDEX_NOT_READY = "IDE is in dumb mode, indexes not available"
+    const val INDEX_NOT_READY = "IDE is in dumb mode, indexes not available. Wait for the end of the indexing " +
+        "(${ToolNames.INDEX_STATUS} shows isDumbMode: false), then call again."
 
     // Tool/method errors
     fun toolNotFound(name: String) = "Tool not found: $name"

@@ -271,7 +271,7 @@ class RenameSymbolTool : AbstractMcpTool() {
             ?: return RenameValidation(
                 element = DummyNamedElement,
                 oldName = "",
-                error = "File not found: $file"
+                error = fileNotFoundMessage(project, file)
             )
 
         val oldName = psiFile.name

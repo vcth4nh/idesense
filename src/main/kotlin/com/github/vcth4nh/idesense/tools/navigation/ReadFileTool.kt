@@ -84,6 +84,7 @@ class ReadFileTool : AbstractMcpTool() {
                     element.containingFile?.virtualFile
                 }
                 !filePath.isNullOrBlank() -> PsiUtils.resolveVirtualFileAnywhere(project, filePath)
+                    ?: return@suspendingReadAction createErrorResult(fileNotFoundMessage(project, filePath))
                 else -> null
             } ?: return@suspendingReadAction createErrorResult("File not found: ${filePath ?: qualifiedName}")
 
