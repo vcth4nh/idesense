@@ -54,17 +54,21 @@ class FileStructureToolTest : BasePlatformTestCase() {
     }
 
     private fun structureOfLambdaClass(show: List<String>?): String = runBlocking {
-        // The tool resolves the path on the disk below the project base path.
+        // Not addFileToProject: the tool resolves the path through the local file system, on the disk.
         val path = Files.createDirectories(Path.of(project.basePath!!)).resolve("Lam.java")
-        Files.writeString(path, "class Lam {\n    void run() {\n        Runnable r = () -> {};\n    }\n}\n")
-        LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)!!
-        val result = FileStructureTool().execute(project, buildJsonObject {
-            put("file", "Lam.java")
-            if (show != null) put("show", buildJsonArray { show.forEach { add(JsonPrimitive(it)) } })
-        })
-        val text = (result.content.first() as ContentBlock.Text).text
-        assertFalse("The call must succeed: $text", result.isError)
-        text
+        try {
+            Files.writeString(path, "class Lam {\n    void run() {\n        Runnable r = () -> {};\n    }\n}\n")
+            LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)!!
+            val result = FileStructureTool().execute(project, buildJsonObject {
+                put("file", "Lam.java")
+                if (show != null) put("show", buildJsonArray { show.forEach { add(JsonPrimitive(it)) } })
+            })
+            val text = (result.content.first() as ContentBlock.Text).text
+            assertFalse("The call must succeed: $text", result.isError)
+            text
+        } finally {
+            Files.deleteIfExists(path)
+        }
     }
 
     private class NavigatesTo(

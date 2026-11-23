@@ -36,8 +36,8 @@ import kotlinx.serialization.json.jsonPrimitive
  * Drives the IDE's own structure-view machinery (`LanguageStructureViewBuilder` →
  * `TreeModelWrapper` + `SmartTreeStructure`), so filters, node providers, and groupers
  * registered by each language plugin are honored. The optional `show` parameter selects
- * which named categories are visible; defaults are tuned for agent code-reading rather
- * than the IDE's human-skimming defaults.
+ * which named categories are visible. With no `show`, the set of `DEFAULTS` for the language
+ * applies; for lambdas that set follows the default state of the Structure tool window (#341).
  */
 class FileStructureTool : AbstractMcpTool() {
 
