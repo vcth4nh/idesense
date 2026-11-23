@@ -401,6 +401,16 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   no name for it, so this is a deviation on purpose (#278).
 - A file or a directory node (for example a caller that is a file) has `enclosingScope: []`. The list
   held the absolute directories of the file, from `/` down (#285).
+- The tools that take a `file`/`line`/`column` position (`ide_find_usages`, `ide_find_definition`,
+  `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_explain_symbol`,
+  `ide_type_hierarchy` and the rename of a symbol with `ide_refactor_rename`) tell a file that the IDE
+  does not find from a position with no element. For a file of the project that is on the disk and
+  that the IDE does not know yet, they answer `File not found: <path>. The file is on the disk, but
+  the IDE does not know it yet: call ide_sync_files, then call again.`, as `ide_file_structure` does.
+  For a path that is not on the disk they answer `File not found: <path>`. They answered "No element
+  found at position ...", "No element found at the specified position" or "No class found at the
+  specified file/line/column position." in each case, so the caller could not see that the file was
+  the problem. For a file that the IDE knows, the "no element" answers do not change (#354).
 
 ## [2.1.0] - 2026-11-09
 

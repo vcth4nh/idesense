@@ -111,8 +111,12 @@ class TypeHierarchyTool : AbstractMcpTool() {
                 }
             } else {
                 resolveTargetElement(project, arguments) ?: return@suspendingReadAction createErrorResult(
-                    if (file != null) "No class found at the specified file/line/column position."
-                    else "Provide either 'className' (e.g., 'com.example.MyClass') or 'file' + 'line' + 'column'."
+                    when {
+                        file == null -> "Provide either 'className' (e.g., 'com.example.MyClass') or 'file' + 'line' + 'column'."
+                        // The lookup of findPsiElement finds no file (#354).
+                        resolveFile(project, file, refresh = false) == null -> fileNotFoundMessage(project, file)
+                        else -> "No class found at the specified file/line/column position."
+                    }
                 )
             }
 

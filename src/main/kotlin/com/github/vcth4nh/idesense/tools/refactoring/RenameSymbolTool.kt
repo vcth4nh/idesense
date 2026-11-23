@@ -215,7 +215,9 @@ class RenameSymbolTool : AbstractMcpTool() {
             ?: return RenameValidation(
                 element = DummyNamedElement,
                 oldName = "",
-                error = "No element found at the specified position"
+                // The lookup of findPsiElement finds no file: the text of fileNotFoundMessage (#354).
+                error = if (resolveFile(project, file, refresh = false) == null) fileNotFoundMessage(project, file)
+                    else "No element found at the specified position"
             )
 
         val namedElement = findNamedElement(psiElement)

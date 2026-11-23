@@ -31,7 +31,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * (#314). The platform does no synchronous refresh under a read lock: it logs the error "Do not
  * perform a synchronous refresh under read lock" and does not refresh (`RefreshQueueImpl.execute`).
  * The error names ide_sync_files only for a file of the project that is on the disk and that the
- * IDE does not know yet; each other "File not found" error is the plain text.
+ * IDE does not know yet; each other "File not found" error is the plain text. The tools that take a
+ * position give these errors too when their lookup finds no file (#354).
  *
  * The light fixture has an in-memory file system for its source files, but the base path of its
  * project is a real folder, so this test writes the files there with `java.nio`. The calls run on
@@ -106,6 +107,102 @@ class FileStructureToolNewFileTest : BasePlatformTestCase() {
         } finally {
             Files.deleteIfExists(outside)
         }
+    }
+
+    // The tools that take a position give the same error when their lookup finds no file (#354).
+    // ide_find_definition stands for the six tools of resolveElementFromArguments: each of them uses
+    // the lookup that also finds a file of a library.
+    fun testPositionToolsGiveAnErrorThatNamesSyncFilesForAFileThatTheIdeDoesNotKnowYet() = withKnownFolder { dir ->
+        val added = dir.resolve("Added.java")
+        Files.writeString(added, "class Added {\n    int size() { return 0; }\n}\n")
+        val path = "${dir.fileName}/Added.java"
+
+        val errors = ConcurrentLinkedQueue<String>()
+        var results = emptyMap<String, ToolCallResult>()
+        LoggedErrorProcessor.executeWith<Throwable>(collectInto(errors)) {
+            results = positionToolResults(path, line = 1, column = 7)
+        }
+
+        assertEquals("Errors logged during the calls", emptyList<String>(), errors.toList())
+        val hint = "File not found: $path. The file is on the disk, but the IDE does not know it yet: " +
+            "call ide_sync_files, then call again."
+        assertEquals(results.keys.associateWith { hint }, results.mapValues { message(it.value) })
+        assertNull("A call refreshed the file system", LocalFileSystem.getInstance().findFileByNioFile(added))
+
+        // After ide_sync_files each tool finds the file: a position outside the text gives its
+        // "no element" text.
+        val sync = inRequest {
+            SyncFilesTool().execute(project, buildJsonObject { putJsonArray("paths") { add(path) } })
+        }
+        assertFalse("ide_sync_files failed: ${text(sync)}", sync.isError)
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        assertNoElementTexts(path)
+    }
+
+    fun testPositionToolsGiveThePlainTextForAPathThatIsNotOnTheDisk() {
+        val path = "nonexistent/Missing.java"
+        val results = positionToolResults(path, line = 1, column = 1)
+        assertEquals(results.keys.associateWith { "File not found: $path" }, results.mapValues { message(it.value) })
+        // A path into a library gets no sync hint.
+        for (library in listOf("jar:///nonexistent/lib.jar!/demo/Missing.class", "lib/missing.jar!/demo/Missing.class")) {
+            val result = inRequest { FindDefinitionTool().execute(project, positionArgs(library, line = 1, column = 1)) }
+            assertEquals(library, "File not found: $library", message(result))
+        }
+    }
+
+    // A file that the IDE knows, with no element at the position: the text of each tool does not change.
+    fun testPositionToolsKeepTheNoElementTextForAFileThatTheIdeKnows() = withKnownFolder { dir ->
+        assertNoElementTexts("${dir.fileName}/Known.java")
+    }
+
+    // The lookup of the six tools finds a file outside the project that the IDE knows, and then
+    // rejects it: it is no file of the project or of a library. The IDE knows the file, so the text
+    // stays the "no element" text.
+    fun testFileOutsideTheProjectThatTheIdeKnowsKeepsTheNoElementTextOfThePositionTools() {
+        val outside = Path.of(project.basePath!!).parent.resolve("outside-${System.nanoTime()}.java")
+        Files.writeString(outside, "class Outside {}\n")
+        val known = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(outside)!!
+        try {
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+            val path = outside.toString()
+            val result = inRequest { FindDefinitionTool().execute(project, positionArgs(path, line = 1, column = 7)) }
+            assertEquals("No element found at position $path:1:7", message(result))
+        } finally {
+            WriteAction.run<Throwable> { known.delete(this) }
+        }
+    }
+
+    /** The answers of ide_find_definition, of the rename at a position and of ide_type_hierarchy. */
+    private fun positionToolResults(path: String, line: Int, column: Int): Map<String, ToolCallResult> {
+        val args = positionArgs(path, line, column)
+        val renameArgs = buildJsonObject {
+            put("file", path)
+            put("line", line)
+            put("column", column)
+            put("newName", "Renamed")
+        }
+        return mapOf(
+            "ide_find_definition" to inRequest { FindDefinitionTool().execute(project, args) },
+            "ide_refactor_rename" to inRequest { RenameSymbolTool().execute(project, renameArgs) },
+            "ide_type_hierarchy" to inRequest { TypeHierarchyTool().execute(project, args) },
+        )
+    }
+
+    /** Asserts the "no element" text of each tool for [path] at a line after the end of the file. */
+    private fun assertNoElementTexts(path: String) {
+        val results = positionToolResults(path, line = 99, column = 1)
+        assertEquals("No element found at position $path:99:1", message(results.getValue("ide_find_definition")))
+        assertEquals("No element found at the specified position", message(results.getValue("ide_refactor_rename")))
+        assertEquals(
+            "No class found at the specified file/line/column position.",
+            message(results.getValue("ide_type_hierarchy")),
+        )
+    }
+
+    private fun positionArgs(path: String, line: Int, column: Int): JsonObject = buildJsonObject {
+        put("file", path)
+        put("line", line)
+        put("column", column)
     }
 
     /**
