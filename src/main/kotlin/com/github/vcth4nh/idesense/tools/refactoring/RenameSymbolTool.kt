@@ -1,5 +1,6 @@
 package com.github.vcth4nh.idesense.tools.refactoring
 
+import com.github.vcth4nh.idesense.exceptions.IndexNotReadyException
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
 import com.github.vcth4nh.idesense.tools.models.RefactoringResult
@@ -12,6 +13,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiNamedElement
+import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.refactoring.rename.RenameProcessor
 import com.intellij.refactoring.rename.RenamePsiElementProcessor
@@ -149,15 +151,28 @@ class RenameSymbolTool : AbstractMcpTool() {
         val affectedFiles = mutableSetOf<String>()
         var relatedRenamesCount = 0
         var errorMessage: String? = null
+        var renamed = true
+        var metDumbMode = false
 
-        edtAction {
+        smartEdtAction(project, RENAME_STOPPED_BY_DUMB_MODE) {
             try {
-                val result = executeRename(project, element, newName, overrideStrategy, relatedRenamingStrategy, affectedFiles)
-                changesCount = result.first
-                relatedRenamesCount = result.second
+                metDumbMode = metDumbModeDuring(project) {
+                    val result = executeRename(project, element, newName, overrideStrategy, relatedRenamingStrategy, affectedFiles)
+                    if (result == null) {
+                        renamed = false
+                    } else {
+                        changesCount = result.first
+                        relatedRenamesCount = result.second
+                    }
+                }
             } catch (e: Exception) {
                 errorMessage = e.message ?: "Unknown error during rename"
             }
+        }
+
+        if (errorMessage == null && !renamed) {
+            if (metDumbMode) throw IndexNotReadyException(RENAME_STOPPED_BY_DUMB_MODE)
+            return createErrorResult("Rename failed: the element still has its old name.")
         }
 
         // Commit and save outside EDT block — commitDocuments uses
@@ -276,7 +291,7 @@ class RenameSymbolTool : AbstractMcpTool() {
 
         val oldName = psiFile.name
 
-        if (oldName == newName) {
+        if (completeExtension(oldName, newName) == oldName) {
             return RenameValidation(
                 element = DummyNamedElement,
                 oldName = oldName,
@@ -346,7 +361,8 @@ class RenameSymbolTool : AbstractMcpTool() {
      * - Constructor parameter -> field coupling is pre-added because the platform only provides
      *   the inverse relation (field -> constructor parameters)
      *
-     * @return Pair of (affected files count, related elements renamed count)
+     * @return Pair of (affected files count, related elements renamed count), or null when the rename
+     *   target keeps its old name: the processor changed nothing
      */
     private fun executeRename(
         project: Project,
@@ -355,7 +371,7 @@ class RenameSymbolTool : AbstractMcpTool() {
         overrideStrategy: String,
         relatedRenamingStrategy: String,
         affectedFiles: MutableSet<String>
-    ): Pair<Int, Int> {
+    ): Pair<Int, Int>? {
         // Resolve the actual target element to rename based on override strategy.
         // For methods that override a base method, RenameJavaMethodProcessor's
         // substituteElementToRename() calls SuperMethodWarningUtil.checkSuperMethod()
@@ -364,6 +380,15 @@ class RenameSymbolTool : AbstractMcpTool() {
         // - "rename_only_current": use the element as-is (no dialog)
         // - "ask": delegate to substituteElementToRename (shows dialog)
         val targetElement = resolveRenameTarget(element, overrideStrategy)
+
+        // The primary element of the processor is the rename target. For a light element (for example
+        // the light method of a Kotlin base function) the check also reads its source element: the
+        // rename counts as done when one of the two no longer has its old name. The check reads each
+        // element again through a pointer: RenameProcessor.doRun changes nothing when its element is
+        // no longer valid.
+        val primaryNames = listOfNotNull(targetElement, targetElement.navigationElement as? PsiNamedElement)
+            .distinct()
+            .map { SmartPointerManager.createPointer(it) to it.name }
 
         // Compute the effective name for the rename target.
         //
@@ -407,6 +432,9 @@ class RenameSymbolTool : AbstractMcpTool() {
 
         // Execute the rename - this modifies files in place (primary + all related elements)
         renameProcessor.run()
+
+        // A processor that meets dumb mode returns with no change and no exception (#295).
+        if (primaryNames.all { (pointer, oldName) -> (pointer.element as? PsiNamedElement)?.name == oldName }) return null
 
         val relatedRenamesCount = renameProcessor.elements.count { it != targetElement }
         for (renamedElement in renameProcessor.elements) {
@@ -468,12 +496,13 @@ class RenameSymbolTool : AbstractMcpTool() {
 
         // No substitution — target remains a PsiFile. PsiFile.setName() expects full filename.
         // If the user omitted the extension, preserve the original file's extension.
-        val originalExt = element.name.substringAfterLast('.', "")
-        if (originalExt.isNotEmpty() && !newName.contains('.')) {
-            return "$newName.$originalExt"
-        }
+        return completeExtension(element.name, newName)
+    }
 
-        return newName
+    /** A new file name with no extension gets the extension of [fileName]. */
+    private fun completeExtension(fileName: String, newName: String): String {
+        val extension = fileName.substringAfterLast('.', "")
+        return if (extension.isNotEmpty() && !newName.contains('.')) "$newName.$extension" else newName
     }
 
     /**

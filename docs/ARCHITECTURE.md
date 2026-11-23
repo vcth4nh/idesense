@@ -642,6 +642,48 @@ Each entry gives the contract, the consequence for the code, and the class that 
   is `@ApiStatus.Internal` in IU-263.7307.200, and ideaIC-2025.1.3 has no such method. The
   analysis of `ide_diagnostics` does not use `suspendingReadAction` (`DiagnosticsAnalysisService`
   uses `ReadAction.compute`, the daemon and `CodeSmellDetector`), so it does not wait.
+- **A refactoring does nothing in dumb mode.** `BaseRefactoringProcessor.doRun` runs its search in
+  `ProgressManager.runProcessWithProgressSynchronously`; the search catches the platform
+  `IndexNotReadyException` and only sets a flag. After the search, when the flag is set or the IDE
+  is in dumb mode, `doRun` shows the dumb mode notification of the IDE and returns, with no change
+  and no exception (`DumbService.isDumb`, `app-client.jar` of ideaIC-2025.1.3;
+  `DumbService.isUsableInCurrentContext`, false in dumb mode for a class that is not `DumbAware`,
+  `intellij.platform.refactoring.jar` and `intellij.platform.core.jar` of IU-263.7307.200). A scan
+  of the files with no dumb mode does not stop it. `RenameProcessor.doRun` calls `prepareRenaming`
+  and then this `doRun`, and `MoveFilesOrDirectoriesProcessor` has no `doRun` (both builds). So the
+  dumb mode check at the start of `ide_refactor_rename` and `ide_move_file` is not enough (#295).
+  Their step on the UI thread goes through `AbstractMcpTool.smartEdtAction`, which starts the step
+  only when `DumbService.isDumb` is false on the UI thread. The dumb state changes in a write
+  action: on the UI thread in ideaIC-2025.1.3 (`DumbServiceImpl.incrementDumbCounter`), and in
+  `ThreadingSupport.runWriteActionWithCheckInWriteIntent` in IU-263.7307.200
+  (`DumbServiceImpl$incrementDumbCounterSuspending$3`, `intellij.platform.ide.impl.jar`). The step
+  runs on `Dispatchers.EDT`, and its dispatcher gives the step the write-intent lock, so the check
+  holds until the step starts. In ideaIC-2025.1.3, `EdtCoroutineDispatcher$Locking` runs the step in
+  `WriteIntentReadAction.run` when the system property `ide.coroutine.write.intent.lock` is true,
+  the default (`app-client.jar`, `util-8.jar`). In IU-263.7307.200,
+  `EdtCoroutineDispatcher$LockWrapping` calls `ApplicationEx.dispatchCoroutineOnEDT` with the lock
+  flag true (`ApplicationImpl`, `intellij.platform.ide.impl.jar`), and `NonBlockingFlushQueue` runs
+  the step in `ThreadingSupport.tryRunWriteIntentReadAction` (`intellij.platform.core.impl.jar`). In
+  dumb mode the function waits for the end, and the wait counts in the wait of the call
+  (`IndexAccess.waitedNanos`, 10 s in total). `DumbService.smartInvokeLater` was not used: it also
+  waits for a scan of the files (`SmartModeScheduler.getCurrentMode` reads the scanner, both
+  builds), and it has no limit. The step can meet dumb mode after its start: `doRun` first runs the
+  queued dumb mode tasks (`DumbService.completeJustSubmittedTasks`, both builds), and then the
+  search. So after the run each tool checks the result. The rename target (and its source element,
+  for a light element), read again through a smart pointer, no longer has its old name:
+  `RenameProcessor.doRun` returns with no change when its element is not valid (both builds). The
+  file left its folder, or the target folder has a new file of its name: not a folder, and not the
+  item that was there before the run. A failed check gives `index_not_ready` when the modification
+  count of `DumbService` changed during the step or the IDE is in dumb mode at its end, and
+  `tool_error` otherwise. The count goes up at each change of the dumb counter, in the write action
+  (`DumbServiceImpl$DumbState.nextCounterState`, ideaIC-2025.1.3;
+  `DumbServiceImpl$DumbStateImpl.nextCounterState`, IU-263.7307.200), so it also shows a dumb mode
+  that starts and ends inside the step. The count also holds the count of the file scanner
+  (`UnindexedFilesScannerExecutor`), so a scan during the step also gives `index_not_ready`: the
+  safe side. The event `DumbService.DUMB_MODE` is no proof: IU-263.7307.200 sends `enteredDumbMode`
+  through `Application.invokeLater` after the write action
+  (`DumbServiceImpl.incrementDumbCounterBlocking`,
+  `DumbServiceImpl$incrementDumbCounterSuspending$3`), so it comes after the end of the step.
 - **No exception may leave a search callback inside a stub index processor.** GoLand runs the
   callback of `DefinitionsScopedSearch` inside `StubIndexEx.processElements`, which takes an
   `IndexOutOfBoundsException` for index damage (`FileBasedIndexEx.extractCauseToRebuildIndex`) and

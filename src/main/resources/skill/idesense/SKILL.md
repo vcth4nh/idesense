@@ -50,7 +50,7 @@ index_not_ready  -> wait a few seconds and retry, also when isDumbMode is false 
 ide_service_timeout -> a service of the IDE did not answer in its time limit; call again later
 ```
 
-Most tools require smart mode (IDE finished indexing). Tools that work in dumb mode: `ide_index_status`, `ide_sync_files`. After its dumb mode check, a tool waits for the end of a dumb mode or of a scan of the files, and it returns `index_not_ready` when the wait comes to 10 seconds. The analysis of `ide_diagnostics` and the rename or move of `ide_refactor_rename` and `ide_move_file` do not wait. During each scan of the files `ide_index_status` shows `isDumbMode: false`, so a long scan can give `index_not_ready` while `isDumbMode` is `false`.
+Most tools require smart mode (IDE finished indexing). Tools that work in dumb mode: `ide_index_status`, `ide_sync_files`. After its dumb mode check, a tool waits for the end of a dumb mode or of a scan of the files, and it returns `index_not_ready` when the wait comes to 10 seconds. The analysis of `ide_diagnostics` does not wait. The rename or move of `ide_refactor_rename` and `ide_move_file` starts only after the end of a dumb mode (a scan of the files does not stop it), with the same limit, and the tool returns `index_not_ready` when the IDE enters dumb mode during the rename or move and the element keeps its old name or the file does not move. During each scan of the files `ide_index_status` shows `isDumbMode: false`, so a long scan can give `index_not_ready` while `isDumbMode` is `false`.
 
 ## File Sync Rule
 

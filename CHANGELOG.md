@@ -368,8 +368,21 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   must search again for its page in dumb mode, it gets `index_not_ready` at once, and it waits for a
   dumb mode or a scan that starts after that, with the same limit. Such a call gave the error
   "Search context invalidated due to file changes. Please re-search." or a short page before. The
-  analysis of `ide_diagnostics` and the rename or move of `ide_refactor_rename` and `ide_move_file`
-  do not wait; #295 tracks the refactorings (#267).
+  analysis of `ide_diagnostics` does not wait (#267).
+- `ide_refactor_rename` and `ide_move_file` no longer return `success: true` with a "Successfully
+  renamed" or "Successfully moved" message when the IDE enters dumb mode after the dumb mode check
+  of the tool. The refactoring of the IDE then shows its dumb mode notification and makes no change.
+  The rename or move now starts only after the end of a dumb mode (a scan of the files does not stop
+  it), within the wait of a call of 10 seconds in total. When the wait comes to its limit, or when
+  the IDE enters dumb mode during the rename or move and the element keeps its old name or the file
+  does not move, the call gets `index_not_ready` with the message "The IDE went into dumb mode
+  before the rename ran, and nothing changed. Wait for the end of the indexing (ide_index_status
+  shows isDumbMode: false), then call again." For `ide_move_file` the message starts with "The IDE
+  went into dumb mode before the move ran, and the file did not move." A rename or move with no
+  change and no dumb mode gets the `tool_error` "Rename failed: the element still has its old name."
+  or "Move failed: the file did not move." The rename of a file to its name with no extension, for
+  example of `notes.txt` to `notes`, gets the `tool_error` "New name is the same as the current
+  name", as the rename to `notes.txt` does (#295).
 - The SSE transport no longer logs a cancellation at ERROR when the channel of a session closes
   between the check and the send of an event. The cancellation now ends the sending coroutine with
   no log entry, as in the request handlers (#283).
