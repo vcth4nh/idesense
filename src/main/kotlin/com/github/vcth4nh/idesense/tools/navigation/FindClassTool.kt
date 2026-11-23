@@ -239,7 +239,7 @@ class FindClassTool : AbstractMcpTool() {
         return BuiltInSearchScopeResolver.resolveGlobalScope(project, scope)
     }
 
-    private fun convertToSymbolMatch(item: NavigationItem, project: Project, scope: GlobalSearchScope, languageFilter: String? = null): SymbolMatch? {
+    internal fun convertToSymbolMatch(item: NavigationItem, project: Project, scope: GlobalSearchScope, languageFilter: String? = null): SymbolMatch? {
         val element = extractPsiElement(item) ?: return null
         val targetElement = element.navigationElement ?: element
 
@@ -267,7 +267,7 @@ class FindClassTool : AbstractMcpTool() {
 
         val qualifiedName = QualifiedNameUtil.getQualifiedName(targetElement)
 
-        val line = getLineNumber(project, targetElement) ?: 1
+        val position = lineAndColumn(project, targetElement)
         val kind = determineKind(targetElement)
 
         return SymbolMatch(
@@ -275,8 +275,8 @@ class FindClassTool : AbstractMcpTool() {
             qualifiedName = qualifiedName,
             kind = kind,
             file = relativePath,
-            line = line,
-            column = getColumnNumber(project, targetElement) ?: 1,
+            line = position?.first,
+            column = position?.second,
         )
     }
 
@@ -295,17 +295,18 @@ class FindClassTool : AbstractMcpTool() {
     }
 
 
-    private fun getLineNumber(project: Project, element: PsiElement): Int? {
+    /**
+     * The 1-based line and column of [element], or null when it has no position. A compiled class
+     * has the text offset -1 when the IDE cannot match it to the decompiled text of its class file:
+     * `ClsElementImpl.getTextOffset` returns -1 for an element with no mirror (#316).
+     */
+    private fun lineAndColumn(project: Project, element: PsiElement): Pair<Int, Int>? {
         val psiFile = element.containingFile ?: return null
         val document = PsiDocumentManager.getInstance(project).getDocument(psiFile) ?: return null
-        return document.getLineNumber(element.textOffset) + 1
-    }
-
-    private fun getColumnNumber(project: Project, element: PsiElement): Int? {
-        val psiFile = element.containingFile ?: return null
-        val document = PsiDocumentManager.getInstance(project).getDocument(psiFile) ?: return null
-        val lineNumber = document.getLineNumber(element.textOffset)
-        return element.textOffset - document.getLineStartOffset(lineNumber) + 1
+        val offset = element.textOffset
+        if (offset < 0 || offset > document.textLength) return null
+        val lineIndex = document.getLineNumber(offset)
+        return lineIndex + 1 to offset - document.getLineStartOffset(lineIndex) + 1
     }
 
     private fun determineKind(element: PsiElement): String {
