@@ -123,8 +123,9 @@ repository, and an entry here.
   `JavaVariableBaseTreeElement`; `plugins/java/lib/java-impl.jar` of IC-251.26927.53,
   `intellij.java.structureView.jar` of IU-262.8665.337). Such an outline has the same lines as the
   full outline, so the caller cannot see that it is reduced. In RustRover the structure view throws
-  the platform `IndexNotReadyException` in dumb mode. The tool checks for dumb mode as the other
-  tools that need the index (#174) (`FileStructureTool.doExecute`).
+  the platform `IndexNotReadyException` in dumb mode (seen in RustRover 2026.2, RR-262.8665.323; the
+  trace is in #174). The tool checks for dumb mode as the other tools that need the index (#174)
+  (`FileStructureTool.doExecute`).
 
 ## Project Structure
 
