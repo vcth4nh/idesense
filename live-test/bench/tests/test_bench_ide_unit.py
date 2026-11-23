@@ -447,14 +447,17 @@ class StopTest(BenchIdeTestCase):
     def fake_ide(self, *extra):
         """A fake IDE with one child named dbus-monitor, one child of another name, and a free
         dbus-monitor that is no child of it. Returns the IDE, the three children and the free one."""
+        # A script with this file name: Linux names its process after the file, with no renamed system program.
         name = os.path.join(self.tmp, "dbus-monitor")
-        os.symlink("/bin/sleep", name)
+        write(name, "#!%s\nimport time\ntime.sleep(60)\n" % sys.executable, 0o755)
+        spare = os.path.join(self.tmp, "other-child")
+        write(spare, "#!%s\nimport time\ntime.sleep(60)\n" % sys.executable, 0o755)
         code = ("import subprocess, sys, time\n"
-                "a = subprocess.Popen([sys.argv[1], '60']); b = subprocess.Popen(['sleep', '60'])\n"
+                "a = subprocess.Popen([sys.argv[1]]); b = subprocess.Popen([sys.argv[2]])\n"
                 "print(a.pid, b.pid, flush=True); time.sleep(60)\n")
         mark = os.path.join(self.ide_dir, "system")
-        ide = subprocess.Popen([sys.executable, "-c", code, name, mark], stdout=subprocess.PIPE, text=True)
-        free = subprocess.Popen([name, "60"])
+        ide = subprocess.Popen([sys.executable, "-c", code, name, spare, mark], stdout=subprocess.PIPE, text=True)
+        free = subprocess.Popen([name])
         self.addCleanup(lambda: (free.poll() is None and free.kill(), free.wait()))
         mon, other = map(int, ide.stdout.readline().split())
         for pid in (mon, other):
@@ -476,6 +479,9 @@ class StopTest(BenchIdeTestCase):
 
     def test_stop_ends_the_dbus_monitor_child_of_the_ide_only(self):
         ide, mon, other, free = self.fake_ide()
+        for pid, comm in ((mon, "dbus-monitor"), (free.pid, "dbus-monitor"), (other, "other-child")):
+            with open("/proc/%d/comm" % pid) as f:
+                self.assertEqual(f.read().strip(), comm, "the setup of the test is wrong")
         r = self.run_script("stop", "goland")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(ide.wait(timeout=10), -15)
