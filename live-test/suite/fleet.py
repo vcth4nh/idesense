@@ -179,14 +179,15 @@ def _stat(pid: int) -> tuple[str, int, int] | None:
     """The process name, the parent PID and the start time of a process, or None when it is gone.
 
     The name can hold spaces and brackets, so the fields of /proc/<pid>/stat start after the last
-    ')'. The start time is field 22."""
+    ')'. The start time is field 22. A line of another form also gives None: this is a helper of a
+    cleanup, and an exception in `_stop` would leave the IDE stopped."""
     try:
         text = os.fsdecode(Path(f"/proc/{pid}/stat").read_bytes())
-    except OSError:
+        head, _, rest = text.rpartition(")")
+        fields = rest.split()
+        return head.partition("(")[2], int(fields[1]), int(fields[19])
+    except (OSError, ValueError, IndexError):
         return None
-    head, _, rest = text.rpartition(")")
-    fields = rest.split()
-    return head.partition("(")[2], int(fields[1]), int(fields[19])
 
 
 def _leftover_children(pid: int) -> list[tuple[int, int]]:

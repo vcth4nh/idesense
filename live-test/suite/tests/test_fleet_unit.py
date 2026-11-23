@@ -742,6 +742,12 @@ class StopLeftoverChildTest(unittest.TestCase):
     def test_ide_that_is_gone_has_no_child(self):
         self.assertEqual([], fleet._leftover_children(NO_PID))
 
+    def test_stat_line_of_another_form_is_no_process(self):
+        # A helper of the cleanup must not raise: an exception in `_stop` would leave the IDE stopped.
+        for line in (b"", b"1 (dbus-monitor) S", b"1 (dbus-monitor) S x" + b" 0" * 18):
+            with self.subTest(line=line), mock.patch.object(Path, "read_bytes", return_value=line):
+                self.assertIsNone(fleet._stat(os.getpid()))
+
 
 if __name__ == "__main__":
     unittest.main()
