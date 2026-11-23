@@ -20,7 +20,8 @@ data class CommandEntry(
 enum class CommandStatus {
     PENDING,
     SUCCESS,
-    ERROR
+    ERROR,
+    CANCELLED
 }
 
 data class CommandFilter(

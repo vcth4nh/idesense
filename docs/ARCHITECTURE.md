@@ -543,7 +543,8 @@ tool/method, disabled tool). `AbstractMcpTool.createErrorResult(message)` wraps 
 `index_out_of_sync` at WARN when `McpErrors.isIndexMismatch(e)`, else `internal_error` at ERROR.
 A cancellation (a `CancellationException` or a `ControlFlowException`) has two cases in the catch
 blocks of `JsonRpcHandler` (`cancellationInActiveCall`, #127). When the coroutine of the call is
-cancelled, the cancellation leaves the block with no log entry, no history update and no answer.
+cancelled, the cancellation leaves the block with no log entry and no answer. Before it leaves,
+the history entry of a tool call gets the status CANCELLED, except for a disposed project (#284).
 This occurs, for example, when the server stops. When the coroutine is still active, the client
 still waits. Then the block gives its usual answer and history update, and it logs one line with
 no throwable. Two examples extend `ProcessCanceledException`: `ServiceNotReadyException`, which

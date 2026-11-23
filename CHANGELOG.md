@@ -344,6 +344,12 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `ide_find_symbol`, give the kind `TYPE_ALIAS` to a Kotlin type alias, as for a Rust or a
   TypeScript type alias. It was `SYMBOL`. The `qualifiedName` of a Kotlin type alias does not
   change. Part of #278.
+- The command history gives the new status CANCELLED to a tool call that ends because its
+  coroutine is cancelled, for example when a change of the host or the port in the settings
+  starts the server again. The entry has the duration and the text "The call was cancelled
+  before it ended, for example because the server stopped." It kept the status PENDING, the same
+  as a call that still runs. The status filter of the IdeSense tool window has the new value
+  CANCELLED. A project that closes gets no update (#284).
 
 ## [2.1.0] - 2026-11-09
 

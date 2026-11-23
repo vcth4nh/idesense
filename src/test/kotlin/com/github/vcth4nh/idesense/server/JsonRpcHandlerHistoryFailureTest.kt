@@ -63,14 +63,21 @@ class JsonRpcHandlerHistoryFailureTest : BasePlatformTestCase() {
         assertEquals("ok", (result.content.single() as ContentBlock.Text).text)
     }
 
-    // A cancelled call leaves the handler as a cancellation: no log entry, no history update (#127).
-    fun testACancelledToolCallGetsNoLogAndNoHistoryUpdate() {
+    // A cancelled call leaves the handler as a cancellation with no log entry (#127). Its history
+    // entry gets the status CANCELLED, with a text and the duration (#284).
+    fun testACancelledToolCallGetsNoLogAndTheStatusCancelled() {
         val started = CompletableDeferred<Unit>()
         val updates = mutableListOf<CommandStatus>()
+        val texts = mutableListOf<String?>()
+        val durations = mutableListOf<Long?>()
         val handler = JsonRpcHandler(
             toolRegistry = ToolRegistry().apply { register(SuspendingTool(started)) },
             recordHistory = { _, _ -> },
-            updateHistory = { _, _, status, _, _ -> updates += status }
+            updateHistory = { _, _, status, result, duration ->
+                updates += status
+                texts += result
+                durations += duration
+            }
         )
 
         val log = LogRecorder()
@@ -84,7 +91,9 @@ class JsonRpcHandlerHistoryFailureTest : BasePlatformTestCase() {
         }
 
         assertTrue("The call must end as cancelled", job!!.isCancelled)
-        assertEquals("No history update after the cancellation", emptyList<CommandStatus>(), updates)
+        assertEquals(listOf(CommandStatus.CANCELLED), updates)
+        assertFalse("The entry needs a text: $texts", texts.single().isNullOrBlank())
+        assertNotNull("The entry needs the duration", durations.single())
         assertEquals(emptyList<String>(), log.entries)
     }
 

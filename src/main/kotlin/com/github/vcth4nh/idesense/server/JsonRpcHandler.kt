@@ -38,6 +38,9 @@ class JsonRpcHandler @JvmOverloads constructor(
 
     companion object {
         private val LOG = logger<JsonRpcHandler>()
+
+        /** The history text of a call whose coroutine is cancelled (#284). */
+        private const val CANCELLED_CALL_TEXT = "The call was cancelled before it ended, for example because the server stopped."
     }
 
     suspend fun handleRequest(jsonString: String): String? =
@@ -224,9 +227,15 @@ class JsonRpcHandler @JvmOverloads constructor(
 
             structuredToolError(request.id, McpErrors.fromException(e))
         } catch (e: Exception) {
-            // A cancelled call leaves here. A cancellation in an active call gets the usual answer (#127).
-            val cancellation = cancellationInActiveCall(e)
             val duration = System.currentTimeMillis() - startTime
+            // A cancelled call leaves here, and its history entry gets the status CANCELLED (#284).
+            // A cancellation in an active call gets the usual answer (#127).
+            val cancellation = try {
+                cancellationInActiveCall(e)
+            } catch (callCancellation: Throwable) {
+                recordCancelledCall(project, commandEntry, duration)
+                throw callCancellation
+            }
             val indexMismatch = McpErrors.isIndexMismatch(e)
             if (cancellation != null) {
                 LOG.warn("Tool '$toolName' was cancelled: $cancellation")
@@ -282,6 +291,21 @@ class JsonRpcHandler @JvmOverloads constructor(
             } else {
                 LOG.warn("Failed to update command history for ${commandEntry.toolName}", e)
             }
+        }
+    }
+
+    /**
+     * Sets the status CANCELLED on the history entry of a call whose coroutine is cancelled, for
+     * example because the server stops (#284). A disposed project gets no update, because its
+     * service container throws a cancellation (#127). The call leaves with no log entry, so a
+     * cancellation of the update gets no log entry either.
+     */
+    private suspend fun recordCancelledCall(project: Project, commandEntry: CommandEntry, duration: Long) {
+        if (project.isDisposed) return
+        try {
+            updateHistorySafely(project, commandEntry, CommandStatus.CANCELLED, CANCELLED_CALL_TEXT, duration)
+        } catch (_: Exception) {
+            // updateHistorySafely throws only a cancellation of the update, because the call is cancelled.
         }
     }
 
