@@ -344,6 +344,8 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `ide_find_symbol`, give the kind `TYPE_ALIAS` to a Kotlin type alias, as for a Rust or a
   TypeScript type alias. It was `SYMBOL`. The `qualifiedName` of a Kotlin type alias does not
   change. Part of #278.
+- A file or a directory node (for example a caller that is a file) has `enclosingScope: []`. The list
+  held the absolute directories of the file, from `/` down (#285).
 
 ## [2.1.0] - 2026-11-09
 

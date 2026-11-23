@@ -662,6 +662,13 @@ class ToolExecutionIntegrationTest : BasePlatformTestCase() {
         assertEquals("TYPE_ALIAS", alias!!.kind)
     }
 
+    fun testEnclosingScopeOfFileAndDirectoryIsEmpty() {
+        // #285: the walk must not go up the directories.
+        val file = myFixture.addFileToProject("a/b/Scope.txt", "x")
+        assertEquals(emptyList<String>(), com.github.vcth4nh.idesense.util.PsiUtils.getEnclosingScope(file))
+        assertEquals(emptyList<String>(), com.github.vcth4nh.idesense.util.PsiUtils.getEnclosingScope(file.parent!!))
+    }
+
     fun testReadFileToolValidation() = runBlocking {
         val tool = ReadFileTool()
 

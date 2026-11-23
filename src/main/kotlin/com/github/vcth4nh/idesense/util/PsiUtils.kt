@@ -371,11 +371,14 @@ object PsiUtils {
      * Returns the chain of named PSI ancestors enclosing [element], ordered from the
      * outermost (closest to file root) to the innermost (immediate named parent).
      * The [element] itself is never included, nor are anonymous (unnamed) nodes.
+     * A file or a directory has no enclosing scope: the walk would list the directories of
+     * the machine (#285).
      */
     fun getEnclosingScope(element: PsiElement): List<String> {
+        if (element is PsiFileSystemItem) return emptyList()
         val ancestors = mutableListOf<String>()
         var current: PsiElement? = element.parent
-        while (current != null && current !is PsiFile) {
+        while (current != null && current !is PsiFileSystemItem) {
             if (current is PsiNamedElement) {
                 val name = current.name
                 if (!name.isNullOrEmpty()) {
