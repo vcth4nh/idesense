@@ -350,6 +350,15 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   before it ended, for example because the server stopped." It kept the status PENDING, the same
   as a call that still runs. The status filter of the IdeSense tool window has the new value
   CANCELLED. A project that closes gets no update (#284).
+- A tool call that meets the time limit of a service of the IDE gives the new error
+  `ide_service_timeout`, with the text "A service of the IDE did not answer in its time limit
+  (<the text of the timeout>). The limit belongs to the IDE, not to this request. Try again
+  later." It gave `internal_error` with the text of a Kotlin coroutine timeout, for example when
+  the TypeScript service of WebStorm did not answer in 20 s after the IDE loaded a project. The
+  command history gets the status ERROR with the same text, and the log gets a warning and no
+  error. The SEVERE entry "Failed to process command ... - timed out" does not change: the
+  JavaScript plugin writes it, and the IDE names IdeSense as the plugin to blame because the call
+  of IdeSense is on the stack (#333).
 
 ## [2.1.0] - 2026-11-09
 

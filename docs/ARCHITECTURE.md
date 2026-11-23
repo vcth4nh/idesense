@@ -540,7 +540,9 @@ tool/method, disabled tool). `AbstractMcpTool.createErrorResult(message)` wraps 
 (`createStructuredErrorResult`'s formatting-failure fallback builds plain text inline).
 `processToolCall`'s catch is split: `catch (McpException)` → `McpErrors.fromException(e)` using
 `e.errorType`, logged at INFO (client-caused, e.g. dumb mode); `catch (Exception)` →
-`index_out_of_sync` at WARN when `McpErrors.isIndexMismatch(e)`, else `internal_error` at ERROR.
+`ide_service_timeout` at WARN when `McpErrors.serviceTimeoutIn(e)` finds a
+`TimeoutCancellationException` in an active call (#333), `index_out_of_sync` at WARN when
+`McpErrors.isIndexMismatch(e)`, else `internal_error` at ERROR.
 A cancellation (a `CancellationException` or a `ControlFlowException`) has two cases in the catch
 blocks of `JsonRpcHandler` (`cancellationInActiveCall`, #127). When the coroutine of the call is
 cancelled, the cancellation leaves the block with no log entry and no answer. Before it leaves,
@@ -570,7 +572,11 @@ tool throws) · `invalid_scope` (`McpErrors.invalidScope`, an unsupported `scope
 `scope_matches_no_files` (`McpErrors.scopeMatchesNoFiles`, see "Where a tool differs from the IDE
 on purpose") · `index_out_of_sync` (`McpErrors.indexOutOfSync`, for the platform failure "PSI and
 index do not match"; the platform calls `rebuildStub()` on the file before it throws (`FileTrees`,
-idea/262.8665.337), so a later call can succeed) · and `ProjectResolver`'s `no_project_open` /
+idea/262.8665.337), so a later call can succeed) · `ide_service_timeout`
+(`McpErrors.serviceTimeout`, for a `withTimeout` of a service of the IDE that ends inside the call:
+`CommandQueue.awaitAnswerCancellable` of the JavaScript plugin waits 20 s for the TypeScript
+service, `intellij.javascript.backend.jar` of WS-263.7307.202; the plugin has no time limit of its
+own for a call) · and `ProjectResolver`'s `no_project_open` /
 `project_not_found` / `multiple_projects_open`.
 
 ## Platform Contracts and Traps

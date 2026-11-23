@@ -3,6 +3,7 @@ package com.github.vcth4nh.idesense.server
 import com.github.vcth4nh.idesense.constants.ErrorMessages
 import com.github.vcth4nh.idesense.exceptions.McpException
 import com.github.vcth4nh.idesense.tools.schema.Violation
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
@@ -69,6 +70,22 @@ object McpErrors {
     )
 
     private const val INDEX_MISMATCH_TEXT = "PSI and index do not match"
+
+    /**
+     * The [TimeoutCancellationException] in [t] or in a cause, else null. A `withTimeout` of a
+     * service of the IDE throws it inside a call: `CommandQueue.awaitAnswerCancellable` of the
+     * JavaScript plugin when the TypeScript service does not answer in 20 s (#333). The plugin has
+     * no time limit of its own for a call.
+     */
+    fun serviceTimeoutIn(t: Throwable): TimeoutCancellationException? =
+        generateSequence(t) { it.cause }.take(10).filterIsInstance<TimeoutCancellationException>().firstOrNull()
+
+    /** Retryable body for [serviceTimeoutIn]: the limit of the IDE ends by itself. */
+    fun serviceTimeout(timeout: TimeoutCancellationException): JsonObject = generic(
+        "ide_service_timeout",
+        "A service of the IDE did not answer in its time limit (${timeout.message}). The limit belongs " +
+            "to the IDE, not to this request. Try again later."
+    )
 
     /** Aggregate body for argument-validation failures; the agent fixes everything in one retry. */
     fun invalidArguments(toolName: String, violations: List<Violation>): JsonObject = buildJsonObject {

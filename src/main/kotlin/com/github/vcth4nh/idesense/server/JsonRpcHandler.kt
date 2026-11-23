@@ -236,8 +236,15 @@ class JsonRpcHandler @JvmOverloads constructor(
                 recordCancelledCall(project, commandEntry, duration)
                 throw callCancellation
             }
+            // A timeout is also a cancellation. A timeout in a cancelled call left above; in an
+            // active call it gets its own answer, so it comes before the cancellation branch.
+            val serviceTimeout = McpErrors.serviceTimeoutIn(e)
             val indexMismatch = McpErrors.isIndexMismatch(e)
-            if (cancellation != null) {
+            if (serviceTimeout != null) {
+                // A time limit of a service of the IDE, not a plugin bug: no ERROR report, a
+                // retryable body instead (#333).
+                LOG.warn("Tool '$toolName' met the time limit of a service of the IDE: $serviceTimeout")
+            } else if (cancellation != null) {
                 LOG.warn("Tool '$toolName' was cancelled: $cancellation")
             } else if (indexMismatch) {
                 // A platform index state, not a plugin bug: no ERROR report, a retryable body instead.
@@ -246,19 +253,21 @@ class JsonRpcHandler @JvmOverloads constructor(
                 LOG.error("Tool execution failed: $toolName", e)
             }
 
+            val body = when {
+                serviceTimeout != null -> McpErrors.serviceTimeout(serviceTimeout)
+                indexMismatch -> McpErrors.indexOutOfSync()
+                else -> McpErrors.generic("internal_error", e.message ?: ErrorMessages.UNKNOWN_ERROR)
+            }
+
             updateHistorySafely(
                 project = project,
                 commandEntry = commandEntry,
                 status = CommandStatus.ERROR,
-                result = e.message,
+                result = if (serviceTimeout != null) body["message"]?.jsonPrimitive?.content else e.message,
                 duration = duration
             )
 
-            structuredToolError(
-                request.id,
-                if (indexMismatch) McpErrors.indexOutOfSync()
-                else McpErrors.generic("internal_error", e.message ?: ErrorMessages.UNKNOWN_ERROR)
-            )
+            structuredToolError(request.id, body)
         }
     }
 

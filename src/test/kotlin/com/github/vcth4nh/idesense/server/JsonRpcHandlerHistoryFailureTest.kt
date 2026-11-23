@@ -15,14 +15,19 @@ import com.intellij.serviceContainer.AlreadyDisposedException
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 class JsonRpcHandlerHistoryFailureTest : BasePlatformTestCase() {
@@ -198,18 +203,67 @@ class JsonRpcHandlerHistoryFailureTest : BasePlatformTestCase() {
         assertEquals(emptyList<String>(), log.entries)
     }
 
+    // A time limit of a service of the IDE ends inside an active call, as the withTimeout of the
+    // TypeScript service of WebStorm does: the error ide_service_timeout with a hint to call again,
+    // one warning and no error in the log, and the status ERROR with the same text (#333). The
+    // second call has the shape of the log of #333: a ProcessCanceledException around the timeout.
+    fun testATimeoutOfAServiceOfTheIdeGetsIdeServiceTimeout() {
+        for (wrap in listOf<(TimeoutCancellationException) -> Exception>({ it }, { ProcessCanceledException(it) })) {
+            val updates = mutableListOf<Pair<CommandStatus, String?>>()
+            val handler = JsonRpcHandler(
+                toolRegistry = ToolRegistry().apply { register(ServiceTimeoutTool(wrap)) },
+                recordHistory = { _, _ -> },
+                updateHistory = { _, _, status, result, _ -> updates += status to result }
+            )
+
+            val log = LogRecorder()
+            val answer = log.recordCall(handler, ServiceTimeoutTool.NAME)
+
+            val body = json.parseToJsonElement(resultText(answer!!)).jsonObject
+            assertEquals(answer, "ide_service_timeout", body["error"]?.jsonPrimitive?.content)
+            val message = body["message"]!!.jsonPrimitive.content
+            assertTrue(message, message.startsWith("A service of the IDE did not answer in its time limit ("))
+            assertTrue("The message keeps the time of the exception: $message", message.contains("1 ms"))
+            assertTrue(message, message.endsWith("Try again later."))
+            assertEquals(listOf(CommandStatus.ERROR to message), updates)
+            assertEquals(emptyList<String>(), log.errorsAndThrowables())
+            assertTrue("One warning with the tool name: ${log.entries}", log.entries.single().contains(ServiceTimeoutTool.NAME))
+        }
+    }
+
+    // A timeout in a call whose coroutine is cancelled takes the path of the cancellation of the
+    // call: no answer, no log entry, the status CANCELLED (#284, #333).
+    fun testATimeoutInACancelledCallTakesTheCancellationPath() {
+        val updates = mutableListOf<CommandStatus>()
+        val handler = JsonRpcHandler(
+            toolRegistry = ToolRegistry().apply {
+                register(ServiceTimeoutTool { timeout -> call!!.cancel(); timeout })
+            },
+            recordHistory = { _, _ -> },
+            updateHistory = { _, _, status, _, _ -> updates += status }
+        )
+
+        val log = LogRecorder()
+        val answer = log.recordCall(handler, ServiceTimeoutTool.NAME)
+
+        assertTrue("The call must end as cancelled", call!!.isCancelled)
+        assertNull("No answer after the cancellation of the call", answer)
+        assertEquals(listOf(CommandStatus.CANCELLED), updates)
+        assertEquals(emptyList<String>(), log.entries)
+    }
+
     /** The job of the call in [recordCall]; a test lambda cancels it to cancel the call. */
     private var call: Job? = null
 
     /**
-     * Runs a call of [TestTool] as the job [call] in [LogRecorder.record]. Gives the answer, or
-     * null when the call ends with no answer.
+     * Runs a call of the tool [toolName] as the job [call] in [LogRecorder.record]. Gives the
+     * answer, or null when the call ends with no answer.
      */
-    private fun LogRecorder.recordCall(handler: JsonRpcHandler): String? {
+    private fun LogRecorder.recordCall(handler: JsonRpcHandler, toolName: String = TestTool.NAME): String? {
         var answer: String? = null
         record {
             runBlocking {
-                call = launch { answer = handler.handleRequest(toolCallRequest(TestTool.NAME)) }
+                call = launch { answer = handler.handleRequest(toolCallRequest(toolName)) }
                 call!!.join()
             }
         }
@@ -291,6 +345,32 @@ class JsonRpcHandlerHistoryFailureTest : BasePlatformTestCase() {
 
         companion object {
             const val NAME = "ide_test_cancelled_call"
+        }
+    }
+
+    /**
+     * A tool whose `withTimeout` ends inside the call, as `CommandQueue.awaitAnswerCancellable` of
+     * the JavaScript plugin does. It throws what [wrap] makes of the timeout.
+     */
+    private class ServiceTimeoutTool(private val wrap: (TimeoutCancellationException) -> Exception) : McpTool {
+        override val name: String = NAME
+        override val description: String = "Test tool whose wait for a service ends at a time limit"
+        override val inputSchema: JsonObject = buildJsonObject {
+            put("type", "object")
+        }
+
+        override suspend fun execute(
+            project: com.intellij.openapi.project.Project,
+            arguments: JsonObject
+        ): ToolCallResult = try {
+            withTimeout(1) { delay(10_000) }
+            error("The time limit must end the wait")
+        } catch (timeout: TimeoutCancellationException) {
+            throw wrap(timeout)
+        }
+
+        companion object {
+            const val NAME = "ide_test_service_timeout"
         }
     }
 }
