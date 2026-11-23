@@ -13,6 +13,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiNamedElement
+import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.refactoring.rename.RenameProcessor
 import com.intellij.refactoring.rename.RenamePsiElementProcessor
@@ -171,7 +172,7 @@ class RenameSymbolTool : AbstractMcpTool() {
 
         if (errorMessage == null && !renamed) {
             if (metDumbMode) throw IndexNotReadyException(RENAME_STOPPED_BY_DUMB_MODE)
-            return createErrorResult("Rename failed: $NOTHING_CHANGED")
+            return createErrorResult("Rename failed: the element still has its old name.")
         }
 
         // Commit and save outside EDT block — commitDocuments uses
@@ -290,7 +291,7 @@ class RenameSymbolTool : AbstractMcpTool() {
 
         val oldName = psiFile.name
 
-        if (oldName == newName) {
+        if (completeExtension(oldName, newName) == oldName) {
             return RenameValidation(
                 element = DummyNamedElement,
                 oldName = oldName,
@@ -380,6 +381,15 @@ class RenameSymbolTool : AbstractMcpTool() {
         // - "ask": delegate to substituteElementToRename (shows dialog)
         val targetElement = resolveRenameTarget(element, overrideStrategy)
 
+        // The primary element of the processor is the rename target. For a light element (for example
+        // the light method of a Kotlin base function) the check also reads its source element: the
+        // rename counts as done when one of the two no longer has its old name. The check reads each
+        // element again through a pointer: RenameProcessor.doRun changes nothing when its element is
+        // no longer valid.
+        val primaryNames = listOfNotNull(targetElement, targetElement.navigationElement as? PsiNamedElement)
+            .distinct()
+            .map { SmartPointerManager.createPointer(it) to it.name }
+
         // Compute the effective name for the rename target.
         //
         // When a PsiFile is substituted to a non-PsiFile (e.g., Android resource element),
@@ -420,18 +430,11 @@ class RenameSymbolTool : AbstractMcpTool() {
         // Disable preview dialog for headless operation
         renameProcessor.setPreviewUsages(false)
 
-        // The primary element of the processor is the rename target. For a light element (for example
-        // the light method of a Kotlin base function) the check also reads its source element: the
-        // rename counts as done when one of the two no longer has its old name.
-        val primaryNames = listOfNotNull(targetElement, targetElement.navigationElement as? PsiNamedElement)
-            .distinct()
-            .map { it to it.name }
-
         // Execute the rename - this modifies files in place (primary + all related elements)
         renameProcessor.run()
 
         // A processor that meets dumb mode returns with no change and no exception (#295).
-        if (primaryNames.all { (primary, oldName) -> primary.isValid && primary.name == oldName }) return null
+        if (primaryNames.all { (pointer, oldName) -> (pointer.element as? PsiNamedElement)?.name == oldName }) return null
 
         val relatedRenamesCount = renameProcessor.elements.count { it != targetElement }
         for (renamedElement in renameProcessor.elements) {
@@ -493,12 +496,13 @@ class RenameSymbolTool : AbstractMcpTool() {
 
         // No substitution — target remains a PsiFile. PsiFile.setName() expects full filename.
         // If the user omitted the extension, preserve the original file's extension.
-        val originalExt = element.name.substringAfterLast('.', "")
-        if (originalExt.isNotEmpty() && !newName.contains('.')) {
-            return "$newName.$originalExt"
-        }
+        return completeExtension(element.name, newName)
+    }
 
-        return newName
+    /** A new file name with no extension gets the extension of [fileName]. */
+    private fun completeExtension(fileName: String, newName: String): String {
+        val extension = fileName.substringAfterLast('.', "")
+        return if (extension.isNotEmpty() && !newName.contains('.')) "$newName.$extension" else newName
     }
 
     /**

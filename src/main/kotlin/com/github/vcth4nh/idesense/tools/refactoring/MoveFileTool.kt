@@ -244,6 +244,7 @@ open class MoveFileTool : AbstractRefactoringTool() {
 
                 val filePointer = SmartPointerManager.createPointer(preparation.psiFile)
                 val sourceFolder = preparation.psiFile.virtualFile?.parent
+                val entryBeforeMove = preparation.targetDirectory.virtualFile.findChild(fileName)
                 val modifiedFilesBeforeMove = collectUnsavedProjectFiles(project)
 
                 metDumbMode = metDumbModeDuring(project) {
@@ -255,9 +256,10 @@ open class MoveFileTool : AbstractRefactoringTool() {
 
                 // A processor that meets dumb mode returns with no change and no exception (#295).
                 // The move is done when the file left its folder, or when the target folder has a
-                // file of its name.
+                // new file of its name.
+                val entryAfterMove = preparation.targetDirectory.virtualFile.findChild(fileName)
                 moved = filePointer.element?.virtualFile?.parent != sourceFolder ||
-                    preparation.targetDirectory.virtualFile.findChild(fileName) != null
+                    (entryAfterMove != null && !entryAfterMove.isDirectory && entryAfterMove != entryBeforeMove)
                 if (!moved) return@smartEdtAction
 
                 if (preparation.backend == MoveBackend.PHP_SEMANTIC_MOVE) {
@@ -276,7 +278,7 @@ open class MoveFileTool : AbstractRefactoringTool() {
 
         if (!moved) {
             if (metDumbMode) throw IndexNotReadyException(MOVE_STOPPED_BY_DUMB_MODE)
-            return createErrorResult("Move failed: $NOTHING_CHANGED")
+            return createErrorResult("Move failed: the file did not move.")
         }
 
         return if (success) {

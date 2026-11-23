@@ -22,6 +22,7 @@ import com.intellij.testFramework.PlatformTestUtil
 import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.usageView.UsageInfo
+import com.intellij.util.FileContentUtilCore
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicBoolean
@@ -39,7 +40,7 @@ import kotlinx.serialization.json.put
  * that meets dumb mode makes no change and throws nothing (`BaseRefactoringProcessor.doRun`).
  *
  * A tool runs on a pooled thread, as in a request, and its step on the EDT goes through the event
- * queue. The tests start dumb mode inside that step, after the dumb mode check of the tool and
+ * queue. Most tests start dumb mode inside that step, after the dumb mode check of the tool and
  * before the processor runs: a rename through an [AutomaticRenamerFactory] that the tool asks for
  * its option name, a move through [MoveFileTool.executeGenericFileMove].
  */
@@ -110,13 +111,25 @@ class RefactoringDumbModeTest : BasePlatformTestCase() {
         assertIndexNotReady(RENAME_TEXT, outcome)
     }
 
-    // A file name with no extension gets the extension of the file: the rename to the same name
-    // changes nothing, with no dumb mode. The cause is not dumb mode, so the answer is no index_not_ready.
-    fun testRenameThatChangesNothingWithNoDumbModeGivesAnErrorThatIsNotIndexNotReady() {
+    // A file name with no extension gets the extension of the file: "notes" is the name "notes.txt".
+    fun testRenameOfAFileToItsNameWithNoExtensionGivesTheSameNameError() {
         val outcome = callInRequest { RenameSymbolTool().execute(project, renameNotesArgs("notes")) }
 
         val result = outcome.getOrThrow()
         assertTrue("The file keeps its name", Files.exists(root.resolve(NOTES)))
+        assertTrue("Expected an error, got ${text(result)}", result.isError)
+        assertToolError(SAME_NAME, result)
+    }
+
+    // RenameProcessor.doRun returns with no change when its element is not valid. The tool reads the
+    // element again through its pointer: the element keeps its old name. No dumb mode, so no index_not_ready.
+    fun testRenameGivesAnErrorWhenTheProcessorChangesNothingWithNoDumbMode() {
+        atTheRenameStep { FileContentUtilCore.reparseFiles(holderFile()) }
+
+        val outcome = callInRequest { RenameSymbolTool().execute(project, renameCountArgs()) }
+
+        assertEquals("The file did not change", HOLDER_TEXT, Files.readString(root.resolve(HOLDER)))
+        val result = outcome.getOrThrow()
         assertTrue("Expected an error, got ${text(result)}", result.isError)
         assertToolError(RENAME_NO_CHANGE, result)
     }
@@ -151,6 +164,29 @@ class RefactoringDumbModeTest : BasePlatformTestCase() {
         assertIndexNotReady(MOVE_TEXT, outcome)
     }
 
+    // Dumb mode starts and ends inside the step: the IDE is in smart mode at the end of the move.
+    fun testMoveGivesIndexNotReadyWhenDumbModeStartsAndEndsInsideTheStep() {
+        var dumbAtTheEnd: Boolean? = null
+        val tool = object : MoveFileTool() {
+            override fun executeGenericFileMove(preparation: MovePreparation) {
+                val token = DumbModeTestUtils.startEternalDumbModeTask(project)
+                try {
+                    super.executeGenericFileMove(preparation)
+                } finally {
+                    DumbModeTestUtils.endEternalDumbModeTaskAndWaitForSmartMode(project, token)
+                }
+                dumbAtTheEnd = DumbService.isDumb(project)
+            }
+        }
+
+        val outcome = callInRequest { tool.execute(project, moveNotesArgs()) }
+
+        assertEquals("Smart mode at the end of the move", false, dumbAtTheEnd)
+        assertTrue("The file stays in its folder", Files.exists(root.resolve(NOTES)))
+        assertFalse(Files.exists(root.resolve("archive/notes.txt")))
+        assertIndexNotReady(MOVE_TEXT, outcome)
+    }
+
     // A move that changes nothing with no dumb mode: the cause is not dumb mode.
     fun testMoveThatChangesNothingWithNoDumbModeGivesAnErrorThatIsNotIndexNotReady() {
         val tool = object : MoveFileTool() {
@@ -160,6 +196,23 @@ class RefactoringDumbModeTest : BasePlatformTestCase() {
         val result = callInRequest { tool.execute(project, moveNotesArgs()) }.getOrThrow()
 
         assertTrue(Files.exists(root.resolve(NOTES)))
+        assertTrue("Expected an error, got ${text(result)}", result.isError)
+        assertToolError(MOVE_NO_CHANGE, result)
+    }
+
+    // A folder in the target folder with the name of the file is no moved file.
+    fun testMoveThatChangesNothingGivesAnErrorWhenTheTargetHasAFolderWithTheNameOfTheFile() {
+        Files.createDirectories(root.resolve("archive/notes.txt"))
+        LocalFileSystem.getInstance().refreshAndFindFileByNioFile(root.resolve("archive/notes.txt"))!!
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val tool = object : MoveFileTool() {
+            override fun executeGenericFileMove(preparation: MovePreparation) {}
+        }
+
+        val result = callInRequest { tool.execute(project, moveNotesArgs()) }.getOrThrow()
+
+        assertTrue(Files.exists(root.resolve(NOTES)))
+        assertTrue(Files.isDirectory(root.resolve("archive/notes.txt")))
         assertTrue("Expected an error, got ${text(result)}", result.isError)
         assertToolError(MOVE_NO_CHANGE, result)
     }
@@ -211,6 +264,7 @@ class RefactoringDumbModeTest : BasePlatformTestCase() {
             assertTrue("Expected index_not_ready, got ${future.get()}", error is IndexNotReadyException)
             assertEquals(EdtStepTool.MESSAGE, error!!.message)
             assertTrue("The call ended after $elapsed ms, before the limit", elapsed >= TEST_WAIT_LIMIT_MS - LIMIT_TOLERANCE_MS)
+            assertTrue("The call ended after $elapsed ms, long after the limit", elapsed < 3 * TEST_WAIT_LIMIT_MS + LIMIT_SLACK_MS)
 
             DumbModeTestUtils.endEternalDumbModeTaskAndWaitForSmartMode(project, token)
             tokenOpen = false
@@ -241,28 +295,38 @@ class RefactoringDumbModeTest : BasePlatformTestCase() {
     }
 
     /**
-     * Starts dumb mode when the rename tool asks the automatic renamers for their option names: on
-     * the EDT, after the dumb mode check of the tool and before the rename processor runs.
+     * Runs [action] one time when the rename tool asks the automatic renamers for their option names:
+     * on the EDT, after the dumb mode check of the tool and before the rename processor runs.
      */
+    private fun atTheRenameStep(action: () -> Unit) {
+        AutomaticRenamerFactory.EP_NAME.point.registerExtension(RenameStepHook(action), LoadingOrder.FIRST, testRootDisposable)
+    }
+
+    /** Starts dumb mode at the rename step. */
     private fun dumbModeAtTheRenameStep(): DumbModeAtTheRenameStep {
         val hook = DumbModeAtTheRenameStep(project)
-        AutomaticRenamerFactory.EP_NAME.point.registerExtension(hook, LoadingOrder.FIRST, testRootDisposable)
+        atTheRenameStep { hook.start() }
         return hook
     }
 
-    private class DumbModeAtTheRenameStep(private val project: Project) : AutomaticRenamerFactory {
-        private val armed = AtomicBoolean(true)
+    private class DumbModeAtTheRenameStep(private val project: Project) {
         private var token: DumbModeTestUtils.EternalTaskShutdownToken? = null
         val started: Boolean get() = token != null
+
+        fun start() {
+            token = DumbModeTestUtils.startEternalDumbModeTask(project)
+        }
 
         fun endDumbMode() {
             token?.let { DumbModeTestUtils.endEternalDumbModeTaskAndWaitForSmartMode(project, it) }
         }
+    }
+
+    private class RenameStepHook(private val action: () -> Unit) : AutomaticRenamerFactory {
+        private val armed = AtomicBoolean(true)
 
         override fun getOptionName(): String? {
-            if (ApplicationManager.getApplication().isDispatchThread && armed.compareAndSet(true, false)) {
-                token = DumbModeTestUtils.startEternalDumbModeTask(project)
-            }
+            if (ApplicationManager.getApplication().isDispatchThread && armed.compareAndSet(true, false)) action()
             return null
         }
 
@@ -307,6 +371,8 @@ class RefactoringDumbModeTest : BasePlatformTestCase() {
 
     private fun relative(path: String) = "${root.fileName}/$path"
 
+    private fun holderFile() = LocalFileSystem.getInstance().findFileByNioFile(root.resolve(HOLDER))!!
+
     private fun renameCountArgs() = buildJsonObject {
         val offset = HOLDER_TEXT.indexOf("count")
         put("file", relative(HOLDER))
@@ -343,13 +409,15 @@ class RefactoringDumbModeTest : BasePlatformTestCase() {
 
         const val RENAME_TEXT = "The IDE went into dumb mode before the rename ran, and nothing changed. " +
             "Wait for the end of the indexing (ide_index_status shows isDumbMode: false), then call again."
-        const val MOVE_TEXT = "The IDE went into dumb mode before the move ran, and nothing changed. " +
+        const val MOVE_TEXT = "The IDE went into dumb mode before the move ran, and the file did not move. " +
             "Wait for the end of the indexing (ide_index_status shows isDumbMode: false), then call again."
-        const val RENAME_NO_CHANGE = "Rename failed: nothing changed, and the IDE gave no reason."
-        const val MOVE_NO_CHANGE = "Move failed: nothing changed, and the IDE gave no reason."
+        const val RENAME_NO_CHANGE = "Rename failed: the element still has its old name."
+        const val MOVE_NO_CHANGE = "Move failed: the file did not move."
+        const val SAME_NAME = "New name is the same as the current name"
 
         const val DUMB_WINDOW_MS = 1000L
         const val TEST_WAIT_LIMIT_MS = 500L
         const val LIMIT_TOLERANCE_MS = 50L
+        const val LIMIT_SLACK_MS = 2000L
     }
 }
