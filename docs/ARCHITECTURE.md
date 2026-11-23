@@ -101,6 +101,13 @@ repository, and an entry here.
   (`plugins/go-plugin/lib/modules/intellij.go.impl.jar`, GO-263.7307.211). With these names, the
   fields of one name in two structs of one package get one name, and so do the methods of two types
   of one name in two packages (#136) (`QualifiedNameUtil.goFallback`).
+- **The qualified name of a Kotlin type alias.** The tool gives the package and the name
+  (`org.example.Alias`), and for an alias in a class or object the name of that class in front. The
+  IDE gives no name: Copy Reference uses `KotlinQualifiedNameProvider`, which reads
+  `KtClassOrObject`, `KtFunction`, `KtProperty` and `KtSimpleNameExpression` and has no code for
+  `KtTypeAlias` (`plugins/Kotlin/lib/modules/intellij.kotlin.base.codeInsight.jar`, IU-263.7307.200).
+  With the name, an agent can tell the alias from another declaration of the same name (#278)
+  (`QualifiedNameUtil.kotlinTypeAliasFqName`, which reads `KtNamedDeclaration.getFqName`).
 - **`ide_file_structure`: the name `{}`.** The JavaScript structure view gives no text to an object
   literal that is not the right side of an assignment, for example an object in an array
   (`JSStructureItemPresentation.buildPresentationForElement`,
