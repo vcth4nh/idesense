@@ -43,6 +43,16 @@ class FindClassTool : AbstractMcpTool() {
         private val LOG = logger<FindClassTool>()
         private const val DEFAULT_PAGE_SIZE = 25
         private const val MAX_PAGE_SIZE = PaginationService.MAX_PAGE_SIZE
+
+        /**
+         * The key of [match] for the dedup and for the seen keys of the pagination. A match with no
+         * position also has its qualified name in the key: two nested classes with the same name in
+         * one class file have the same file and no line (#316).
+         */
+        internal fun matchKey(match: SymbolMatch): String {
+            val key = "${match.file}:${match.line}:${match.column}:${match.name}"
+            return if (match.line == null) "$key:${match.qualifiedName}" else key
+        }
     }
 
     override val name = ToolNames.FIND_CLASS
@@ -124,7 +134,7 @@ class FindClassTool : AbstractMcpTool() {
 
             val serializedResults = classes.map { cls ->
                 PaginationService.SerializedResult(
-                    key = "${cls.file}:${cls.line}:${cls.column}:${cls.name}",
+                    key = matchKey(cls),
                     data = json.encodeToJsonElement(cls)
                 )
             }
@@ -173,11 +183,11 @@ class FindClassTool : AbstractMcpTool() {
         val classes = searchAndConvertClasses(project, query, searchScope, limit + seenKeys.size, languageFilter, fuzzySearch)
 
         return classes.asSequence()
-            .filter { cls -> "${cls.file}:${cls.line}:${cls.column}:${cls.name}" !in seenKeys }
+            .filter { cls -> matchKey(cls) !in seenKeys }
             .take(limit)
             .map { cls ->
                 PaginationService.SerializedResult(
-                    key = "${cls.file}:${cls.line}:${cls.column}:${cls.name}",
+                    key = matchKey(cls),
                     data = json.encodeToJsonElement(cls)
                 )
             }
@@ -224,7 +234,7 @@ class FindClassTool : AbstractMcpTool() {
             val results = popupResults.candidates
                 .mapNotNull { convertToSymbolMatch(it.item, project, scope, languageFilter) }
                 .filter { fuzzySearch || it.name.equals(popupResults.localPattern, ignoreCase = true) }
-                .distinctBy { "${it.file}:${it.line}:${it.column}:${it.name}" }
+                .distinctBy { matchKey(it) }
             if (results.size >= limit ||
                 popupResults.candidates.size < popupLimit ||
                 popupLimit >= popupLimitCap

@@ -345,11 +345,10 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   TypeScript type alias. It was `SYMBOL`. The `qualifiedName` of a Kotlin type alias does not
   change. Part of #278.
 - `ide_find_class` with a scope that holds libraries no longer fails with `internal_error`
-  "Wrong offset: -1" when one class has no position: a compiled class that the IDE cannot match to
-  the decompiled text of its class file. Go to Class lists such a class. The result now keeps it,
-  with `line` and `column` `null`, and the other classes keep their positions. A class whose file
-  has no document also gets `null`; it got line 1 and column 1 before. The IDE still writes its own
-  SEVERE entry to `idea.log` for such a class file (#316).
+  "Wrong offset: -1" when the IDE cannot match a compiled class to the decompiled text of its class
+  file. The result keeps such a class with `line` and `column` `null`, as Go to Class lists it.
+  When the IDE gives no document for the file of a class, the match also has no line and column;
+  it had line 1 and column 1 (#316).
 
 ## [2.1.0] - 2026-11-09
 
