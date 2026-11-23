@@ -85,7 +85,7 @@ func extractCalls(tree string, configs []string, check bool) ([]CallRecord, *cal
 	var checks []*ssaCheck
 	for ci, goos := range configs {
 		start := time.Now()
-		initial, all, fset, modPaths, err := x.loadPackages(ci)
+		initial, all, fset, modPaths, err := x.loadPackages(ci, true)
 		if err != nil {
 			return nil, nil, nil, err
 		}
