@@ -29,10 +29,10 @@ type graphRun struct {
 	err            error
 }
 
-// runGraphCmd runs gokeys graph on tree for linux through the command line entry and decodes
-// the output file by the field rec of each line. An unknown field, and a func line after an
-// iface line, are errors.
-func runGraphCmd(tree string) graphRun {
+// runGraphCmd runs gokeys graph on tree for linux through the command line entry, with the
+// extra arguments, and decodes the output file by the field rec of each line. An unknown field,
+// and a func line after an iface line, are errors.
+func runGraphCmd(tree string, extra ...string) graphRun {
 	dir, err := os.MkdirTemp("", "gokeys-graph-test-")
 	if err != nil {
 		return graphRun{err: err}
@@ -40,7 +40,8 @@ func runGraphCmd(tree string) graphRun {
 	defer os.RemoveAll(dir)
 	out := filepath.Join(dir, "graph.jsonl")
 	var stdout, stderr bytes.Buffer
-	r := graphRun{code: run([]string{"graph", "-tree", tree, "-goos", "linux", "-out", out}, &stdout, &stderr)}
+	args := append([]string{"graph", "-tree", tree, "-goos", "linux", "-out", out}, extra...)
+	r := graphRun{code: run(args, &stdout, &stderr)}
 	r.stdout, r.stderr = stdout.String(), stderr.String()
 	if r.data, r.err = os.ReadFile(out); r.err != nil {
 		r.err = fmt.Errorf("%w (exit %d, stderr %s)", r.err, r.code, r.stderr)

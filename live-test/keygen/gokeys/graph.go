@@ -2,7 +2,6 @@ package main
 
 import (
 	"cmp"
-	"errors"
 	"flag"
 	"fmt"
 	"go/ast"
@@ -75,9 +74,6 @@ type GraphImpl struct {
 	Own      bool   `json:"own"`
 }
 
-// graphCheck is the result of the SSA check of the graph.
-type graphCheck struct{}
-
 type graphStats struct {
 	load         string
 	funcs, noID  int
@@ -105,7 +101,8 @@ func (s *graphStats) print(w io.Writer, total time.Duration) {
 }
 
 // cmdGraph: gokeys graph. It writes first each function, then each interface. Exit code 1 for
-// an error.
+// an error, and with -check for a pair that only one side has or a callee that the table
+// lacks.
 func cmdGraph(args []string, stdout, stderr io.Writer) int {
 	fl := flag.NewFlagSet("graph", flag.ContinueOnError)
 	fl.SetOutput(stderr)
@@ -121,7 +118,7 @@ func cmdGraph(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	start := time.Now()
-	funcs, ifaces, st, _, err := extractGraph(*tree, *goos, *check)
+	funcs, ifaces, st, ch, err := extractGraph(*tree, *goos, *check)
 	if err != nil {
 		fmt.Fprintln(stderr, "gokeys graph:", err)
 		return 1
@@ -138,16 +135,17 @@ func cmdGraph(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	st.print(stdout, time.Since(start))
+	if *check && !printGraphCheck(stdout, funcs, ch) {
+		return 1
+	}
 	return 0
 }
 
 // extractGraph loads the module at tree one time for the build goos (GOARCH amd64, no test
 // file) and gives each function of the build with its calls, sorted by decl, and each named,
-// non-generic module interface with its implementers, sorted by id.
+// non-generic module interface with its implementers, sorted by id. With check it also gives
+// the result of the SSA check (grapher.check).
 func extractGraph(tree, goos string, check bool) ([]GraphFunc, []GraphIface, *graphStats, *graphCheck, error) {
-	if check {
-		return nil, nil, nil, nil, errors.New("-check is not implemented")
-	}
 	start := time.Now()
 	x, err := newExtractor(tree, []string{goos})
 	if err != nil {
@@ -214,7 +212,14 @@ func extractGraph(tree, goos string, check bool) ([]GraphFunc, []GraphIface, *gr
 	}
 	g.genericStats(generics, entries)
 	g.st.load = loadLine(goos, len(initial), len(all), time.Since(start))
-	return funcs, ifaces, g.st, nil, nil
+	if !check {
+		return funcs, ifaces, g.st, nil, nil
+	}
+	ch, err := g.check(initial, goos, entries, ifaces)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	return funcs, ifaces, g.st, ch, nil
 }
 
 // grapher holds the facts of one load for the graph.
@@ -542,7 +547,13 @@ func (g *grapher) selected(te *implType, m *types.Func) (decl Pos, own, ok bool)
 
 // funcDecl gives the decl of the origin of f, and whether it is a function of the graph.
 func (g *grapher) funcDecl(f *types.Func) (Pos, bool) {
-	pos, ok := g.x.treePos(g.fset, f.Origin().Pos())
+	return g.funcAt(f.Origin().Pos())
+}
+
+// funcAt gives the position p in a module file, and whether it is the decl of a function of the
+// graph.
+func (g *grapher) funcAt(p token.Pos) (Pos, bool) {
+	pos, ok := g.x.treePos(g.fset, p)
 	return pos, ok && g.funcs[pos] != nil
 }
 

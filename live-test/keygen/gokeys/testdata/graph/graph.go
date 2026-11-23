@@ -80,8 +80,8 @@ func use[V Shape](v V) int { return v.Area() }
 
 func write(w io.Writer) { w.Write(nil) }
 
-func local() int {
-	f := target
+func local(fs []func() int) int {
+	f := fs[0]
 	return f()
 }
 

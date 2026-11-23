@@ -367,22 +367,27 @@ type ssaCheck struct {
 	dur      time.Duration
 }
 
-// ssaCalls builds the SSA program of the loaded packages (ssautil.Packages, the default
-// builder mode) and takes each call instruction with a static callee
-// (CallCommon.StaticCallee), as golang.org/x/tools/go/callgraph/static does. It visits the
-// function of each function declaration of the packages of the patterns, each package
-// initializer, the functions of ssautil.AllFunctions, and each function literal and each
-// function that an instruction of a visited function names. A function maps to a declaration
-// by the position of its name: a caller in a function literal (or in a yield function of a
-// range-over-func loop) counts as the outermost function that holds it, and a callee instance
-// as its origin. A called function literal is no declaration. In the default builder mode an
-// instance is an instantiation wrapper, whose body only calls the origin: as a caller it is
-// excluded. here holds the declarations of this load.
-func (x *extractor) ssaCalls(initial []*packages.Package, fset *token.FileSet, goos string, here map[Pos]bool) (ch *ssaCheck, err error) {
-	start := time.Now()
+// ssaFunc is one function of the SSA visit (ssaVisit): the function, its outer function, and
+// the class of an excluded caller or "".
+type ssaFunc struct {
+	fn    *ssa.Function
+	outer *ssa.Function
+	cls   string
+}
+
+// ssaVisit builds the SSA program of the loaded packages (ssautil.Packages, the default
+// builder mode) and gives each function that it visits: the function of each function
+// declaration of the packages of the patterns, each package initializer, the functions of
+// ssautil.AllFunctions, and each function literal and each function that an instruction of a
+// visited function names. The outer function of a function literal (or of a yield function of
+// a range-over-func loop) is the outermost function that holds it, and the outer function of
+// an instance is its origin. In the default builder mode an instance is an instantiation
+// wrapper, whose body only calls the origin: as a caller it is excluded. A panic of the SSA
+// builder is an error.
+func ssaVisit(initial []*packages.Package) (out []ssaFunc, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = fmt.Errorf("%s: ssa: %v", goos, r)
+			err = fmt.Errorf("ssa: %v", r)
 		}
 	}()
 	prog, pkgs := ssautil.Packages(initial, ssa.BuilderMode(0))
@@ -436,20 +441,6 @@ func (x *extractor) ssaCalls(initial []*packages.Package, fset *token.FileSet, g
 	for _, fn := range rest {
 		visit(fn)
 	}
-
-	declMemo := map[*ssa.Function]Pos{}
-	declOK := map[*ssa.Function]bool{}
-	declOf := func(fn *ssa.Function) (Pos, bool) {
-		if ok, done := declOK[fn]; done {
-			return declMemo[fn], ok
-		}
-		pos, ok := x.treePos(fset, fn.Pos())
-		ok = ok && here[pos]
-		declMemo[fn], declOK[fn] = pos, ok
-		return pos, ok
-	}
-
-	ch = &ssaCheck{config: goos, pairs: map[callPair]bool{}, excluded: map[string][]exclCall{}}
 	for _, fn := range fns {
 		outer := fn
 		for outer.Parent() != nil {
@@ -464,8 +455,39 @@ func (x *extractor) ssaCalls(initial []*packages.Package, fset *token.FileSet, g
 		if o := outer.Origin(); o != nil && cls == "" {
 			outer = o
 		}
-		caller, callerOK := declOf(outer)
-		for _, b := range fn.Blocks {
+		out = append(out, ssaFunc{fn: fn, outer: outer, cls: cls})
+	}
+	return out, nil
+}
+
+// ssaCalls takes each call instruction with a static callee (CallCommon.StaticCallee) of the
+// functions of ssaVisit, as golang.org/x/tools/go/callgraph/static does. A function maps to a
+// declaration by the position of its name: a caller by its outer function, and a callee
+// instance by its origin. A called function literal is no declaration. here holds the
+// declarations of this load.
+func (x *extractor) ssaCalls(initial []*packages.Package, fset *token.FileSet, goos string, here map[Pos]bool) (*ssaCheck, error) {
+	start := time.Now()
+	fns, err := ssaVisit(initial)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", goos, err)
+	}
+
+	declMemo := map[*ssa.Function]Pos{}
+	declOK := map[*ssa.Function]bool{}
+	declOf := func(fn *ssa.Function) (Pos, bool) {
+		if ok, done := declOK[fn]; done {
+			return declMemo[fn], ok
+		}
+		pos, ok := x.treePos(fset, fn.Pos())
+		ok = ok && here[pos]
+		declMemo[fn], declOK[fn] = pos, ok
+		return pos, ok
+	}
+
+	ch := &ssaCheck{config: goos, pairs: map[callPair]bool{}, excluded: map[string][]exclCall{}}
+	for _, f := range fns {
+		caller, callerOK := declOf(f.outer)
+		for _, b := range f.fn.Blocks {
 			for _, instr := range b.Instrs {
 				site, ok := instr.(ssa.CallInstruction)
 				if !ok {
@@ -489,8 +511,8 @@ func (x *extractor) ssaCalls(initial []*packages.Package, fset *token.FileSet, g
 				}
 				ch.toDecl++
 				switch {
-				case cls != "":
-					ch.excluded[cls] = append(ch.excluded[cls], exclCall{self: caller, selfOK: callerOK, callee: callee})
+				case f.cls != "":
+					ch.excluded[f.cls] = append(ch.excluded[f.cls], exclCall{self: caller, selfOK: callerOK, callee: callee})
 				case callerOK:
 					ch.pairs[callPair{caller, callee}] = true
 				}
