@@ -19,7 +19,7 @@ B="${BENCH_ROOT:-$HOME/dev/idesense-bench}"
 | `gokeys/` | The Go command `gokeys`: Go keys from the Go compiler library (`extract`), their proof (`accept`), the calls file (`calls`), the call graph of one build (`graph`), the occurrences of a name (`idents`), a copy of a tree for a run-time trace (`trace`) |
 | `pykeys.py` | Python keys: the unique-name scan (`unique`) and the class hierarchy by reflection (`hierarchy`) |
 | `callkeys.py` | Caller keys of two levels (`pycalls`, `make`), their trace proof (`targets`, `tracecheck`), and caller keys through an interface value (`dyntargets`, `dynmake`) |
-| `tracekeys.py` | Trace keys of a Go product: each call step on each way to a target (`make`) |
+| `tracekeys.py` | Trace keys of a Go product: each call step on each way to a target (`make`), and their trace proof (`targets`, `tracecheck`) |
 | `plant.py` | Planted trees: one shared name for four methods, and the key from the state before the rename |
 | `pytest_plugin/trace_plugin.py` | A pytest plugin that logs the callers of target functions |
 | `trees.json` | The recipe and the digest of each benchmark tree |
@@ -101,13 +101,13 @@ benchmark holds only the lines of its answer (see
 | `callers.jsonl` | each tree | `callkeys make` | Go: `gokeys calls -check`; Python: `callkeys targets`, a trace, `callkeys tracecheck` |
 | `dyncallers.jsonl` | caddy | `callkeys dyntargets`, `gokeys trace`, a test run, `callkeys dynmake` | the rule of `dynmake` |
 | `graph.jsonl` | caddy | `gokeys graph -goos linux` | No key |
-| `trace.jsonl` | caddy | `tracekeys make` | `gokeys graph -check`; by hand: four targets (below) |
+| `trace.jsonl` | caddy | `tracekeys make` | `gokeys graph -check`; `tracekeys targets`, `gokeys trace`, a test run, `tracekeys tracecheck`; by hand: four targets (below) |
 
 `callers.jsonl` and `dyncallers.jsonl` hold the keys of the functions that are targets. A
 `calls.jsonl` file is no key: it holds the uses of each function declaration, and the caller keys
 and the caller audit read it. `trace.jsonl` holds one trace key for each target of its pools. A
-`graph.jsonl` file is no key: it holds the call graph of the Linux build, and the trace keys read
-it.
+`graph.jsonl` file is no key: it holds the call graph of the Linux build, and `tracekeys make`
+and `tracekeys tracecheck` read it.
 
 A proof "by hand" has no tracked command: a maintainer makes it when the key is made.
 
@@ -306,6 +306,34 @@ the ways to a target. `-extra` adds the targets of a JSON list, and `-large <n>`
 with a large trace for the audit. The output gives the count of the functions in each size group
 and the count of the records of each pool. The module text of `tracekeys.py` gives the record
 format, the pools and the distances of each function to the target.
+
+**The run-time proof.** The tests of the product run in a copy of the tree in which the target and
+each function on a way of the chosen records log their call stacks. `R` is a new folder for the
+files of one run:
+
+```bash
+R="$B/scratch/trace/<run>"
+mkdir -p "$R/xdg/config" "$R/xdg/data"
+./live-test/run.py keygen tracekeys targets -keys "$B/keys/caddy/trace.jsonl" -ids <id,...|@file> \
+  -out "$R/targets.json"
+"$B/scratch/gokeys-bin" trace -tree "$B/trees/caddy" -targets "$R/targets.json" -dst "$R/copy"
+(cd "$R/copy" && go version && XDG_CONFIG_HOME="$R/xdg/config" XDG_DATA_HOME="$R/xdg/data" \
+  BENCH_TRACE_OUT="$R/stacks.jsonl" go test -count=1 ./...) > "$R/test.log" 2>&1
+./live-test/run.py keygen tracekeys tracecheck -graph "$B/keys/caddy/graph.jsonl" \
+  -targets "$R/targets.json" -trace "$R/stacks.jsonl" -root "$R/copy"
+```
+
+The id of a start-set record holds spaces: quote the value of `-ids`, or give `@<file>` with one
+id on each line. The test run has the conditions of "Caller keys through an interface value".
+
+`tracecheck` gives each trace line a verdict against the graph. A traced call from a function of
+the graph must be a step of the graph to the traced function, or a call that gives no step (an
+entry of the kind `other` on its line). Else its verdict is `missing`, and the exit code is 1. The
+exit code is also 1 when no trace line has a frame in a function of the graph. A call from a test
+file, from outside the tree or from outside a function body is counted, and it is no failure. The
+output lists each `key-line` line: the graph has a step from the same function to the traced
+function only on another line. A reader checks each such line in the source: the traced call must
+be the call of a step on a listed line. The module text of `tracekeys.py` gives each verdict.
 
 ## Tests
 
