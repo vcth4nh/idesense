@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -41,9 +42,25 @@ func graphChecks(t *testing.T) ([]GraphFunc, []GraphIface, *graphCheck) {
 	return graphInnerFuncs, graphInnerIfaces, graphInnerCheck
 }
 
+// runGraphCheckModule writes the module example.com/<name> with the file a.go of text into a
+// temp folder and runs gokeys graph -check on it for linux.
+func runGraphCheckModule(t *testing.T, name, text string) (code int, stdout, stderr string) {
+	t.Helper()
+	dir := t.TempDir()
+	for file, data := range map[string]string{"go.mod": "module example.com/" + name + "\n\ngo 1.26\n", "a.go": text} {
+		if err := os.WriteFile(filepath.Join(dir, file), []byte(data), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var out, errb bytes.Buffer
+	code = run([]string{"graph", "-tree", dir, "-goos", "linux", "-out", filepath.Join(dir, "graph.jsonl"), "-check"}, &out, &errb)
+	return code, out.String(), errb.String()
+}
+
 // testdata/graph passes the check. The SSA form calls a thunk for Shape.Area(s): the check
 // gives it the pairs of the interface call. The SSA side counts the three calls on a type
-// parameter, and the two types that the code converts to an interface are in the type list.
+// parameter and the call of target in the initializer of the variable initial, and the two
+// types that the code converts to an interface are in the type list.
 func TestGraphCheckPasses(t *testing.T) {
 	r := graphCheckResult(t)
 	if r.code != 0 {
@@ -51,9 +68,10 @@ func TestGraphCheckPasses(t *testing.T) {
 	}
 	for _, want := range []string{
 		"check linux: pairs: both 22, only syntax 0, only ssa 0\n",
-		": static calls 11, invoke calls of module interface methods 9, calls with no position 0, calls on a type parameter 3\n",
+		": static calls 11, invoke calls of module interface methods 9, calls with no position 0, calls on a type parameter 3, " +
+			"calls from a package initializer to a function of the graph 1\n",
 		"check linux: types: converted to an interface 2, of these outside the type list 0, callees that the table lacks 0, " +
-			"by an instance of a generic type 0\n",
+			"by an instance of a generic type 0, operands with a type parameter 0\n",
 	} {
 		if !strings.Contains(r.stdout, want) {
 			t.Errorf("stdout has no line %q:\n%s", want, r.stdout)
@@ -100,14 +118,7 @@ func TestGraphCheckReportsAOneSidedPair(t *testing.T) {
 // call through a local variable that holds a function or a method value is a static call of
 // SSA with no step of the syntax (only ssa). A constant false condition stays in SSA.
 func TestGraphCheckFindsDifferences(t *testing.T) {
-	dir := t.TempDir()
-	write := func(name, text string) {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	write("go.mod", "module example.com/diff\n\ngo 1.26\n")
-	write("a.go", `package diff
+	code, out, errs := runGraphCheckModule(t, "diff", `package diff
 
 type T struct{}
 
@@ -136,10 +147,8 @@ func constFalse() {
 	}
 }
 `)
-	var out, errb bytes.Buffer
-	code := run([]string{"graph", "-tree", dir, "-goos", "linux", "-out", filepath.Join(dir, "graph.jsonl"), "-check"}, &out, &errb)
 	if code != 1 {
-		t.Errorf("exit %d, want 1; stderr: %s", code, errb.String())
+		t.Errorf("exit %d, want 1; stderr: %s", code, errs)
 	}
 	for _, want := range []string{
 		"check linux: pairs: both 1, only syntax 1, only ssa 2\n",
@@ -147,8 +156,60 @@ func constFalse() {
 		"  only ssa: a.go:16 -> callee a.go:7 target\n",
 		"  only ssa: a.go:21 -> callee a.go:5 T.Get\n",
 	} {
-		if !strings.Contains(out.String(), want) {
-			t.Errorf("no line %q:\n%s", want, out.String())
+		if !strings.Contains(out, want) {
+			t.Errorf("no line %q:\n%s", want, out)
+		}
+	}
+}
+
+// A range-over-func loop over a module function calls the function with no position in SSA.
+// The syntax has no call there, so the check counts the call and names its caller and callee.
+func TestGraphCheckShowsACallWithNoPosition(t *testing.T) {
+	code, out, errs := runGraphCheckModule(t, "rng", `package rng
+
+func seq(yield func(int) bool) {
+	yield(1)
+}
+
+func loop() int {
+	n := 0
+	for x := range seq {
+		n += x
+	}
+	return n
+}
+`)
+	if code != 0 {
+		t.Errorf("exit %d, want 0; stderr: %s\nstdout:\n%s", code, errs, out)
+	}
+	for _, want := range []string{
+		", calls with no position 1, ",
+		"  no position: caller a.go:7 loop -> callee a.go:3 seq\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no line %q:\n%s", want, out)
+		}
+	}
+}
+
+// A call in a function literal of a package-level variable belongs to the package initializer,
+// an excluded caller: it gives no pair, and the check counts it.
+func TestGraphCheckCountsAPackageInitializerCall(t *testing.T) {
+	code, out, errs := runGraphCheckModule(t, "ini", `package ini
+
+func target() int { return 0 }
+
+var h = func() int { return target() }
+`)
+	if code != 0 {
+		t.Errorf("exit %d, want 0; stderr: %s\nstdout:\n%s", code, errs, out)
+	}
+	for _, want := range []string{
+		"check linux: pairs: both 0, only syntax 0, only ssa 0\n",
+		", calls from a package initializer to a function of the graph 1\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no line %q:\n%s", want, out)
 		}
 	}
 }
@@ -177,7 +238,7 @@ func TestGraphCheckReportsALackOfTheTable(t *testing.T) {
 	for _, want := range []string{
 		"check linux: pairs: both 22, only syntax 0, only ssa 0\n",
 		"check linux: types: converted to an interface 2, of these outside the type list 0, callees that the table lacks 1, " +
-			"by an instance of a generic type 0\n",
+			"by an instance of a generic type 0, operands with a type parameter 0\n",
 		"  lacks: go:example.com/graph.Sizer.Size -> graph.go:124 SizeB.Size, by the type *struct{example.com/graph.SizeB; example.com/graph.Labeler}\n",
 	} {
 		if !strings.Contains(out.String(), want) {
@@ -191,16 +252,11 @@ func TestGraphCheckReportsALackOfTheTable(t *testing.T) {
 
 // The table has no generic type (rule of a call step: a generic type gets no step). So a
 // callee that only an instance of a generic type selects, as a value or behind a pointer, is
-// counted apart and does not fail the check.
+// counted apart and does not fail the check. The type int implements no interface of the
+// table, so it is not outside the type list, and the operand []T is counted apart. (SSA
+// converts t of the type T to any with ChangeType: no operand.)
 func TestGraphCheckCountsAGenericLackApart(t *testing.T) {
-	dir := t.TempDir()
-	write := func(name, text string) {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(text), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	write("go.mod", "module example.com/gen\n\ngo 1.26\n")
-	write("a.go", `package gen
+	code, out, errs := runGraphCheckModule(t, "gen", `package gen
 
 type Shape interface{ Area() int }
 
@@ -211,22 +267,71 @@ func (Box[E]) Area() int { return 1 }
 func boxValue() Shape { return Box[int]{} }
 
 func boxPointer() Shape { return &Box[int]{} }
+
+func anyInt() any { return 1 }
+
+func anyOf[T any](t T) any { return []T{t} }
 `)
-	var out, errb bytes.Buffer
-	code := run([]string{"graph", "-tree", dir, "-goos", "linux", "-out", filepath.Join(dir, "graph.jsonl"), "-check"}, &out, &errb)
 	if code != 0 {
-		t.Errorf("exit %d, want 0; stderr: %s\nstdout:\n%s", code, errb.String(), out.String())
+		t.Errorf("exit %d, want 0; stderr: %s\nstdout:\n%s", code, errs, out)
 	}
 	for _, want := range []string{
-		"check linux: types: converted to an interface 2, of these outside the type list 2, callees that the table lacks 0, " +
-			"by an instance of a generic type 1\n",
+		"check linux: types: converted to an interface 3, of these outside the type list 2, callees that the table lacks 0, " +
+			"by an instance of a generic type 1, operands with a type parameter 1\n",
 		"  generic: go:example.com/gen.Shape.Area -> a.go:7 Box.Area, by the type *example.com/gen.Box[int]\n",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("no line %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "  lacks: ") {
+		t.Errorf("a line lacks:\n%s", out)
+	}
+}
+
+// A callee that an instance of a generic type and also another type select stays a lack.
+func TestGraphCheckLackOfAGenericAndAnotherTypeIsALack(t *testing.T) {
+	m, area := "go:example.com/m.Shape.Area", cpos("a.go", 5, 14)
+	ch := &graphCheck{goos: "linux", pairs: map[graphPair]bool{}, selects: map[ifaceSelect]bool{
+		{method: m, callee: area, typ: "example.com/m.Box[int]", generic: true}: true,
+		{method: m, callee: area, typ: "example.com/m.Plain"}:                   true,
+	}}
+	funcs := []GraphFunc{{Name: "Area", Container: "Base", Decl: area, Calls: []GraphCall{}}}
+	var out bytes.Buffer
+	if ok := printGraphCheck(&out, funcs, ch); ok {
+		t.Errorf("printGraphCheck is ok with a callee that the table lacks:\n%s", out.String())
+	}
+	for _, want := range []string{
+		", callees that the table lacks 1, by an instance of a generic type 0, ",
+		"  lacks: go:example.com/m.Shape.Area -> a.go:5 Base.Area, by the type example.com/m.Plain\n",
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("no line %q:\n%s", want, out.String())
 		}
 	}
-	if strings.Contains(out.String(), "  lacks: ") {
-		t.Errorf("a line lacks:\n%s", out.String())
+	if strings.Contains(out.String(), "  generic: ") {
+		t.Errorf("a line generic:\n%s", out.String())
+	}
+}
+
+// printFirst20 prints at most 20 lines, and then one line with the count of the rest.
+func TestPrintFirst20(t *testing.T) {
+	for _, c := range []struct{ n, printed, more int }{{0, 0, 0}, {20, 20, 0}, {21, 20, 1}, {25, 20, 5}} {
+		lines := make([]string, c.n)
+		for i := range lines {
+			lines[i] = fmt.Sprintf("line %d", i)
+		}
+		var out bytes.Buffer
+		printFirst20(&out, "x", lines)
+		want := ""
+		for i := 0; i < c.printed; i++ {
+			want += fmt.Sprintf("  x: line %d\n", i)
+		}
+		if c.more > 0 {
+			want += fmt.Sprintf("  x: ... and %d more\n", c.more)
+		}
+		if out.String() != want {
+			t.Errorf("%d lines:\n got  %q\n want %q", c.n, out.String(), want)
+		}
 	}
 }

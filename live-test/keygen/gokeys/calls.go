@@ -464,9 +464,14 @@ func ssaVisit(initial []*packages.Package) (out []ssaFunc, err error) {
 // functions of ssaVisit, as golang.org/x/tools/go/callgraph/static does. A function maps to a
 // declaration by the position of its name: a caller by its outer function, and a callee
 // instance by its origin. A called function literal is no declaration. here holds the
-// declarations of this load.
-func (x *extractor) ssaCalls(initial []*packages.Package, fset *token.FileSet, goos string, here map[Pos]bool) (*ssaCheck, error) {
+// declarations of this load. A panic is an error.
+func (x *extractor) ssaCalls(initial []*packages.Package, fset *token.FileSet, goos string, here map[Pos]bool) (ch *ssaCheck, err error) {
 	start := time.Now()
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("%s: ssa: %v", goos, r)
+		}
+	}()
 	fns, err := ssaVisit(initial)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", goos, err)
@@ -484,7 +489,7 @@ func (x *extractor) ssaCalls(initial []*packages.Package, fset *token.FileSet, g
 		return pos, ok
 	}
 
-	ch := &ssaCheck{config: goos, pairs: map[callPair]bool{}, excluded: map[string][]exclCall{}}
+	ch = &ssaCheck{config: goos, pairs: map[callPair]bool{}, excluded: map[string][]exclCall{}}
 	for _, f := range fns {
 		caller, callerOK := declOf(f.outer)
 		for _, b := range f.fn.Blocks {

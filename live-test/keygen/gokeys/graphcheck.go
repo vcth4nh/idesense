@@ -20,12 +20,21 @@ type graphCheck struct {
 	pairs     map[graphPair]bool   // the call steps of the SSA form
 	selects   map[ifaceSelect]bool // the methods that the types of a conversion select
 	ifaces    []GraphIface         // the interface table that printGraphCheck compares the selections with
-	static    int                  // the calls with a static callee
-	invoke    int                  // the invoke calls of a method of a module interface, and the calls of a thunk of one
-	noPos     int                  // the calls with a step and no position in a module file
+	noPos     []noPosCall          // the calls with a step and no position in a module file
+	static    int                  // the calls with a static callee; a call of a thunk also counts in invoke
+	invoke    int                  // the invoke calls of a method of a module interface and the calls of a thunk of one, with the calls of typeParam
 	typeParam int                  // of the invoke calls, the calls through a type that mentions a type parameter
-	converted int                  // the types that a MakeInterface instruction converts to an interface
-	outside   int                  // of these, the types that the type list (grapher.concrete) does not hold
+	initCalls int                  // the static calls of a package initializer to a function of the graph, at a position in a module file
+	converted int                  // the operand types of the MakeInterface instructions with no type parameter
+	outside   int                  // of these, the types outside the type list (grapher.concrete) that implement an interface of the table with a method
+	paramOps  int                  // the operand types of the MakeInterface instructions that are or contain a type parameter
+}
+
+// noPosCall is a call with a step and no position: the decl of the outer function of its caller,
+// and the decls of its callees.
+type noPosCall struct {
+	caller  Pos
+	callees []Pos
 }
 
 // graphPair is one call step: the file and the line of the call, and the decl of the callee.
@@ -47,9 +56,10 @@ type ifaceSelect struct {
 
 // check builds the SSA form of the build (ssaVisit) and gives the SSA side of the check. The
 // steps come from the calls of the functions whose outer function is a function of the graph,
-// with the same excluded callers as ssaCalls (checkCall). The selections come from the operand
-// types of the MakeInterface instructions of each function of the visit (selections). ifaces
-// is the table that printGraphCheck compares the selections with.
+// with the same excluded callers as ssaCalls (checkCall). Of the excluded callers, the check
+// counts the calls of a package initializer to a function of the graph (initCall). The
+// selections come from the operand types of the MakeInterface instructions of each function of
+// the visit (selections). ifaces is the table that printGraphCheck compares the selections with.
 func (g *grapher) check(initial []*packages.Package, goos string, entries []*typeEntry, ifaces []GraphIface) (*graphCheck, error) {
 	start := time.Now()
 	fns, err := ssaVisit(initial)
@@ -57,19 +67,26 @@ func (g *grapher) check(initial []*packages.Package, goos string, entries []*typ
 		return nil, fmt.Errorf("%s: %w", goos, err)
 	}
 	ch := &graphCheck{goos: goos, pairs: map[graphPair]bool{}, selects: map[ifaceSelect]bool{}, ifaces: ifaces}
-	prog := fns[0].fn.Prog     // the visit has the package initializer of each package of the patterns
+	if len(fns) == 0 {
+		ch.dur = time.Since(start)
+		return ch, nil // no function: no call and no conversion
+	}
+	prog := fns[0].fn.Prog
 	var converted typeutil.Map // the operand types of the MakeInterface instructions
 	var impls typeutil.Map     // interface type → the types of the type list that implement it
 	for _, f := range fns {
-		_, inGraph := g.funcAt(f.outer.Pos())
+		caller, inGraph := g.funcAt(f.outer.Pos())
 		for _, b := range f.fn.Blocks {
 			for _, instr := range b.Instrs {
 				switch in := instr.(type) {
 				case *ssa.MakeInterface:
 					converted.Set(in.X.Type(), true)
 				case ssa.CallInstruction:
-					if f.cls == "" && inGraph {
-						g.checkCall(ch, prog, in.Common(), &impls)
+					switch {
+					case f.cls == "" && inGraph:
+						g.checkCall(ch, prog, caller, in.Common(), &impls)
+					case f.cls == clsPackageInit && g.initCall(in.Common()):
+						ch.initCalls++
 					}
 				}
 			}
@@ -80,13 +97,39 @@ func (g *grapher) check(initial []*packages.Package, goos string, entries []*typ
 	return ch, nil
 }
 
-// checkCall adds the steps of the call c. A static callee that is no function literal gives a
-// step to its origin. An invoke of a method of a module interface, and a call of a thunk of one
-// (I.M(v)), give a step to the method that the method set of *T selects, for each type T of the
-// type list where T or *T implements the interface; such a call through a type that mentions a
-// type parameter gives no step. Only a function of the graph is a callee. A call with a step
-// and no position in a module file is counted.
-func (g *grapher) checkCall(ch *graphCheck, prog *ssa.Program, c *ssa.CallCommon, impls *typeutil.Map) {
+// initCall reports whether the call c of a package initializer is a static call of a function
+// of the graph at a position in a module file. The call of each func init of the package has no
+// position (go/ssa: buildPackageInit), so it does not count.
+func (g *grapher) initCall(c *ssa.CallCommon) bool {
+	callee := c.StaticCallee()
+	if callee == nil {
+		return false
+	}
+	_, ok := g.staticDecl(callee)
+	_, posOK := g.x.treePos(g.fset, c.Pos())
+	return ok && posOK
+}
+
+// staticDecl gives the decl of the static callee fn (of its origin for an instance), and whether
+// it is a function of the graph. A function literal is none.
+func (g *grapher) staticDecl(fn *ssa.Function) (Pos, bool) {
+	if fn.Parent() != nil {
+		return Pos{}, false
+	}
+	if o := fn.Origin(); o != nil {
+		fn = o
+	}
+	return g.funcAt(fn.Pos())
+}
+
+// checkCall adds the steps of the call c, whose caller has the outer function with the decl
+// caller. A static callee that is no function literal gives a step to its origin. An invoke of
+// a method of a module interface, and a call of a thunk of one (I.M(v)), give a step to the
+// method that the method set of *T selects, for each type T of the type list where T or *T
+// implements the interface; such a call through a type that mentions a type parameter gives no
+// step. Only a function of the graph is a callee. A call with a step and no position in a module
+// file gives no pair: the check keeps its caller and its callees (noPos).
+func (g *grapher) checkCall(ch *graphCheck, prog *ssa.Program, caller Pos, c *ssa.CallCommon, impls *typeutil.Map) {
 	inv := c // the invoke call: c, or the call of the body of a thunk
 	callee := c.StaticCallee()
 	if callee != nil {
@@ -121,11 +164,8 @@ func (g *grapher) checkCall(ch *graphCheck, prog *ssa.Program, c *ssa.CallCommon
 				callees = append(callees, decl)
 			}
 		}
-	case callee != nil && callee.Parent() == nil:
-		if o := callee.Origin(); o != nil {
-			callee = o
-		}
-		if decl, ok := g.funcAt(callee.Pos()); ok {
+	case callee != nil:
+		if decl, ok := g.staticDecl(callee); ok {
 			callees = append(callees, decl)
 		}
 	}
@@ -134,7 +174,8 @@ func (g *grapher) checkCall(ch *graphCheck, prog *ssa.Program, c *ssa.CallCommon
 	}
 	pos, ok := g.x.treePos(g.fset, c.Pos())
 	if !ok {
-		ch.noPos++
+		slices.SortFunc(callees, cmpPos)
+		ch.noPos = append(ch.noPos, noPosCall{caller: caller, callees: slices.Compact(callees)})
 		return
 	}
 	for _, d := range callees {
@@ -155,8 +196,14 @@ func thunkInvoke(fn *ssa.Function) *ssa.CallCommon {
 }
 
 // selections adds the function of the graph that each converted type X selects for each method
-// of each interface of the table that X implements (the method set of X), and counts the types
-// and the types that the type list does not hold (X, or the element type of the pointer X).
+// of each interface of the table that X implements (the method set of X). It counts the types
+// with no type parameter, and of these the types that implement an interface of the table with
+// a method and that the type list does not hold (X, or the element type of the pointer X). It
+// counts the types that are or contain a type parameter apart. The default builder mode builds
+// a generic function body one time, with its type parameters, so the check never sees the type
+// arguments of an instance: a type that the code converts only in a generic body, as a type
+// argument, is no type of this source. (A value of a type parameter whose constraint has the
+// underlying type of the target interface converts with ChangeType: it gives no operand.)
 func (g *grapher) selections(ch *graphCheck, prog *ssa.Program, converted *typeutil.Map, entries []*typeEntry) {
 	type tableIface struct {
 		iface   *types.Interface
@@ -181,21 +228,25 @@ func (g *grapher) selections(ch *graphCheck, prog *ssa.Program, converted *typeu
 		list.Set(te.typ, true)
 	}
 	converted.Iterate(func(x types.Type, _ any) {
-		ch.converted++
+		param := hasTypeParam(x) || hasTypeParam(x.Underlying())
+		if param {
+			ch.paramOps++
+		} else {
+			ch.converted++
+		}
 		elem := x
 		if p, ok := types.Unalias(x).(*types.Pointer); ok {
 			elem = p.Elem()
 		}
-		if list.At(x) == nil && list.At(elem) == nil {
-			ch.outside++
-		}
 		named, ok := types.Unalias(elem).(*types.Named)
 		generic := ok && named.TypeArgs().Len() > 0
 		ms := prog.MethodSets.MethodSet(x)
+		implementing := false
 		for _, ti := range table {
 			if len(ti.methods) == 0 || !types.Implements(x, ti.iface) {
 				continue
 			}
+			implementing = true
 			for _, m := range ti.methods {
 				sel := ms.Lookup(m.Pkg(), m.Name())
 				if decl, ok := g.funcDecl(sel.Obj().(*types.Func)); ok {
@@ -203,13 +254,17 @@ func (g *grapher) selections(ch *graphCheck, prog *ssa.Program, converted *typeu
 				}
 			}
 		}
+		if !param && implementing && list.At(x) == nil && list.At(elem) == nil {
+			ch.outside++
+		}
 	})
 }
 
 // printGraphCheck compares the steps of funcs (the entries direct, embedded and iface) with the
 // pairs of the SSA side, and the selections of the SSA side with the interface table of ch. It
-// prints the counts, at most 20 pairs of each one-sided class, the counts of the SSA side, and
-// at most 20 callees that the table lacks, each with the first type that selects it. A callee
+// prints the counts, at most 20 pairs of each one-sided class, the counts of the SSA side with
+// at most 20 calls with no position, and at most 20 callees that the table lacks, each with the
+// first type that selects it. A callee
 // that only instances of a generic type select is counted apart (generic), and at most 20 of
 // them follow: the table has no generic type. It reports whether both sides are equal and the
 // table lacks no other callee.
@@ -260,7 +315,25 @@ func printGraphCheck(w io.Writer, funcs []GraphFunc, ch *graphCheck) bool {
 		printFirst20(w, side.label, lines)
 	}
 	fmt.Fprintf(w, "check %s: ssa %.1fs: static calls %d, invoke calls of module interface methods %d, "+
-		"calls with no position %d, calls on a type parameter %d\n", ch.goos, ch.dur.Seconds(), ch.static, ch.invoke, ch.noPos, ch.typeParam)
+		"calls with no position %d, calls on a type parameter %d, calls from a package initializer to a function of the graph %d\n",
+		ch.goos, ch.dur.Seconds(), ch.static, ch.invoke, len(ch.noPos), ch.typeParam, ch.initCalls)
+	noPos := slices.Clone(ch.noPos)
+	slices.SortFunc(noPos, func(a, b noPosCall) int {
+		if c := cmpPos(a.caller, b.caller); c != 0 {
+			return c
+		}
+		return slices.CompareFunc(a.callees, b.callees, cmpPos)
+	})
+	var noPosLines []string
+	for _, c := range noPos {
+		var callees []string
+		for _, d := range c.callees {
+			callees = append(callees, fmt.Sprintf("%s:%d %s", d.File, d.Line, names[d]))
+		}
+		noPosLines = append(noPosLines, fmt.Sprintf("caller %s:%d %s -> callee %s",
+			c.caller.File, c.caller.Line, names[c.caller], strings.Join(callees, ", ")))
+	}
+	printFirst20(w, "no position", noPosLines)
 
 	have := map[string]map[Pos]bool{} // interface method id → the methods of its implementer entries
 	for _, gi := range ch.ifaces {
@@ -292,7 +365,8 @@ func printGraphCheck(w io.Writer, funcs []GraphFunc, ch *graphCheck) bool {
 		delete(generic, k)
 	}
 	fmt.Fprintf(w, "check %s: types: converted to an interface %d, of these outside the type list %d, callees that the table lacks %d, "+
-		"by an instance of a generic type %d\n", ch.goos, ch.converted, ch.outside, len(lacks), len(generic))
+		"by an instance of a generic type %d, operands with a type parameter %d\n",
+		ch.goos, ch.converted, ch.outside, len(lacks), len(generic), ch.paramOps)
 	for _, side := range []struct {
 		label string
 		m     map[ifaceSelect]string
