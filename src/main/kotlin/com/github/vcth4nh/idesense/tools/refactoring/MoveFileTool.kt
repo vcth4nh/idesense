@@ -1,5 +1,6 @@
 package com.github.vcth4nh.idesense.tools.refactoring
 
+import com.github.vcth4nh.idesense.exceptions.IndexNotReadyException
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.models.RefactoringResult
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
@@ -220,7 +221,8 @@ open class MoveFileTool : AbstractRefactoringTool() {
      * Executes the move refactoring on EDT using MoveFilesOrDirectoriesProcessor.
      *
      * The processor manages its own WriteCommandAction internally, so we do NOT
-     * wrap it in another WriteCommandAction. We only ensure it runs on EDT.
+     * wrap it in another WriteCommandAction. We only ensure it runs on EDT, and starts
+     * only in smart mode, and we check that the file moved (#295).
      */
     private suspend fun executeMove(
         project: Project,
@@ -230,21 +232,33 @@ open class MoveFileTool : AbstractRefactoringTool() {
         var errorMessage: String? = null
         var affectedFiles = linkedSetOf<String>()
         val fileName = preparation.psiFile.name
+        var moved = true
+        var metDumbMode = false
 
-        edtAction {
+        smartEdtAction(project, MOVE_STOPPED_BY_DUMB_MODE) {
             try {
                 if (!preparation.psiFile.isValid || !preparation.targetDirectory.isValid) {
                     errorMessage = "Source file or target directory is no longer valid"
-                    return@edtAction
+                    return@smartEdtAction
                 }
 
                 val filePointer = SmartPointerManager.createPointer(preparation.psiFile)
+                val sourceFolder = preparation.psiFile.virtualFile?.parent
                 val modifiedFilesBeforeMove = collectUnsavedProjectFiles(project)
 
-                when (preparation.backend) {
-                    MoveBackend.GENERIC_FILE_MOVE -> executeGenericFileMove(preparation)
-                    MoveBackend.PHP_SEMANTIC_MOVE -> executePhpSemanticMove(project, preparation)
+                metDumbMode = metDumbModeDuring(project) {
+                    when (preparation.backend) {
+                        MoveBackend.GENERIC_FILE_MOVE -> executeGenericFileMove(preparation)
+                        MoveBackend.PHP_SEMANTIC_MOVE -> executePhpSemanticMove(project, preparation)
+                    }
                 }
+
+                // A processor that meets dumb mode returns with no change and no exception (#295).
+                // The move is done when the file left its folder, or when the target folder has a
+                // file of its name.
+                moved = filePointer.element?.virtualFile?.parent != sourceFolder ||
+                    preparation.targetDirectory.virtualFile.findChild(fileName) != null
+                if (!moved) return@smartEdtAction
 
                 if (preparation.backend == MoveBackend.PHP_SEMANTIC_MOVE) {
                     cleanupMovedPhpFileImports(filePointer.element)
@@ -258,6 +272,11 @@ open class MoveFileTool : AbstractRefactoringTool() {
             } catch (e: Exception) {
                 errorMessage = e.message
             }
+        }
+
+        if (!moved) {
+            if (metDumbMode) throw IndexNotReadyException(MOVE_STOPPED_BY_DUMB_MODE)
+            return createErrorResult("Move failed: $NOTHING_CHANGED")
         }
 
         return if (success) {

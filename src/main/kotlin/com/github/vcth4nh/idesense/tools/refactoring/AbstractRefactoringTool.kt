@@ -1,12 +1,52 @@
 package com.github.vcth4nh.idesense.tools.refactoring
 
+import com.github.vcth4nh.idesense.constants.ToolNames
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.util.PsiTreeUtil
+import java.util.concurrent.atomic.AtomicBoolean
+
+private const val WAIT_FOR_INDEXING =
+    "Wait for the end of the indexing (${ToolNames.INDEX_STATUS} shows isDumbMode: false), then call again."
+
+/** The `index_not_ready` text of `ide_refactor_rename` when the rename met dumb mode (#295). */
+internal const val RENAME_STOPPED_BY_DUMB_MODE =
+    "The IDE went into dumb mode before the rename ran, and nothing changed. $WAIT_FOR_INDEXING"
+
+/** The `index_not_ready` text of `ide_move_file` when the move met dumb mode (#295). */
+internal const val MOVE_STOPPED_BY_DUMB_MODE =
+    "The IDE went into dumb mode before the move ran, and nothing changed. $WAIT_FOR_INDEXING"
+
+/** The text after "Rename failed: " or "Move failed: " when a refactoring made no change and met no dumb mode. */
+internal const val NOTHING_CHANGED = "nothing changed, and the IDE gave no reason."
+
+/**
+ * Runs [refactoring] on the EDT and returns true when the IDE entered dumb mode during it, or is in
+ * dumb mode at its end. A refactoring processor of the platform that meets dumb mode shows the dumb
+ * mode notification of the IDE and returns with no change and no exception
+ * (`BaseRefactoringProcessor.doRun`, #295). The IDE publishes [DumbService.DUMB_MODE] on the EDT
+ * when it enters dumb mode (`DumbServiceImpl.incrementDumbCounter`, ideaIC-2025.1.3).
+ */
+internal fun metDumbModeDuring(project: Project, refactoring: () -> Unit): Boolean {
+    val entered = AtomicBoolean()
+    val connection = project.messageBus.connect()
+    try {
+        connection.subscribe(DumbService.DUMB_MODE, object : DumbService.DumbModeListener {
+            override fun enteredDumbMode() {
+                entered.set(true)
+            }
+        })
+        refactoring()
+    } finally {
+        connection.disconnect()
+    }
+    return entered.get() || DumbService.isDumb(project)
+}
 
 /**
  * Abstract base class for all refactoring tools.

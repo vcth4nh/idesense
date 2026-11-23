@@ -1,5 +1,6 @@
 package com.github.vcth4nh.idesense.tools.refactoring
 
+import com.github.vcth4nh.idesense.exceptions.IndexNotReadyException
 import com.github.vcth4nh.idesense.server.models.ToolCallResult
 import com.github.vcth4nh.idesense.tools.AbstractMcpTool
 import com.github.vcth4nh.idesense.tools.models.RefactoringResult
@@ -149,15 +150,28 @@ class RenameSymbolTool : AbstractMcpTool() {
         val affectedFiles = mutableSetOf<String>()
         var relatedRenamesCount = 0
         var errorMessage: String? = null
+        var renamed = true
+        var metDumbMode = false
 
-        edtAction {
+        smartEdtAction(project, RENAME_STOPPED_BY_DUMB_MODE) {
             try {
-                val result = executeRename(project, element, newName, overrideStrategy, relatedRenamingStrategy, affectedFiles)
-                changesCount = result.first
-                relatedRenamesCount = result.second
+                metDumbMode = metDumbModeDuring(project) {
+                    val result = executeRename(project, element, newName, overrideStrategy, relatedRenamingStrategy, affectedFiles)
+                    if (result == null) {
+                        renamed = false
+                    } else {
+                        changesCount = result.first
+                        relatedRenamesCount = result.second
+                    }
+                }
             } catch (e: Exception) {
                 errorMessage = e.message ?: "Unknown error during rename"
             }
+        }
+
+        if (errorMessage == null && !renamed) {
+            if (metDumbMode) throw IndexNotReadyException(RENAME_STOPPED_BY_DUMB_MODE)
+            return createErrorResult("Rename failed: $NOTHING_CHANGED")
         }
 
         // Commit and save outside EDT block — commitDocuments uses
@@ -346,7 +360,8 @@ class RenameSymbolTool : AbstractMcpTool() {
      * - Constructor parameter -> field coupling is pre-added because the platform only provides
      *   the inverse relation (field -> constructor parameters)
      *
-     * @return Pair of (affected files count, related elements renamed count)
+     * @return Pair of (affected files count, related elements renamed count), or null when the rename
+     *   target keeps its old name: the processor changed nothing
      */
     private fun executeRename(
         project: Project,
@@ -355,7 +370,7 @@ class RenameSymbolTool : AbstractMcpTool() {
         overrideStrategy: String,
         relatedRenamingStrategy: String,
         affectedFiles: MutableSet<String>
-    ): Pair<Int, Int> {
+    ): Pair<Int, Int>? {
         // Resolve the actual target element to rename based on override strategy.
         // For methods that override a base method, RenameJavaMethodProcessor's
         // substituteElementToRename() calls SuperMethodWarningUtil.checkSuperMethod()
@@ -405,8 +420,18 @@ class RenameSymbolTool : AbstractMcpTool() {
         // Disable preview dialog for headless operation
         renameProcessor.setPreviewUsages(false)
 
+        // The primary element of the processor is the rename target. For a light element (for example
+        // the light method of a Kotlin base function) the check also reads its source element: the
+        // rename counts as done when one of the two no longer has its old name.
+        val primaryNames = listOfNotNull(targetElement, targetElement.navigationElement as? PsiNamedElement)
+            .distinct()
+            .map { it to it.name }
+
         // Execute the rename - this modifies files in place (primary + all related elements)
         renameProcessor.run()
+
+        // A processor that meets dumb mode returns with no change and no exception (#295).
+        if (primaryNames.all { (primary, oldName) -> primary.isValid && primary.name == oldName }) return null
 
         val relatedRenamesCount = renameProcessor.elements.count { it != targetElement }
         for (renamedElement in renameProcessor.elements) {

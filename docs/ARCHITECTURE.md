@@ -623,6 +623,33 @@ Each entry gives the contract, the consequence for the code, and the class that 
   is `@ApiStatus.Internal` in IU-263.7307.200, and ideaIC-2025.1.3 has no such method. The
   analysis of `ide_diagnostics` does not use `suspendingReadAction` (`DiagnosticsAnalysisService`
   uses `ReadAction.compute`, the daemon and `CodeSmellDetector`), so it does not wait.
+- **A refactoring does nothing in dumb mode.** `BaseRefactoringProcessor.doRun` runs its search in
+  `ProgressManager.runProcessWithProgressSynchronously`; the search catches the platform
+  `IndexNotReadyException` and only sets a flag. After the search, when the flag is set or the IDE
+  is in dumb mode, `doRun` shows the dumb mode notification of the IDE and returns, with no change
+  and no exception (`DumbService.isDumb`, `app-client.jar` of ideaIC-2025.1.3;
+  `DumbService.isUsableInCurrentContext`, false in dumb mode for a class that is not `DumbAware`,
+  `intellij.platform.refactoring.jar` and `intellij.platform.core.jar` of IU-263.7307.200). A scan
+  of the files with no dumb mode does not stop it. `RenameProcessor.doRun` calls `prepareRenaming`
+  and then this `doRun`, and `MoveFilesOrDirectoriesProcessor` has no `doRun` (both builds). So the
+  dumb mode check at the start of `ide_refactor_rename` and `ide_move_file` is not enough (#295).
+  Their step on the UI thread goes through `AbstractMcpTool.smartEdtAction`, which starts the step
+  only when `DumbService.isDumb` is false on the UI thread. The dumb state changes in a write
+  action: on the UI thread in ideaIC-2025.1.3 (`DumbServiceImpl.incrementDumbCounter`), and in
+  `ThreadingSupport.runWriteActionWithCheckInWriteIntent` in IU-263.7307.200
+  (`DumbServiceImpl$incrementDumbCounterSuspending$3`, `intellij.platform.ide.impl.jar`). The step
+  holds the write-intent lock (`BaseRefactoringProcessor.run` asserts it in a test), so the check
+  holds until the step starts. In dumb mode the function waits for the end, and the wait counts in
+  the wait of the call (`IndexAccess.waitedNanos`, 10 s in total). `DumbService.smartInvokeLater`
+  was not used: it also waits for a scan of the files (`SmartModeScheduler.getCurrentMode` reads
+  the scanner, both builds), and it has no limit. The step can meet dumb mode after its start:
+  `doRun` first runs the queued dumb mode tasks (`DumbService.completeJustSubmittedTasks`, both
+  builds), and then the search. So after the run each tool checks the result: the rename
+  target (and its source element, for a light element) no longer has its old name; the file left
+  its folder, or the target folder has a file of its name. A failed check gives `index_not_ready`
+  when the IDE entered dumb mode during the step (`DumbService.DUMB_MODE`, which `DumbServiceImpl`
+  publishes on the UI thread at the start of dumb mode in ideaIC-2025.1.3) or is in dumb mode at
+  its end, and `tool_error` otherwise.
 - **No exception may leave a search callback inside a stub index processor.** GoLand runs the
   callback of `DefinitionsScopedSearch` inside `StubIndexEx.processElements`, which takes an
   `IndexOutOfBoundsException` for index damage (`FileBasedIndexEx.extractCauseToRebuildIndex`) and

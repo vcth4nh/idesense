@@ -161,6 +161,50 @@ abstract class AbstractMcpTool : McpTool {
     }
 
     /**
+     * Executes an action on the EDT, as [edtAction] does, and starts it only when the IDE is not in
+     * dumb mode (#295). A refactoring processor of the platform that meets dumb mode makes no change
+     * and throws nothing (`BaseRefactoringProcessor.doRun`). The IDE changes the dumb state in a
+     * write action, so the check on the EDT holds until [action] starts (docs/ARCHITECTURE.md, "A
+     * refactoring does nothing in dumb mode"). Dumb mode can still start after [action] starts, for
+     * example in the queued dumb mode tasks that a refactoring runs first: the caller checks the
+     * result of [action].
+     *
+     * In dumb mode this function waits for its end, and then tries again. The wait counts in the
+     * wait for smart mode of the call, at most [INDEX_WAIT_LIMIT_MS] in total (see [IndexAccess]).
+     * At the limit it throws [IndexNotReadyException] with [notReadyMessage], and [action] does not
+     * run. It does not wait for a scan of the files with no dumb mode: the refactoring processor
+     * tests only dumb mode.
+     *
+     * On the EDT (a test that runs the tool there) it cannot wait: in dumb mode it throws at once.
+     */
+    protected suspend fun <T> smartEdtAction(project: Project, notReadyMessage: String, action: () -> T): T {
+        if (ApplicationManager.getApplication().isDispatchThread) {
+            if (DumbService.isDumb(project)) throw IndexNotReadyException(notReadyMessage)
+            return action()
+        }
+        val waitedNanos = currentCoroutineContext()[IndexAccess]?.waitedNanos ?: AtomicLong()
+        val limitNanos = TimeUnit.MILLISECONDS.toNanos(indexWaitLimitMs)
+        while (true) {
+            val outcome = withContext(Dispatchers.EDT + ModalityState.nonModal().asContextElement()) {
+                if (DumbService.isDumb(project)) NOT_RUN else action()
+            }
+            @Suppress("UNCHECKED_CAST")
+            if (outcome !== NOT_RUN) return outcome as T
+            val start = System.nanoTime()
+            try {
+                // A poll off the EDT: the check on the EDT decides.
+                while (DumbService.isDumb(project)) {
+                    val left = limitNanos - waitedNanos.get() - (System.nanoTime() - start)
+                    if (left <= 0) throw IndexNotReadyException(notReadyMessage)
+                    delay(TimeUnit.NANOSECONDS.toMillis(left).coerceIn(1, DUMB_MODE_POLL_MS))
+                }
+            } finally {
+                waitedNanos.addAndGet(System.nanoTime() - start)
+            }
+        }
+    }
+
+    /**
      * Commits all documents in a write-safe context.
      *
      * [PsiDocumentManager.commitAllDocuments] requires a write-safe EDT context
@@ -262,9 +306,9 @@ abstract class AbstractMcpTool : McpTool {
 
         /**
          * The waits of the smart reads of this call, in total: in each [smartRead], the time before
-         * each run of the block.
+         * each run of the block. [smartEdtAction] adds its wait for the end of dumb mode.
          */
-        private val waitedNanos = AtomicLong()
+        val waitedNanos = AtomicLong()
 
         /**
          * Runs [action] in a smart read action of [project]. A watchdog adds up the time before each
@@ -333,6 +377,12 @@ abstract class AbstractMcpTool : McpTool {
         private const val IN_BLOCK = Long.MIN_VALUE
 
         private const val WATCHDOG_MIN_DELAY_MS = 10L
+
+        /** The poll interval of the wait of [smartEdtAction] for the end of dumb mode. */
+        private const val DUMB_MODE_POLL_MS = 50L
+
+        /** The result of a try of [smartEdtAction] that found dumb mode and did not run its action. */
+        private val NOT_RUN = Any()
 
         private const val INDEX_WAIT_LIMIT_MESSAGE =
             "IDE indexes not ready after a wait of ${INDEX_WAIT_LIMIT_MS / 1000} seconds: the IDE is in dumb mode " +

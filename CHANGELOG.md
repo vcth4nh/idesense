@@ -344,6 +344,18 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   `ide_find_symbol`, give the kind `TYPE_ALIAS` to a Kotlin type alias, as for a Rust or a
   TypeScript type alias. It was `SYMBOL`. The `qualifiedName` of a Kotlin type alias does not
   change. Part of #278.
+- `ide_refactor_rename` and `ide_move_file` no longer return `success: true` with a "Successfully
+  renamed" or "Successfully moved" message when the IDE enters dumb mode after the dumb mode check
+  of the tool. The refactoring of the IDE then shows its dumb mode notification and makes no
+  change. The rename or move now starts only after the end of a dumb mode (a scan of the files does
+  not stop it), within the wait of a call of 10 seconds in total. When the wait comes to its limit,
+  or when the IDE enters dumb mode during the rename or move and nothing changes, the call gets
+  `index_not_ready` with the message "The IDE went into dumb mode before the rename ran, and
+  nothing changed. Wait for the end of the indexing (ide_index_status shows isDumbMode: false),
+  then call again." (or "move" for `ide_move_file`). A rename or move that changes nothing with no
+  dumb mode gets the `tool_error` "Rename failed: nothing changed, and the IDE gave no reason." or
+  "Move failed: nothing changed, and the IDE gave no reason.", for example the rename of
+  `notes.txt` to `notes`, which the tool completes to the same name `notes.txt` (#295).
 
 ## [2.1.0] - 2026-11-09
 
