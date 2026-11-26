@@ -320,20 +320,41 @@ mkdir -p "$R/xdg/config" "$R/xdg/data"
 (cd "$R/copy" && go version && XDG_CONFIG_HOME="$R/xdg/config" XDG_DATA_HOME="$R/xdg/data" \
   BENCH_TRACE_OUT="$R/stacks.jsonl" go test -count=1 ./...) > "$R/test.log" 2>&1
 ./live-test/run.py keygen tracekeys tracecheck -graph "$B/keys/caddy/graph.jsonl" \
-  -targets "$R/targets.json" -trace "$R/stacks.jsonl" -root "$R/copy"
+  -targets "$R/targets.json" -trace "$R/stacks.jsonl" -root "$R/copy" \
+  -keys "$B/keys/caddy/trace.jsonl" -ids <id,...|@file>
 ```
 
-The id of a start-set record holds spaces: quote the value of `-ids`, or give `@<file>` with one
-id on each line. The test run has the conditions of "Caller keys through an interface value".
+Give `tracecheck` the `-ids` of `targets`. The id of a start-set record holds spaces: quote the
+value of `-ids`, or give `@<file>` with one id on each line. The test run has the conditions of
+"Caller keys through an interface value".
 
-`tracecheck` gives each trace line a verdict against the graph. A traced call from a function of
-the graph must be a step of the graph to the traced function, or a call that gives no step (an
-entry of the kind `other` on its line). Else its verdict is `missing`, and the exit code is 1. The
-exit code is also 1 when no trace line has a frame in a function of the graph. A call from a test
-file, from outside the tree or from outside a function body is counted, and it is no failure. The
-output lists each `key-line` line: the graph has a step from the same function to the traced
-function only on another line. A reader checks each such line in the source: the traced call must
-be the call of a step on a listed line. The module text of `tracekeys.py` gives each verdict.
+`tracecheck` gives each trace line a verdict against the graph, with the first rule that applies. A
+call from outside the tree, from a test file or from a line in no function of the graph is counted
+(`external`, `test`, `package-level`), and it is no failure. A call from a function of the graph is
+`key` when the graph has its step to the traced function on the line of the call. It is `key-line`
+when the graph has a step from that function to the traced function only on another line. Else it
+is `dynamic` when the line has a call that gives no step (an entry of the kind `other`), and else
+`missing`. Then each chosen record of the complete form judges each `key` and `key-line` line. The
+calling function must be the target or a function of the record, and the line of a `key` call from
+a function other than the target must be a required line of the record. Else the verdict is
+`not-in-key`. A record of the start-set form judges no call: a correct call can come from a
+function outside the record. The exit code is 1 when a line is `missing` or `not-in-key`, or when
+no trace line has a frame in a function of the graph. The module text of `tracekeys.py` gives each
+rule.
+
+The output lists each `key-line` line and each `package-level` line. A reader checks each of them
+in the source:
+
+- `key-line`: the traced call must be the call of a step on a listed line. A deferred call gives
+  `key-line`: its frame is at the line where the function returns, a `return` statement or the
+  closing brace (Go 1.26).
+- `package-level`: the line must be in a package-level declaration. A line inside a function body
+  means that the graph lost that function.
+
+A call after `go` of a traced function (`go T()`, also with arguments) has only the frame
+`runtime.goexit` in the trace (Go 1.26). Its verdict is `external`, so the check does not judge
+such a step. A call inside a function literal after `go` (`go func() { T() }()`) has the frame of
+the literal, and the function that holds the literal is its caller.
 
 ## Tests
 

@@ -459,8 +459,8 @@ def check_funcs():
 class TracecheckTest(unittest.TestCase):
     T = "t.go:1"
 
-    def check(self, *lines):
-        return tracekeys.tracecheck(check_funcs(), [target("t.go")], list(lines), ROOT)
+    def check(self, *trace):
+        return tracekeys.tracecheck(check_funcs(), [target("t.go")], list(trace), ROOT)
 
     def test_each_verdict_of_a_trace_line(self):
         out, code = self.check(
@@ -476,22 +476,24 @@ class TracecheckTest(unittest.TestCase):
             stack(self.T, frame("m.go", 2)),  # missing
             stack("z.go:1", frame("m.go", 2)))  # a trace line of another id
         self.assertEqual(["tracecheck: 1 functions, 10 trace lines: external 3, test 1, package-level 1, key 2, "
-                          "key-line 1, dynamic 1, missing 1; trace lines of other ids: 1",
+                          "key-line 1, dynamic 1, missing 1, not-in-key 0; trace lines of other ids: 1",
                           "missing m.go:2 (in m.go:1, calls t.go:1)",
-                          "key-line a.go:4 (in a.go:1, calls t.go:1, step on line 2)"], out)
+                          "key-line a.go:4 (in a.go:1, calls t.go:1, step on line 2)",
+                          "package-level a.go:20 (calls t.go:1)"], out)
         self.assertEqual(1, code)
 
     def test_a_package_level_frame_is_counted_and_is_no_failure(self):
         out, code = self.check(stack(self.T, frame("a.go", 2)), stack(self.T, frame("a.go", 20)))
         self.assertEqual(["tracecheck: 1 functions, 2 trace lines: external 0, test 0, package-level 1, key 1, "
-                          "key-line 0, dynamic 0, missing 0; trace lines of other ids: 0"], out)
+                          "key-line 0, dynamic 0, missing 0, not-in-key 0; trace lines of other ids: 0",
+                          "package-level a.go:20 (calls t.go:1)"], out)
         self.assertEqual(0, code)
 
     def test_a_trace_with_no_frame_in_a_function_gives_exit_1(self):
-        for lines in ((), (stack(self.T, frame("x_test.go", 4)), stack(self.T, frame("a.go", 20)))):
-            with self.subTest(len(lines)):
-                out, code = self.check(*lines)
-                self.assertEqual("tracecheck: no trace line has a first frame in a function of the graph", out[-1])
+        for trace in ((), (stack(self.T, frame("x_test.go", 4)), stack(self.T, frame("a.go", 20)))):
+            with self.subTest(len(trace)):
+                out, code = self.check(*trace)
+                self.assertEqual("tracecheck: no trace line has a first frame in a function of the graph", out[1])
                 self.assertEqual(1, code)
 
     def test_each_listed_line_comes_one_time_with_its_step_lines(self):
@@ -499,10 +501,31 @@ class TracecheckTest(unittest.TestCase):
         funcs[1]["calls"].append(call(5, 2, at("t.go")))  # a second step A -> T
         out, _ = tracekeys.tracecheck(funcs, [target("t.go")], [
             stack(self.T, frame("a.go", 4), frame("x.go", 1)), stack(self.T, frame("a.go", 4), frame("x.go", 2)),
-            stack(self.T, frame("m.go", 2), frame("x.go", 1)), stack(self.T, frame("m.go", 2), frame("x.go", 2))],
+            stack(self.T, frame("m.go", 2), frame("x.go", 1)), stack(self.T, frame("m.go", 2), frame("x.go", 2)),
+            stack(self.T, frame("a.go", 20), frame("x.go", 1)), stack(self.T, frame("a.go", 20), frame("x.go", 2))],
             ROOT)
         self.assertEqual(["missing m.go:2 (in m.go:1, calls t.go:1)",
-                          "key-line a.go:4 (in a.go:1, calls t.go:1, steps on lines 2, 5)"], out[1:])
+                          "key-line a.go:4 (in a.go:1, calls t.go:1, steps on lines 2, 5)",
+                          "package-level a.go:20 (calls t.go:1)"], out[1:])
+
+    def test_a_step_to_another_target_is_no_key(self):
+        # A calls T1 on line 2 and T2 on line 3. A trace line of T2 with its frame on line 2 is key-line.
+        funcs = [fn("T1", "t1.go"), fn("T2", "t2.go"),
+                 fn("A", "a.go", calls=[call(2, 2, at("t1.go")), call(3, 2, at("t2.go"))])]
+        out, code = tracekeys.tracecheck(funcs, [target("t1.go"), target("t2.go")],
+                                         [stack("t2.go:1", frame("a.go", 2)), stack("t1.go:1", frame("a.go", 2))],
+                                         ROOT)
+        self.assertEqual(["tracecheck: 2 functions, 2 trace lines: external 0, test 0, package-level 0, key 1, "
+                          "key-line 1, dynamic 0, missing 0, not-in-key 0; trace lines of other ids: 0",
+                          "key-line a.go:2 (in a.go:1, calls t2.go:1, step on line 3)"], out)
+        self.assertEqual(0, code)
+
+    def test_a_frame_in_a_function_literal_is_in_the_function_that_holds_it(self):
+        funcs = [fn("T", "t.go"), fn("A", "a.go", calls=[call(3, 9, at("t.go"), lit=True)])]
+        out, code = tracekeys.tracecheck(funcs, [target("t.go")], [stack(self.T, frame("a.go", 3, "m.A.func1"))],
+                                         ROOT)
+        self.assertIn(", key 1,", out[0])
+        self.assertEqual(0, code)
 
     def test_a_frame_below_the_real_path_of_the_root_is_in_the_tree(self):
         folder = tempfile.mkdtemp()
@@ -534,6 +557,84 @@ class TracecheckTest(unittest.TestCase):
         code, stdout, stderr = run_main(args)
         self.assertEqual((1, ""), (code, stderr))
         self.assertEqual("missing m.go:2 (in m.go:1, calls t.go:1)", stdout.splitlines()[-1])
+
+
+class KeyCheckTest(unittest.TestCase):
+    """tracecheck with the chosen records: a record of the complete form also judges a call."""
+    T = "t.go:1"
+
+    def setUp(self):
+        # The complete-form record go:m.T of the graph of check_funcs: the functions A and M, the required lines a.go:2
+        # and m.go:2.
+        self.rec = by_id(make(check_funcs(), extra=[{"target": "go:m.T"}])[0], "go:m.T")
+        self.assertEqual((["a.go:1", "m.go:1"], {("a.go", 2), ("m.go", 2)}),
+                         (decls(self.rec["functions"]), required_lines(self.rec)))
+
+    def check(self, records, *trace):
+        return tracekeys.tracecheck(check_funcs(), [target("t.go")], list(trace), ROOT, records)
+
+    def test_a_complete_record_accepts_its_steps(self):
+        out, code = self.check([self.rec], stack(self.T, frame("a.go", 2)), stack(self.T, frame("a.go", 4)))
+        self.assertIn(", key 1, key-line 1, dynamic 0, missing 0, not-in-key 0;", out[0])
+        self.assertEqual(0, code)
+
+    def test_a_record_that_lacks_the_caller_gives_not_in_key(self):
+        self.rec["functions"] = [f for f in self.rec["functions"] if f["id"] != "go:m.A"]  # a fault of make
+        out, code = self.check([self.rec], stack(self.T, frame("a.go", 2)), stack(self.T, frame("a.go", 4)))
+        self.assertEqual(["tracecheck: 1 functions, 2 trace lines: external 0, test 0, package-level 0, key 0, "
+                          "key-line 0, dynamic 0, missing 0, not-in-key 2; trace lines of other ids: 0",
+                          "not-in-key a.go:2 (in a.go:1, calls t.go:1, record go:m.T)",
+                          "not-in-key a.go:4 (in a.go:1, calls t.go:1, record go:m.T)"], out)
+        self.assertEqual(1, code)
+
+    def test_a_record_whose_required_lacks_the_site_gives_not_in_key(self):
+        self.rec["sites"] = [s for s in self.rec["sites"] if (s["file"], s["line"]) != ("a.go", 2)]
+        out, code = self.check([self.rec], stack(self.T, frame("a.go", 2)), stack(self.T, frame("a.go", 4)))
+        self.assertIn(", key 0, key-line 1, dynamic 0, missing 0, not-in-key 1;", out[0])
+        self.assertEqual("not-in-key a.go:2 (in a.go:1, calls t.go:1, record go:m.T)", out[1])
+        self.assertEqual(1, code)
+
+    def test_a_start_set_record_with_a_caller_outside_the_record_stays_key(self):
+        records, _ = make(starts_funcs(), [iface("I", "Run", STARTS)], BASE_USES,
+                          extra=[{"target": "go:m.T", "from": I_RUN}])
+        rec = by_id(records, f"go:m.T from {I_RUN}")
+        self.assertNotIn("a.go:1", decls(rec["functions"]))  # A -> T is a step of the graph, A is outside the record
+        out, code = tracekeys.tracecheck(starts_funcs(), [target("t.go")], [stack(self.T, frame("a.go", 2))], ROOT,
+                                         [rec])
+        self.assertIn(", key 1, key-line 0, dynamic 0, missing 0, not-in-key 0;", out[0])
+        self.assertEqual(0, code)
+
+    def test_a_caller_that_is_the_target_is_no_failure(self):
+        # T -> A is a step out of the target T: the record go:m.T keeps it, and its line is no required site.
+        records, _ = make(base_funcs(), uses=BASE_USES)
+        chosen = [by_id(records, "go:m.T"), by_id(records, "go:m.A")]
+        out, code = tracekeys.tracecheck(base_funcs(), [target("t.go"), target("a.go")],
+                                         [stack("a.go:1", frame("t.go", 2))], ROOT, chosen)
+        self.assertIn(", key 1, key-line 0, dynamic 0, missing 0, not-in-key 0;", out[0])
+        self.assertEqual(0, code)
+
+    def test_cli_tracecheck_with_keys_and_ids(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder)
+        graph, targets, trace, keys_file = (os.path.join(folder, n) for n in (
+            "graph.jsonl", "targets.json", "stacks.jsonl", "trace.jsonl"))
+        write_jsonl(graph, check_funcs())
+        with open(targets, "w", encoding="utf-8") as f:
+            json.dump([target("t.go")], f)
+        write_jsonl(trace, [stack(self.T, frame("a.go", 2))])
+        self.rec["functions"] = []
+        write_jsonl(keys_file, [self.rec])
+        args = ["tracecheck", "-graph", graph, "-targets", targets, "-trace", trace, "-root", ROOT]
+        self.assertEqual(0, run_main(args)[0])  # with no -keys, the graph alone judges the call
+        code, stdout, stderr = run_main(args + ["-keys", keys_file, "-ids", "go:m.T"])
+        self.assertEqual((1, ""), (code, stderr))
+        self.assertEqual("not-in-key a.go:2 (in a.go:1, calls t.go:1, record go:m.T)", stdout.splitlines()[-1])
+        for more, message in ((["-keys", keys_file], "tracekeys: -keys and -ids go together\n"),
+                              (["-ids", "go:m.T"], "tracekeys: -keys and -ids go together\n"),
+                              (["-keys", keys_file, "-ids", "go:m.None"], "tracekeys: no trace record with the id "
+                                                                         "go:m.None\n")):
+            with self.subTest(more):
+                self.assertEqual((2, "", message), run_main(args + more))
 
 
 class CommandTest(unittest.TestCase):
@@ -612,6 +713,17 @@ class CommandTest(unittest.TestCase):
         self.assertEqual((2, "", f"tracekeys: an -extra entry with no target: {{'from': '{I_RUN}'}}\n"),
                          run_main(self.make_args()))
         self.assertFalse(os.path.exists(self.out))
+
+    def test_cli_reports_an_output_file_that_cannot_be_written_with_exit_code_2(self):
+        below_a_file = os.path.join(self.graph, "trace.jsonl")  # the graph file is no folder
+        code, _, stderr = run_main(["make", "-graph", self.graph, "-calls", self.calls, "-out", below_a_file])
+        self.assertEqual(2, code)
+        self.assertTrue(stderr.startswith(f"tracekeys: {below_a_file}: "), stderr)
+        keys_file = os.path.join(self.dir, "keys.jsonl")
+        write_jsonl(keys_file, make(self.funcs, self.ifaces, BASE_USES)[0])
+        no_folder = os.path.join(self.dir, "none", "targets.json")
+        self.assertEqual((2, "", f"tracekeys: {no_folder}: No such file or directory\n"),
+                         run_main(["targets", "-keys", keys_file, "-ids", "go:m.T", "-out", no_folder]))
 
     def test_module_runs_as_a_command(self):
         proc = subprocess.run([sys.executable, "-B", "-m", "keygen.tracekeys", "make", "-h"], cwd=LIVE_TEST_DIR,
