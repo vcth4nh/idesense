@@ -107,7 +107,11 @@ benchmark holds only the lines of its answer (see
 `calls.jsonl` file is no key: it holds the uses of each function declaration, and the caller keys
 and the caller audit read it. `trace.jsonl` holds one trace key for each target of its pools. A
 `graph.jsonl` file is no key: it holds the call graph of the Linux build, and `tracekeys make`
-and `tracekeys tracecheck` read it.
+and `tracekeys tracecheck` read it. It has two kinds of lines: one line for each function with its
+call entries, and the interface table. The interface table has one row for each method of each
+named interface that the module declares (a generic interface has no row). A row lists the types
+of the module that implement the interface. Each type has the method that it selects for this
+interface method, or no method when that method is no function of the graph.
 
 A proof "by hand" has no tracked command: a maintainer makes it when the key is made.
 
@@ -119,8 +123,16 @@ A proof "by hand" has no tracked command: a maintainer makes it when the key is 
   compare its records of the shared name with the records of `plant.jsonl`.
 - `plant.jsonl` of a Python plant: the test suite of the planted tree gives the result of the
   base tree, and the call sites that a run-time trace logs are compared with the key.
-- `trace.jsonl`: a reader checks each step of four targets in the source, and the trace records
-  of these targets give the same lines.
+- `trace.jsonl`: when the key of caddy was made, the keys of four targets existed from an earlier,
+  separate program. That program used `go/types` in another way and shared no code with
+  `gokeys graph`. Agents that got only the question and the source, with no key, had derived the
+  same lines for each of the four. The trace records of these four targets give the same required
+  lines and the same lines that do not count. The four targets, two of each form: the function
+  `normalizeDirPerm` of the package `logging` and the method `Dispenser.isNextOnNewLine` of the
+  package `caddyfile` (complete form); `FileSystemMap.key` from the implementations of
+  `RequestMatcher.Match`, and `fileReplacementProvider.replace` from the implementations of
+  `RequestMatcherWithError.MatchWithError` (start-set form). For a new product, a maintainer takes
+  two targets of each form and derives their keys in a second, independent way.
 
 `plant make` itself checks only the rename: each occurrence of the shared name is a renamed
 position, and no original name is left.
@@ -301,8 +313,9 @@ mkdir -p "$K"
 `graph` loads one build (`-goos`; GOARCH is amd64) with no test file. `-check` compares the graph
 with the SSA form of the same build (`go/ssa`) in two parts:
 
-- The pairs of a call line and a callee (the line `pairs:`). The SSA side takes each pair from a
-  call of the SSA form. Equal pairs prove the call lines, the static callees and the interface of
+- The pairs of a call line and a callee (the line `pairs:`). The graph side comes from the syntax
+  tree and `go/types`. The SSA side takes each pair from a call of the SSA form. Equal pairs prove
+  the call lines, the static callees and the interface of
   each call of an interface method. They do not prove the implementers of that interface: both
   sides take the implementers from one type list, the types that can implement an interface.
 - The types that the SSA form converts to an interface value (the line `types:`). They are a
@@ -322,31 +335,37 @@ The exit code is 1 when a pair is on one side only, when a call with a step has 
 a module type is outside the type list, or when the table lacks a selected method that a type
 other than an instance of a generic type selects. The output lists at most 20 of each. A call with
 no position is a call with no call expression, for example the call of the function of a
-range-over-func loop (`for x := range seq`). Rule 5 of a call step does not decide such a call, so
-a product with one needs a decision before its keys, and the key has no step for it. With a
-complete type list, the count `outside the type list` is 0. The lack check compares by the
-interface that declares a method. So a type that the list lacks can select a method that the
-table already has through another type, and then no lack shows it: only the count `outside the
-type list` shows such a type. The other counts of the output are no failure.
+range-over-func loop (`for x := range seq`). No rule of a call step says if such a call is a step. A
+product with such a call gets no trace keys until the rule of a call step
+([METHOD.md](../METHOD.md), section 3.4) says what such a call is. The owner of the repository
+decides that rule. With a complete type list, the count `outside the type list` is 0. The lack check
+compares by the interface that declares a method. So a type that the list lacks can select a method
+that the table already has through another type, and then no lack shows it: only the count `outside
+the type list` shows such a type. The other counts of the output are no failure.
 
 Two forms of a one-sided pair are known (`TestGraphCheckFindsDifferences` in
 `gokeys/graphcheck_test.go`):
 
-- A call after `panic` in the same block. SSA removes the dead code, so only the syntax side has
-  the pair.
+- A call after `panic` in the same block. SSA removes the dead code, so only the graph has the
+  pair.
 - A call through a local variable that holds a function or a method (`f := target; f()`). SSA
   makes such a call static, so only the SSA side has the pair.
 
 The check fails for them. Read each one-sided pair in the source. For a pair of one of these two
-forms, the key follows the syntax side (rules 3 and 6 of a call step), and the maintainer notes
-each such pair with the keys of the product. Any other one-sided pair is a defect of the graph,
-and the keys are not installed.
+forms, the key follows the graph (rules 3 and 6 of a call step). The maintainer writes the list of
+these pairs into a text file in the folder of the key files of the product (`$B/keys/<product>/`),
+next to `graph.jsonl`, so that the next maintainer who runs the check finds it. No command reads
+that file. Any other one-sided pair is a defect of the graph, and the keys are not installed.
 
 `make` reads `calls.jsonl` for the `dnc` lines of a record. It writes one record for each target
 of its pools. A pool is a rule that chooses targets, for example by the count of the functions on
 the ways to a target. `-extra` adds the targets of a JSON list, and `-large <n>` adds n targets
 with a large trace. The output gives the count of the functions in each size group and the count
-of the records of each pool. The module text of `tracekeys.py` gives the record format, the pools
+of the records of each pool. A size group is a range of the count of the functions on the ways of
+a target of the complete form: 1 to 9, 10 to 19, 20 to 39, 40 to 79 and 80 or more
+(`SIZE_GROUPS`). The pool `large` takes a function that no earlier pool took and that has more than
+200 functions (`LARGE_MIN`) with a `plain` distance of 20 or less (`LARGE_DEPTH`). The module text
+of `tracekeys.py` gives the record format, the pools
 and the distances of each function to the target.
 
 **The run-time proof.** The tests of the product run in a copy of the tree in which the target and
