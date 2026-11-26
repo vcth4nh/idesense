@@ -407,10 +407,11 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   does not find from a position with no element. For a file of the project that is on the disk and
   that the IDE does not know yet, they answer `File not found: <path>. The file is on the disk, but
   the IDE does not know it yet: call ide_sync_files, then call again.`, as `ide_file_structure` does.
-  For a path that is not on the disk they answer `File not found: <path>`. They answered "No element
-  found at position ...", "No element found at the specified position" or "No class found at the
-  specified file/line/column position." in each case, so the caller could not see that the file was
-  the problem. For a file that the IDE knows, the "no element" answers do not change (#354).
+  For a path that is not on the disk, and for a file outside the project and its libraries, they
+  answer `File not found: <path>`. They answered "No element found at position ...", "No element
+  found at the specified position" or "No class found at the specified file/line/column position."
+  in each case, so the caller could not see that the file was the problem. For a file that the tool
+  finds, the "no element" answers do not change (#354).
 
 ## [2.1.0] - 2026-11-09
 

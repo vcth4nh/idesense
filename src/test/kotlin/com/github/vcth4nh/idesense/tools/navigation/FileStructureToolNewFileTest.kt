@@ -7,11 +7,14 @@ import com.github.vcth4nh.idesense.tools.project.SyncFilesTool
 import com.github.vcth4nh.idesense.tools.refactoring.RenameSymbolTool
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
+import com.intellij.openapi.roots.libraries.Library
+import com.intellij.openapi.vfs.JarFileSystem
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.LoggedErrorProcessor
 import com.intellij.testFramework.PlatformTestUtil
+import com.intellij.testFramework.PsiTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
@@ -25,6 +28,8 @@ import java.nio.file.Path
 import java.util.EnumSet
 import java.util.concurrent.Callable
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.jar.JarEntry
+import java.util.jar.JarOutputStream
 
 /**
  * ide_file_structure finds its file inside its read action with no refresh of the file system
@@ -143,7 +148,7 @@ class FileStructureToolNewFileTest : BasePlatformTestCase() {
         val path = "nonexistent/Missing.java"
         val results = positionToolResults(path, line = 1, column = 1)
         assertEquals(results.keys.associateWith { "File not found: $path" }, results.mapValues { message(it.value) })
-        // A path into a library gets no sync hint.
+        // The two forms of a path into a library, for a jar that is not on the disk: the plain text.
         for (library in listOf("jar:///nonexistent/lib.jar!/demo/Missing.class", "lib/missing.jar!/demo/Missing.class")) {
             val result = inRequest { FindDefinitionTool().execute(project, positionArgs(library, line = 1, column = 1)) }
             assertEquals(library, "File not found: $library", message(result))
@@ -155,20 +160,75 @@ class FileStructureToolNewFileTest : BasePlatformTestCase() {
         assertNoElementTexts("${dir.fileName}/Known.java")
     }
 
-    // The lookup of the six tools finds a file outside the project that the IDE knows, and then
-    // rejects it: it is no file of the project or of a library. The IDE knows the file, so the text
-    // stays the "no element" text.
-    fun testFileOutsideTheProjectThatTheIdeKnowsKeepsTheNoElementTextOfThePositionTools() {
+    // A file outside the project that the IDE knows: the lookup of each tool rejects it (it is no
+    // file of the project or of a library), so each tool gives the plain text, as ide_file_structure.
+    fun testFileOutsideTheProjectThatTheIdeKnowsGivesThePlainTextOfThePositionTools() {
         val outside = Path.of(project.basePath!!).parent.resolve("outside-${System.nanoTime()}.java")
         Files.writeString(outside, "class Outside {}\n")
-        val known = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(outside)!!
+        var known: VirtualFile? = null
         try {
+            known = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(outside)
+            assertNotNull("The IDE does not know $outside", known)
             IndexingTestUtil.waitUntilIndexesAreReady(project)
             val path = outside.toString()
-            val result = inRequest { FindDefinitionTool().execute(project, positionArgs(path, line = 1, column = 7)) }
-            assertEquals("No element found at position $path:1:7", message(result))
+            val results = positionToolResults(path, line = 1, column = 7)
+            assertEquals(results.keys.associateWith { "File not found: $path" }, results.mapValues { message(it.value) })
         } finally {
-            WriteAction.run<Throwable> { known.delete(this) }
+            val file = known
+            if (file != null) WriteAction.run<Throwable> { file.delete(this) }
+            Files.deleteIfExists(outside)
+        }
+    }
+
+    // A file of a library that the IDE knows, with no element at the position: the "no element" text.
+    // The project lookup does not find a jar entry: only the lookup of the six tools finds it.
+    fun testLibraryFileThatTheIdeKnowsKeepsTheNoElementTextOfThePositionTools() {
+        val jar = Path.of(project.basePath!!).parent.resolve("library-${System.nanoTime()}.jar")
+        JarOutputStream(Files.newOutputStream(jar)).use { out ->
+            out.putNextEntry(JarEntry("demo/Sample.txt"))
+            out.write("hello\n".toByteArray())
+            out.closeEntry()
+        }
+        var jarFile: VirtualFile? = null
+        var library: Library? = null
+        try {
+            jarFile = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(jar)
+            val jarRoot = JarFileSystem.getInstance().getJarRootForLocalFile(jarFile!!)!!
+            library = PsiTestUtil.addProjectLibrary(module, "library-354", listOf(jarRoot), emptyList())
+            val path = "jar://${jar.toString().replace('\\', '/')}!/demo/Sample.txt"
+            val result = inRequest { FindDefinitionTool().execute(project, positionArgs(path, line = 99, column = 1)) }
+            assertEquals("No element found at position $path:99:1", message(result))
+        } finally {
+            library?.let { PsiTestUtil.removeLibrary(module, it) }
+            val file = jarFile
+            if (file != null) WriteAction.run<Throwable> { file.delete(this) }
+            Files.deleteIfExists(jar)
+        }
+    }
+
+    // A relative path that names a file that the IDE knows below a second content root, outside the
+    // base path: no sync hint. The lookup of the six tools tries a relative path only below the base
+    // path: only the project lookup finds this file.
+    fun testFileBelowAnotherContentRootThatTheIdeKnowsGetsNoSyncHint() {
+        val dir = Files.createDirectories(Path.of(project.basePath!!).parent.resolve("content-root-${System.nanoTime()}"))
+        Files.writeString(dir.resolve("InContentRoot.java"), "class InContentRoot {}\n")
+        var root: VirtualFile? = null
+        var added = false
+        try {
+            root = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(dir)!!
+            assertEquals(listOf("InContentRoot.java"), root.children.map { it.name })
+            PsiTestUtil.addContentRoot(module, root)
+            added = true
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+            val path = "InContentRoot.java"
+            val result = inRequest { FindDefinitionTool().execute(project, positionArgs(path, line = 99, column = 1)) }
+            assertEquals("No element found at position $path:99:1", message(result))
+        } finally {
+            val known = root
+            if (added) PsiTestUtil.removeContentEntry(module, known!!)
+            if (known != null) WriteAction.run<Throwable> { known.delete(this) }
+            dir.toFile().deleteRecursively()
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
         }
     }
 

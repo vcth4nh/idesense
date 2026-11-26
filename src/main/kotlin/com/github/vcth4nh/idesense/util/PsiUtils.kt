@@ -261,14 +261,7 @@ object PsiUtils {
         return getVirtualFile(project, normalizedPath)
     }
 
-    fun resolveNavigableVirtualFile(project: Project, path: String): VirtualFile? =
-        findNavigableVirtualFile(project, path)?.takeIf { ProjectUtils.isAccessibleFile(project, it) }
-
-    /**
-     * The lookup of [resolveNavigableVirtualFile] with no test of the access: it also gives a file
-     * that the IDE knows outside the project and its libraries (#354).
-     */
-    fun findNavigableVirtualFile(project: Project, path: String): VirtualFile? {
+    fun resolveNavigableVirtualFile(project: Project, path: String): VirtualFile? {
         // Match resolveVirtualFileAnywhere() semantics for path normalization.
         val normalizedPath = if (SystemInfo.isWindows) path.replace('\\', '/') else path
         val virtualFileManager = VirtualFileManager.getInstance()
@@ -279,7 +272,7 @@ object PsiUtils {
             }
         }
 
-        return when {
+        val resolved = when {
             normalizedPath.startsWith("jar://") -> virtualFileManager.findFileByUrl(normalizedPath)
             normalizedPath.contains(".jar!/") -> {
                 val parts = normalizedPath.split("!/", limit = 2)
@@ -295,7 +288,9 @@ object PsiUtils {
                 }
             }
             else -> resolveLocalFile(normalizedPath, rootCandidates)
-        }
+        } ?: return null
+
+        return resolved.takeIf { ProjectUtils.isAccessibleFile(project, it) }
     }
 
     fun resolveLocalFile(path: String, rootCandidates: Sequence<String>): VirtualFile? {
