@@ -16,9 +16,10 @@ B="${BENCH_ROOT:-$HOME/dev/idesense-bench}"
 
 | Path | Content |
 |---|---|
-| `gokeys/` | The Go command `gokeys`: Go keys from the Go compiler library (`extract`), their proof (`accept`), the calls file (`calls`), the occurrences of a name (`idents`), a copy of a tree for a run-time trace (`trace`) |
+| `gokeys/` | The Go command `gokeys`: Go keys from the Go compiler library (`extract`), their proof (`accept`), the calls file (`calls`), the call graph of one build (`graph`), the occurrences of a name (`idents`), a copy of a tree for a run-time trace (`trace`) |
 | `pykeys.py` | Python keys: the unique-name scan (`unique`) and the class hierarchy by reflection (`hierarchy`) |
 | `callkeys.py` | Caller keys of two levels (`pycalls`, `make`), their trace proof (`targets`, `tracecheck`), and caller keys through an interface value (`dyntargets`, `dynmake`) |
+| `tracekeys.py` | Trace keys of a Go product: each call step on each way to a target (`make`), and their trace proof (`targets`, `tracecheck`) |
 | `plant.py` | Planted trees: one shared name for four methods, and the key from the state before the rename |
 | `pytest_plugin/trace_plugin.py` | A pytest plugin that logs the callers of target functions |
 | `trees.json` | The recipe and the digest of each benchmark tree |
@@ -28,7 +29,8 @@ The module text at the top of each Python file gives each option, each file form
 code. The Go command `gokeys` has no such text: `gokeys <command> -h` gives the options of a
 command, and the exit code is 0 for success, 1 for a failure and 2 for a usage error. The
 formats of its files are in the module texts of `common/keyrecord.py` (the key records of
-`extract`) and `callkeys.py` (the calls file, the targets file and the trace file).
+`extract`), `callkeys.py` (the calls file, the targets file and the trace file) and
+`tracekeys.py` (the graph file).
 The key record format is in the module text of [`common/keyrecord.py`](../common/keyrecord.py).
 A key holds positions, names and classes, and no source text of a product.
 
@@ -98,10 +100,18 @@ benchmark holds only the lines of its answer (see
 | `calls.jsonl` | each tree | `gokeys calls` (Go), `callkeys pycalls` (Python) | No key |
 | `callers.jsonl` | each tree | `callkeys make` | Go: `gokeys calls -check`; Python: `callkeys targets`, a trace, `callkeys tracecheck` |
 | `dyncallers.jsonl` | caddy | `callkeys dyntargets`, `gokeys trace`, a test run, `callkeys dynmake` | the rule of `dynmake` |
+| `graph.jsonl` | caddy | `gokeys graph -goos linux` | No key |
+| `trace.jsonl` | caddy | `tracekeys make` | `gokeys graph -check`; `tracekeys targets`, `gokeys trace`, a test run, `tracekeys tracecheck`; by hand: four targets (below) |
 
 `callers.jsonl` and `dyncallers.jsonl` hold the keys of the functions that are targets. A
 `calls.jsonl` file is no key: it holds the uses of each function declaration, and the caller keys
-and the caller audit read it.
+and the caller audit read it. `trace.jsonl` holds one trace key for each target of its pools. A
+`graph.jsonl` file is no key: it holds the call graph of the Linux build, and `tracekeys make`
+and `tracekeys tracecheck` read it. It has two kinds of lines: one line for each function with its
+call entries, and the interface table. The interface table has one row for each method of each
+named interface that the module declares (a generic interface has no row). A row lists the types
+of the module that implement the interface. Each type has the method that it selects for this
+interface method, or no method when that method is no function of the graph.
 
 A proof "by hand" has no tracked command: a maintainer makes it when the key is made.
 
@@ -113,6 +123,16 @@ A proof "by hand" has no tracked command: a maintainer makes it when the key is 
   compare its records of the shared name with the records of `plant.jsonl`.
 - `plant.jsonl` of a Python plant: the test suite of the planted tree gives the result of the
   base tree, and the call sites that a run-time trace logs are compared with the key.
+- `trace.jsonl`: when the key of caddy was made, the keys of four targets existed from an earlier,
+  separate program. That program used `go/types` in another way and shared no code with
+  `gokeys graph`. Agents that got only the question and the source, with no key, had derived the
+  same lines for each of the four. The trace records of these four targets give the same required
+  lines and the same lines that do not count. The four targets, two of each form: the function
+  `normalizeDirPerm` of the package `logging` and the method `Dispenser.isNextOnNewLine` of the
+  package `caddyfile` (complete form); `FileSystemMap.key` from the implementations of
+  `RequestMatcher.Match`, and `fileReplacementProvider.replace` from the implementations of
+  `RequestMatcherWithError.MatchWithError` (start-set form). For a new product, a maintainer takes
+  two targets of each form and derives their keys in a second, independent way.
 
 `plant make` itself checks only the rename: each occurrence of the shared name is a renamed
 position, and no original name is left.
@@ -272,6 +292,149 @@ only after a decision. Then `./live-test/run.py bench qfiles check -data` shows 
 question whose answer differs from the new file. A changed key file of a tracked question goes
 into a commit that a maintainer reviews ([METHOD.md](../METHOD.md), section 6, and step 4 of "A
 new question" in [bench/README.md](../bench/README.md#a-new-question)).
+
+### Trace keys
+
+A trace key holds, for one target function, each call step on each way to it, at any depth
+([METHOD.md](../METHOD.md), section 3.4). Its source is the call graph of the Linux build of the
+tree. `K` is a new folder for the new graph and the new trace records. Write the graph, then the
+trace records, into `K`:
+
+```bash
+K="$B/scratch/trace/<keys>"
+mkdir -p "$K"
+(cd live-test/keygen/gokeys && go build -o "$B/scratch/gokeys-bin" .)
+"$B/scratch/gokeys-bin" graph -tree "$B/trees/caddy" -goos linux -out "$K/graph.jsonl" -check
+./live-test/run.py keygen tracekeys make -graph "$K/graph.jsonl" \
+  -calls "$B/keys/caddy/calls.jsonl" -out "$K/trace.jsonl" \
+  [-extra <file.json>] [-large <n> -seed <s>]
+```
+
+`graph` loads one build (`-goos`; GOARCH is amd64) with no test file. `-check` compares the graph
+with the SSA form of the same build (`go/ssa`) in two parts:
+
+- The pairs of a call line and a callee (the line `pairs:`). The graph side comes from the syntax
+  tree and `go/types`. The SSA side takes each pair from a call of the SSA form. Equal pairs prove
+  the call lines, the static callees and the interface of
+  each call of an interface method. They do not prove the implementers of that interface: both
+  sides take the implementers from one type list, the types that can implement an interface.
+- The types that the SSA form converts to an interface value (the line `types:`). They are a
+  second source of the implementers. Such a type must be in the type list (the count `outside the
+  type list`) when it is a type of the module, implements an interface of the table that has a
+  method, and is no instance of a generic type. A type of the module is a named type that a module
+  package declares (also behind a pointer, also a named type of a function body), or an unnamed
+  struct type with a field that a module file declares. A library type is not counted. Each
+  method of the graph that a converted type selects for a method of a module interface must be in
+  the row of that method in the interface table (the count `callees that the table lacks`). The
+  graph gives a generic type no step, so an instance of a generic type has its own count: the
+  methods that only such an instance selects (the count `by an instance of a generic type`). That
+  count gives exit 0. This part does not see a type that the code converts to an interface only
+  in a generic function.
+
+The exit code is 1 when a pair is on one side only, when a call with a step has no position, when
+a module type is outside the type list, or when the table lacks a selected method that a type
+other than an instance of a generic type selects. The output lists at most 20 of each. A call with
+no position is a call with no call expression, for example the call of the function of a
+range-over-func loop (`for x := range seq`). No rule of a call step says if such a call is a step. A
+product with such a call gets no trace keys until the rule of a call step
+([METHOD.md](../METHOD.md), section 3.4) says what such a call is. The owner of the repository
+decides that rule. With a complete type list, the count `outside the type list` is 0. The lack check
+compares by the interface that declares a method. So a type that the list lacks can select a method
+that the table already has through another type, and then no lack shows it: only the count `outside
+the type list` shows such a type. The other counts of the output are no failure.
+
+Two forms of a one-sided pair are known (`TestGraphCheckFindsDifferences` in
+`gokeys/graphcheck_test.go`):
+
+- A call after `panic` in the same block. SSA removes the dead code, so only the graph has the
+  pair.
+- A call through a local variable that holds a function or a method (`f := target; f()`). SSA
+  makes such a call static, so only the SSA side has the pair.
+
+The check fails for them. Read each one-sided pair in the source. For a pair of one of these two
+forms, the key follows the graph (rules 3 and 6 of a call step). The maintainer writes the list of
+these pairs into a text file in the folder of the key files of the product (`$B/keys/<product>/`),
+next to `graph.jsonl`, so that the next maintainer who runs the check finds it. No command reads
+that file. Any other one-sided pair is a defect of the graph, and the keys are not installed.
+
+`make` reads `calls.jsonl` for the `dnc` lines of a record. It writes one record for each target
+of its pools. A pool is a rule that chooses targets, for example by the count of the functions on
+the ways to a target. `-extra` adds the targets of a JSON list, and `-large <n>` adds n targets
+with a large trace. The output gives the count of the functions in each size group and the count
+of the records of each pool. A size group is a range of the count of the functions on the ways of
+a target of the complete form: 1 to 9, 10 to 19, 20 to 39, 40 to 79 and 80 or more
+(`SIZE_GROUPS`). The pool `large` takes a function that no earlier pool took and that has more than
+200 functions (`LARGE_MIN`) with a `plain` distance of 20 or less (`LARGE_DEPTH`). The module text
+of `tracekeys.py` gives the record format, the pools
+and the distances of each function to the target.
+
+**The run-time proof.** The tests of the product run in a copy of the tree in which the target and
+each function on a way of the chosen records log their call stacks. `R` is a new folder for the
+files of one run:
+
+```bash
+R="$B/scratch/trace/<run>"
+mkdir -p "$R/xdg/config" "$R/xdg/data"
+./live-test/run.py keygen tracekeys targets -keys "$K/trace.jsonl" -ids <id,...|@file> \
+  -out "$R/targets.json"
+"$B/scratch/gokeys-bin" trace -tree "$B/trees/caddy" -targets "$R/targets.json" -dst "$R/copy"
+(cd "$R/copy" && go version && XDG_CONFIG_HOME="$R/xdg/config" XDG_DATA_HOME="$R/xdg/data" \
+  BENCH_TRACE_OUT="$R/stacks.jsonl" go test -count=1 ./...) > "$R/test.log" 2>&1
+./live-test/run.py keygen tracekeys tracecheck -graph "$K/graph.jsonl" \
+  -targets "$R/targets.json" -trace "$R/stacks.jsonl" -root "$R/copy" \
+  -keys "$K/trace.jsonl" -ids <id,...|@file>
+```
+
+Give `tracecheck` the `-ids` of `targets`. The id of a start-set record holds spaces: quote the
+value of `-ids`, or give `@<file>` with one id on each line. The test run has the conditions of
+"Caller keys through an interface value".
+
+`tracecheck` gives each trace line a verdict against the graph, with the first rule that applies. A
+call from outside the tree, from a test file or from a line in no function of the graph is counted
+(`external`, `test`, `package-level`), and it is no failure. A call from a function of the graph is
+`key` when the graph has its step to the traced function on the line of the call. It is `key-line`
+when the graph has a step from that function to the traced function only on another line. Else it
+is `dynamic` when the line has a call that gives no step (an entry of the kind `other`), and else
+`missing`. Then each chosen record of the complete form that holds the traced function (as its
+target or as a function of the record) judges each `key` and `key-line` line. The calling function
+must be the target or a function of the record, and the line of a `key` call from a function other
+than the target must be a required line of the record. Else the verdict is `not-in-key`. A record
+of the start-set form judges no call: a correct call can come from a function outside the record.
+The exit code is 1 when a line is `missing` or `not-in-key`, or when no trace line has a frame in a
+function of the graph. The module text of `tracekeys.py` gives each rule.
+
+The output lists each distinct `key-line`, `package-level` and `dynamic` line. These lines give
+no failure, so a reader checks each of them in the source:
+
+- `key-line`: the traced call must be the call of a step on a listed line. A deferred call that a
+  return runs gives `key-line`: its frame is at the line where the function returns, a `return`
+  statement or the closing brace (Go 1.26).
+- `package-level`: the line must be in a package-level declaration. A line inside a function body
+  means that the graph lost that function.
+- `dynamic`: the line holds a call that gives no step (an entry of the kind `other`). The traced
+  call must be that call: a call of a function value, a call of a method of a library interface,
+  or a call of an interface method through a type that mentions a type parameter (for example on
+  a value of a type parameter, or `g.Get()` with `g Getter[V]`). A step that the graph lost on a
+  line that also holds such a call gets this verdict too.
+
+The check does not judge two kinds of calls, because their first frame is in the Go runtime and the
+verdict is `external` (Go 1.26). A call after `go` of a traced function (`go T()`, also with
+arguments) has only the frame `runtime.goexit`. A deferred call that a panic runs has the first
+frame `runtime.gopanic`. A call inside a function literal after `go` (`go func() { T() }()`) has
+the frame of the literal, and the function that holds the literal is its caller.
+
+**The key folder.** Copy the graph and the trace records from `K` into the key folder only after
+`graph -check` and `tracecheck` give exit 0:
+
+```bash
+cp "$K/graph.jsonl" "$K/trace.jsonl" "$B/keys/caddy/"
+```
+
+`graph` writes the file of `-out` before its check, so a graph in `K` can be a graph that failed
+the check. The one exception is a `graph -check` that fails only for one-sided pairs of the two
+known forms (above), each one noted with the keys of the product. A key file that tracked
+questions use is replaced only by a decision of a maintainer, because a new key can change the
+answer of a question; the first install of a file needs no decision.
 
 ## Tests
 

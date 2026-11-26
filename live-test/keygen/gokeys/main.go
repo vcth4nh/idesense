@@ -16,6 +16,7 @@ import (
 const usage = `usage:
   gokeys extract -tree <dir> -configs linux,windows -out <file.jsonl>
   gokeys calls -tree <dir> -configs linux,windows,darwin -out <calls.jsonl> [-check]
+  gokeys graph -tree <dir> -goos <goos> -out <graph.jsonl> [-check]
   gokeys idents -tree <dir> -name <identifier>
   gokeys accept -tree <dir> -keys <file.jsonl> (-ids <id,...|@file> | -sample <n> [-seed <s>])
                 -configs linux,windows -scratch <dir> [-minimal] [-keep]
@@ -36,6 +37,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdExtract(args[1:], stdout, stderr)
 	case "calls":
 		return cmdCalls(args[1:], stdout, stderr)
+	case "graph":
+		return cmdGraph(args[1:], stdout, stderr)
 	case "idents":
 		return cmdIdents(args[1:], stdout, stderr)
 	case "accept":

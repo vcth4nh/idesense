@@ -318,16 +318,16 @@ func variantOf(p *packages.Package) string {
 	return ""
 }
 
-// loadPackages loads the module one time for configuration ci (GOOS ci, GOARCH amd64), test
-// files and test packages included. It gives the packages of the patterns, each package of the
-// graph, the file set, and the paths of the module packages (the packages of the patterns and
-// each variant of them). A load or type error is an error.
-func (x *extractor) loadPackages(ci int) (initial, all []*packages.Package, fset *token.FileSet, modPaths map[string]bool, err error) {
+// loadPackages loads the module one time for configuration ci (GOOS ci, GOARCH amd64), with
+// test files and test packages when tests is true. It gives the packages of the patterns, each
+// package of the graph, the file set, and the paths of the module packages (the packages of the
+// patterns and each variant of them). A load or type error is an error.
+func (x *extractor) loadPackages(ci int, tests bool) (initial, all []*packages.Package, fset *token.FileSet, modPaths map[string]bool, err error) {
 	goos := x.configs[ci]
 	cfg := &packages.Config{
 		Mode:  loadMode,
 		Dir:   x.roots[0],
-		Tests: true,
+		Tests: tests,
 		Env:   append(os.Environ(), "GOOS="+goos, "GOARCH=amd64", "GOWORK=off"),
 	}
 	initial, err = packages.Load(cfg, "./...")
@@ -382,7 +382,7 @@ func (x *extractor) declareAll(all []*packages.Package, fset *token.FileSet, mod
 func (x *extractor) load(ci int) error {
 	goos := x.configs[ci]
 	start := time.Now()
-	initial, all, fset, modPaths, err := x.loadPackages(ci)
+	initial, all, fset, modPaths, err := x.loadPackages(ci, true)
 	if err != nil {
 		return err
 	}

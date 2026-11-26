@@ -55,6 +55,7 @@ tracked command is made by hand when the key is made.
 | Go callers | `gokeys calls`: each use of a function declaration, with the declaration that holds it and whether it is a call | `gokeys calls -check`: the static calls of the SSA form of the program (`go/ssa`) must give the same pairs of caller and callee in each configuration. |
 | Python callers | `callkeys pycalls`: the uses of the unique-name keys, with the outermost `def` that holds each use (from the syntax tree) | `callkeys tracecheck`: each call site that a trace of the test suite logs for the target and for its direct callers must be in a function of the key. |
 | Go callers through an interface value | `callkeys dynmake`: the static callers, and the callers that a run-time trace of the test suite logs (`gokeys trace` makes a copy of the tree in which each target logs its call stack; no line of a file moves) | Each traced caller must be a static caller, or it must hold a call site of an interface method that the target implements. A target that breaks this rule gets no key. |
+| Go call traces | `gokeys graph`: the call graph of the Linux build from the Go compiler library (`go/types`), with the calls through an embedded field and the calls through an interface of the tree. `tracekeys make` makes the trace key of a target from it. | Three proofs (section 3.4): `gokeys graph -check` compares the graph with the SSA form of the same build; each call that a run-time trace of the test suite logs into a function of the key must be a step of the graph or no step by the rule (for a key of the complete form, a step of the graph must also be a step of the key), and a reader checks the listed lines of the verdicts `key-line`, `package-level` and `dynamic` in the source (section 3.4); for four targets, a second, independent derivation of the keys gives the same lines (section 3.4). |
 
 A planted tree exists because a Python method with a common name has no key that a scan can prove.
 The plant makes a common name whose key is known. In such a tree a text search finds the uses of
@@ -112,6 +113,99 @@ a caller with the proof `trace` only can come or go. A second run does not alway
 that is equal byte for byte. The repeat check of "Caller keys through an interface value" in
 [keygen/README.md](keygen/README.md#caller-keys-through-an-interface-value) says which difference
 changes an answer.
+
+### 3.4 Trace keys
+
+A trace key holds each call step on each way to a target function, at any depth. A key has one
+of two forms. The complete form holds each step on each way to the target. The start-set form
+starts from each method that implements one interface method, and holds each step on a way from
+one of these methods to the target.
+
+The rule of a call step for Go:
+
+1. A call counts for the function or method that the Go compiler selects. A method that a struct
+   gets from an embedded struct is the method of the embedded struct.
+2. A call of a method of an interface that the repository declares counts for the method of each
+   type of the repository that implements the interface (no type of a test file).
+3. A call of a function value, and a call of a method of an interface that a library declares,
+   count for nothing.
+4. A function literal is a part of the function that holds it. A call after `go` or `defer`
+   counts.
+5. A call outside a function body is no step. A line that names a function and does not call it
+   is no step. A declaration line is no step.
+6. Conditions do not count: a call that the code holds is a step, also when no run can take it.
+7. Only the build for Linux (amd64) counts, and no file whose name ends with `_test.go`.
+8. A call inside the target itself is no step. A way ends where it enters the target: the key
+   does not follow the calls that the target makes, also a call of the target to itself.
+
+The graph has two limits that the rule does not name:
+
+- A generic type is no implementer. A call of an interface method gives no step to a method of a
+  generic type.
+- A call of an interface method through a type that mentions a type parameter is no step, for
+  example a call on a value of a type parameter.
+
+The output of `gokeys graph` counts both. For a product with such code, the eight rules are not
+complete. A text that states the rule of a call step for that product must also name these two
+limits.
+
+So the key tells which code can call the target by the types. It does not tell which code ran in
+a test.
+
+**The required lines.** The key has one required line for each step: the line that holds the name
+of the called function in the call expression. A line with two steps counts one time, for example
+a call through an interface with two implementations on a way. The key record keeps each step with
+its caller, its callee and its kind. A step has one of three kinds: `direct` (a direct call),
+`embedded` (a call of a method that comes from an embedded field) and `iface` (a call through an
+interface of the repository). The record also marks a step that is in a function literal. A call
+that gives no step (the kind `other` of the graph) is not in a record.
+
+**The `dnc` lines.** The key does not count these lines: the declaration line of the target and
+of each function on a way, a line that uses such a function as a value, and a call of such a
+function outside a function body, in a test file, or in a file that the Linux build does not
+compile. A step line wins over a `dnc` line.
+
+**The three proofs.**
+
+- `gokeys graph -check` compares the graph with the SSA form of the same build (`go/ssa`). The
+  SSA form must give the same pairs of a call line and a callee. Equal pairs prove the call lines,
+  the static callees and the interface of each call of an interface method. They do not prove the
+  implementers of that interface: both sides take them from one type list, the types that can
+  implement an interface. The types that the SSA form converts to an interface value are a second
+  source of the implementers. Such a type must be in the type list when it is a type of the
+  module, implements an interface of the interface table of the graph that has a method, and is no
+  instance of a generic type. (The interface table is a part of `graph.jsonl`: one row for each
+  method of each named interface of the module, with the implementing types and the method that
+  each type selects. See "The key files" in [keygen/README.md](keygen/README.md).) Each method of
+  the graph that a converted type selects for a method
+  of a module interface must be in the interface table. A method that only an instance of a
+  generic type selects is counted apart and gives no failure, because the graph gives a generic
+  type no step. This part does not see a type that the code converts to an interface only in a
+  generic function. The check fails for a pair on one side only, for a call with a step and no
+  position (for example the call of the function of a range-over-func loop, which the rule does
+  not decide), for a module type outside the type list, and for a selected method that the table
+  lacks.
+- A run-time trace of the test suite: each call that the trace logs into a function of the key
+  must be a step of the graph, or a call that is no step by the rule. For a key of the complete
+  form, a call that is a step of the graph must also be a step of the key. For a call that the
+  graph has only on another line of the same caller, the caller must be the target or a function
+  of the key. For a key of the start-set form, a correct call can come from a function outside the
+  key, so the graph judges the call. A reader checks three kinds of listed lines in the source: a
+  call that the graph has only on another line of the same caller (verdict `key-line`; a deferred
+  call that a return runs gives such a line), a call from a line of the tree in no function of the
+  graph, which must be in a package-level declaration (verdict `package-level`), and a call from a
+  line with a call that gives no step, which must be that call (verdict `dynamic`): a call of a
+  function value, of a method of a library interface, or of an
+  interface method through a type that mentions a type parameter (for example on a value of a type
+  parameter). The first frame of a call after `go` (`go T()`) and of a deferred call that a panic
+  runs is in the Go runtime, so the check does not judge such a call. A step that no test takes
+  stays in the key, so this check works in one direction only.
+- By hand, when the key was made: the keys of four targets existed from an earlier, separate
+  program that shared no code with `gokeys graph`, and agents that got only the question and the
+  source had derived the same lines for each of the four. The trace records of these targets give
+  the same required lines and the same lines that do not count. The README names the four targets
+  ([keygen/README.md](keygen/README.md), "The key files"). For a new product, a maintainer takes
+  two targets of each form and derives their keys in a second, independent way.
 
 ## 4. The audit
 
