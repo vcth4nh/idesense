@@ -44,3 +44,4 @@ pin.
 | `find-file-VimEditor.kt` | #271 | the tool gives 9 files, Go to File at least 20 |
 | `find-file-Command.kt` | #271 | a `shape` row: it pins the count of the tool (`totalCollected` 263, `hasMore: true`). The rows of Go to File for `Command.kt` are not counted. The count changes when #271 is fixed. |
 | `search-text-matchpairs-code` | #317 | 9 matches and no match in `ideavim.dic`, line 28 |
+| `search-text-matchpairs-strings` | #144 | 5 matches. Find in Files with the filter "In String Literals" shows 6: the 5 lines of the tool and `doc/set-commands.md`, line 67. That line is in a Markdown code fence. The Find tool window lists it below "Usage in string constants", and the tool gives it the label `CODE` |
