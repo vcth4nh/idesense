@@ -676,7 +676,16 @@ abstract class AbstractMcpTool : McpTool {
         } else {
             findPsiElement(project, file, line, column)
         }
-            ?: return ErrorMessages.noElementAtPosition(file, line, column).toArgumentFailure()
+        if (element == null) {
+            // The "no element" text only for a file that a lookup with no refresh finds, else the text
+            // of fileNotFoundMessage (#354). The project lookup prevents a false sync hint for a file
+            // below a content root that is not the base path: for a relative path the navigable
+            // lookup tries only the base path.
+            val found = (allowLibraryFilesForPosition && PsiUtils.resolveNavigableVirtualFile(project, file) != null) ||
+                resolveFile(project, file, refresh = false) != null
+            val message = if (found) ErrorMessages.noElementAtPosition(file, line, column) else fileNotFoundMessage(project, file)
+            return message.toArgumentFailure()
+        }
 
         return Result.success(element)
     }
