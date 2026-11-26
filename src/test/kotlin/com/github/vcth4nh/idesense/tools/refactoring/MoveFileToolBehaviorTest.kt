@@ -2,9 +2,11 @@ package com.github.vcth4nh.idesense.tools.refactoring
 
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.SmartPointerManager
+import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import java.nio.file.Files
 import java.nio.file.Path
@@ -30,6 +32,10 @@ class MoveFileToolBehaviorTest : BasePlatformTestCase() {
         val path = Path.of(projectBasePath, relativePath)
         Files.createDirectories(path.parent)
         Files.writeString(path, content)
+        // The refresh of a new file in a folder whose children the VFS has loaded starts dumb mode.
+        // Dumb mode does not end while the tool call blocks the EDT, so refresh and wait here (#352).
+        LocalFileSystem.getInstance().refreshAndFindFileByNioFile(path)
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
         return path
     }
 
