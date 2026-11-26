@@ -243,9 +243,9 @@ class FileStructureToolNewFileTest : BasePlatformTestCase() {
             assertEquals("File not found: Missing.java", message(missing))
         }
 
-    // The same relative path below the base path and below a second content root: each tool takes the
-    // file below the base path, as resolveFile does. The file below the content root has no element at
-    // the position.
+    // The same relative path below the base path and below a second content root: ide_find_definition
+    // and ide_read_file take the file below the base path, as resolveFile does. The file below the
+    // content root has no element at the position.
     fun testRelativePathBelowTheBasePathAndAnotherContentRootGivesTheFileBelowTheBasePath() = withKnownFolder { dir ->
         val path = "${dir.fileName}/Same.java"
         val belowBasePath = dir.resolve("Same.java")
