@@ -33,10 +33,21 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   warm call took 43 s, and one call of a product run hit the request timeout of 60 s. The
   Callers view of IntelliJ IDEA did not load the callers of `toString()` in 38 s either. Do
   not make the row deeper.
+- **exposed: `def-Select-via-typealias` goes to the type alias.** `Queries.kt:47` calls
+  `Select(...)`, and `Select` is the type alias of `Table.kt:29` (`typealias Select = Slice`).
+  Go to Declaration of IntelliJ IDEA lands on the name of the alias at 29:11, as the tool does.
+  The `qualifiedName` `org.jetbrains.exposed.v1.core.Select` is an approved deviation: the IDE
+  gives no qualified name for a Kotlin type alias (see "The qualified name of a Kotlin type
+  alias" in `docs/ARCHITECTURE.md`).
+- **exposed: the `OFFSET` rows with a `context`.** Find in Files for `OFFSET` (In Project,
+  Match case, Words) gives 13 matches: 4 with the filter "Except Comments and String Literals",
+  3 with "In Comments" and 6 with "In String Literals". `search-text-OFFSET-code`,
+  `search-text-OFFSET-comments` and `search-text-OFFSET-strings` give the same lines. The 4
+  lines of `search-text-OFFSET-code` are text in two Markdown files and in two HTML pages below
+  `docs/api/`.
 - **exposed: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
   `live-test/CONVENTIONS.md`).
 
   | Row | Issue | Defect |
   |---|---|---|
   | `impls-IColumnType`, `impls-Expression-paged` | #277 | each object expression drops out: 70 of the 71 implementations that Go to Implementation lists for `IColumnType`, 160 of the 189 subtypes of `Expression` |
-  | `def-Select-via-typealias` | #278 | the type alias `Select` gets the kind `SYMBOL` |

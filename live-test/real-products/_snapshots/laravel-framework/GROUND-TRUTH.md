@@ -35,9 +35,10 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   Structure window of PhpStorm 2026.3: in its view options, "Anonymous Classes", "Inherited" and
   "Lambdas" are off, and "Show Constants", "Show Includes", "Show Private Members", "Show
   Properties" and "Show Protected Members" are on. The File Structure popup has the check boxes
-  "Inherited members", "Anonymous Classes" and "Lambdas", all off. The default `show` of the tool
-  for PHP also has `lambdas`, so with no `show` the outline also has the `Lambda(...)` nodes that
-  the window hides.
+  "Inherited members", "Anonymous Classes" and "Lambdas", all off. Since #341 the default `show`
+  of the tool for PHP is the same list, so a call with no `show` gives the same outline. Before
+  it, the default also had `lambdas`, and the outline had the `Lambda(...)` nodes that the
+  window hides.
 - **laravel-framework: the file rows equal Go to File.** `canary-find-file-Carbon.php`,
   `find-file-Repository.php` and `find-file-model.stub` give the same set of files as Go to File
   of PhpStorm 2026.3 (tab "Files", scope "Project Files"): 2, 28 and 5 files. The order of the

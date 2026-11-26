@@ -155,11 +155,11 @@ limit 2 GB.
 - The fleet configuration has no key `decompiler.legal.notice.accepted`. Without it, the text
   of a library `.class` file is the stub of `ClsFileImpl.decompile` ("compiled code"), not the
   decompiler output (`IdeaDecompiler.getText`, `java-decompiler.jar`, IU-263.7307.200).
-- A product run of the 67 rows (7 of them parked) takes 10 s to 11 s. The parked row
-  `find-class-AnAction-libraries-scope` gives `internal_error` at each run (#316). The IDE does
-  not log each such failure: the product runs with this row wrote no SEVERE line, and direct
-  calls with other queries wrote some entries of 6 SEVERE lines each. The rule of the IDE
-  logger is not established.
+- A product run of the 67 rows takes 10 s to 11 s. Until the fix of #316, the row
+  `find-class-AnAction-libraries-scope` gave `internal_error` at each run. The IDE did not log
+  each such failure: the product runs with this row wrote no SEVERE line, and direct calls
+  with other queries wrote some entries of 6 SEVERE lines each. The rule of the IDE logger is
+  not established.
 - The fixture rows with the product open (2026-11-22): `java` 144 passed, `kotlin` 119 passed.
 
 ## Heap
