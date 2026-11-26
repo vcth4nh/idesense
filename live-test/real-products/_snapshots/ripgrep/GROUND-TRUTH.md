@@ -41,9 +41,10 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   the toolchain that rustup selects (`rust-src`). A module path of `std` can change with the
   toolchain version (for example `std::sync::poison::rwlock::RwLock::write` in
   `hier-callee-add_parents-d1`); then these rows need a re-bless.
-- **ripgrep: `ide_file_structure` in dumb mode.** In dumb mode `ide_file_structure` gives
-  `internal_error` (`IndexNotReadyException` of RustRover) and not a reduced outline. The
-  comment on #174 has the stack. For the wait after an open, see "Measured" in
+- **ripgrep: `ide_file_structure` in dumb mode.** Since the fix of #174, `ide_file_structure`
+  answers `index_not_ready` in dumb mode (`docs/USAGE.md`, `ide_file_structure`). Before it,
+  the tool gave `internal_error` (`IndexNotReadyException` of RustRover) and not a reduced
+  outline; the comment on #174 has the stack. For the wait after an open, see "Measured" in
   `live-test/real-products/_setup/ripgrep/notes.md`.
 - **ripgrep: two `shape` rows hold elements of a doctest (#186).**
   `hier-caller-search_slice-d2` and `usage-Match-page1` hold elements of a doctest with the

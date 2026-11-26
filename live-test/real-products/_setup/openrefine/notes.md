@@ -72,8 +72,9 @@ Facts about the switch:
   inconsistent". IntelliJ writes no file into `.idea` of the checkout.
 - IntelliJ reports smart mode for about 7 s at its start, before the Maven sync makes it
   dumb again. The index status alone is not a safe readiness signal. The canary gate covers
-  it: after a switch it tries the canary rows again until the readiness time is used. In
-  dumb mode, `ide_file_structure` gives a Java outline with no types and no error (#174).
+  it: after a switch it tries the canary rows again until the readiness time is used. Until
+  the fix of #174, `ide_file_structure` gave a Java outline with no types and no error in dumb
+  mode; since the fix it answers `index_not_ready`.
 
 ## Import check
 

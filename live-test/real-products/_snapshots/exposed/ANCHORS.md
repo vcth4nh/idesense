@@ -146,6 +146,7 @@ file is stale.
 | hier-caller-ExposedSQLException.causedByQueries-bysymbol | call_hierarchy | `{"direction":"callers","maxDepth":1,"symbol":"ExposedSQLException.causedByQueries"}` |
 | hier-super-Query-byname | type_hierarchy | `{"className":"Query","direction":"supertypes"}` |
 | search-text-OFFSET | search_text | `{"pageSize":100,"query":"OFFSET"}` |
+| search-text-OFFSET-code | search_text | `{"context":"code","pageSize":100,"query":"OFFSET"}` |
 | search-text-OFFSET-comments | search_text | `{"context":"comments","pageSize":100,"query":"OFFSET"}` |
 | search-text-OFFSET-strings | search_text | `{"context":"strings","pageSize":100,"query":"OFFSET"}` |
 | search-text-transaction-paged | search_text | `{"pageSize":50,"query":"transaction"}` |

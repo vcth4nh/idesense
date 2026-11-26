@@ -1,3 +1,4 @@
+{"id":"file-structure-AbstractApplicationContext.java","tool":"ide_file_structure","params":{"file":"spring-context/src/main/java/org/springframework/context/support/AbstractApplicationContext.java"},"compare":"shape"}
 {"id":"file-structure-BeanDefinitionDsl.kt","tool":"ide_file_structure","params":{"file":"spring-context/src/main/kotlin/org/springframework/context/support/BeanDefinitionDsl.kt"}}
 {"id":"file-structure-ClassFileMetadataReader.java-java24","tool":"ide_file_structure","params":{"file":"spring-core/src/main/java24/org/springframework/core/type/classreading/ClassFileMetadataReader.java"}}
 {"id":"file-structure-ListableBeanFactory.java","tool":"ide_file_structure","params":{"file":"spring-beans/src/main/java/org/springframework/beans/factory/ListableBeanFactory.java"}}

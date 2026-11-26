@@ -26,6 +26,14 @@ pin.
   The bootstrap generates this file (see [notes.md](../../_setup/ideavim/notes.md)).
 - **ideavim: no row names a file below `.teamcity/`.** The IDE imports `.teamcity/pom.xml` as the
   Maven module `IdeaVim_dsl` (see [notes.md](../../_setup/ideavim/notes.md)).
+- **ideavim: `find-class-AnAction-libraries-scope` has 4 classes.** Go to Class `AnAction` with
+  the scope "All Places" lists 4 classes with that name: one of the package
+  `com.intellij.driver.sdk` (the library `driver-sdk`), and three times
+  `com.intellij.openapi.actionSystem.AnAction`, each one from another library (the window names
+  `com.jetbrains.intellij.idea:idea:2026.1`, `idea:idea:2026.1` and
+  `com.jetbrains.intellij.tools:ide-starter-squashed`). The tool gives the same 4. One of the
+  three is a compiled class with no source file, `AnAction.class`. Until the fix of #316, the
+  tool gave `internal_error` for this query.
 
 ## Parked rows
 
@@ -35,5 +43,4 @@ pin.
 | `find-file-Range.kt` | #271 | Go to File lists 12 files: the 11 files of the tool and `vim-engine/src/main/kotlin/com/maddyhome/idea/vim/ex/ranges/Address.kt` |
 | `find-file-VimEditor.kt` | #271 | the tool gives 9 files, Go to File at least 20 |
 | `find-file-Command.kt` | #271 | a `shape` row: it pins the count of the tool (`totalCollected` 263, `hasMore: true`). The rows of Go to File for `Command.kt` are not counted. The count changes when #271 is fixed. |
-| `find-class-AnAction-libraries-scope` | #316 | `internal_error` "Wrong offset: -1. Should be in range: [0, 4792]". Go to Class with the scope "All Places" lists 4 `AnAction` classes. A call can write a SEVERE entry to `idea.log` ("Tool execution failed: ide_find_class"); the product runs of this row wrote none. |
 | `search-text-matchpairs-code` | #317 | 9 matches and no match in `ideavim.dic`, line 28 |

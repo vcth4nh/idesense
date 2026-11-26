@@ -112,8 +112,9 @@ The window checks used WebStorm 2026.3 (WS-263.7307.202) with a window, on a cop
   tries a canary with an expected entry again every 10 s, up to the readiness budget after a
   switch (`live-test/suite/cli.py`). In a `--product backstage` run that opened the product
   itself, the canary first gave this error, the harness tried the canary rows again, and the
-  run passed. The plugin answer (`internal_error` with no cause and no hint to call again) is
-  issue #333.
+  run passed. The plugin answer of that time (`internal_error` with no cause and no hint to
+  call again) was issue #333. Since its fix, the tool answers `ide_service_timeout` for this
+  time limit (`docs/USAGE.md`, "Tool Errors").
 
 ## Parked rows
 

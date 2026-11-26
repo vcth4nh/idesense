@@ -66,6 +66,16 @@ The window observations used IntelliJ IDEA 2026.3 (IU-263.7307.200).
     condition: in a probe project, the tool also gave no match in a Kotlin file in no source
     root that is below no link, and Find in Files found it (the comment of 2026-11-23 on #328).
   - `search-text-BeanPostProcessor-paged` is parked with #328. No other row depends on the link.
+- **spring-framework: `file-structure-AbstractApplicationContext.java` equals the Structure
+  window.** The Structure tool window of IntelliJ IDEA 2026.3 in its default state (in the view
+  options, only "Fields" and "Non-public" have a check mark) shows the class and 129 members.
+  The tool gives the same 130 nodes with the same names, order and nesting: 132 lines with the
+  file name and an empty line. The window hides the lambda of
+  `finishBeanFactoryInitialization`, and so does the tool since #341; `show` with `lambdas`
+  adds that node. One row differs by white space: a text export of the window has two spaces
+  between `static class initializer` and the start of the comment after it, and the tool
+  writes one (the rules for the white space of a name and of a signature are in
+  `docs/USAGE.md`, `ide_file_structure`).
 - **spring-framework: parked rows.** Each of these rows shows an open defect (see "Parked
   rows" in `live-test/CONVENTIONS.md`).
   - `impls-BeanPostProcessor` (#277): the tool gives 62 types. Go to Implementation shows "76
