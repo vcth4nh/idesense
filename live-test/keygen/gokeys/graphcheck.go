@@ -20,13 +20,14 @@ type graphCheck struct {
 	pairs     map[graphPair]bool   // the call steps of the SSA form
 	selects   map[ifaceSelect]bool // the methods that the types of a conversion select
 	ifaces    []GraphIface         // the interface table that printGraphCheck compares the selections with
+	types     []*implType          // the type list (grapher.concrete) that printGraphCheck compares modTypes with
+	modTypes  []types.Type         // of the converted types, the module types (moduleType) that are no instance of a generic type and that implement an interface of the table with a method
 	noPos     []noPosCall          // the calls with a step and no position in a module file
 	static    int                  // the calls with a static callee; a call of a thunk also counts in invoke
 	invoke    int                  // the invoke calls of a method of a module interface and the calls of a thunk of one, with the calls of typeParam
 	typeParam int                  // of the invoke calls, the calls through a type that mentions a type parameter
 	initCalls int                  // the static calls of a package initializer to a function of the graph, at a position in a module file
 	converted int                  // the operand types of the MakeInterface instructions with no type parameter
-	outside   int                  // of these, the types outside the type list (grapher.concrete) that implement an interface of the table with a method
 	paramOps  int                  // the operand types of the MakeInterface instructions that are or contain a type parameter
 }
 
@@ -66,7 +67,7 @@ func (g *grapher) check(initial []*packages.Package, goos string, entries []*typ
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", goos, err)
 	}
-	ch := &graphCheck{goos: goos, pairs: map[graphPair]bool{}, selects: map[ifaceSelect]bool{}, ifaces: ifaces}
+	ch := &graphCheck{goos: goos, pairs: map[graphPair]bool{}, selects: map[ifaceSelect]bool{}, ifaces: ifaces, types: g.concrete}
 	if len(fns) == 0 {
 		ch.dur = time.Since(start)
 		return ch, nil // no function: no call and no conversion
@@ -128,7 +129,7 @@ func (g *grapher) staticDecl(fn *ssa.Function) (Pos, bool) {
 // method that the method set of *T selects, for each type T of the type list where T or *T
 // implements the interface; such a call through a type that mentions a type parameter gives no
 // step. Only a function of the graph is a callee. A call with a step and no position in a module
-// file gives no pair: the check keeps its caller and its callees (noPos).
+// file gives no pair: the check keeps its caller and its callees (noPos), and it fails.
 func (g *grapher) checkCall(ch *graphCheck, prog *ssa.Program, caller Pos, c *ssa.CallCommon, impls *typeutil.Map) {
 	inv := c // the invoke call: c, or the call of the body of a thunk
 	callee := c.StaticCallee()
@@ -197,13 +198,15 @@ func thunkInvoke(fn *ssa.Function) *ssa.CallCommon {
 
 // selections adds the function of the graph that each converted type X selects for each method
 // of each interface of the table that X implements (the method set of X). It counts the types
-// with no type parameter, and of these the types that implement an interface of the table with
-// a method and that the type list does not hold (X, or the element type of the pointer X). It
-// counts the types that are or contain a type parameter apart. The default builder mode builds
-// a generic function body one time, with its type parameters, so the check never sees the type
-// arguments of an instance: a type that the code converts only in a generic body, as a type
-// argument, is no type of this source. (A value of a type parameter whose constraint has the
-// underlying type of the target interface converts with ChangeType: it gives no operand.)
+// with no type parameter, and of these it keeps the module types that are no instance of a
+// generic type and that implement an interface of the table with a method (modTypes): the type
+// list of a complete graph holds each one. A library type is no type of the list, so it is not
+// kept. It counts the types that are or contain a type parameter apart. The default builder
+// mode builds a generic function body one time, with its type parameters, so the check never
+// sees the type arguments of an instance: a type that the code converts only in a generic body,
+// as a type argument, is no type of this source. (A value of a type parameter whose constraint
+// has the underlying type of the target interface converts with ChangeType: it gives no
+// operand.)
 func (g *grapher) selections(ch *graphCheck, prog *ssa.Program, converted *typeutil.Map, entries []*typeEntry) {
 	type tableIface struct {
 		iface   *types.Interface
@@ -223,10 +226,6 @@ func (g *grapher) selections(ch *graphCheck, prog *ssa.Program, converted *typeu
 		}
 		table = append(table, ti)
 	}
-	var list typeutil.Map
-	for _, te := range g.concrete {
-		list.Set(te.typ, true)
-	}
 	converted.Iterate(func(x types.Type, _ any) {
 		param := hasTypeParam(x) || hasTypeParam(x.Underlying())
 		if param {
@@ -234,11 +233,7 @@ func (g *grapher) selections(ch *graphCheck, prog *ssa.Program, converted *typeu
 		} else {
 			ch.converted++
 		}
-		elem := x
-		if p, ok := types.Unalias(x).(*types.Pointer); ok {
-			elem = p.Elem()
-		}
-		named, ok := types.Unalias(elem).(*types.Named)
+		named, ok := types.Unalias(pointerElem(x)).(*types.Named)
 		generic := ok && named.TypeArgs().Len() > 0
 		ms := prog.MethodSets.MethodSet(x)
 		implementing := false
@@ -254,20 +249,51 @@ func (g *grapher) selections(ch *graphCheck, prog *ssa.Program, converted *typeu
 				}
 			}
 		}
-		if !param && implementing && list.At(x) == nil && list.At(elem) == nil {
-			ch.outside++
+		if !param && !generic && implementing && g.moduleType(x) {
+			ch.modTypes = append(ch.modTypes, x)
 		}
 	})
 }
 
+// moduleType reports whether x is a type of the module: a named type that a module package
+// declares (also behind a pointer, also a named type of a function body), or an unnamed struct
+// type (also behind a pointer) with a field that a module file declares.
+func (g *grapher) moduleType(x types.Type) bool {
+	switch t := types.Unalias(pointerElem(x)).(type) {
+	case *types.Named:
+		return g.module(t.Obj())
+	case *types.Struct:
+		for i := 0; i < t.NumFields(); i++ {
+			if _, ok := g.x.treePos(g.fset, t.Field(i).Pos()); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// pointerElem gives the element type of the pointer type x, else x.
+func pointerElem(x types.Type) types.Type {
+	if p, ok := types.Unalias(x).(*types.Pointer); ok {
+		return p.Elem()
+	}
+	return x
+}
+
 // printGraphCheck compares the steps of funcs (the entries direct, embedded and iface) with the
-// pairs of the SSA side, and the selections of the SSA side with the interface table of ch. It
-// prints the counts, at most 20 pairs of each one-sided class, the counts of the SSA side with
-// at most 20 calls with no position, and at most 20 callees that the table lacks, each with the
-// first type that selects it. A callee
-// that only instances of a generic type select is counted apart (generic), and at most 20 of
-// them follow: the table has no generic type. It reports whether both sides are equal and the
-// table lacks no other callee.
+// pairs of the SSA side, the module types of the conversions (modTypes) with the type list of
+// ch, and the selections of the SSA side with the interface table of ch. It prints the counts, at
+// most 20 pairs of each one-sided class, the counts of the SSA side with at most 20 calls with no
+// position, at most 20 module types outside the type list (X, or the element type of the pointer
+// X, is no type of the list), and at most 20 callees that the table lacks, each with the first
+// type that selects it. A callee that only instances of a generic type select is counted apart
+// (generic), and at most 20 of them follow: the table has no generic type. It reports whether
+// both sides are equal, no call with a step has no position, the type list holds each module
+// type, and the table lacks no other callee. The pairs take the implementers of an interface
+// from the type list, as the graph does, so only the module types and the selections check the
+// implementers. The lack check compares by the interface that declares a method, so a type that
+// the list lacks can select only callees that the table has through other types: then only the
+// module types show it.
 func printGraphCheck(w io.Writer, funcs []GraphFunc, ch *graphCheck) bool {
 	names := map[Pos]string{}
 	syn := map[graphPair]bool{}
@@ -364,9 +390,21 @@ func printGraphCheck(w io.Writer, funcs []GraphFunc, ch *graphCheck) bool {
 	for k := range lacks {
 		delete(generic, k)
 	}
+	var list typeutil.Map
+	for _, te := range ch.types {
+		list.Set(te.typ, true)
+	}
+	var outside []string
+	for _, x := range ch.modTypes {
+		if list.At(x) == nil && list.At(pointerElem(x)) == nil {
+			outside = append(outside, x.String())
+		}
+	}
+	slices.Sort(outside)
 	fmt.Fprintf(w, "check %s: types: converted to an interface %d, of these outside the type list %d, callees that the table lacks %d, "+
 		"by an instance of a generic type %d, operands with a type parameter %d\n",
-		ch.goos, ch.converted, ch.outside, len(lacks), len(generic), ch.paramOps)
+		ch.goos, ch.converted, len(outside), len(lacks), len(generic), ch.paramOps)
+	printFirst20(w, "outside", outside)
 	for _, side := range []struct {
 		label string
 		m     map[ifaceSelect]string
@@ -387,7 +425,7 @@ func printGraphCheck(w io.Writer, funcs []GraphFunc, ch *graphCheck) bool {
 		}
 		printFirst20(w, side.label, lines)
 	}
-	return len(onlySyn)+len(onlySSA)+len(lacks) == 0
+	return len(onlySyn)+len(onlySSA)+len(ch.noPos)+len(outside)+len(lacks) == 0
 }
 
 // printFirst20 prints the line "  <label>: <line>" for each of the first 20 lines, and then

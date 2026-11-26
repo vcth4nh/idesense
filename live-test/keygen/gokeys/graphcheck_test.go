@@ -42,9 +42,9 @@ func graphChecks(t *testing.T) ([]GraphFunc, []GraphIface, *graphCheck) {
 	return graphInnerFuncs, graphInnerIfaces, graphInnerCheck
 }
 
-// runGraphCheckModule writes the module example.com/<name> with the file a.go of text into a
-// temp folder and runs gokeys graph -check on it for linux.
-func runGraphCheckModule(t *testing.T, name, text string) (code int, stdout, stderr string) {
+// graphModule writes the module example.com/<name> with the file a.go of text into a temp folder
+// and gives the folder.
+func graphModule(t *testing.T, name, text string) string {
 	t.Helper()
 	dir := t.TempDir()
 	for file, data := range map[string]string{"go.mod": "module example.com/" + name + "\n\ngo 1.26\n", "a.go": text} {
@@ -52,6 +52,13 @@ func runGraphCheckModule(t *testing.T, name, text string) (code int, stdout, std
 			t.Fatal(err)
 		}
 	}
+	return dir
+}
+
+// runGraphCheckModule runs gokeys graph -check for linux on the module of graphModule.
+func runGraphCheckModule(t *testing.T, name, text string) (code int, stdout, stderr string) {
+	t.Helper()
+	dir := graphModule(t, name, text)
 	var out, errb bytes.Buffer
 	code = run([]string{"graph", "-tree", dir, "-goos", "linux", "-out", filepath.Join(dir, "graph.jsonl"), "-check"}, &out, &errb)
 	return code, out.String(), errb.String()
@@ -164,7 +171,8 @@ func constFalse() {
 
 // A range-over-func loop over a module function calls the function with no position in SSA.
 // The syntax has no call there, so the check counts the call and names its caller and callee.
-func TestGraphCheckShowsACallWithNoPosition(t *testing.T) {
+// The rule of a call step does not decide such a call, so the check fails.
+func TestGraphCheckFailsForACallWithNoPosition(t *testing.T) {
 	code, out, errs := runGraphCheckModule(t, "rng", `package rng
 
 func seq(yield func(int) bool) {
@@ -179,8 +187,8 @@ func loop() int {
 	return n
 }
 `)
-	if code != 0 {
-		t.Errorf("exit %d, want 0; stderr: %s\nstdout:\n%s", code, errs, out)
+	if code != 1 {
+		t.Errorf("exit %d, want 1; stderr: %s\nstdout:\n%s", code, errs, out)
 	}
 	for _, want := range []string{
 		", calls with no position 1, ",
@@ -250,11 +258,157 @@ func TestGraphCheckReportsALackOfTheTable(t *testing.T) {
 	}
 }
 
+// withoutTypes gives a copy of ch whose type list does not hold the types with the ids.
+func withoutTypes(ch *graphCheck, ids ...string) *graphCheck {
+	without := *ch
+	without.types = slices.DeleteFunc(slices.Clone(ch.types), func(te *implType) bool { return slices.Contains(ids, te.id) })
+	return &without
+}
+
+// A converted type of the module that the type list does not hold fails the check, and the
+// check names it: here the local type sized and the unnamed struct type of unnamedSizer. The
+// table still has their callees, so no lack shows them.
+func TestGraphCheckReportsAModuleTypeOutsideTheTypeList(t *testing.T) {
+	funcs, _, ch := graphChecks(t)
+	without := withoutTypes(ch, "go:example.com/graph.sized@graph.go:133:7", "struct@graph.go:142:9")
+	if len(without.types) != len(ch.types)-2 {
+		t.Fatalf("the type list has %d types, want %d", len(without.types), len(ch.types)-2)
+	}
+	var out bytes.Buffer
+	if ok := printGraphCheck(&out, funcs, without); ok {
+		t.Errorf("printGraphCheck is ok with a module type outside the type list:\n%s", out.String())
+	}
+	for _, want := range []string{
+		"check linux: types: converted to an interface 2, of these outside the type list 2, callees that the table lacks 0, " +
+			"by an instance of a generic type 0, operands with a type parameter 0\n",
+		"  outside: *struct{example.com/graph.SizeB; example.com/graph.Labeler}\n" +
+			"  outside: example.com/graph.sized\n",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("no line %q:\n%s", want, out.String())
+		}
+	}
+}
+
+// A library type is no type of the type list, so it is not outside the list: *bytes.Buffer
+// implements the module interface Writer.
+func TestGraphCheckDoesNotCountALibraryType(t *testing.T) {
+	code, out, errs := runGraphCheckModule(t, "lib", `package lib
+
+import (
+	"bytes"
+	"io"
+)
+
+type Writer interface{ Write(p []byte) (int, error) }
+
+func viaWriter(w Writer) { w.Write(nil) }
+
+func asWriter() io.Writer { return &bytes.Buffer{} }
+`)
+	if code != 0 {
+		t.Errorf("exit %d, want 0; stderr: %s\nstdout:\n%s", code, errs, out)
+	}
+	want := "check linux: types: converted to an interface 1, of these outside the type list 0, callees that the table lacks 0, " +
+		"by an instance of a generic type 0, operands with a type parameter 0\n"
+	if !strings.Contains(out, want) {
+		t.Errorf("no line %q:\n%s", want, out)
+	}
+	if strings.Contains(out, "  outside: ") {
+		t.Errorf("a line outside:\n%s", out)
+	}
+}
+
+// The lack check compares by the interface that declares the method, so it can miss a type that
+// the type list lacks. D embeds J. With no X in the type list and in the table, the call d.M()
+// loses the callee Base.M, but the row of J.M has Base.M through Z, and the row of D.N has
+// Named.N through W: no lack. The count of the types outside the list fails the check.
+func TestGraphCheckFailsForAnOutsideTypeThatTheTableHides(t *testing.T) {
+	dir := graphModule(t, "emb", `package emb
+
+type J interface{ M() }
+
+type D interface {
+	J
+	N()
+}
+
+type Base struct{}
+
+func (Base) M() {}
+
+type Other struct{}
+
+func (Other) M() {}
+
+type Named struct{}
+
+func (Named) N() {}
+
+type Z struct{ Base }
+
+type W struct {
+	Other
+	Named
+}
+
+type X struct {
+	Base
+	Named
+}
+
+func viaD(d D) { d.M() }
+
+func asJ() J { return Z{} }
+
+func asD() D { return W{} }
+
+func asX() D { return &X{} }
+`)
+	funcs, ifaces, _, ch, err := extractGraph(dir, "linux", true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	x := "go:example.com/emb.X"
+	changed := make([]GraphIface, len(ifaces))
+	removed := 0
+	for i, gi := range ifaces {
+		changed[i] = gi
+		changed[i].Methods = make([]GraphMethod, len(gi.Methods))
+		for j, gm := range gi.Methods {
+			changed[i].Methods[j] = gm
+			changed[i].Methods[j].Impls = slices.DeleteFunc(slices.Clone(gm.Impls), func(im GraphImpl) bool { return im.Type == x })
+			removed += len(gm.Impls) - len(changed[i].Methods[j].Impls)
+		}
+	}
+	if removed != 2 {
+		t.Fatalf("%d rows of X in the table, want 2 (J.M and D.N)", removed)
+	}
+	without := withoutTypes(ch, x)
+	without.ifaces = changed
+	var out bytes.Buffer
+	if ok := printGraphCheck(&out, funcs, without); ok {
+		t.Errorf("printGraphCheck is ok with a module type outside the type list:\n%s", out.String())
+	}
+	for _, want := range []string{
+		"check linux: types: converted to an interface 3, of these outside the type list 1, callees that the table lacks 0, " +
+			"by an instance of a generic type 0, operands with a type parameter 0\n",
+		"  outside: *example.com/emb.X\n",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("no line %q:\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "  lacks: ") {
+		t.Errorf("a line lacks:\n%s", out.String())
+	}
+}
+
 // The table has no generic type (rule of a call step: a generic type gets no step). So a
 // callee that only an instance of a generic type selects, as a value or behind a pointer, is
-// counted apart and does not fail the check. The type int implements no interface of the
-// table, so it is not outside the type list, and the operand []T is counted apart. (SSA
-// converts t of the type T to any with ChangeType: no operand.)
+// counted apart and does not fail the check, and such an instance is not outside the type list.
+// The type int is no module type, and the operand []T is counted apart. (SSA converts t of the
+// type T to any with ChangeType: no operand.)
 func TestGraphCheckCountsAGenericLackApart(t *testing.T) {
 	code, out, errs := runGraphCheckModule(t, "gen", `package gen
 
@@ -276,7 +430,7 @@ func anyOf[T any](t T) any { return []T{t} }
 		t.Errorf("exit %d, want 0; stderr: %s\nstdout:\n%s", code, errs, out)
 	}
 	for _, want := range []string{
-		"check linux: types: converted to an interface 3, of these outside the type list 2, callees that the table lacks 0, " +
+		"check linux: types: converted to an interface 3, of these outside the type list 0, callees that the table lacks 0, " +
 			"by an instance of a generic type 1, operands with a type parameter 1\n",
 		"  generic: go:example.com/gen.Shape.Area -> a.go:7 Box.Area, by the type *example.com/gen.Box[int]\n",
 	} {
@@ -284,8 +438,10 @@ func anyOf[T any](t T) any { return []T{t} }
 			t.Errorf("no line %q:\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "  lacks: ") {
-		t.Errorf("a line lacks:\n%s", out)
+	for _, label := range []string{"  lacks: ", "  outside: "} {
+		if strings.Contains(out, label) {
+			t.Errorf("a line %q:\n%s", label, out)
+		}
 	}
 }
 

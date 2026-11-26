@@ -285,27 +285,66 @@ new question" in [bench/README.md](../bench/README.md#a-new-question)).
 
 A trace key holds, for one target function, each call step on each way to it, at any depth
 ([METHOD.md](../METHOD.md), section 3.4). Its source is the call graph of the Linux build of the
-tree. Write the graph, then the trace records:
+tree. `K` is a new folder for the new graph and the new trace records. Write the graph, then the
+trace records, into `K`:
 
 ```bash
+K="$B/scratch/trace/<keys>"
+mkdir -p "$K"
 (cd live-test/keygen/gokeys && go build -o "$B/scratch/gokeys-bin" .)
-"$B/scratch/gokeys-bin" graph -tree "$B/trees/caddy" -goos linux -out "$B/keys/caddy/graph.jsonl" -check
-./live-test/run.py keygen tracekeys make -graph "$B/keys/caddy/graph.jsonl" \
-  -calls "$B/keys/caddy/calls.jsonl" -out "$B/keys/caddy/trace.jsonl" \
+"$B/scratch/gokeys-bin" graph -tree "$B/trees/caddy" -goos linux -out "$K/graph.jsonl" -check
+./live-test/run.py keygen tracekeys make -graph "$K/graph.jsonl" \
+  -calls "$B/keys/caddy/calls.jsonl" -out "$K/trace.jsonl" \
   [-extra <file.json>] [-large <n> -seed <s>]
 ```
 
-`graph` loads one build (`-goos`; GOARCH is amd64) with no test file. `-check` compares the steps
-of the graph with the SSA form of the same build: the pairs of a call line and a callee, and the
-methods that the types of a conversion select. Its exit code is 1 when a pair is on one side only,
-or when the interface table does not have a selected method.
+`graph` loads one build (`-goos`; GOARCH is amd64) with no test file. `-check` compares the graph
+with the SSA form of the same build (`go/ssa`) in two parts:
+
+- The pairs of a call line and a callee (the line `pairs:`). The SSA side takes each pair from a
+  call of the SSA form. Equal pairs prove the call lines, the static callees and the interface of
+  each call of an interface method. They do not prove the implementers of that interface: both
+  sides take the implementers from one type list, the types that can implement an interface.
+- The types that the SSA form converts to an interface value (the line `types:`). They are a
+  second source of the implementers. Each such type of the module must be in the type list (the
+  count `outside the type list`): a named type that a module package declares (also behind a
+  pointer, also a named type of a function body), or an unnamed struct type with a field that a
+  module file declares. A library type is not counted. Each method of the graph that such a type
+  selects for a method of a module interface must be in the row of that method in the interface
+  table (the count `callees that the table lacks`). A method that only an instance of a generic
+  type selects is counted apart: the graph gives a generic type no step. This part does not see a
+  type that the code converts to an interface only in a generic function.
+
+The exit code is 1 when a pair is on one side only, when a call with a step has no position, when
+a module type is outside the type list, or when the table lacks a selected method that a type
+other than an instance of a generic type selects. The output lists at most 20 of each. A call with
+no position is a call with no call expression, for example the call of the function of a
+range-over-func loop (`for x := range seq`). Rule 5 of a call step does not decide such a call, so
+a product with one needs a decision before its keys, and the key has no step for it. With a
+complete type list, no module type is outside it. The lack check compares by the interface that
+declares a method, so a type that the list lacks can select only methods that the table has
+through other types. Then only the count `outside the type list` shows it. The other counts of the
+output are no failure.
+
+Two forms of a one-sided pair are known (`TestGraphCheckFindsDifferences` in
+`gokeys/graphcheck_test.go`):
+
+- A call after `panic` in the same block. SSA removes the dead code, so only the syntax side has
+  the pair.
+- A call through a local variable that holds a function or a method (`f := target; f()`). SSA
+  makes such a call static, so only the SSA side has the pair.
+
+The check fails for them. Read each one-sided pair in the source. For a pair of one of these two
+forms, the key follows the syntax side (rules 3 and 6 of a call step), and the maintainer notes
+each such pair with the keys of the product. Any other one-sided pair is a defect of the graph,
+and the keys are not installed.
 
 `make` reads `calls.jsonl` for the `dnc` lines of a record. It writes one record for each target
 of its pools. A pool is a rule that chooses targets, for example by the count of the functions on
 the ways to a target. `-extra` adds the targets of a JSON list, and `-large <n>` adds n targets
-with a large trace for the audit. The output gives the count of the functions in each size group
-and the count of the records of each pool. The module text of `tracekeys.py` gives the record
-format, the pools and the distances of each function to the target.
+with a large trace. The output gives the count of the functions in each size group and the count
+of the records of each pool. The module text of `tracekeys.py` gives the record format, the pools
+and the distances of each function to the target.
 
 **The run-time proof.** The tests of the product run in a copy of the tree in which the target and
 each function on a way of the chosen records log their call stacks. `R` is a new folder for the
@@ -314,14 +353,14 @@ files of one run:
 ```bash
 R="$B/scratch/trace/<run>"
 mkdir -p "$R/xdg/config" "$R/xdg/data"
-./live-test/run.py keygen tracekeys targets -keys "$B/keys/caddy/trace.jsonl" -ids <id,...|@file> \
+./live-test/run.py keygen tracekeys targets -keys "$K/trace.jsonl" -ids <id,...|@file> \
   -out "$R/targets.json"
 "$B/scratch/gokeys-bin" trace -tree "$B/trees/caddy" -targets "$R/targets.json" -dst "$R/copy"
 (cd "$R/copy" && go version && XDG_CONFIG_HOME="$R/xdg/config" XDG_DATA_HOME="$R/xdg/data" \
   BENCH_TRACE_OUT="$R/stacks.jsonl" go test -count=1 ./...) > "$R/test.log" 2>&1
-./live-test/run.py keygen tracekeys tracecheck -graph "$B/keys/caddy/graph.jsonl" \
+./live-test/run.py keygen tracekeys tracecheck -graph "$K/graph.jsonl" \
   -targets "$R/targets.json" -trace "$R/stacks.jsonl" -root "$R/copy" \
-  -keys "$B/keys/caddy/trace.jsonl" -ids <id,...|@file>
+  -keys "$K/trace.jsonl" -ids <id,...|@file>
 ```
 
 Give `tracecheck` the `-ids` of `targets`. The id of a start-set record holds spaces: quote the
@@ -342,20 +381,35 @@ of the start-set form judges no call: a correct call can come from a function ou
 The exit code is 1 when a line is `missing` or `not-in-key`, or when no trace line has a frame in a
 function of the graph. The module text of `tracekeys.py` gives each rule.
 
-The output lists each `key-line` line and each `package-level` line. A reader checks each of them
-in the source:
+The output lists each distinct `key-line`, `package-level` and `dynamic` line. These lines give
+no failure, so a reader checks each of them in the source:
 
 - `key-line`: the traced call must be the call of a step on a listed line. A deferred call that a
   return runs gives `key-line`: its frame is at the line where the function returns, a `return`
   statement or the closing brace (Go 1.26).
 - `package-level`: the line must be in a package-level declaration. A line inside a function body
   means that the graph lost that function.
+- `dynamic`: the line must hold a call that gives no step: a call of a function value, a call of
+  a method of a library interface, or a call on a value of a type parameter (a call through a type
+  that mentions a type parameter). A step that the graph lost on a line that also holds such a
+  call gets this verdict too.
 
 The check does not judge two kinds of calls, because their first frame is in the Go runtime and the
 verdict is `external` (Go 1.26). A call after `go` of a traced function (`go T()`, also with
 arguments) has only the frame `runtime.goexit`. A deferred call that a panic runs has the first
 frame `runtime.gopanic`. A call inside a function literal after `go` (`go func() { T() }()`) has
 the frame of the literal, and the function that holds the literal is its caller.
+
+**The key folder.** Copy the graph and the trace records from `K` into the key folder only after
+`graph -check` and `tracecheck` give exit 0:
+
+```bash
+cp "$K/graph.jsonl" "$K/trace.jsonl" "$B/keys/caddy/"
+```
+
+`graph` writes the file of `-out` before its check, so a graph in `K` can be a graph that failed
+the check. The one exception is a `graph -check` that fails only for one-sided pairs of the two
+known forms (above), each one noted with the keys of the product.
 
 ## Tests
 

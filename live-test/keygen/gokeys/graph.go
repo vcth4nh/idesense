@@ -101,8 +101,9 @@ func (s *graphStats) print(w io.Writer, total time.Duration) {
 }
 
 // cmdGraph: gokeys graph. It writes first each function, then each interface. Exit code 1 for
-// an error, and with -check for a pair that only one side has or a callee that the table
-// lacks.
+// an error, and with -check for a pair that only one side has, a call with a step and no
+// position, a module type outside the type list, or a callee that the table lacks
+// (printGraphCheck).
 func cmdGraph(args []string, stdout, stderr io.Writer) int {
 	fl := flag.NewFlagSet("graph", flag.ContinueOnError)
 	fl.SetOutput(stderr)

@@ -481,7 +481,8 @@ class TracecheckTest(unittest.TestCase):
                           "key-line 1, dynamic 1, missing 1, not-in-key 0; trace lines of other ids: 1",
                           "missing m.go:2 (in m.go:1, calls t.go:1)",
                           "key-line a.go:4 (in a.go:1, calls t.go:1, step on line 2)",
-                          "package-level a.go:20 (calls t.go:1)"], out)
+                          "package-level a.go:20 (calls t.go:1)",
+                          "dynamic e.go:3 (in e.go:1, calls t.go:1)"], out)
         self.assertEqual(1, code)
 
     def test_a_package_level_frame_is_counted_and_is_no_failure(self):
@@ -489,6 +490,14 @@ class TracecheckTest(unittest.TestCase):
         self.assertEqual(["tracecheck: 1 functions, 2 trace lines: external 0, test 0, package-level 1, key 1, "
                           "key-line 0, dynamic 0, missing 0, not-in-key 0; trace lines of other ids: 0",
                           "package-level a.go:20 (calls t.go:1)"], out)
+        self.assertEqual(0, code)
+
+    def test_a_dynamic_line_is_listed_one_time_and_is_no_failure(self):
+        out, code = self.check(stack(self.T, frame("a.go", 2)), stack(self.T, frame("e.go", 3), frame("x.go", 1)),
+                               stack(self.T, frame("e.go", 3), frame("x.go", 2)))
+        self.assertEqual(["tracecheck: 1 functions, 3 trace lines: external 0, test 0, package-level 0, key 1, "
+                          "key-line 0, dynamic 2, missing 0, not-in-key 0; trace lines of other ids: 0",
+                          "dynamic e.go:3 (in e.go:1, calls t.go:1)"], out)
         self.assertEqual(0, code)
 
     def test_a_trace_with_no_frame_in_a_function_gives_exit_1(self):
