@@ -137,6 +137,16 @@ The rule of a call step for Go:
 7. Only the build for Linux (amd64) counts, and no file whose name ends with `_test.go`.
 8. A call inside the target itself is no step (the trace stops at the first entry).
 
+The graph has two limits that the rule does not name:
+
+- A generic type is no implementer. A call of an interface method gives no step to a method of a
+  generic type.
+- A call of an interface method through a type that mentions a type parameter is no step, for
+  example a call on a value of a type parameter.
+
+The output of `gokeys graph` counts both. So a product with such code needs a rule sentence for
+it in its question texts.
+
 So the key tells which code can call the target by the types. It does not tell which code ran in
 a test.
 
@@ -157,14 +167,16 @@ compile. A step line wins over a `dnc` line.
   the static callees and the interface of each call of an interface method. They do not prove the
   implementers of that interface: both sides take them from one type list, the types that can
   implement an interface. The types that the SSA form converts to an interface value are a second
-  source of the implementers. Each such type of the module must be in the type list, and each
-  method that it selects for a method of a module interface must be in the interface table of the
-  graph. A method that only an instance of a generic type selects is counted apart, because the
-  graph gives a generic type no step. This part does not see a type that the code converts to an
-  interface only in a generic function. The check fails for a pair on one side only, for a call
-  with a step and no position (for example the call of the function of a range-over-func loop,
-  which the rule does not decide), for a module type outside the type list, and for a selected
-  method that the table lacks.
+  source of the implementers. Such a type must be in the type list when it is a type of the
+  module, implements an interface of the interface table of the graph that has a method, and is no
+  instance of a generic type. Each method of the graph that a converted type selects for a method
+  of a module interface must be in the interface table. A method that only an instance of a
+  generic type selects is counted apart and gives no failure, because the graph gives a generic
+  type no step. This part does not see a type that the code converts to an interface only in a
+  generic function. The check fails for a pair on one side only, for a call with a step and no
+  position (for example the call of the function of a range-over-func loop, which the rule does
+  not decide), for a module type outside the type list, and for a selected method that the table
+  lacks.
 - A run-time trace of the test suite: each call that the trace logs into a function of the key
   must be a step of the graph, or a call that is no step by the rule. For a key of the complete
   form, a call that is a step of the graph must also be a step of the key. For a call that the
@@ -174,8 +186,9 @@ compile. A step line wins over a `dnc` line.
   call that the graph has only on another line of the same caller (a deferred call that a return
   runs gives such a line), a call from a line of the tree in no function of the graph, which must
   be in a package-level declaration, and a call from a line with a call that gives no step, which
-  must be a call of a function value, of a method of a library interface, or on a value of a type
-  parameter. The first frame of a call after `go` (`go T()`) and of a deferred call that a panic
+  must be that call: a call of a function value, of a method of a library interface, or of an
+  interface method through a type that mentions a type parameter (for example on a value of a type
+  parameter). The first frame of a call after `go` (`go T()`) and of a deferred call that a panic
   runs is in the Go runtime, so the check does not judge such a call. A step that no test takes
   stays in the key, so this check works in one direction only.
 - By hand, when the key was made: for four targets, a reader checked each step in the source, and

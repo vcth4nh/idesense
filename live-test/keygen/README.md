@@ -306,14 +306,17 @@ with the SSA form of the same build (`go/ssa`) in two parts:
   each call of an interface method. They do not prove the implementers of that interface: both
   sides take the implementers from one type list, the types that can implement an interface.
 - The types that the SSA form converts to an interface value (the line `types:`). They are a
-  second source of the implementers. Each such type of the module must be in the type list (the
-  count `outside the type list`): a named type that a module package declares (also behind a
-  pointer, also a named type of a function body), or an unnamed struct type with a field that a
-  module file declares. A library type is not counted. Each method of the graph that such a type
-  selects for a method of a module interface must be in the row of that method in the interface
-  table (the count `callees that the table lacks`). A method that only an instance of a generic
-  type selects is counted apart: the graph gives a generic type no step. This part does not see a
-  type that the code converts to an interface only in a generic function.
+  second source of the implementers. Such a type must be in the type list (the count `outside the
+  type list`) when it is a type of the module, implements an interface of the table that has a
+  method, and is no instance of a generic type. A type of the module is a named type that a module
+  package declares (also behind a pointer, also a named type of a function body), or an unnamed
+  struct type with a field that a module file declares. A library type is not counted. Each
+  method of the graph that a converted type selects for a method of a module interface must be in
+  the row of that method in the interface table (the count `callees that the table lacks`). The
+  graph gives a generic type no step, so an instance of a generic type has its own count: the
+  methods that only such an instance selects (the count `by an instance of a generic type`). That
+  count gives exit 0. This part does not see a type that the code converts to an interface only
+  in a generic function.
 
 The exit code is 1 when a pair is on one side only, when a call with a step has no position, when
 a module type is outside the type list, or when the table lacks a selected method that a type
@@ -321,10 +324,10 @@ other than an instance of a generic type selects. The output lists at most 20 of
 no position is a call with no call expression, for example the call of the function of a
 range-over-func loop (`for x := range seq`). Rule 5 of a call step does not decide such a call, so
 a product with one needs a decision before its keys, and the key has no step for it. With a
-complete type list, no module type is outside it. The lack check compares by the interface that
-declares a method, so a type that the list lacks can select only methods that the table has
-through other types. Then only the count `outside the type list` shows it. The other counts of the
-output are no failure.
+complete type list, the count `outside the type list` is 0. The lack check compares by the
+interface that declares a method. So a type that the list lacks can select a method that the
+table already has through another type, and then no lack shows it: only the count `outside the
+type list` shows such a type. The other counts of the output are no failure.
 
 Two forms of a one-sided pair are known (`TestGraphCheckFindsDifferences` in
 `gokeys/graphcheck_test.go`):
@@ -389,10 +392,11 @@ no failure, so a reader checks each of them in the source:
   statement or the closing brace (Go 1.26).
 - `package-level`: the line must be in a package-level declaration. A line inside a function body
   means that the graph lost that function.
-- `dynamic`: the line must hold a call that gives no step: a call of a function value, a call of
-  a method of a library interface, or a call on a value of a type parameter (a call through a type
-  that mentions a type parameter). A step that the graph lost on a line that also holds such a
-  call gets this verdict too.
+- `dynamic`: the line holds a call that gives no step (an entry of the kind `other`). The traced
+  call must be that call: a call of a function value, a call of a method of a library interface,
+  or a call of an interface method through a type that mentions a type parameter (for example on
+  a value of a type parameter, or `g.Get()` with `g Getter[V]`). A step that the graph lost on a
+  line that also holds such a call gets this verdict too.
 
 The check does not judge two kinds of calls, because their first frame is in the Go runtime and the
 verdict is `external` (Go 1.26). A call after `go` of a traced function (`go T()`, also with
@@ -409,7 +413,9 @@ cp "$K/graph.jsonl" "$K/trace.jsonl" "$B/keys/caddy/"
 
 `graph` writes the file of `-out` before its check, so a graph in `K` can be a graph that failed
 the check. The one exception is a `graph -check` that fails only for one-sided pairs of the two
-known forms (above), each one noted with the keys of the product.
+known forms (above), each one noted with the keys of the product. A key file that tracked
+questions use is replaced only by a decision of a maintainer, because a new key can change the
+answer of a question; the first install of a file needs no decision.
 
 ## Tests
 

@@ -48,8 +48,9 @@ id `go:<package>.<name>@<file>:<line>:<col>`) and the unnamed struct types with 
 that the method set of `*T` selects for the name. It is null when that method is no function of the graph, for
 example for a struct that embeds the interface. `own` is true when T declares the method itself.
 
-The limits of the graph. A generic type is no implementer, and a call on a value of a type parameter is no step. An
-unnamed struct type that occurs only as a type argument is no implementer. A call in a package-level declaration
+The limits of the graph. A generic type is no implementer, and a call of an interface method through a type that
+mentions a type parameter (for example on a value of a type parameter) is no step. An unnamed struct type that occurs
+only as a type argument is no implementer. A call in a package-level declaration
 (outside each function) is no step. A call with no call expression has no entry, for example the call of the
 function of a range-over-func loop (`for x := range seq`), so the key has no step for it. `gokeys graph -check` fails
 for such a call of a function of the graph (a call with no position): rule 5 of a call step (METHOD.md, section 3.4)
