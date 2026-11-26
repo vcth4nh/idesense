@@ -334,27 +334,28 @@ call from outside the tree, from a test file or from a line in no function of th
 `key` when the graph has its step to the traced function on the line of the call. It is `key-line`
 when the graph has a step from that function to the traced function only on another line. Else it
 is `dynamic` when the line has a call that gives no step (an entry of the kind `other`), and else
-`missing`. Then each chosen record of the complete form judges each `key` and `key-line` line. The
-calling function must be the target or a function of the record, and the line of a `key` call from
-a function other than the target must be a required line of the record. Else the verdict is
-`not-in-key`. A record of the start-set form judges no call: a correct call can come from a
-function outside the record. The exit code is 1 when a line is `missing` or `not-in-key`, or when
-no trace line has a frame in a function of the graph. The module text of `tracekeys.py` gives each
-rule.
+`missing`. Then each chosen record of the complete form that holds the traced function (as its
+target or as a function of the record) judges each `key` and `key-line` line. The calling function
+must be the target or a function of the record, and the line of a `key` call from a function other
+than the target must be a required line of the record. Else the verdict is `not-in-key`. A record
+of the start-set form judges no call: a correct call can come from a function outside the record.
+The exit code is 1 when a line is `missing` or `not-in-key`, or when no trace line has a frame in a
+function of the graph. The module text of `tracekeys.py` gives each rule.
 
 The output lists each `key-line` line and each `package-level` line. A reader checks each of them
 in the source:
 
-- `key-line`: the traced call must be the call of a step on a listed line. A deferred call gives
-  `key-line`: its frame is at the line where the function returns, a `return` statement or the
-  closing brace (Go 1.26).
+- `key-line`: the traced call must be the call of a step on a listed line. A deferred call that a
+  return runs gives `key-line`: its frame is at the line where the function returns, a `return`
+  statement or the closing brace (Go 1.26).
 - `package-level`: the line must be in a package-level declaration. A line inside a function body
   means that the graph lost that function.
 
-A call after `go` of a traced function (`go T()`, also with arguments) has only the frame
-`runtime.goexit` in the trace (Go 1.26). Its verdict is `external`, so the check does not judge
-such a step. A call inside a function literal after `go` (`go func() { T() }()`) has the frame of
-the literal, and the function that holds the literal is its caller.
+The check does not judge two kinds of calls, because their first frame is in the Go runtime and the
+verdict is `external` (Go 1.26). A call after `go` of a traced function (`go T()`, also with
+arguments) has only the frame `runtime.goexit`. A deferred call that a panic runs has the first
+frame `runtime.gopanic`. A call inside a function literal after `go` (`go func() { T() }()`) has
+the frame of the literal, and the function that holds the literal is its caller.
 
 ## Tests
 

@@ -432,6 +432,8 @@ class TargetsTest(unittest.TestCase):
         missing = os.path.join(self.dir, "none.txt")
         code, _, stderr = run_main(["targets", "-keys", keys_file, "-ids", f"@{missing}", "-out", out])
         self.assertEqual((2, f"tracekeys: {missing}: No such file or directory\n"), (code, stderr))
+        code, _, stderr = run_main(["targets", "-keys", keys_file, "-ids", " , ", "-out", out])
+        self.assertEqual((2, "tracekeys: -ids gives no id\n"), (code, stderr))
         self.assertFalse(os.path.exists(out))
 
 
@@ -629,10 +631,17 @@ class KeyCheckTest(unittest.TestCase):
         code, stdout, stderr = run_main(args + ["-keys", keys_file, "-ids", "go:m.T"])
         self.assertEqual((1, ""), (code, stderr))
         self.assertEqual("not-in-key a.go:2 (in a.go:1, calls t.go:1, record go:m.T)", stdout.splitlines()[-1])
+        empty = os.path.join(folder, "ids.txt")
+        with open(empty, "w", encoding="utf-8") as f:
+            f.write("\n \n")
+        no_id = "tracekeys: -ids gives no id\n"
         for more, message in ((["-keys", keys_file], "tracekeys: -keys and -ids go together\n"),
                               (["-ids", "go:m.T"], "tracekeys: -keys and -ids go together\n"),
                               (["-keys", keys_file, "-ids", "go:m.None"], "tracekeys: no trace record with the id "
-                                                                         "go:m.None\n")):
+                                                                         "go:m.None\n"),
+                              (["-keys", keys_file, "-ids", ""], no_id), (["-keys", keys_file, "-ids", ","], no_id),
+                              (["-keys", keys_file, "-ids", f"@{empty}"], no_id),
+                              (["-keys", "", "-ids", "go:m.T"], "tracekeys: -keys names no file\n")):
             with self.subTest(more):
                 self.assertEqual((2, "", message), run_main(args + more))
 
