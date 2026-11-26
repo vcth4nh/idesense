@@ -167,6 +167,7 @@ file is stale.
 | search-text-matchpairs | search_text | `{"pageSize":100,"query":"matchpairs"}` |
 | search-text-matchpairs-code | search_text | `{"context":"code","pageSize":100,"query":"matchpairs"}` |
 | search-text-matchpairs-comments | search_text | `{"context":"comments","pageSize":100,"query":"matchpairs"}` |
+| search-text-matchpairs-strings | search_text | `{"context":"strings","pageSize":100,"query":"matchpairs"}` |
 | status-Status | index_status | `{}` |
 | usage-Mode-bysymbol | find_usages | `{"pageSize":25,"symbol":"Mode"}` |
 | usage-VimEditor-page2 | find_usages | `{"pageSize":100}` |
