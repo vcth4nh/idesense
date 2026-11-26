@@ -10,6 +10,7 @@ import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.roots.libraries.Library
 import com.intellij.openapi.vfs.JarFileSystem
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.LoggedErrorProcessor
@@ -20,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
@@ -207,28 +209,55 @@ class FileStructureToolNewFileTest : BasePlatformTestCase() {
     }
 
     // A relative path that names a file that the IDE knows below a second content root, outside the
-    // base path: no sync hint. The lookup of the six tools tries a relative path only below the base
-    // path: only the project lookup finds this file.
-    fun testFileBelowAnotherContentRootThatTheIdeKnowsGetsNoSyncHint() {
-        val dir = Files.createDirectories(Path.of(project.basePath!!).parent.resolve("content-root-${System.nanoTime()}"))
-        Files.writeString(dir.resolve("InContentRoot.java"), "class InContentRoot {}\n")
-        var root: VirtualFile? = null
-        var added = false
-        try {
-            root = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(dir)!!
-            assertEquals(listOf("InContentRoot.java"), root.children.map { it.name })
-            PsiTestUtil.addContentRoot(module, root)
-            added = true
-            IndexingTestUtil.waitUntilIndexesAreReady(project)
+    // base path, with no element at the position: the "no element" text, no sync hint. The lookup of
+    // the six tools and the project lookup both find this file (#357).
+    fun testFileBelowAnotherContentRootThatTheIdeKnowsGetsNoSyncHint() =
+        withContentRootOutsideTheBasePath(mapOf("InContentRoot.java" to "class InContentRoot {}\n")) {
             val path = "InContentRoot.java"
             val result = inRequest { FindDefinitionTool().execute(project, positionArgs(path, line = 99, column = 1)) }
             assertEquals("No element found at position $path:99:1", message(result))
-        } finally {
-            val known = root
-            if (added) PsiTestUtil.removeContentEntry(module, known!!)
-            if (known != null) WriteAction.run<Throwable> { known.delete(this) }
-            dir.toFile().deleteRecursively()
-            IndexingTestUtil.waitUntilIndexesAreReady(project)
+        }
+
+    // The tools give a file below a second content root, outside the base path, with a path relative
+    // to that content root (ProjectUtils.getRelativePath). The six tools find the file by that path
+    // (#357). ide_find_definition stands for them.
+    fun testPositionToolsFindAFileBelowAnotherContentRootByItsRelativePath() =
+        withContentRootOutsideTheBasePath(mapOf("InContentRoot.java" to IN_CONTENT_ROOT)) {
+            val path = "InContentRoot.java"
+            val result = inRequest { FindDefinitionTool().execute(project, positionArgs(path, line = 2, column = 5)) }
+            assertFalse("Expected the definition: ${text(result)}", result.isError)
+            assertEquals(path, result.structuredContent?.get("file")?.jsonPrimitive?.content)
+            assertEquals(1, result.structuredContent?.get("line")?.jsonPrimitive?.int)
+            // A relative path below no root: the plain text, as before.
+            val missing = inRequest { FindDefinitionTool().execute(project, positionArgs("Missing.java", line = 1, column = 1)) }
+            assertEquals("File not found: Missing.java", message(missing))
+        }
+
+    fun testReadFileFindsAFileBelowAnotherContentRootByItsRelativePath() =
+        withContentRootOutsideTheBasePath(mapOf("InContentRoot.java" to IN_CONTENT_ROOT)) {
+            val result = inRequest { ReadFileTool().execute(project, buildJsonObject { put("file", "InContentRoot.java") }) }
+            assertFalse("Expected the content: ${text(result)}", result.isError)
+            assertEquals(IN_CONTENT_ROOT, result.structuredContent?.get("content")?.jsonPrimitive?.content)
+            // A relative path below no root: the plain text, as before.
+            val missing = inRequest { ReadFileTool().execute(project, buildJsonObject { put("file", "Missing.java") }) }
+            assertEquals("File not found: Missing.java", message(missing))
+        }
+
+    // The same relative path below the base path and below a second content root: ide_find_definition
+    // and ide_read_file take the file below the base path, as resolveFile does. The file below the
+    // content root has no element at the position.
+    fun testRelativePathBelowTheBasePathAndAnotherContentRootGivesTheFileBelowTheBasePath() = withKnownFolder { dir ->
+        val path = "${dir.fileName}/Same.java"
+        val belowBasePath = dir.resolve("Same.java")
+        val source = "class Same {\n    Same self() { return this; }\n}\n"
+        Files.writeString(belowBasePath, source)
+        assertNotNull(LocalFileSystem.getInstance().refreshAndFindFileByNioFile(belowBasePath))
+        withContentRootOutsideTheBasePath(mapOf(path to "class Same {}\n")) {
+            val definition = inRequest { FindDefinitionTool().execute(project, positionArgs(path, line = 2, column = 5)) }
+            assertFalse("Expected the definition: ${text(definition)}", definition.isError)
+            assertEquals(1, definition.structuredContent?.get("line")?.jsonPrimitive?.int)
+            val read = inRequest { ReadFileTool().execute(project, buildJsonObject { put("file", path) }) }
+            assertEquals(source, read.structuredContent?.get("content")?.jsonPrimitive?.content)
         }
     }
 
@@ -288,6 +317,36 @@ class FileStructureToolNewFileTest : BasePlatformTestCase() {
         }
     }
 
+    /**
+     * Runs [block] with a second content root of the module: a new folder outside the base path with
+     * [files] (a relative path to its text), which the IDE knows with each of its files.
+     */
+    private fun withContentRootOutsideTheBasePath(files: Map<String, String>, block: () -> Unit) {
+        val dir = Files.createDirectories(Path.of(project.basePath!!).parent.resolve("content-root-${System.nanoTime()}"))
+        for ((path, text) in files) {
+            val file = dir.resolve(path)
+            Files.createDirectories(file.parent)
+            Files.writeString(file, text)
+        }
+        var root: VirtualFile? = null
+        var added = false
+        try {
+            root = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(dir)!!
+            VfsUtil.markDirtyAndRefresh(false, true, true, root)
+            for (path in files.keys) assertNotNull("The IDE does not know $path", root.findFileByRelativePath(path))
+            PsiTestUtil.addContentRoot(module, root)
+            added = true
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+            block()
+        } finally {
+            val known = root
+            if (added) PsiTestUtil.removeContentEntry(module, known!!)
+            if (known != null) WriteAction.run<Throwable> { known.delete(this) }
+            dir.toFile().deleteRecursively()
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+        }
+    }
+
     private fun renameArgs(path: String): JsonObject = buildJsonObject {
         put("file", path)
         put("newName", "Renamed.java")
@@ -319,5 +378,8 @@ class FileStructureToolNewFileTest : BasePlatformTestCase() {
 
     private companion object {
         const val TIMEOUT_MS = 30_000L
+
+        /** A class with a reference to itself at line 2, column 5. */
+        const val IN_CONTENT_ROOT = "class InContentRoot {\n    InContentRoot self() { return this; }\n}\n"
     }
 }

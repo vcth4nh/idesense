@@ -189,7 +189,7 @@ The plugin supports workspace projects where a single IDE window contains multip
 represented as modules with separate content roots:
 
 - **Project resolution** (`ProjectResolver.resolve`): Checks exact basePath → module content roots → subdirectory match
-- **File resolution** (`AbstractMcpTool.resolveFile`): Tries basePath, then module content roots
+- **File resolution** (`AbstractMcpTool.resolveFile`, `PsiUtils.resolveLocalFile`): Tries basePath, then module content roots
 - **Relative path computation** (`ProjectUtils.getRelativePath`): Strips the matching content root prefix
 - **VFS/PSI sync** (`AbstractMcpTool.ensurePsiUpToDate`): Refreshes all content roots, not just basePath. It runs only when `syncExternalChanges` is on.
 - **Error responses**: `ProjectResolver` builds `available_projects`. The setting `availableProjectsMode` selects the expanded or the compact list (see "Settings" in [README.md](../README.md#settings)).
