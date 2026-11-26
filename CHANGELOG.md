@@ -412,6 +412,13 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   found at the specified position" or "No class found at the specified file/line/column position."
   in each case, so the caller could not see that the file was the problem. For a file that the tool
   finds, the "no element" answers do not change (#354).
+- `ide_find_usages`, `ide_find_definition`, `ide_call_hierarchy`, `ide_find_implementations`,
+  `ide_find_super_methods`, `ide_explain_symbol` and `ide_read_file` find a file below a module
+  content root outside the project base folder by its path relative to that content root, the path
+  that the tools give for such a file. The position tools answered "No element found at position
+  ...", and `ide_read_file` answered `File not found` with a false hint to call `ide_sync_files`. A
+  relative path tries the base folder first, then each content root, as `ide_file_structure` does
+  (#357).
 
 ## [2.1.0] - 2026-11-09
 

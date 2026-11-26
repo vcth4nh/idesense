@@ -216,7 +216,11 @@ object PsiUtils {
 
     fun getVirtualFile(project: Project, relativePath: String): VirtualFile? {
         val basePath = project.basePath ?: return null
-        return resolveLocalFile(relativePath, sequenceOf(basePath))
+        // The base path, then each module content root, as in resolveNavigableVirtualFile (#357).
+        return resolveLocalFile(relativePath, sequence {
+            yield(basePath)
+            yieldAll(ProjectUtils.getModuleContentRoots(project))
+        })
     }
 
     fun resolveVirtualFileAnywhere(project: Project, path: String): VirtualFile? {
@@ -295,9 +299,15 @@ object PsiUtils {
 
     fun resolveLocalFile(path: String, rootCandidates: Sequence<String>): VirtualFile? {
         val expandedPath = expandHome(path)
-        // resolveAbsolutePath handles both absolute paths and relative paths against each root candidate.
-        val absolutePath = resolveAbsolutePath(expandedPath, rootCandidates) ?: return null
-        return LocalFileSystem.getInstance().findFileByNioFile(absolutePath)
+        val candidate = toPathOrNull(expandedPath) ?: return null
+        val fileSystem = LocalFileSystem.getInstance()
+        if (candidate.isAbsolute) return fileSystem.findFileByNioFile(candidate.normalize())
+        // A relative path: the first root candidate, in its order, below which the file system of the
+        // IDE has the file, with no refresh. resolveAbsolutePath gives the path below the first root
+        // only (#357).
+        return rootCandidates.firstNotNullOfOrNull { root ->
+            resolveAgainstRoot(expandedPath, root)?.let(fileSystem::findFileByNioFile)
+        }
     }
 
     fun resolveAbsolutePath(path: String, rootCandidates: Sequence<String> = emptySequence()): Path? {
