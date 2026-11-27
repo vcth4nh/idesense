@@ -26,9 +26,6 @@ class InternalErrorException(message: String) :
 class IndexNotReadyException(message: String) :
     McpException(message, JsonRpcErrorCodes.INDEX_NOT_READY, "index_not_ready")
 
-class FileNotFoundException(path: String) :
-    McpException("File not found: $path", JsonRpcErrorCodes.FILE_NOT_FOUND, "file_not_found")
-
 class SymbolNotFoundException(message: String) :
     McpException(message, JsonRpcErrorCodes.SYMBOL_NOT_FOUND, "symbol_not_found")
 

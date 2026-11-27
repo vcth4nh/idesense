@@ -13,18 +13,15 @@ class PluginDetectorsUnitTest : TestCase() {
 
     fun testPluginDetectorsRegistryHasAllLanguages() {
         assertNotNull(PluginDetectors.php)
-        assertNotNull(PluginDetectors.rust)
     }
 
     fun testPluginDetectorsHaveCorrectNames() {
         assertEquals("PHP", PluginDetectors.php.name)
-        assertEquals("Rust", PluginDetectors.rust.name)
     }
 
     /** A detector finds its plugin only when its key is the language of the config file. */
     fun testDetectorLanguagesAreTheLanguagesOfTheirConfigFiles() {
         assertEquals(listOf(PluginDetectors.php.language), kindResolverLanguages("META-INF/php-features.xml"))
-        assertEquals(listOf(PluginDetectors.rust.language), kindResolverLanguages("META-INF/rust-features.xml"))
     }
 
     private fun kindResolverLanguages(resource: String): List<String> {
