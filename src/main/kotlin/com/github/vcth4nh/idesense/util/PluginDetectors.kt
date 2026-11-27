@@ -5,9 +5,4 @@ object PluginDetectors {
         name = "PHP",
         language = "PHP"
     )
-
-    val rust = PluginDetector(
-        name = "Rust",
-        language = "Rust"
-    )
 }

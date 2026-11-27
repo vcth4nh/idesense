@@ -3,7 +3,6 @@ package com.github.vcth4nh.idesense.tools.navigation.hierarchy
 import com.github.vcth4nh.idesense.handlers.TypeElementData
 import com.github.vcth4nh.idesense.handlers.TypeHierarchyData
 import com.github.vcth4nh.idesense.handlers.shouldIncludeNavigationElement
-import com.github.vcth4nh.idesense.util.PluginDetectors
 import com.github.vcth4nh.idesense.util.ProjectUtils
 import com.github.vcth4nh.idesense.util.QualifiedNameUtil
 import com.intellij.openapi.diagnostic.logger
@@ -62,7 +61,6 @@ internal class RustTypeHierarchyImpl {
 
     // Type checking helpers
 
-    private fun isRustLanguage(element: PsiElement): Boolean = element.language.id == "Rust"
     private fun isRsTrait(element: PsiElement): Boolean = rsTraitItemClass?.isInstance(element) == true
     private fun isRsStruct(element: PsiElement): Boolean = rsStructItemClass?.isInstance(element) == true
     private fun isRsEnum(element: PsiElement): Boolean = rsEnumItemClass?.isInstance(element) == true
@@ -195,12 +193,6 @@ internal class RustTypeHierarchyImpl {
     }
 
     // Public API
-
-    fun canHandle(element: PsiElement): Boolean {
-        return isAvailable() && isRustLanguage(element)
-    }
-
-    fun isAvailable(): Boolean = PluginDetectors.rust.isAvailable && rsTraitItemClass != null
 
     fun getTypeHierarchy(
         element: PsiElement,

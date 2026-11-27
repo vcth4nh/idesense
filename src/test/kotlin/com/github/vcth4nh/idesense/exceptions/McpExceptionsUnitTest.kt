@@ -72,23 +72,6 @@ class McpExceptionsUnitTest : TestCase() {
         assertEquals(-32001, exception.errorCode)
     }
 
-    // FileNotFoundException tests
-
-    fun testFileNotFoundException() {
-        val exception = FileNotFoundException("src/Missing.kt")
-
-        assertEquals("File not found: src/Missing.kt", exception.message)
-        assertEquals(JsonRpcErrorCodes.FILE_NOT_FOUND, exception.errorCode)
-        assertEquals(-32002, exception.errorCode)
-    }
-
-    fun testFileNotFoundExceptionFormatsPath() {
-        val exception = FileNotFoundException("/absolute/path/to/file.java")
-
-        assertTrue(exception.message!!.contains("/absolute/path/to/file.java"))
-        assertTrue(exception.message!!.startsWith("File not found:"))
-    }
-
     // SymbolNotFoundException tests
 
     fun testSymbolNotFoundException() {
@@ -119,7 +102,6 @@ class McpExceptionsUnitTest : TestCase() {
             InvalidParamsException("test"),
             InternalErrorException("test"),
             IndexNotReadyException("test"),
-            FileNotFoundException("test"),
             SymbolNotFoundException("test"),
             RefactoringConflictException("test")
         )
@@ -138,7 +120,6 @@ class McpExceptionsUnitTest : TestCase() {
             InvalidParamsException("").errorCode,
             InternalErrorException("").errorCode,
             IndexNotReadyException("").errorCode,
-            FileNotFoundException("").errorCode,
             SymbolNotFoundException("").errorCode,
             RefactoringConflictException("").errorCode
         )
@@ -183,7 +164,6 @@ class McpExceptionsUnitTest : TestCase() {
 
     fun testErrorTypeMappings() {
         assertEquals("index_not_ready", IndexNotReadyException("x").errorType)
-        assertEquals("file_not_found", FileNotFoundException("/p").errorType)
         assertEquals("symbol_not_found", SymbolNotFoundException("x").errorType)
         assertEquals("refactoring_conflict", RefactoringConflictException("x").errorType)
         assertEquals("invalid_params", InvalidParamsException("x").errorType)

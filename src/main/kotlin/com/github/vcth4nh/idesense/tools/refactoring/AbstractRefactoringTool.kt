@@ -77,19 +77,6 @@ internal fun metDumbModeDuring(project: Project, refactoring: () -> Unit): Boole
 abstract class AbstractRefactoringTool : AbstractMcpTool() {
 
     /**
-     * Finds the named element at the given position (or its parent if the element is not named).
-     */
-    protected fun findNamedElement(
-        project: Project,
-        file: String,
-        line: Int,
-        column: Int
-    ): PsiNamedElement? {
-        val element = findPsiElement(project, file, line, column) ?: return null
-        return findNamedElement(element)
-    }
-
-    /**
      * Finds the named element from the given PSI element (traverses up if needed).
      * Excludes PsiFile to prevent accidental file deletion when targeting whitespace/comments.
      */

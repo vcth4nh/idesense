@@ -4,8 +4,8 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 /**
  * A detector answers from the `languageKindResolver` extension point. The test platform has the
- * Java plugin, so `java-features.xml` is loaded; it has no PHP and no Rust plugin, so
- * `php-features.xml` and `rust-features.xml` are not loaded.
+ * Java plugin, so `java-features.xml` is loaded; it has no PHP plugin, so
+ * `php-features.xml` is not loaded.
  */
 class PluginDetectorTest : BasePlatformTestCase() {
 
@@ -13,9 +13,8 @@ class PluginDetectorTest : BasePlatformTestCase() {
         assertTrue(PluginDetector("Java", "JAVA").isAvailable)
     }
 
-    fun testPhpAndRustDetectorsAnswerFalseWithoutTheirPlugins() {
+    fun testPhpDetectorAnswersFalseWithoutItsPlugin() {
         assertFalse(PluginDetectors.php.isAvailable)
-        assertFalse(PluginDetectors.rust.isAvailable)
     }
 
     fun testIfAvailableReturnsNullWhenUnavailable() {
