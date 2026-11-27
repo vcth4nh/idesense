@@ -7,6 +7,8 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-27
+
 ### Added
 - `ide_call_hierarchy` and `ide_find_usages` accept a `symbol` (name or qualified name) instead of
   `file`/`line`/`column`, resolved like the `ide_explain_symbol` anchor: exact qualified name first,
