@@ -59,7 +59,7 @@ Search for exact words using IDE's pre-built word index. O(1) lookups, not file 
 
 **Returns**: `{ matches: [{file, line, column, context, contextType}], query, nextCursor?, hasMore, totalCollected, offset, pageSize, stale }` — `line`/`column` point at the occurrence; `context` is its source line, cut to a 200-character window around the match when longer. The result has one match for each line. Other occurrences on that line are not listed.
 
-`contextType` values: `CODE`, `COMMENT`, `STRING_LITERAL`.
+`contextType` values: `CODE`, `COMMENT`, `STRING_LITERAL`, as the context filters of the IDE's Find in Files. `STRING_LITERAL` is also text that the IDE highlights as a string: each line of a Markdown code fence is `STRING_LITERAL`, and a backtick span is `CODE`. A number literal is `CODE`. A match in both a comment filter and a string filter (a Python docstring) is `COMMENT`. `context: "strings"` keeps the `STRING_LITERAL` matches, `"comments"` the `COMMENT` matches, `"code"` the `CODE` matches.
 **Selection note**: exact-word only (uses word index, not regex). Use `Grep` for regex patterns.
 
 ### ide_find_implementations

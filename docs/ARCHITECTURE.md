@@ -88,7 +88,14 @@ repository, and an entry here.
   processor for each PSI ancestor of an occurrence, innermost first; the tool takes only the first
   call, and it keeps one match for each line. The `context` filter compares the label of the tool (`CODE`, `COMMENT`, `STRING_LITERAL`), and
   the index search runs with `UsageSearchContext.ANY`: the index puts plain text, HTML text and JSON
-  strings in other contexts, so a context mask loses matches (#133) (`SearchTextTool`).
+  strings in other contexts, so a context mask loses matches (#133) (`SearchTextTool`). The label
+  comes from the per-file matcher of Find in Files, `FindManager.findString` with the search
+  contexts `IN_COMMENTS` and `IN_STRING_LITERALS`, one run of each for a file; `CODE` is the rest, as
+  the filter "Except Comments and String Literals" computes it (`FindExceptCommentsOrLiteralsData`,
+  IC-251.26927.53 and IU-263.7307.200). The matcher takes a token as a comment or a string literal by
+  the token sets of the `ParserDefinition` or by the highlighting of the token, so each line of a
+  Markdown code fence is `STRING_LITERAL`. A match that both runs find gets `COMMENT`; the IDE lists
+  it in both filters (#144) (`FindInFilesContexts`).
 - **The qualified name of a Go field or method.** The tool puts the package and the type before the
   name: `package.Struct.field`, `package.Struct.Mutex` for an embedded `sync.Mutex`,
   `package.Receiver.Method` and `package.Interface.method`. A field and an interface method get the

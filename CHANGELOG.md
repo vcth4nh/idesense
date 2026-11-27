@@ -419,6 +419,14 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   ...", and `ide_read_file` answered `File not found` with a false hint to call `ide_sync_files`. A
   relative path tries the base folder first, then each content root, as `ide_file_structure` does
   (#357).
+- The `contextType` label of `ide_search_text`, and with it the `context` filter, follows the three
+  context filters of Find in Files: `COMMENT` is "In Comments", `STRING_LITERAL` is "In String
+  Literals" and `CODE` is "Except Comments and String Literals". The tool asks the matcher of Find
+  in Files. The label came from substrings of the names of the element types, so a number literal
+  got `STRING_LITERAL` and was absent from the result of `context: "code"`. Each line of a Markdown
+  code fence now gets `STRING_LITERAL`, also with no info string, as the IDE highlights it as a
+  string; it had `CODE`. A backtick span stays `CODE`. The matches of `context: "all"` do not change
+  (#144).
 
 ## [2.1.0] - 2026-11-09
 
