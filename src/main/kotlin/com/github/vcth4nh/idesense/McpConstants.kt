@@ -1,8 +1,6 @@
 package com.github.vcth4nh.idesense
 
 import com.github.vcth4nh.idesense.util.IdeProductInfo
-import com.intellij.ide.plugins.PluginManagerCore
-import com.intellij.openapi.extensions.PluginId
 import com.intellij.util.messages.Topic
 
 object McpConstants {
@@ -56,15 +54,14 @@ object McpConstants {
      */
     const val SERVER_NAME = "idesense"
 
-    private const val PLUGIN_ID = "com.github.vcth4nh.idesense"
-
     /**
-     * Plugin version, read from the loaded `PluginDescriptor` so it always
-     * matches `plugin.xml` (which Gradle patches from `gradle.properties`).
-     * Lazy to defer the lookup until the platform is fully initialized.
+     * Plugin version, read from the resource `idesense-version.txt`. The Gradle task
+     * `processResources` writes it from the Gradle property `pluginVersion`, the same property
+     * that gives `plugin.xml` its version, so a build with `-PpluginVersion=<x>` reports `<x>`.
+     * Lazy, so the resource is read on the first use.
      */
     val SERVER_VERSION: String by lazy {
-        PluginManagerCore.getPlugin(PluginId.getId(PLUGIN_ID))?.version ?: "unknown"
+        McpConstants::class.java.getResource("/idesense-version.txt")!!.readText().trim()
     }
 
     const val SERVER_DESCRIPTION = "Code intelligence server for JetBrains IDEs (IntelliJ, PyCharm, WebStorm, GoLand, PhpStorm, RustRover). Use this instead of grep/ripgrep for semantic code understanding. Capabilities: find usages, go to definition, type/call hierarchies, find implementations, symbol search, rename refactoring, diagnostics. Languages: Java, Kotlin, Python, JavaScript, TypeScript, Go, PHP, Rust. Prerequisite: project must be open in IDE. Note: refactoring tools modify source files."

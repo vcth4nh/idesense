@@ -1,29 +1,14 @@
 package com.github.vcth4nh.idesense.util
 
 import junit.framework.TestCase
+import org.w3c.dom.Element
+import javax.xml.parsers.DocumentBuilderFactory
 
 class PluginDetectorsUnitTest : TestCase() {
 
     fun testPluginDetectorBasicProperties() {
-        val detector = PluginDetector("Test", listOf("com.test.plugin"))
+        val detector = PluginDetector("Test", "TestLanguage")
         assertEquals("Test", detector.name)
-    }
-
-    fun testPluginDetectorWithFallbackClass() {
-        val detector = PluginDetector("Test", listOf("com.test.plugin"), fallbackClass = "com.nonexistent.Class")
-        assertFalse(detector.isAvailable)
-    }
-
-    fun testIfAvailableReturnsNullWhenUnavailable() {
-        val detector = PluginDetector("Test", listOf("com.nonexistent.plugin"))
-        val result = detector.ifAvailable { "found" }
-        assertNull(result)
-    }
-
-    fun testIfAvailableOrElseReturnsFallbackWhenUnavailable() {
-        val detector = PluginDetector("Test", listOf("com.nonexistent.plugin"))
-        val result = detector.ifAvailableOrElse("default") { "found" }
-        assertEquals("default", result)
     }
 
     fun testPluginDetectorsRegistryHasAllLanguages() {
@@ -34,5 +19,19 @@ class PluginDetectorsUnitTest : TestCase() {
     fun testPluginDetectorsHaveCorrectNames() {
         assertEquals("PHP", PluginDetectors.php.name)
         assertEquals("Rust", PluginDetectors.rust.name)
+    }
+
+    /** A detector finds its plugin only when its key is the language of the config file. */
+    fun testDetectorLanguagesAreTheLanguagesOfTheirConfigFiles() {
+        assertEquals(listOf(PluginDetectors.php.language), kindResolverLanguages("META-INF/php-features.xml"))
+        assertEquals(listOf(PluginDetectors.rust.language), kindResolverLanguages("META-INF/rust-features.xml"))
+    }
+
+    private fun kindResolverLanguages(resource: String): List<String> {
+        val document = javaClass.classLoader.getResourceAsStream(resource)!!.use {
+            DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(it)
+        }
+        val resolvers = document.getElementsByTagName("languageKindResolver")
+        return (0 until resolvers.length).map { (resolvers.item(it) as Element).getAttribute("language") }
     }
 }

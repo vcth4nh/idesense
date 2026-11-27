@@ -65,6 +65,11 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
 - `ide_file_structure` no longer shows the lambda nodes of a Java file or a PHP file when `show` is
   omitted: the Structure tool window of the IDE hides them in its default state. To get them, pass
   `lambdas` in `show` (for Java `["non_public", "fields", "lambdas"]` is the old default) (#341).
+- The plugin no longer calls `PluginManagerCore.getPlugin`, which is internal API of the IntelliJ
+  Platform from the build 262 on. The version in `serverInfo` comes from a resource that the build
+  writes with the version of `plugin.xml`. The check for the PHP and the Rust plugin reads the
+  extensions that IdeSense registers only when that plugin is installed and enabled. The results do
+  not change (#257).
 
 ### Removed
 - The default server name and port for JetBrains Aqua (`aqua-idesense`, port 29180). JetBrains

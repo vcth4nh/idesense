@@ -378,7 +378,7 @@ the build on the disk, also the restart of a project switch. So an earlier check
 nothing about the build that runs now.
 
 - **The build that runs:** `serverInfo.version` in the `initialize` answer. The plugin reads
-  it from its loaded plugin descriptor.
+  it from the resource `idesense-version.txt` of its loaded jar, which the build writes.
 - **The build on the disk:** `<plugins dir>/idesense/lib/idesense-<version>.jar`. The next
   restart loads it.
 - **What ran when:** at each start the IDE writes the line `Loaded custom plugins: …,
