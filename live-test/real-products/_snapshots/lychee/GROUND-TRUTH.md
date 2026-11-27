@@ -34,6 +34,12 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   `docs/specs/3-reference/frontend-architecture.md` is a line of a code fence with the info
   string `typescript`. It has the label `STRING_LITERAL`, and the Find tool window lists it
   below "Usage in string constants".
+- **lychee: `search-text-favourite-code` equals the IDE.** The row gives 8 matches, the 8 lines
+  of Find in Files with "Except Comments and String Literals" ("8 matches in 6 files"). With
+  no filter, with "In Comments" and with "In String Literals", Find in Files gives "43 matches
+  in 31 files", "1 match in 1 file" and "34 matches in 27 files". The tool gives 42, 1 and 33
+  lines, the same lines. Line 364 of `routes/api_v2.php` has the word two times, and the tool
+  gives one match for a line. PhpStorm PS-263.7307.215, with "Match case" and "Words".
 - **lychee: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
   `live-test/CONVENTIONS.md`).
 
@@ -41,4 +47,3 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   |---|---|---|
   | `explain-Album-name`, `usage-Album-bysymbol`, `hier-super-Album-byname` | #269 | the name `Album` (3 PHP classes, 2 TypeScript types) resolves to the TypeScript interface, with no candidates |
   | `hier-caller-getValueAsBool-d1` | #186 | the caller in the Blade template has the path `/vueapp.blade.php` |
-  | `search-text-favourite-code` | #181 | `context: "code"` returns PHP string and comment matches |

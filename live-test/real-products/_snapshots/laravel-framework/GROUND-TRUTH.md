@@ -54,12 +54,19 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   For such a line the filter and the group of the IDE differ, and the label follows the
   filter (see "`ide_search_text`: one match for each line, and the context filter" in
   `docs/ARCHITECTURE.md`). The key lines `dynamodb:` (line 38 of the workflow file and line 3
-  of the other file) have the label `CODE`.
+  of the other file) have the label `CODE`. A copy of the whole product gives the same result
+  for these lines (filter "In String Literals", group "Unclassified").
+- **laravel-framework: `search-text-dynamodb-code` equals the IDE.** The row gives 2 matches,
+  the key lines `dynamodb:` (line 3 of `docker-compose.yml` and line 38 of
+  `.github/workflows/tests.yml`). These are the 2 lines of Find in Files with "Except Comments
+  and String Literals" ("2 matches in 2 files"). The other three rows are equal to the IDE too:
+  36 lines with no filter ("36 matches in 12 files"), 4 with "In Comments" ("4 matches in 3
+  files") and 30 with "In String Literals" ("30 matches in 10 files"). PhpStorm
+  PS-263.7307.215, with "Match case" and "Words".
 - **laravel-framework: parked rows.** Each of these rows shows an open defect (see "Parked
   rows" in `live-test/CONVENTIONS.md`).
 
   | Row | Issue | Defect |
   |---|---|---|
   | `usage-Arr.accessible`, `usage-Arr.accessible-production-scope`, `usage-Arr.accessible-test-scope`, `usage-Cache.remember-method-tag` | #307 | the column of a PHP method call is the start of the call expression (the receiver), not the method name that Find Usages goes to |
-  | `search-text-dynamodb-code` | #181 | `context: "code"` returns PHP string and comment matches |
   | `find-file-Carbon.php-libraries-scope` | #271 | the tool gives 21 files; Go to File (scope "Project and Libraries") also gives the files that match through the directory path, for example the locale files below `vendor/nesbot/carbon/src/Carbon/Lang/` |
