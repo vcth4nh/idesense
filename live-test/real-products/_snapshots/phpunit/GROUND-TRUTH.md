@@ -52,10 +52,14 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
 - **phpunit: `search-text-wget` has a line of a code fence.** The match `README.md:20` is a
   line of a Markdown code fence. It has the label `STRING_LITERAL`, and the Find tool window
   lists it below "Usage in string constants".
+- **phpunit: `search-text-unordered-comments` and `-strings` equal the IDE.** The rows give 2
+  and 10 matches. These are the lines of Find in Files with "In Comments" ("2 matches in 1
+  file") and with "In String Literals" ("10 matches in 3 files"). PhpStorm PS-263.7307.215,
+  with "Match case" and "Words".
 - **phpunit: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
   `live-test/CONVENTIONS.md`).
 
   | Row | Issue | Defect |
   |---|---|---|
-  | `search-text-unordered-code` | #181 | `context: "code"` returns comment lines and string lines |
+  | `search-text-unordered`, `search-text-unordered-code` | #374 | the word test of the tool accepts `$` before a word. `search-text-unordered-code` gives 10 matches and Find in Files with "Except Comments and String Literals" gives "5 matches in 1 file". `search-text-unordered` gives 22 matches and Find in Files gives "17 matches in 5 files". The 5 more lines are lines 37, 47, 73, 77 and 83 of `src/Framework/MockObject/Runtime/Rule/PartiallyOrderedParameterSets.php`, each with the word directly after `$` (`$unordered`). The "Words" option of Find in Files takes `$unordered` as one word. No line of `search-text-unordered-code` has a comment label or a string label in the result with no `context`, so the defect of #181 is gone |
   | `search-text-updateTimestamps-build` | #146 | the files under `build/` are absent |
