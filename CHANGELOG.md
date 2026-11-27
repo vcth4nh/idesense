@@ -435,7 +435,9 @@ The changelog of the older project, from before the rebrand to IdeSense, is in
   highlights it as a string; it had `CODE`. A backtick span stays `CODE`. A match that is in a
   comment and in a string literal for the IDE, for example in a Python docstring, comes with
   `"comments"` and with `"strings"`, and its label is `COMMENT`. The matches of `context: "all"` do
-  not change (#144).
+  not change (#144). In a PHP file, `context: "code"` no longer returns the lines that have the word
+  only in a comment or in a string literal: the label of a match no longer depends on the PSI root
+  of the file that the search visits (#181).
 
 ## [2.1.0] - 2026-11-09
 
