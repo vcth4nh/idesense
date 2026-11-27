@@ -176,6 +176,18 @@ tasks {
         inputs.files("README.md", "CHANGELOG.md", "docs/USAGE.md", "docs/ARCHITECTURE.md")
             .withPropertyName("pinnedDocs")
             .withPathSensitivity(PathSensitivity.RELATIVE)
+        // McpConstantsUnitTest compares McpConstants.SERVER_VERSION with the version of the build.
+        systemProperty("idesense.pluginVersion", providers.gradleProperty("pluginVersion").get())
+    }
+
+    // McpConstants.SERVER_VERSION reads this resource. It gets the version of plugin.xml, so a
+    // build with -PpluginVersion=<x> reports <x>.
+    processResources {
+        val pluginVersion = providers.gradleProperty("pluginVersion").get()
+        inputs.property("pluginVersion", pluginVersion)
+        filesMatching("idesense-version.txt") {
+            expand("version" to pluginVersion)
+        }
     }
 
     publishPlugin {

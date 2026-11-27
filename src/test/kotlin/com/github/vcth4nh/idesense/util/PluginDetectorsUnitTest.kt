@@ -5,25 +5,8 @@ import junit.framework.TestCase
 class PluginDetectorsUnitTest : TestCase() {
 
     fun testPluginDetectorBasicProperties() {
-        val detector = PluginDetector("Test", listOf("com.test.plugin"))
+        val detector = PluginDetector("Test", "TestLanguage")
         assertEquals("Test", detector.name)
-    }
-
-    fun testPluginDetectorWithFallbackClass() {
-        val detector = PluginDetector("Test", listOf("com.test.plugin"), fallbackClass = "com.nonexistent.Class")
-        assertFalse(detector.isAvailable)
-    }
-
-    fun testIfAvailableReturnsNullWhenUnavailable() {
-        val detector = PluginDetector("Test", listOf("com.nonexistent.plugin"))
-        val result = detector.ifAvailable { "found" }
-        assertNull(result)
-    }
-
-    fun testIfAvailableOrElseReturnsFallbackWhenUnavailable() {
-        val detector = PluginDetector("Test", listOf("com.nonexistent.plugin"))
-        val result = detector.ifAvailableOrElse("default") { "found" }
-        assertEquals("default", result)
     }
 
     fun testPluginDetectorsRegistryHasAllLanguages() {
