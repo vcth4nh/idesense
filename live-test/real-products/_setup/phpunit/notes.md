@@ -30,6 +30,15 @@ when they are absent. The product ignores `.idea` and `vendor` in its own `.giti
   roots). So they are library roots. In 1 of 20 opens of 2026-11-22 the line of the root
   `vendor` folder did not come. The three rows that expect a file below the root `vendor`
   then failed, and the canary rows passed. See "Troubleshooting" in `live-test/README.md`.
+  In one open of 2026-11-27 the three `IncludePathApplier` lines came, but the canary row
+  `canary-def-Timestamps-into-vendored` answered "Could not resolve symbol definition" each
+  time: the harness tried the row again for the full time that it gives the canary rows after
+  a switch (862 s in that run), and then the product stopped with `MISCONFIGURED`. `idea.log`
+  of that start has `ProjectIndexableFilesFilterHealthCheck` "Following files are NOT
+  indexable but they were found in filter", and its examples have a folder of
+  `build/scripts/phar-set-timestamps/vendor`. The canary row
+  `canary-def-Differ-into-dependency`, which resolves into the root `vendor` folder, passed.
+  The next two runs of the product, each with a new start of PhpStorm, passed.
 - The composer sync sets the language level from `composer.json` (8.4). At a first open, the
   check of the used language features of PhpStorm can set 8.5 before the sync, because one
   test file uses the pipe operator. `php.xml` fixes 8.4 and turns that check off.
