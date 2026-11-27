@@ -1,5 +1,6 @@
 package com.github.vcth4nh.idesense.tools.navigation
 
+import com.github.vcth4nh.idesense.server.PaginationService
 import com.github.vcth4nh.idesense.server.models.ContentBlock
 import com.github.vcth4nh.idesense.tools.models.SearchTextResult
 import com.github.vcth4nh.idesense.tools.models.TextMatch
@@ -13,6 +14,7 @@ import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -22,15 +24,19 @@ class SearchTextToolContextTest : BasePlatformTestCase() {
 
     private val labelOfContext = mapOf("code" to "CODE", "comments" to "COMMENT", "strings" to "STRING_LITERAL")
 
-    private fun search(context: String?, query: String = "zorbleword"): Set<TextMatch> = runBlocking {
-        val result = SearchTextTool().execute(project, buildJsonObject {
-            put("query", query)
-            if (context != null) put("context", context)
-        })
+    private fun call(arguments: JsonObject): SearchTextResult = runBlocking {
+        val result = SearchTextTool().execute(project, arguments)
         val text = (result.content.first() as ContentBlock.Text).text
         assertFalse("The search must succeed: $text", result.isError)
-        json.decodeFromString<SearchTextResult>(text).matches.toSet()
+        json.decodeFromString<SearchTextResult>(text)
     }
+
+    private fun search(context: String?, query: String = "zorbleword", caseSensitive: Boolean = true): Set<TextMatch> =
+        call(buildJsonObject {
+            put("query", query)
+            if (context != null) put("context", context)
+            if (!caseSensitive) put("caseSensitive", false)
+        }).matches.toSet()
 
     private fun labelsByLine(query: String = "zorbleword"): Map<String, String> =
         search(null, query).associate { "${it.file}:${it.line}" to it.contextType }
@@ -176,26 +182,121 @@ class SearchTextToolContextTest : BasePlatformTestCase() {
         assertEquals(emptySet<TextMatch>(), code intersect strings)
     }
 
-    // The differential test: for each filter, the lines of the tool are the lines of the per-file
-    // matcher of Find in Files with the same search context.
-    fun testEachContextGivesTheLinesOfTheFindInFilesFilter() {
-        val files = listOf(addJavaSample(), addMarkdownSample(), addKotlinSample())
-        IndexingTestUtil.waitUntilIndexesAreReady(project)
-
+    /**
+     * The differential test: for each `context` value, the lines of the tool are the lines of the
+     * per-file matcher of Find in Files. For "code" the matcher runs with
+     * EXCEPT_COMMENTS_AND_STRING_LITERALS and for "all" with ANY. The predicate of the IDE for
+     * "Except" (`FindExceptCommentsOrLiteralsData`) and the plain search are other paths of the
+     * platform than the code of the tool, so these two are real comparisons. For "comments" and
+     * "strings" the matcher of the test is the matcher of the tool, so the test pins the wiring.
+     */
+    private fun assertEachContextGivesTheLinesOfTheIde(files: List<PsiFile>, query: String) {
         val filterOfContext = mapOf(
             "comments" to FindModel.SearchContext.IN_COMMENTS,
             "strings" to FindModel.SearchContext.IN_STRING_LITERALS,
             "code" to FindModel.SearchContext.EXCEPT_COMMENTS_AND_STRING_LITERALS,
+            null to FindModel.SearchContext.ANY,
         )
         for ((context, filter) in filterOfContext) {
-            val ide = findInFilesLines(files, "zorbleword", filter)
-            assertFalse("The filter $filter must find a line", ide.isEmpty())
-            assertEquals("The lines of '$context'", ide, search(context).map { "${it.file}:${it.line}" }.toSet())
+            assertEquals(
+                "The lines of '$context' for '$query'",
+                findInFilesLines(files, query, filter),
+                search(context, query).map { "${it.file}:${it.line}" }.toSet()
+            )
         }
-        assertEquals(
-            findInFilesLines(files, "zorbleword", FindModel.SearchContext.ANY),
-            search(null).map { "${it.file}:${it.line}" }.toSet()
+    }
+
+    fun testEachContextGivesTheLinesOfTheFindInFilesFilter() {
+        val files = listOf(addJavaSample(), addMarkdownSample(), addKotlinSample())
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        for (filter in listOf(
+            FindModel.SearchContext.IN_COMMENTS,
+            FindModel.SearchContext.IN_STRING_LITERALS,
+            FindModel.SearchContext.EXCEPT_COMMENTS_AND_STRING_LITERALS,
+        )) {
+            assertFalse("The filter $filter must find a line", findInFilesLines(files, "zorbleword", filter).isEmpty())
+        }
+        assertEachContextGivesTheLinesOfTheIde(files, "zorbleword")
+    }
+
+    private fun addOverlapSample(): PsiFile = myFixture.addFileToProject(
+        "Overlap.java",
+        """
+        class Overlap {
+            String ip = "0.0.0.0";
+            // 1.1.1
+        }
+        """.trimIndent()
+    )
+
+    // The word index gives each occurrence, also one that overlaps the occurrence before: "0.0"
+    // at three offsets of "0.0.0.0". The run of the IDE goes on at the end of a match, so it
+    // gives the first and the third. "Except Comments and String Literals" also rejects an
+    // occurrence that starts inside a run occurrence or at its end
+    // (`FindExceptCommentsOrLiteralsData.test`), so the second one is in the set too.
+    fun testAnOccurrenceThatOverlapsAStringOccurrenceIsInTheStringSet() {
+        val file = addOverlapSample()
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        assertEquals(mapOf("Overlap.java:2" to "STRING_LITERAL"), labelsByLine("0.0"))
+        assertEquals(emptySet<TextMatch>(), search("code", "0.0"))
+        assertEachContextGivesTheLinesOfTheIde(listOf(file), "0.0")
+    }
+
+    fun testAnOccurrenceThatOverlapsACommentOccurrenceIsInTheCommentSet() {
+        val file = addOverlapSample()
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        assertEquals(mapOf("Overlap.java:3" to "COMMENT"), labelsByLine("1.1"))
+        assertEquals(emptySet<TextMatch>(), search("code", "1.1"))
+        assertEachContextGivesTheLinesOfTheIde(listOf(file), "1.1")
+    }
+
+    // A later page comes from extendSearchText when the first collection
+    // (PaginationService.DEFAULT_OVERCOLLECT matches) is used up. Each page holds only matches of
+    // the set of the filter.
+    fun testALaterPageOfAFilteredSearchHoldsOnlyMatchesOfTheSet() {
+        val count = PaginationService.DEFAULT_OVERCOLLECT + 20
+        val body = (0 until count).joinToString("\n") { "    String s$it = \"zorbleword $it\";\n    // zorbleword $it" }
+        myFixture.addFileToProject("Many.java", "class Many {\n$body\n}\n")
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        val first = call(buildJsonObject {
+            put("query", "zorbleword")
+            put("context", "strings")
+            put("pageSize", PaginationService.MAX_PAGE_SIZE)
+        })
+        val cursor = first.nextCursor
+        assertNotNull("The first page must have a cursor", cursor)
+        val second = call(buildJsonObject {
+            put("cursor", cursor!!)
+            put("pageSize", PaginationService.MAX_PAGE_SIZE)
+        })
+
+        assertEquals(20, second.matches.size)
+        for (page in listOf(first.matches, second.matches)) {
+            assertEquals(setOf("STRING_LITERAL"), page.map { it.contextType }.toSet())
+        }
+        assertEquals((0 until count).map { 2 + 2 * it }.toSet(), (first.matches + second.matches).map { it.line }.toSet())
+    }
+
+    fun testACaseInsensitiveSearchKeepsTheSetOfEachFilter() {
+        myFixture.addFileToProject(
+            "Cases.java",
+            """
+            class Cases {
+                String text = "ZorbleWord in a string";
+                // ZORBLEWORD in a comment
+                int zorbleWord = 1;
+            }
+            """.trimIndent()
         )
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+        assertEquals(setOf(2), search("strings", caseSensitive = false).map { it.line }.toSet())
+        assertEquals(setOf(3), search("comments", caseSensitive = false).map { it.line }.toSet())
+        assertEquals(setOf(4), search("code", caseSensitive = false).map { it.line }.toSet())
     }
 
     // The word index puts plain text under its own occurrence mask, and the label of such a

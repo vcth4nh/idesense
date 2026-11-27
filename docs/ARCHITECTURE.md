@@ -91,11 +91,14 @@ repository, and an entry here.
   plain text, HTML text and JSON strings in other contexts, so a context mask loses matches (#133)
   (`SearchTextTool`). The sets come from the per-file matcher of Find in Files,
   `FindManager.findString` with the search contexts `IN_COMMENTS` and `IN_STRING_LITERALS`, one run
-  of each for a file; `"code"` keeps the rest, as the filter "Except Comments and String Literals"
-  computes it (`FindExceptCommentsOrLiteralsData`, IC-251.26927.53 and IU-263.7307.200). The matcher
+  of each for a file, at the first read of its set. An occurrence is in a set when the run
+  occurrence with the nearest start at or before it ends at or after its start, the test of the
+  filter "Except Comments and String Literals" (`FindExceptCommentsOrLiteralsData.test`,
+  IC-251.26927.53 and IU-263.7307.200). So an occurrence that overlaps a run occurrence is in the
+  set, and `"code"` keeps the rest. The matcher
   takes a token as a comment or a string literal by the token sets of the `ParserDefinition` or by
   the highlighting of the token, so each line of a Markdown code fence is in `"strings"`. A match
-  that both runs find, for example in a Python docstring, is in `"comments"` and in `"strings"`, as
+  in both sets, for example in a Python docstring, is in `"comments"` and in `"strings"`, as
   in the IDE. The label is one of three, `COMMENT` first, then `STRING_LITERAL`, else `CODE`; for a
   Python docstring `COMMENT` is the group of the Find tool window, which reads only the highlighting
   (`ChunkExtractor.deriveUsageTypeFromHighlighting`) (#144) (`SearchTextTool.keepsMatch`,

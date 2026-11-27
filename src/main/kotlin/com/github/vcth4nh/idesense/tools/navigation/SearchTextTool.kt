@@ -23,6 +23,8 @@ import com.intellij.psi.search.PsiSearchHelper
 import com.intellij.psi.search.TextOccurenceProcessor
 import com.intellij.psi.search.UsageSearchContext
 import com.intellij.psi.util.PsiModificationTracker
+import java.util.NavigableMap
+import java.util.TreeMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
@@ -64,25 +66,28 @@ class SearchTextTool : AbstractMcpTool() {
 
         /**
          * The `context` filter: the set of the Find in Files filter of the value (#144). A match
-         * that both runs find is in the result of "comments" and of "strings", as in the IDE.
-         * Another value keeps each match.
+         * in both sets is in the result of "comments" and of "strings", as in the IDE. Another
+         * value keeps each match. A membership is a pass of the matcher over the file, so the
+         * filter reads only the sets that the value needs.
          */
-        internal fun keepsMatch(context: String, inComments: Boolean, inStrings: Boolean): Boolean =
+        internal fun keepsMatch(context: String, inComments: () -> Boolean, inStrings: () -> Boolean): Boolean =
             when (context.lowercase()) {
-                "comments" -> inComments
-                "strings" -> inStrings
-                "code" -> !inComments && !inStrings
+                "comments" -> inComments()
+                "strings" -> inStrings()
+                "code" -> !inComments() && !inStrings()
                 else -> true
             }
 
         /**
-         * The `contextType` label, COMMENT first (#144). For a match that both runs find, for
-         * example a Python docstring, COMMENT is the group of the Find tool window, which reads
-         * only the highlighting (`ChunkExtractor.deriveUsageTypeFromHighlighting`).
+         * The `contextType` label, COMMENT first (#144), so the strings set is read only for a
+         * match outside the comments set. A Python docstring is in both sets, and COMMENT is its
+         * group in the Find tool window. That group reads only the highlighting
+         * (`ChunkExtractor.deriveUsageTypeFromHighlighting`), and the highlighting of a docstring
+         * is a doc comment.
          */
-        internal fun contextLabel(inComments: Boolean, inStrings: Boolean): String = when {
-            inComments -> "COMMENT"
-            inStrings -> "STRING_LITERAL"
+        internal fun contextLabel(inComments: () -> Boolean, inStrings: () -> Boolean): String = when {
+            inComments() -> "COMMENT"
+            inStrings() -> "STRING_LITERAL"
             else -> "CODE"
         }
     }
@@ -311,12 +316,11 @@ class SearchTextTool : AbstractMcpTool() {
     /**
      * Converts one word occurrence to a match. [occurrence] is the occurrence's offset in the file.
      * The platform calls the occurrence processor once per PSI ancestor of an occurrence, innermost
-     * first; the callers pass only that first call, because an ancestor would report the context
-     * type of a larger element (for example CODE for a word inside a comment). The calls for one
-     * occurrence come one after the other, and one job processes each file
+     * first; the callers pass only that first call, so that the occurrence is filtered one time.
+     * The calls for one occurrence come one after the other, and one job processes each file
      * (`LowLevelSearchUtil.processTreeUp`, `PsiSearchHelperImpl.processPsiFileRoots`), so the
-     * callers keep only the last occurrence of each file to find the ancestor calls. Line, column
-     * and context come from the occurrence itself, not from the start of [element].
+     * callers keep only the last occurrence of each file to find the ancestor calls. Line, column,
+     * context and the context type come from the occurrence itself, not from [element].
      */
     private fun convertToTextMatch(
         project: Project,
@@ -335,7 +339,9 @@ class SearchTextTool : AbstractMcpTool() {
         val lineNumber = document.getLineNumber(occurrence)
         val columnNumber = occurrence - document.getLineStartOffset(lineNumber)
 
-        val (inComments, inStrings) = contexts.membership(virtualFile, document.charsSequence, occurrence)
+        val text = document.charsSequence
+        val inComments = { contexts.inComments(virtualFile, text, occurrence) }
+        val inStrings = { contexts.inStrings(virtualFile, text, occurrence) }
 
         // The context filter. The word index search has none (see WORD_INDEX_CONTEXT).
         if (!keepsMatch(context, inComments, inStrings)) {
@@ -356,41 +362,51 @@ class SearchTextTool : AbstractMcpTool() {
  * The memberships of an occurrence in the sets of the Find in Files filters, from the per-file
  * matcher of Find in Files ([FindManager.findString] with a [FindModel.SearchContext], as
  * `FindInProjectUtil` calls it) (#144). "In Comments" and "In String Literals" are two runs of the
- * matcher. "Except Comments and String Literals" keeps each occurrence that these two runs do not
- * find (`FindExceptCommentsOrLiteralsData`). The filter and the label are
+ * matcher. "Except Comments and String Literals" keeps each occurrence outside the ranges of these
+ * two runs (`FindExceptCommentsOrLiteralsData`). The filter and the label are
  * [SearchTextTool.keepsMatch] and [SearchTextTool.contextLabel].
  *
  * The matcher walks the highlighting lexer of the file. One run for each of the two contexts
- * finds all occurrences of a file, and the result holds for each match of the file.
+ * finds all occurrences of a file, and its ranges hold for each match of the file. A run starts
+ * at the first read of its set in the file.
  */
 private class FindInFilesContexts(project: Project, word: String, caseSensitive: Boolean) {
     private val findManager = FindManager.getInstance(project)
     private val comments = model(word, caseSensitive, FindModel.SearchContext.IN_COMMENTS)
     private val strings = model(word, caseSensitive, FindModel.SearchContext.IN_STRING_LITERALS)
-    private val startsByFile = ConcurrentHashMap<VirtualFile, Pair<Set<Int>, Set<Int>>>()
+    private val commentRanges = ConcurrentHashMap<VirtualFile, NavigableMap<Int, Int>>()
+    private val stringRanges = ConcurrentHashMap<VirtualFile, NavigableMap<Int, Int>>()
 
-    /** In the set of "In Comments", in the set of "In String Literals". */
-    fun membership(file: VirtualFile, text: CharSequence, occurrence: Int): Pair<Boolean, Boolean> {
-        val (commentStarts, stringStarts) = startsByFile.getOrPut(file) {
-            starts(text, comments, file) to starts(text, strings, file)
-        }
-        return (occurrence in commentStarts) to (occurrence in stringStarts)
-    }
+    /** In the set of "In Comments". */
+    fun inComments(file: VirtualFile, text: CharSequence, occurrence: Int): Boolean =
+        covers(commentRanges.getOrPut(file) { ranges(text, comments, file) }, occurrence)
 
-    /** The loop of `FindInProjectUtil.processSomeOccurrencesInFile`. */
-    private fun starts(text: CharSequence, model: FindModel, file: VirtualFile): Set<Int> {
-        val starts = HashSet<Int>()
+    /** In the set of "In String Literals". */
+    fun inStrings(file: VirtualFile, text: CharSequence, occurrence: Int): Boolean =
+        covers(stringRanges.getOrPut(file) { ranges(text, strings, file) }, occurrence)
+
+    /** The ranges, start to end, of the loop of `FindInProjectUtil.processSomeOccurrencesInFile`. */
+    private fun ranges(text: CharSequence, model: FindModel, file: VirtualFile): NavigableMap<Int, Int> {
+        val ranges = TreeMap<Int, Int>()
         var offset = 0
         while (offset < text.length) {
             val result = findManager.findString(text, offset, model, file)
             if (!result.isStringFound) break
-            starts.add(result.startOffset)
+            ranges[result.startOffset] = result.endOffset
             val previous = offset
             offset = result.endOffset
             if (previous == offset || offset == result.startOffset) offset++
         }
-        return starts
+        return ranges
     }
+
+    /**
+     * The test of `FindExceptCommentsOrLiteralsData`: the range with the nearest start at or
+     * before [occurrence] covers it, both ends included. So an occurrence that overlaps a run
+     * occurrence is in the set, for example the second "0.0" of "0.0.0.0", which the run skips.
+     */
+    private fun covers(ranges: NavigableMap<Int, Int>, occurrence: Int): Boolean =
+        ranges.floorEntry(occurrence)?.let { occurrence <= it.value } == true
 
     private companion object {
         // No "Words" option: the word index already gave the occurrence, and the label is the
