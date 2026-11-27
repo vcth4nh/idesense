@@ -50,6 +50,7 @@ class IdeProcess:
     pid: int
     launcher: Path
     config_dir: Path
+    log_dir: Path
     env: dict[str, str]
     cwd: str
 
@@ -60,7 +61,7 @@ def parse_ide_process(ide: Ide, pid: int, cmdline: list[str], exe: str, environ:
 
     The fleet instance runs `serverMode` with the default configuration folder;
     a project path can follow `serverMode`. A throwaway instance with its own
-    -Didea.config.path is not the fleet.
+    -Didea.config.path is not the fleet. The log folder is the default too.
     """
     prefix = f"-Didea.paths.selector={ide.selector}"
     selector = next((a.split("=", 1)[1] for a in cmdline
@@ -71,7 +72,8 @@ def parse_ide_process(ide: Ide, pid: int, cmdline: list[str], exe: str, environ:
         return None
     env = dict(item.split("=", 1) for item in os.fsdecode(environ).split("\0") if "=" in item)
     return IdeProcess(pid, Path(exe).parents[2] / "bin" / ide.launcher,
-                      Path(user_home) / ".config" / "JetBrains" / selector, env, cwd)
+                      Path(user_home) / ".config" / "JetBrains" / selector,
+                      Path(user_home) / ".cache" / "JetBrains" / selector / "log", env, cwd)
 
 
 def find_ide_process(ide: Ide) -> IdeProcess | None:
@@ -168,6 +170,59 @@ def open_projects(url: str, post) -> list[str] | None:
     if not isinstance(result, dict) or "transport_error" in result or "jsonrpc_error" in result:
         return None
     return [p["path"] for p in result.get("available_projects", []) if "workspace" not in p]
+
+
+# A switch waits at least (QUIET_ANSWERS - 1) * QUIET_POLL_S seconds before the stop.
+QUIET_ANSWERS = 5
+QUIET_POLL_S = 5.0
+QUIET_TIMEOUT_S = 900.0
+
+
+def wait_until_quiet(url: str, post, answers: int = QUIET_ANSWERS, poll_s: float = QUIET_POLL_S,
+                     timeout_s: float = QUIET_TIMEOUT_S, sleep=time.sleep,
+                     clock=time.monotonic) -> tuple[str | None, float]:
+    """Wait until `answers` answers of ide_index_status in a row say isDumbMode false.
+
+    A stop while the IDE indexes can damage its index (#308). The IDE leaves dumb mode
+    and enters it again between the passes of an open, so one answer is not enough.
+    Each other answer (dumb mode, an error, no answer of the server) sets the count back
+    to 0. The call names no project: with several projects open, the top-level
+    isDumbMode is then true when one project indexes (JsonRpcHandler.kt, AllProjectsTool).
+    Returns (an error line or None, the seconds waited)."""
+    request = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+               "params": {"name": "ide_index_status", "arguments": {}}}
+    start = clock()
+    count = 0
+    while True:
+        result = post(url, request, timeout=5.0)
+        count = count + 1 if isinstance(result, dict) and result.get("isDumbMode") is False else 0
+        waited = clock() - start
+        if count >= answers:
+            return None, waited
+        if waited >= timeout_s:
+            return (f"no {answers} answers of ide_index_status in a row with isDumbMode false "
+                    f"in {timeout_s:.0f} s (last answer: {result})"), waited
+        sleep(poll_s)
+
+
+_REBUILD_REQUEST = "Requesting index rebuild for: "
+
+
+def index_rebuild_requests(log_file: Path, offset: int) -> list[str]:
+    """The index names of the lines "Requesting index rebuild for: <name>" after byte `offset` of `log_file`.
+
+    Each name comes one time, in the order of its first line. A file that is now smaller
+    than `offset` is a new file (the IDE moves a full idea.log to idea.1.log), so the scan
+    reads it from its start. A file that does not exist or cannot be read gives []."""
+    try:
+        with log_file.open("rb") as f:
+            f.seek(offset if f.seek(0, os.SEEK_END) >= offset else 0)
+            text = f.read().decode("utf-8", "replace")
+    except OSError:
+        return []
+    names = [line.partition(_REBUILD_REQUEST)[2].strip()
+             for line in text.splitlines() if _REBUILD_REQUEST in line]
+    return list(dict.fromkeys(names))
 
 
 # The process name of a child that the IDE starts on Linux to watch the colour scheme of the desktop.
@@ -313,7 +368,8 @@ def _start_problem(proc: IdeProcess) -> str | None:
 def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None, log=print,
                       stop_timeout: float = 90.0, start_timeout: float = 300.0,
                       may_close: Callable[[str], bool] = lambda path: False,
-                      trust: Sequence[str] = ()) -> str | None:
+                      trust: Sequence[str] = (), quiet_wait=wait_until_quiet,
+                      scan=index_rebuild_requests) -> str | None:
     """Make `wanted` the open projects of the IDE. None on success, else one error line.
 
     The plugin has no tool that opens or closes a project, so a change is a
@@ -321,13 +377,15 @@ def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None,
     give each path of `trust` a trust entry in trusted-paths.xml, start the
     IDE, and wait until the server lists exactly those projects.
 
-    The IDEs are shared, so the switch has four rules. It restarts only the
+    The IDEs are shared, so the switch has five rules. It restarts only the
     fleet server of the IDE, never the server of another `url`. It closes an
     open project only when `may_close` accepts its path; a command from
     another checkout can thus not take the fixture projects from the fleet.
-    It proves before the stop what the start needs. From the stop to the
-    start it holds back the signals that can end the harness, and it starts
-    the IDE also after an error: the fleet must not stay without an IDE.
+    It proves before the stop what the start needs. It stops the IDE only
+    when `quiet_wait` (url, post) finds it quiet: a stop while the IDE
+    indexes can damage its index (#308). From the stop to the start it
+    holds back the signals that can end the harness, and it starts the IDE
+    also after an error: the fleet must not stay without an IDE.
     """
     fleet_url = ide_url(ide)
     url = url or fleet_url
@@ -364,8 +422,20 @@ def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None,
     problem = _start_problem(proc)
     if problem is not None:
         return f"cannot restart {ide.key}: {problem}"
+    err, waited = quiet_wait(url, post)
+    if err is not None:
+        return f"{ide.key} did not get quiet: {err}. The harness did not restart {ide.key}"
+    # The minimum wait is QUIET_ANSWERS - 1 polls. One poll more means that an answer was not quiet.
+    if waited >= QUIET_ANSWERS * QUIET_POLL_S:
+        log(f"[{ide.key}] waited {waited:.0f} s for a quiet IDE before the stop")
     command = f"{proc.launcher} serverMode"
     log(f"[{ide.key}] restart for a project switch. Start command: {command}")
+    # The scan reads the lines from the stop on: the shutdown and the first seconds of the new start.
+    idea_log = proc.log_dir / "idea.log"
+    try:
+        log_size = idea_log.stat().st_size
+    except OSError:
+        log_size = 0
     # A Ctrl+C or a SIGTERM between the stop and the start would leave the IDE down, and no
     # harness command can start it again. The signals wait until the IDE is started.
     with _signals_held_back():
@@ -384,6 +454,14 @@ def set_open_projects(ide: Ide, wanted: list[str], post, url: str | None = None,
                 _start(proc)
             except (OSError, subprocess.SubprocessError) as e:
                 err = f"cannot start {ide.key}: {e}. Start command: {command}"
+    # After the start command: an exception of the scan leaves no IDE stopped.
+    rebuilt = scan(idea_log, log_size)
+    if rebuilt:
+        # The default system folder holds the log folder and the index folder.
+        damage = (f"{ide.key} requested an index rebuild at the restart: {', '.join(rebuilt)}. The index of "
+                  f"{ide.key} can be damaged (#308). To repair it, stop {ide.key}, remove the folder "
+                  f"{proc.log_dir.parent / 'index'}, and start {ide.key}")
+        err = damage if err is None else f"{err}. {damage}"
     if err is not None:
         return err
     deadline = time.monotonic() + start_timeout
