@@ -11,17 +11,20 @@ import com.github.vcth4nh.idesense.tools.models.SearchTextResult
 import com.github.vcth4nh.idesense.tools.models.TextMatch
 import com.github.vcth4nh.idesense.tools.schema.SchemaBuilder
 import com.github.vcth4nh.idesense.util.LinePreview
+import com.intellij.find.FindManager
+import com.intellij.find.FindModel
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiComment
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.search.PsiSearchHelper
-import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.search.TextOccurenceProcessor
 import com.intellij.psi.search.UsageSearchContext
 import com.intellij.psi.util.PsiModificationTracker
+import java.util.NavigableMap
+import java.util.TreeMap
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
@@ -47,10 +50,10 @@ class SearchTextTool : AbstractMcpTool() {
 
         /**
          * The occurrence mask for the word index: no context filter, for each `context` value.
-         * The index and the `contextType` label are two classifications. The index puts plain
+         * The index and the Find in Files filters are two classifications. The index puts plain
          * text under IN_PLAIN_TEXT, HTML text under IN_PLAIN_TEXT | IN_FOREIGN_LANGUAGES and a
          * JSON string under IN_CODE. So a search with the mask of one context loses matches that
-         * have the label of that context (#133). The label alone selects the matches.
+         * the filter of that context keeps (#133). The filter alone selects the matches.
          */
         private const val WORD_INDEX_CONTEXT: Short = UsageSearchContext.ANY
 
@@ -61,12 +64,31 @@ class SearchTextTool : AbstractMcpTool() {
          */
         private const val PROCESS_INJECTED_PSI = false
 
-        /** The `contextType` label that the `context` value keeps. Null keeps each label. */
-        internal fun requestedContextType(context: String): String? = when (context.lowercase()) {
-            "code" -> "CODE"
-            "comments" -> "COMMENT"
-            "strings" -> "STRING_LITERAL"
-            else -> null
+        /**
+         * The `context` filter: the set of the Find in Files filter of the value (#144). A match
+         * in both sets is in the result of "comments" and of "strings", as in the IDE. Another
+         * value keeps each match. A membership is a pass of the matcher over the file, so the
+         * filter reads only the sets that the value needs.
+         */
+        internal fun keepsMatch(context: String, inComments: () -> Boolean, inStrings: () -> Boolean): Boolean =
+            when (context.lowercase()) {
+                "comments" -> inComments()
+                "strings" -> inStrings()
+                "code" -> !inComments() && !inStrings()
+                else -> true
+            }
+
+        /**
+         * The `contextType` label, COMMENT first (#144), so the strings set is read only for a
+         * match outside the comments set. A Python docstring is in both sets, and COMMENT is its
+         * group in the Find tool window. That group reads only the highlighting
+         * (`ChunkExtractor.deriveUsageTypeFromHighlighting`), and the highlighting of a docstring
+         * is a doc comment.
+         */
+        internal fun contextLabel(inComments: () -> Boolean, inStrings: () -> Boolean): String = when {
+            inComments() -> "COMMENT"
+            inStrings() -> "STRING_LITERAL"
+            else -> "CODE"
         }
     }
 
@@ -89,7 +111,7 @@ class SearchTextTool : AbstractMcpTool() {
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
         .stringProperty(ParamNames.QUERY, "Exact word to search for (no wildcards or regex). Required for fresh search; ignored when cursor is provided.")
-        .enumProperty(ParamNames.CONTEXT, "Where to search: \"code\" (each match outside a comment and a string literal, also in a file that is no program source), \"comments\", \"strings\", \"all\". Default: \"all\".", listOf("code", "comments", "strings", "all"))
+        .enumProperty(ParamNames.CONTEXT, "Where to search: \"comments\" (a comment), \"strings\" (a string literal, or text that the IDE highlights as a string, for example each line of a Markdown code fence), \"code\" (each other match, also in a file that is no program source), \"all\". Default: \"all\". A match that the IDE takes as a comment and as a string literal (a Python docstring) is in \"comments\" and in \"strings\", with contextType COMMENT.", listOf("code", "comments", "strings", "all"))
         .booleanProperty(ParamNames.CASE_SENSITIVE, "Case sensitive search. Default: true.")
         .intProperty(ParamNames.LIMIT, "Maximum results per page (deprecated, use pageSize). Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
         .stringProperty("cursor", "Pagination cursor from a previous response. When provided, returns the next page of results. Search parameters are ignored; project_path and pageSize may still be provided.")
@@ -125,17 +147,15 @@ class SearchTextTool : AbstractMcpTool() {
             return createErrorResult("Query cannot be empty")
         }
 
-        val requestedType = requestedContextType(contextStr)
-
         requireSmartMode(project)
 
         val cursorToken = suspendingReadAction {
             val scope = createFilteredScope(project)
-            val matches = searchText(project, query, scope, requestedType, caseSensitive, collectLimit)
+            val matches = searchText(project, query, scope, contextStr, caseSensitive, collectLimit)
 
             val searchExtender: suspend (Set<String>, Int) -> List<PaginationService.SerializedResult> = extender@{ seenKeys, limit ->
                 suspendingReadAction {
-                    extendSearchText(project, query, requestedType, caseSensitive, seenKeys, limit)
+                    extendSearchText(project, query, contextStr, caseSensitive, seenKeys, limit)
                 }
             }
 
@@ -176,7 +196,7 @@ class SearchTextTool : AbstractMcpTool() {
         project: Project,
         word: String,
         scope: com.intellij.psi.search.GlobalSearchScope,
-        requestedType: String?,
+        context: String,
         caseSensitive: Boolean,
         limit: Int
     ): List<TextMatch> {
@@ -185,6 +205,7 @@ class SearchTextTool : AbstractMcpTool() {
         val lastOccurrenceByFile = ConcurrentHashMap<PsiFile, Int>()
         val count = AtomicInteger(0)
         val helper = PsiSearchHelper.getInstance(project)
+        val contexts = FindInFilesContexts(project, word, caseSensitive)
 
         val processor = TextOccurenceProcessor { element, offsetInElement ->
             if (count.get() >= limit) {
@@ -197,7 +218,7 @@ class SearchTextTool : AbstractMcpTool() {
                 return@TextOccurenceProcessor true
             }
 
-            val match = convertToTextMatch(project, element, occurrence, word.length, requestedType)
+            val match = convertToTextMatch(project, element, occurrence, word.length, context, contexts)
             if (match != null) {
                 val lineKey = "${match.file}:${match.line}"
                 if (seenLines.add(lineKey)) {
@@ -235,7 +256,7 @@ class SearchTextTool : AbstractMcpTool() {
     private fun extendSearchText(
         project: Project,
         word: String,
-        requestedType: String?,
+        context: String,
         caseSensitive: Boolean,
         seenKeys: Set<String>,
         limit: Int
@@ -247,6 +268,7 @@ class SearchTextTool : AbstractMcpTool() {
         val lastOccurrenceByFile = ConcurrentHashMap<PsiFile, Int>()
         val count = AtomicInteger(0)
         val helper = PsiSearchHelper.getInstance(project)
+        val contexts = FindInFilesContexts(project, word, caseSensitive)
 
         val processor = TextOccurenceProcessor { element, offsetInElement ->
             if (count.get() >= limit) {
@@ -259,7 +281,7 @@ class SearchTextTool : AbstractMcpTool() {
                 return@TextOccurenceProcessor true
             }
 
-            val match = convertToTextMatch(project, element, occurrence, word.length, requestedType)
+            val match = convertToTextMatch(project, element, occurrence, word.length, context, contexts)
             if (match != null) {
                 val lineKey = "${match.file}:${match.line}"
                 if (seenLines.add(lineKey)) {
@@ -294,19 +316,19 @@ class SearchTextTool : AbstractMcpTool() {
     /**
      * Converts one word occurrence to a match. [occurrence] is the occurrence's offset in the file.
      * The platform calls the occurrence processor once per PSI ancestor of an occurrence, innermost
-     * first; the callers pass only that first call, because an ancestor would report the context
-     * type of a larger element (for example CODE for a word inside a comment). The calls for one
-     * occurrence come one after the other, and one job processes each file
+     * first; the callers pass only that first call, so that the occurrence is filtered one time.
+     * The calls for one occurrence come one after the other, and one job processes each file
      * (`LowLevelSearchUtil.processTreeUp`, `PsiSearchHelperImpl.processPsiFileRoots`), so the
-     * callers keep only the last occurrence of each file to find the ancestor calls. Line, column
-     * and context come from the occurrence itself, not from the start of [element].
+     * callers keep only the last occurrence of each file to find the ancestor calls. Line, column,
+     * context and the context type come from the occurrence itself, not from [element].
      */
     private fun convertToTextMatch(
         project: Project,
         element: PsiElement,
         occurrence: Int,
         wordLength: Int,
-        requestedType: String?
+        context: String,
+        contexts: FindInFilesContexts
     ): TextMatch? {
         val containingFile = element.containingFile ?: return null
         val virtualFile = containingFile.virtualFile ?: return null
@@ -317,10 +339,12 @@ class SearchTextTool : AbstractMcpTool() {
         val lineNumber = document.getLineNumber(occurrence)
         val columnNumber = occurrence - document.getLineStartOffset(lineNumber)
 
-        val contextType = resolveActualContextType(element)
+        val text = document.charsSequence
+        val inComments = { contexts.inComments(virtualFile, text, occurrence) }
+        val inStrings = { contexts.inStrings(virtualFile, text, occurrence) }
 
         // The context filter. The word index search has none (see WORD_INDEX_CONTEXT).
-        if (requestedType != null && contextType != requestedType) {
+        if (!keepsMatch(context, inComments, inStrings)) {
             return null
         }
 
@@ -329,33 +353,68 @@ class SearchTextTool : AbstractMcpTool() {
             line = lineNumber + 1,
             column = columnNumber + 1,
             context = LinePreview.ofLine(document, lineNumber, columnNumber, wordLength),
-            contextType = contextType
+            contextType = contextLabel(inComments, inStrings)
         )
     }
+}
 
-    private fun resolveActualContextType(element: PsiElement): String {
-        // Check if element is inside a comment (PsiComment or comment-type node)
-        if (PsiTreeUtil.getParentOfType(element, PsiComment::class.java, false) != null) {
-            return "COMMENT"
+/**
+ * The memberships of an occurrence in the sets of the Find in Files filters, from the per-file
+ * matcher of Find in Files ([FindManager.findString] with a [FindModel.SearchContext], as
+ * `FindInProjectUtil` calls it) (#144). "In Comments" and "In String Literals" are two runs of the
+ * matcher. "Except Comments and String Literals" keeps each occurrence outside the ranges of these
+ * two runs (`FindExceptCommentsOrLiteralsData`). The filter and the label are
+ * [SearchTextTool.keepsMatch] and [SearchTextTool.contextLabel].
+ *
+ * The matcher walks the highlighting lexer of the file. One run for each of the two contexts
+ * finds all occurrences of a file, and its ranges hold for each match of the file. A run starts
+ * at the first read of its set in the file.
+ */
+private class FindInFilesContexts(project: Project, word: String, caseSensitive: Boolean) {
+    private val findManager = FindManager.getInstance(project)
+    private val comments = model(word, caseSensitive, FindModel.SearchContext.IN_COMMENTS)
+    private val strings = model(word, caseSensitive, FindModel.SearchContext.IN_STRING_LITERALS)
+    private val commentRanges = ConcurrentHashMap<VirtualFile, NavigableMap<Int, Int>>()
+    private val stringRanges = ConcurrentHashMap<VirtualFile, NavigableMap<Int, Int>>()
+
+    /** In the set of "In Comments". */
+    fun inComments(file: VirtualFile, text: CharSequence, occurrence: Int): Boolean =
+        covers(commentRanges.getOrPut(file) { ranges(text, comments, file) }, occurrence)
+
+    /** In the set of "In String Literals". */
+    fun inStrings(file: VirtualFile, text: CharSequence, occurrence: Int): Boolean =
+        covers(stringRanges.getOrPut(file) { ranges(text, strings, file) }, occurrence)
+
+    /** The ranges, start to end, of the loop of `FindInProjectUtil.processSomeOccurrencesInFile`. */
+    private fun ranges(text: CharSequence, model: FindModel, file: VirtualFile): NavigableMap<Int, Int> {
+        val ranges = TreeMap<Int, Int>()
+        var offset = 0
+        while (offset < text.length) {
+            val result = findManager.findString(text, offset, model, file)
+            if (!result.isStringFound) break
+            ranges[result.startOffset] = result.endOffset
+            val previous = offset
+            offset = result.endOffset
+            if (previous == offset || offset == result.startOffset) offset++
         }
-        // Walk ancestors checking node element types for languages where PsiComment
-        // may not cover all comment variants (e.g., doc comments, template comments)
-        var current: PsiElement? = element
-        while (current != null && current !is com.intellij.psi.PsiFile) {
-            val typeName = current.node?.elementType?.toString() ?: ""
-            when {
-                typeName.contains("COMMENT", ignoreCase = true) -> return "COMMENT"
-                typeName.contains("STRING_LITERAL", ignoreCase = true) ||
-                typeName.contains("TEMPLATE_EXPRESSION", ignoreCase = true) -> return "STRING_LITERAL"
-            }
-            current = current.parent
-        }
-        // Check the element itself for string-like types not caught by ancestor walk
-        val elementType = element.node?.elementType?.toString() ?: ""
-        return when {
-            elementType.contains("STRING", ignoreCase = true) -> "STRING_LITERAL"
-            elementType.contains("LITERAL", ignoreCase = true) -> "STRING_LITERAL"
-            else -> "CODE"
+        return ranges
+    }
+
+    /**
+     * The test of `FindExceptCommentsOrLiteralsData`: the range with the nearest start at or
+     * before [occurrence] covers it, both ends included. So an occurrence that overlaps a run
+     * occurrence is in the set, for example the second "0.0" of "0.0.0.0", which the run skips.
+     */
+    private fun covers(ranges: NavigableMap<Int, Int>, occurrence: Int): Boolean =
+        ranges.floorEntry(occurrence)?.let { occurrence <= it.value } == true
+
+    private companion object {
+        // No "Words" option: the word index already gave the occurrence, and the label is the
+        // token class of the occurrence.
+        fun model(word: String, caseSensitive: Boolean, context: FindModel.SearchContext) = FindModel().apply {
+            stringToFind = word
+            isCaseSensitive = caseSensitive
+            searchContext = context
         }
     }
 }

@@ -87,11 +87,29 @@ repository, and an entry here.
   name or on an embedded interface (`GoSuperMethodsProvider.tryInterfaceMethodAnchor`).
 - **The Rust type hierarchy is code of the plugin.** RustRover registers no type hierarchy provider,
   so no IDE view exists to mirror (`RustTypeHierarchyFallback`, `RustTypeHierarchyImpl`; see #185).
-- **`ide_search_text`: one match for each line, and a label filter.** The word index search calls the
+- **`ide_search_text`: one match for each line, and the context filter.** The word index search calls the
   processor for each PSI ancestor of an occurrence, innermost first; the tool takes only the first
-  call, and it keeps one match for each line. The `context` filter compares the label of the tool (`CODE`, `COMMENT`, `STRING_LITERAL`), and
-  the index search runs with `UsageSearchContext.ANY`: the index puts plain text, HTML text and JSON
-  strings in other contexts, so a context mask loses matches (#133) (`SearchTextTool`).
+  call, and it keeps one match for each line. The `context` filter tests the sets of the Find in
+  Files filters (below), and the index search runs with `UsageSearchContext.ANY`: the index puts
+  plain text, HTML text and JSON strings in other contexts, so a context mask loses matches (#133)
+  (`SearchTextTool`). The sets come from the per-file matcher of Find in Files,
+  `FindManager.findString` with the search contexts `IN_COMMENTS` and `IN_STRING_LITERALS`, one run
+  of each for a file, at the first read of its set. An occurrence is in a set when the run
+  occurrence with the nearest start at or before it ends at or after its start, the test of the
+  filter "Except Comments and String Literals" (`FindExceptCommentsOrLiteralsData.test`,
+  IC-251.26927.53 and IU-263.7307.200). So an occurrence that overlaps a run occurrence is in the
+  set, and `"code"` keeps the rest. The matcher
+  takes a token as a comment or a string literal by the token sets of the `ParserDefinition` or by
+  the highlighting of the token, so each line of a Markdown code fence is in `"strings"`. A match
+  in both sets, for example in a Python docstring, is in `"comments"` and in `"strings"`, as
+  in the IDE. The label is one of three, `COMMENT` first, then `STRING_LITERAL`, else `CODE`; for a
+  Python docstring `COMMENT` is the group of the Find tool window, which reads only the highlighting
+  (`ChunkExtractor.deriveUsageTypeFromHighlighting`). Where the filter and the group of the IDE
+  differ, the label follows the filter: "In String Literals" lists the command line
+  `sleep $INTERVAL` of a shell script and a plain scalar value of a YAML file, and the Find tool
+  window has these lines below "Unclassified" (WebStorm WS-263.7307.202, PhpStorm
+  PS-263.7307.215); the label is `STRING_LITERAL` (#144) (`SearchTextTool.keepsMatch`,
+  `SearchTextTool.contextLabel`, `FindInFilesContexts`).
 - **The qualified name of a Go field or method.** The tool puts the package and the type before the
   name: `package.Struct.field`, `package.Struct.Mutex` for an embedded `sync.Mutex`,
   `package.Receiver.Method` and `package.Interface.method`. A field and an interface method get the
