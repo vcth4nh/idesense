@@ -119,6 +119,16 @@ The window checks used WebStorm 2026.3 (WS-263.7307.202) with a window, on a cop
   run passed. The plugin answer of that time (`internal_error` with no cause and no hint to
   call again) was issue #333. Since its fix, the tool answers `ide_service_timeout` for this
   time limit (`docs/USAGE.md`, "Tool Errors").
+- **backstage: `GithubEventRouter` in text with a filter.** `search-text-GithubEventRouter`,
+  `-code` and `-strings` give 88, 33 and 57 matches. Find in Files gives "91 matches in 16
+  files" on the same 88 lines. The Find tool window lists 57 matches below "Usage in string
+  constants" (7 lines of 5 TypeScript files, and 50 lines of code fences in 10 Markdown files),
+  33 below "Unclassified" and 1 below "Usage in comments". Three lines have a match in two groups.
+  They have the label `CODE`, and both filtered rows give them. A line of a code fence has the
+  label `STRING_LITERAL`. `context: "strings"` gives the 57 lines of Find in Files with "In
+  String Literals" ("57 matches in 15 files"). `context: "code"` gives the 33 lines that the
+  window lists below "Unclassified". `search-text-GithubEventRouter-comments` has 1 match, as
+  Find in Files with "In Comments" ("1 match in 1 file").
 
 ## Parked rows
 
@@ -131,5 +141,4 @@ Each of these rows shows an open defect (see "Parked rows" in `live-test/CONVENT
 | `find-file-index.ts-paged`, `find-file-package.json-paged`, `find-file-plugin.ts-paged` | #271 | Go to File also lists the files that match through the directory path: `index.ts` 1,255 against 1,259, `package.json` 287 against 325, `plugin.ts` 151 against 4,595; each file of the tool is in the Go to File list. The control `find-file-setupTests.ts-paged` gives the same 130 files as Go to File |
 | `find-file-module.ts.hbs`, `find-file-GithubEventRouter.ts-directory-part`, `find-file-plugin.ts-directory-part` | #271 | `module.ts.hbs`: 7 files, and Go to File lists the same 7 first, then more than 30 templates below `packages/cli-module-new/`. `router/GithubEventRouter.ts`: 0, and Go to File 2 (All Places). `src/plugin.ts`: 0, and Go to File many |
 | `usage-Config-bysymbol`, `explain-Config-ambiguous` | #269 | the name `Config`, which 83 declarations share, resolves to one declaration (33 usages) with no `candidates` |
-| `search-text-GithubEventRouter`, `search-text-GithubEventRouter-code`, `search-text-GithubEventRouter-strings` | #144 | 88, 83 and 7 matches. Find in Files gives "91 matches in 16 files" on the same 88 lines. The Find tool window lists 57 matches below "Usage in string constants": 7 lines of TypeScript files, and 50 lines of code fences in 10 Markdown files, which the tool gives the label `CODE`. So `context: "strings"` leaves the 50 lines out (Find in Files with "In String Literals": "57 matches in 15 files"), and `context: "code"` returns them (the window has 33 matches below "Unclassified"). `search-text-GithubEventRouter-comments` has 1 match, as Find in Files with "In Comments" ("1 match in 1 file") |
 | `find-symbol-useApi`, `explain-useApi-bysymbol` | #343 | Go to Symbol `useApi` shows 12 rows with the exact name, and the tool gives 11: the Jest suite `describe('useApi', ...)` of `packages/frontend-plugin-api/src/apis/system/useApi.test.tsx:47` is absent. The symbol anchor uses the same search: "Ambiguous symbol 'useApi': 11 matches" |

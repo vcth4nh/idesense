@@ -28,6 +28,12 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   `@property` tag of the class doc comment of `app/Models/Photo.php` (line 90), with the kind
   FIELD and the `qualifiedName` `\App\Models\Photo::@$size_variants`. The name comes from the
   `QualifiedNameProvider` of PHP, the same source as the names in phpunit.
+- **lychee: a code fence in `search-text-favourite`.** `search-text-favourite` gives 42
+  matches and `search-text-favourite-strings` gives 33: the lines of Find in Files with no
+  filter and with "In String Literals". Line 153 of
+  `docs/specs/3-reference/frontend-architecture.md` is a line of a code fence with the info
+  string `typescript`. It has the label `STRING_LITERAL`, and the Find tool window lists it
+  below "Usage in string constants".
 - **lychee: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
   `live-test/CONVENTIONS.md`).
 
@@ -36,4 +42,3 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   | `explain-Album-name`, `usage-Album-bysymbol`, `hier-super-Album-byname` | #269 | the name `Album` (3 PHP classes, 2 TypeScript types) resolves to the TypeScript interface, with no candidates |
   | `hier-caller-getValueAsBool-d1` | #186 | the caller in the Blade template has the path `/vueapp.blade.php` |
   | `search-text-favourite-code` | #181 | `context: "code"` returns PHP string and comment matches |
-  | `search-text-favourite`, `search-text-favourite-strings` | #144 | line 153 of `docs/specs/3-reference/frontend-architecture.md`, a line of a code fence with the info string `typescript`, has the label `CODE`. The Find tool window lists it below "Usage in string constants": Find in Files gives the 42 lines of the tool, and with "In String Literals" 33 lines, where `context: "strings"` gives 32 |

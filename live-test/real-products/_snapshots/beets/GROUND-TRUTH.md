@@ -123,6 +123,23 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   `str.join` and two for `range.__new__`. The line numbers are those of the stubs that this
   PyCharm build bundles. With PyCharm 2026.2 the tool gave 17 callees; the list of that version
   is not recorded.
+- **beets: three lines of `docs/plugins/mbsubmit.rst` have the label `STRING_LITERAL`.** They
+  are lines 21, 23 and 25, hyperlink targets (`.. _name: https://...`) that hold the word
+  `picard`. `search-text-picard` and `search-text-picard-strings` give them with the label
+  `STRING_LITERAL`, and `search-text-picard-code` does not give them. PyCharm PY-263.7307.329,
+  in a project that holds copies of these files, with "Match case" and "Words": Find in Files
+  lists them with "In String Literals" and not with "Except Comments and String Literals", and
+  the Find tool window has them below "Usage in string constants". The other lines of the file
+  with the word (17, 80, 82, 83 and 84) have the label `CODE`. The window lists them with
+  "Except Comments and String Literals", below "Unclassified".
+- **beets: two docstring lines have the label `COMMENT`.** Line 52 of `beets/dbcore/queryparse.py`
+  and line 274 of `beets/dbcore/types.py` are lines of a docstring that hold the word
+  `backslash`. `search-text-backslash` and `search-text-backslash-comments` give them the label
+  `COMMENT`, and `context: "comments"` returns them. PyCharm PY-263.7307.329, in a project that
+  holds copies of these files, with "Match case" and "Words": Find in Files lists both lines
+  with "In Comments" and with "In String Literals", and the Find tool window has them below
+  "Usage in comments". In that IDE the tool also returns both lines with `context: "strings"`,
+  with the label `COMMENT`. The product has no row with that filter for this word.
 - **beets: parked rows.** `find-class-DummyPlugin`, `find-symbol-template-lang-python`,
   `impls-BeetsPlugin`, `hier-sub-BeetsPlugin` and `hier-sub-FieldQuery` are parked with #176:
   a local class gets the qualified name of its function, and a class attribute the name of its

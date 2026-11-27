@@ -49,11 +49,13 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   are not in the list. Find Usages of PhpStorm shows "Usages in Project Files 13 results".
   The class `ShellExitCodeCalculator` (no row) gives 4 usages and the count 16; PhpStorm shows
   4 results.
+- **phpunit: `search-text-wget` has a line of a code fence.** The match `README.md:20` is a
+  line of a Markdown code fence. It has the label `STRING_LITERAL`, and the Find tool window
+  lists it below "Usage in string constants".
 - **phpunit: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
   `live-test/CONVENTIONS.md`).
 
   | Row | Issue | Defect |
   |---|---|---|
   | `search-text-unordered-code` | #181 | `context: "code"` returns comment lines and string lines |
-  | `search-text-wget` | #144 | the match `README.md:20`, a line of a Markdown code fence, has the label `CODE`; the Find tool window lists it below "Usage in string constants" |
   | `search-text-updateTimestamps-build` | #146 | the files under `build/` are absent |
