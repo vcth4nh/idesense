@@ -187,10 +187,23 @@ check for an active run before a product run. The switch has these safety rules:
   worktree next to them. A fixture run with the variable runs the snapshots of the worktree
   against the fleet fixtures, so the fixture sources of the two checkouts must be equal. A
   product of the fleet checkout still stops the switch: close it from that checkout.
+- **The IDE is quiet before the stop.** A stop while the IDE indexes can damage its index
+  (#308). The switch asks `ide_index_status` every `QUIET_POLL_S` seconds (5), and it stops
+  the IDE only after `QUIET_ANSWERS` answers (5) in a row with `isDumbMode: false`. So each
+  switch waits at least 20 s, and the switch time in the output includes this wait. A dumb
+  answer or an error sets the count back to 0. After `QUIET_TIMEOUT_S` seconds (900) the
+  switch stops with `did not get quiet` and restarts nothing. The constants are in
+  `suite/fleet.py`. The switch does not see a build sync: `ide_index_status` gives no sync
+  state.
 - **The IDE comes back.** The harness proves the launcher before the stop. From the stop to
   the start it holds back Ctrl+C and SIGTERM, and it starts the IDE also after an error. An
   IDE that does not stop in 90 seconds gets no second signal: the error line gives the
   start command.
+- **A damaged index shows at once.** After the restart, the switch reads the lines that
+  `idea.log` of the IDE got from the stop on. When the shutdown or the first seconds of the
+  start wrote `Requesting index rebuild for: <index>`, the switch stops with an error line.
+  The IDE runs again. The line gives the repair: stop the IDE, remove the folder `index` of
+  its system folder, and start the IDE.
 - **An interrupt closes the product.** After Ctrl+C in a product run the harness still
   closes the product that this run opened.
 

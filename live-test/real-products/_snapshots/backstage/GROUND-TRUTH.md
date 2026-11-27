@@ -69,10 +69,14 @@ The window checks used WebStorm 2026.3 (WS-263.7307.202) with a window, on a cop
   Files 3" (the strings of `GithubEventRouter.test.ts:20` and `:35`, and of
   `eventsModuleGithubEventRouter.test.ts:39`). The tool gives the mark `DYNAMIC` to all 4
   string usages, also to `GithubEventRouter.ts:39:12`. The tool also gives 27 usages in
-  Markdown backtick spans with `DYNAMIC`, and the window shows them in no state. So
-  `usage-GithubEventRouter`, `usage-GithubEventRouter-bysymbol` and
-  `explain-GithubEventRouter-pos` are not in the suite, and the rows of `UrlReaderPredicateMux`
-  stand in for them.
+  Markdown backtick spans with `DYNAMIC`, and the window shows them in no state. The owner of
+  the repository accepted these marked usages (see "Find usages: base declarations and marks"
+  in [ARCHITECTURE.md](../../../../docs/ARCHITECTURE.md)), so `usage-GithubEventRouter`,
+  `usage-GithubEventRouter-bysymbol` and `explain-GithubEventRouter-pos` pin the 36 usages. In
+  two other products the window does list such usages, in the group "Dynamic usages": see the
+  `GROUND-TRUTH.md` of ripgrep (RustRover) and of mongoose (WebStorm). The cause of the
+  difference in backstage is not established. The rows of `UrlReaderPredicateMux` show a class
+  with no Markdown usage.
 - **backstage: `find-class-Config` has 83 classes.** Go to Class `Config` in the scope Project
   Files gives 257 results. 83 of them declare the exact name `Config` (81 interfaces of
   `config.d.ts` files and 2 type aliases), and they are the 83 of the tool. The tool matches

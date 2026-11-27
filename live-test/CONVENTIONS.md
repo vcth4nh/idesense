@@ -454,5 +454,8 @@ product anchor map hold identifiers, kinds, paths and positions, and no source t
   one line for each declaration: the name, the signature and the line number. It has no body
   and no comment.
 - `topUsages` of `ide_explain_symbol` becomes its item count.
+- The `name` of a call hierarchy node stays. For a function with no name, the IDE makes the
+  name from the call that takes the function, for example `callback for it('...', ...)`. Such a
+  name can hold a string argument of that call. The owner of the repository permits it.
 - The `ANCHORS.md` of a product shows the identifier at each anchor and never the source line.
 - `--check-fixtures` fails on an expected row above 64 KB, so each probe needs a cap.
