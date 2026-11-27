@@ -104,7 +104,11 @@ repository, and an entry here.
   in both sets, for example in a Python docstring, is in `"comments"` and in `"strings"`, as
   in the IDE. The label is one of three, `COMMENT` first, then `STRING_LITERAL`, else `CODE`; for a
   Python docstring `COMMENT` is the group of the Find tool window, which reads only the highlighting
-  (`ChunkExtractor.deriveUsageTypeFromHighlighting`) (#144) (`SearchTextTool.keepsMatch`,
+  (`ChunkExtractor.deriveUsageTypeFromHighlighting`). Where the filter and the group of the IDE
+  differ, the label follows the filter: "In String Literals" lists the command line
+  `sleep $INTERVAL` of a shell script and a plain scalar value of a YAML file, and the Find tool
+  window has these lines below "Unclassified" (WebStorm WS-263.7307.202, PhpStorm
+  PS-263.7307.215); the label is `STRING_LITERAL` (#144) (`SearchTextTool.keepsMatch`,
   `SearchTextTool.contextLabel`, `FindInFilesContexts`).
 - **The qualified name of a Go field or method.** The tool puts the package and the type before the
   name: `package.Struct.field`, `package.Struct.Mutex` for an embedded `sync.Mutex`,
