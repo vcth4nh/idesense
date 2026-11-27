@@ -14,7 +14,7 @@ import com.intellij.util.KeyedLazyInstance
  */
 class PluginDetector(
     val name: String,
-    private val language: String,
+    val language: String,
 ) {
     private val log = logger<PluginDetector>()
 

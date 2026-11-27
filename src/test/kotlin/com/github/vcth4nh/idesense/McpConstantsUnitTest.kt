@@ -7,7 +7,10 @@ class McpConstantsUnitTest : TestCase() {
     fun testServerVersionIsTheVersionOfTheBuild() {
         val buildVersion = System.getProperty("idesense.pluginVersion")
         assertNotNull("the test task sets idesense.pluginVersion", buildVersion)
-        assertFalse("placeholder in SERVER_VERSION: ${McpConstants.SERVER_VERSION}", McpConstants.SERVER_VERSION.contains("\${"))
-        assertEquals(buildVersion, McpConstants.SERVER_VERSION)
+        assertEquals(
+            "SERVER_VERSION is not the version of the build (also when it is the placeholder \${version})",
+            buildVersion,
+            McpConstants.SERVER_VERSION,
+        )
     }
 }
