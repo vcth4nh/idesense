@@ -34,6 +34,10 @@ pin.
   `com.jetbrains.intellij.tools:ide-starter-squashed`). The tool gives the same 4. One of the
   three is a compiled class with no source file, `AnAction.class`. Until the fix of #316, the
   tool gave `internal_error` for this query.
+- **ideavim: `search-text-matchpairs-strings` has 6 matches.** They are the 6 lines of Find in
+  Files with the filter "In String Literals". One of them is `doc/set-commands.md`, line 67, a
+  line in a Markdown code fence. It has the label `STRING_LITERAL`, and the Find tool window
+  lists it below "Usage in string constants".
 
 ## Parked rows
 
@@ -43,5 +47,4 @@ pin.
 | `find-file-Range.kt` | #271 | Go to File lists 12 files: the 11 files of the tool and `vim-engine/src/main/kotlin/com/maddyhome/idea/vim/ex/ranges/Address.kt` |
 | `find-file-VimEditor.kt` | #271 | the tool gives 9 files, Go to File at least 20 |
 | `find-file-Command.kt` | #271 | a `shape` row: it pins the count of the tool (`totalCollected` 263, `hasMore: true`). The rows of Go to File for `Command.kt` are not counted. The count changes when #271 is fixed. |
-| `search-text-matchpairs-code` | #317 | 9 matches and no match in `ideavim.dic`, line 28 |
-| `search-text-matchpairs-strings` | #144 | 5 matches. Find in Files with the filter "In String Literals" shows 6: the 5 lines of the tool and `doc/set-commands.md`, line 67. That line is in a Markdown code fence. The Find tool window lists it below "Usage in string constants", and the tool gives it the label `CODE` |
+| `search-text-matchpairs-code` | #317 | 8 matches and no match in `ideavim.dic`, line 28. Find in Files with "Except Comments and String Literals" gives 9: the 8 lines of the tool and the `.dic` line |

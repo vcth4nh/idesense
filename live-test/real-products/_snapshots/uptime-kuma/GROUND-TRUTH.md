@@ -54,6 +54,14 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   to find usages of the base method?", and the 10 calls are the answer No.
   `usage-Discord.send` has a `notes` entry that names `NotificationProvider.send`, with "0 of
   the 10 usages have match BASE": the search of `Discord.send` itself found the 10 calls first.
+- **uptime-kuma: a shell command has the label `STRING_LITERAL`.** Line 9 of
+  `extra/push-examples/bash-curl/index.sh` (`sleep $INTERVAL`) is a command of a shell script.
+  `search-text-sleep` gives it the label `STRING_LITERAL`. WebStorm WS-263.7307.202, in a
+  project that holds a copy of this file, with "Match case" and "Words": Find in Files lists the
+  line with "In String Literals" and not with "Except Comments and String Literals". The Find
+  tool window has it below "Unclassified". The filter and the group of the IDE differ, and the
+  label follows the filter (see "`ide_search_text`: one match for each line, and the context
+  filter" in `docs/ARCHITECTURE.md`).
 - **uptime-kuma: parked rows.** Each of these rows shows an open defect (see "Parked rows" in
   `live-test/CONVENTIONS.md`).
 

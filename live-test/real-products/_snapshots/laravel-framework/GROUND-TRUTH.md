@@ -44,6 +44,17 @@ These results look wrong, but the IDE returns the same. Do not change the probe 
   of PhpStorm 2026.3 (tab "Files", scope "Project Files"): 2, 28 and 5 files. The order of the
   files in the window differs, but an `exact` row sorts its lists, so the row does not pin the
   order.
+- **laravel-framework: a YAML value has the label `STRING_LITERAL`.** Line 39 of
+  `.github/workflows/tests.yml` and line 4 of `docker-compose.yml` (`image:
+  amazon/dynamodb-local:2.0.0`) hold a plain scalar value of YAML. `search-text-dynamodb` and
+  `search-text-dynamodb-strings` give them the label `STRING_LITERAL`, and `context: "strings"`
+  returns them. PhpStorm PS-263.7307.215, in a project that holds copies of these files, with
+  "Match case" and "Words": Find in Files lists them with "In String Literals" and not with
+  "Except Comments and String Literals". The Find tool window has them below "Unclassified".
+  For such a line the filter and the group of the IDE differ, and the label follows the
+  filter (see "`ide_search_text`: one match for each line, and the context filter" in
+  `docs/ARCHITECTURE.md`). The key lines `dynamodb:` (line 38 of the workflow file and line 3
+  of the other file) have the label `CODE`.
 - **laravel-framework: parked rows.** Each of these rows shows an open defect (see "Parked
   rows" in `live-test/CONVENTIONS.md`).
 

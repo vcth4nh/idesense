@@ -29,6 +29,11 @@ The window checks used WebStorm 2026.3 (WS-263.7307.202) with a window, on a cop
 - **lexical: `search-text-CollapsibleContainerNode` has 27 matches.** Find in Files gives 28
   occurrences. The tool keeps one match for each line (an approved deviation,
   [ARCHITECTURE.md](../../../../docs/ARCHITECTURE.md)).
+- **lexical: `search-text-ImageNode-injected-fragment` has 39 matches.** They are the 39 lines
+  of Find in Files ("43 matches in 14 files" with "Match case" and "Words"). Line 458 of
+  `packages/lexical-website/docs/react/plugins.md` is a line of a code fence with the info
+  string `jsx`. It has the label `STRING_LITERAL`, and the Find tool window lists it below
+  "Usage in string constants".
 - **lexical: no row pins a subtype count of the node classes.** The counts of `ParagraphNode`,
   `ElementNode`, `LexicalNode` and `DecoratorNode` (subtypes, implementations, overrides of
   `createDOM` and `decorate`) can include classes of `examples/`. Each example folder has its
@@ -72,10 +77,6 @@ The window checks used WebStorm 2026.3 (WS-263.7307.202) with a window, on a cop
 - `search-text-gamma-after-escape` (#309): 1 match. Find in Files with "Match case" and
   "Words" gives 3 matches in `LexicalReconciler.test.ts` (lines 562, 570, 585). The matches of
   lines 570 and 585 come after the escape `\n` in `'alpha\n\nbeta\n\ngamma'`.
-- `search-text-ImageNode-injected-fragment` (#144): 39 matches, the 39 lines of Find in Files
-  ("43 matches in 14 files" with "Match case" and "Words"). Line 458 of
-  `packages/lexical-website/docs/react/plugins.md`, a line of a code fence with the info string
-  `jsx`, has the label `CODE`. The Find tool window lists it below "Usage in string constants".
 - `hier-caller-$isCaptionEditorEmpty-d2` (#186): one child is a FILE node of a fragment in
   `packages/lexical-website/docs/serialization/serialization.md`. The tool gives the path
   `/serialization.md`, and the harness keeps the name only. The Call Hierarchy window shows the
