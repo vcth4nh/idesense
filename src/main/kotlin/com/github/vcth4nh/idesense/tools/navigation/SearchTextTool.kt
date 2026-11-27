@@ -48,10 +48,10 @@ class SearchTextTool : AbstractMcpTool() {
 
         /**
          * The occurrence mask for the word index: no context filter, for each `context` value.
-         * The index and the `contextType` label are two classifications. The index puts plain
+         * The index and the Find in Files filters are two classifications. The index puts plain
          * text under IN_PLAIN_TEXT, HTML text under IN_PLAIN_TEXT | IN_FOREIGN_LANGUAGES and a
          * JSON string under IN_CODE. So a search with the mask of one context loses matches that
-         * have the label of that context (#133). The label alone selects the matches.
+         * the filter of that context keeps (#133). The filter alone selects the matches.
          */
         private const val WORD_INDEX_CONTEXT: Short = UsageSearchContext.ANY
 
@@ -62,12 +62,28 @@ class SearchTextTool : AbstractMcpTool() {
          */
         private const val PROCESS_INJECTED_PSI = false
 
-        /** The `contextType` label that the `context` value keeps. Null keeps each label. */
-        internal fun requestedContextType(context: String): String? = when (context.lowercase()) {
-            "code" -> "CODE"
-            "comments" -> "COMMENT"
-            "strings" -> "STRING_LITERAL"
-            else -> null
+        /**
+         * The `context` filter: the set of the Find in Files filter of the value (#144). A match
+         * that both runs find is in the result of "comments" and of "strings", as in the IDE.
+         * Another value keeps each match.
+         */
+        internal fun keepsMatch(context: String, inComments: Boolean, inStrings: Boolean): Boolean =
+            when (context.lowercase()) {
+                "comments" -> inComments
+                "strings" -> inStrings
+                "code" -> !inComments && !inStrings
+                else -> true
+            }
+
+        /**
+         * The `contextType` label, COMMENT first (#144). For a match that both runs find, for
+         * example a Python docstring, COMMENT is the group of the Find tool window, which reads
+         * only the highlighting (`ChunkExtractor.deriveUsageTypeFromHighlighting`).
+         */
+        internal fun contextLabel(inComments: Boolean, inStrings: Boolean): String = when {
+            inComments -> "COMMENT"
+            inStrings -> "STRING_LITERAL"
+            else -> "CODE"
         }
     }
 
@@ -90,7 +106,7 @@ class SearchTextTool : AbstractMcpTool() {
     override val inputSchema: JsonObject = SchemaBuilder.tool()
         .projectPath()
         .stringProperty(ParamNames.QUERY, "Exact word to search for (no wildcards or regex). Required for fresh search; ignored when cursor is provided.")
-        .enumProperty(ParamNames.CONTEXT, "Where to search: \"comments\" (a comment), \"strings\" (a string literal, or text that the IDE highlights as a string, for example each line of a Markdown code fence), \"code\" (each other match, also in a file that is no program source), \"all\". Default: \"all\".", listOf("code", "comments", "strings", "all"))
+        .enumProperty(ParamNames.CONTEXT, "Where to search: \"comments\" (a comment), \"strings\" (a string literal, or text that the IDE highlights as a string, for example each line of a Markdown code fence), \"code\" (each other match, also in a file that is no program source), \"all\". Default: \"all\". A match that the IDE takes as a comment and as a string literal (a Python docstring) is in \"comments\" and in \"strings\", with contextType COMMENT.", listOf("code", "comments", "strings", "all"))
         .booleanProperty(ParamNames.CASE_SENSITIVE, "Case sensitive search. Default: true.")
         .intProperty(ParamNames.LIMIT, "Maximum results per page (deprecated, use pageSize). Default: $DEFAULT_PAGE_SIZE, max: $MAX_PAGE_SIZE.")
         .stringProperty("cursor", "Pagination cursor from a previous response. When provided, returns the next page of results. Search parameters are ignored; project_path and pageSize may still be provided.")
@@ -126,17 +142,15 @@ class SearchTextTool : AbstractMcpTool() {
             return createErrorResult("Query cannot be empty")
         }
 
-        val requestedType = requestedContextType(contextStr)
-
         requireSmartMode(project)
 
         val cursorToken = suspendingReadAction {
             val scope = createFilteredScope(project)
-            val matches = searchText(project, query, scope, requestedType, caseSensitive, collectLimit)
+            val matches = searchText(project, query, scope, contextStr, caseSensitive, collectLimit)
 
             val searchExtender: suspend (Set<String>, Int) -> List<PaginationService.SerializedResult> = extender@{ seenKeys, limit ->
                 suspendingReadAction {
-                    extendSearchText(project, query, requestedType, caseSensitive, seenKeys, limit)
+                    extendSearchText(project, query, contextStr, caseSensitive, seenKeys, limit)
                 }
             }
 
@@ -177,7 +191,7 @@ class SearchTextTool : AbstractMcpTool() {
         project: Project,
         word: String,
         scope: com.intellij.psi.search.GlobalSearchScope,
-        requestedType: String?,
+        context: String,
         caseSensitive: Boolean,
         limit: Int
     ): List<TextMatch> {
@@ -199,7 +213,7 @@ class SearchTextTool : AbstractMcpTool() {
                 return@TextOccurenceProcessor true
             }
 
-            val match = convertToTextMatch(project, element, occurrence, word.length, requestedType, contexts)
+            val match = convertToTextMatch(project, element, occurrence, word.length, context, contexts)
             if (match != null) {
                 val lineKey = "${match.file}:${match.line}"
                 if (seenLines.add(lineKey)) {
@@ -237,7 +251,7 @@ class SearchTextTool : AbstractMcpTool() {
     private fun extendSearchText(
         project: Project,
         word: String,
-        requestedType: String?,
+        context: String,
         caseSensitive: Boolean,
         seenKeys: Set<String>,
         limit: Int
@@ -262,7 +276,7 @@ class SearchTextTool : AbstractMcpTool() {
                 return@TextOccurenceProcessor true
             }
 
-            val match = convertToTextMatch(project, element, occurrence, word.length, requestedType, contexts)
+            val match = convertToTextMatch(project, element, occurrence, word.length, context, contexts)
             if (match != null) {
                 val lineKey = "${match.file}:${match.line}"
                 if (seenLines.add(lineKey)) {
@@ -309,7 +323,7 @@ class SearchTextTool : AbstractMcpTool() {
         element: PsiElement,
         occurrence: Int,
         wordLength: Int,
-        requestedType: String?,
+        context: String,
         contexts: FindInFilesContexts
     ): TextMatch? {
         val containingFile = element.containingFile ?: return null
@@ -321,10 +335,10 @@ class SearchTextTool : AbstractMcpTool() {
         val lineNumber = document.getLineNumber(occurrence)
         val columnNumber = occurrence - document.getLineStartOffset(lineNumber)
 
-        val contextType = contexts.label(virtualFile, document.charsSequence, occurrence)
+        val (inComments, inStrings) = contexts.membership(virtualFile, document.charsSequence, occurrence)
 
         // The context filter. The word index search has none (see WORD_INDEX_CONTEXT).
-        if (requestedType != null && contextType != requestedType) {
+        if (!keepsMatch(context, inComments, inStrings)) {
             return null
         }
 
@@ -333,18 +347,18 @@ class SearchTextTool : AbstractMcpTool() {
             line = lineNumber + 1,
             column = columnNumber + 1,
             context = LinePreview.ofLine(document, lineNumber, columnNumber, wordLength),
-            contextType = contextType
+            contextType = contextLabel(inComments, inStrings)
         )
     }
 }
 
 /**
- * The `contextType` labels of one search, from the per-file matcher of Find in Files
- * ([FindManager.findString] with a [FindModel.SearchContext], as `FindInProjectUtil` calls it).
- * "In Comments" and "In String Literals" are two runs of the matcher. "Except Comments and
- * String Literals" keeps each occurrence that these two runs do not find
- * (`FindExceptCommentsOrLiteralsData`), so the third label is the rest: CODE (#144). A match that
- * both runs find gets COMMENT: a match has one label, and the IDE lists it in both filters.
+ * The memberships of an occurrence in the sets of the Find in Files filters, from the per-file
+ * matcher of Find in Files ([FindManager.findString] with a [FindModel.SearchContext], as
+ * `FindInProjectUtil` calls it) (#144). "In Comments" and "In String Literals" are two runs of the
+ * matcher. "Except Comments and String Literals" keeps each occurrence that these two runs do not
+ * find (`FindExceptCommentsOrLiteralsData`). The filter and the label are
+ * [SearchTextTool.keepsMatch] and [SearchTextTool.contextLabel].
  *
  * The matcher walks the highlighting lexer of the file. One run for each of the two contexts
  * finds all occurrences of a file, and the result holds for each match of the file.
@@ -355,15 +369,12 @@ private class FindInFilesContexts(project: Project, word: String, caseSensitive:
     private val strings = model(word, caseSensitive, FindModel.SearchContext.IN_STRING_LITERALS)
     private val startsByFile = ConcurrentHashMap<VirtualFile, Pair<Set<Int>, Set<Int>>>()
 
-    fun label(file: VirtualFile, text: CharSequence, occurrence: Int): String {
+    /** In the set of "In Comments", in the set of "In String Literals". */
+    fun membership(file: VirtualFile, text: CharSequence, occurrence: Int): Pair<Boolean, Boolean> {
         val (commentStarts, stringStarts) = startsByFile.getOrPut(file) {
             starts(text, comments, file) to starts(text, strings, file)
         }
-        return when (occurrence) {
-            in commentStarts -> "COMMENT"
-            in stringStarts -> "STRING_LITERAL"
-            else -> "CODE"
-        }
+        return (occurrence in commentStarts) to (occurrence in stringStarts)
     }
 
     /** The loop of `FindInProjectUtil.processSomeOccurrencesInFile`. */
