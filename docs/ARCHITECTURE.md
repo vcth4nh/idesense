@@ -43,6 +43,9 @@ repository, and an entry here.
   overriding declarations too, and it marks each usage that is not a sure match (`BASE`,
   `OVERRIDE`, `DYNAMIC`). The rule is "Marked false positives" in [PRINCIPLES.md](PRINCIPLES.md).
   The detail is in [Find Usages](#find-usages) (`FindUsagesHandlerSearch`, `UsageMatch`).
+  A marked usage stays in the result also when the Find Usages window lists it in no state: for a
+  TypeScript class of one project, WebStorm listed no usage in a Markdown backtick span, and the
+  tool gives each one with `DYNAMIC`.
 - **Find usages: Go literal keys of a same-named field.** The search leaves them out and counts
   them in a note. See the item "Left-out usages" of [Find Usages](#find-usages)
   (`GoFindUsages.isFieldKeyOfType`).

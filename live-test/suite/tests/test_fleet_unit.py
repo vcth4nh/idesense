@@ -98,6 +98,7 @@ class ParseIdeProcessTest(unittest.TestCase):
         self.assertEqual(4242, p.pid)
         self.assertEqual(Path("/opt/tb/apps/goland/bin/goland.sh"), p.launcher)
         self.assertEqual(Path("/home/u/.config/JetBrains/GoLand2026.2"), p.config_dir)
+        self.assertEqual(Path("/home/u/.cache/JetBrains/GoLand2026.2/log"), p.log_dir)
         self.assertEqual({"PATH": "/usr/bin", "HOME": "/home/u"}, p.env)
         self.assertEqual("/home/u", p.cwd)
 
@@ -129,7 +130,7 @@ class FindIdeProcessTest(unittest.TestCase):
         pids = [os.getpid(), child.pid][:matches]
 
         def parse(ide, pid, *rest):
-            return fleet.IdeProcess(pid, Path("/x"), Path("/y"), {}, "/") if pid in pids else None
+            return fleet.IdeProcess(pid, Path("/x"), Path("/y"), Path("/z"), {}, "/") if pid in pids else None
 
         with mock.patch.object(fleet, "parse_ide_process", parse):
             return fleet.find_ide_process(GOLAND)
@@ -219,6 +220,11 @@ def projects(*paths):
     return {"error": "project_not_found", "available_projects": [{"name": Path(p).name, "path": p} for p in paths]}
 
 
+def quiet_at_once(url, post):
+    """A quiet wait of a switch that finds the IDE quiet at once. The real wait sleeps."""
+    return None, 0.0
+
+
 class OpenProjectsTest(unittest.TestCase):
     def test_reads_the_paths_from_the_error_payload(self):
         self.assertEqual([FIX, CADDY], fleet.open_projects("http://x", answers(projects(FIX, CADDY))))
@@ -233,6 +239,96 @@ class OpenProjectsTest(unittest.TestCase):
         self.assertIsNone(fleet.open_projects("http://x", answers({"transport_error": "Connection refused"})))
 
 
+DUMB, SMART = {"isDumbMode": True}, {"isDumbMode": False}
+
+
+class WaitUntilQuietTest(unittest.TestCase):
+    def wait(self, *results, **kw):
+        """Run wait_until_quiet with a fake clock. Returns ((error, seconds), the (url, request) of each call)."""
+        t, calls, post = [0.0], [], answers(*results)
+
+        def record(url, request, timeout=60.0):
+            calls.append((url, request))
+            return post(url, request, timeout)
+
+        def sleep(s):
+            t[0] += s
+        return fleet.wait_until_quiet("http://x", record, sleep=sleep, clock=lambda: t[0], **kw), calls
+
+    def test_five_quiet_answers_in_a_row_end_the_wait(self):
+        (err, waited), calls = self.wait(SMART)
+        self.assertEqual((None, 20.0, 5), (err, waited, len(calls)))
+
+    def test_request_names_no_project(self):
+        # With no project_path and several projects open, the top-level isDumbMode is true when one project indexes.
+        (err, _), calls = self.wait({"isDumbMode": False, "projects": [{"name": "go", "path": FIX, "isDumbMode": False}]})
+        self.assertIsNone(err)
+        self.assertEqual(("http://x", {"name": "ide_index_status", "arguments": {}}), (calls[0][0], calls[0][1]["params"]))
+
+    def test_dumb_answer_sets_the_count_back_to_0(self):
+        (err, waited), calls = self.wait(SMART, SMART, SMART, SMART, DUMB, SMART)
+        self.assertEqual((None, 45.0, 10), (err, waited, len(calls)))
+
+    def test_answer_that_is_no_result_sets_the_count_back_to_0(self):
+        for other in ({"transport_error": "Connection refused"}, {"jsonrpc_error": {"code": -32603}},
+                      {"tool_error_text": "x"}, {"error": "no_project_open", "message": "x"}, None, [SMART]):
+            with self.subTest(other=other):
+                (err, waited), calls = self.wait(SMART, SMART, SMART, SMART, other, SMART)
+                self.assertEqual((None, 45.0, 10), (err, waited, len(calls)))
+
+    def test_ide_that_does_not_get_quiet_gives_an_error_at_the_time_limit(self):
+        (err, waited), calls = self.wait(SMART, DUMB, timeout_s=60.0)
+        self.assertEqual("no 5 answers of ide_index_status in a row with isDumbMode false in 60 s "
+                         "(last answer: {'isDumbMode': True})", err)
+        self.assertEqual((60.0, 13), (waited, len(calls)))
+
+    def test_count_and_poll_time_come_from_the_parameters(self):
+        (err, waited), calls = self.wait(SMART, answers=2, poll_s=1.0)
+        self.assertEqual((None, 1.0, 2), (err, waited, len(calls)))
+
+
+# The lines of idea.log at a stop while IntelliJ IDEA indexed (#308), and a request of an earlier stop.
+SHUTDOWN = """\
+2026-11-22 14:26:26,199 [  16986]   INFO - #c.i.u.i.FileBasedIndexImpl - Index dispose started
+2026-11-22 14:26:26,352 [  17139]   INFO - #c.i.u.i.FileBasedIndexImpl - Requesting index rebuild for: Stubs
+com.intellij.util.indexing.StorageException: com.intellij.util.io.ClosedStorageException: storage is already closed
+2026-11-22 14:26:26,571 [  17358]   INFO - #c.i.u.i.FileBasedIndexImpl - Requesting index rebuild for: IdIndex
+2026-11-22 14:26:26,886 [  17673]   INFO - #c.i.p.i.b.AppStarter - ---- IDE SHUTDOWN ----
+"""
+EARLIER = ("2026-11-22 08:24:38,107 [  55011]   INFO - #c.i.u.i.FileBasedIndexImpl - "
+           "Requesting index rebuild for: FrameworkDetectionIndex\n")
+
+
+class IndexRebuildRequestsTest(unittest.TestCase):
+    def log_file(self, text):
+        d = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, d)
+        path = d / "idea.log"
+        path.write_text(text)
+        return path
+
+    def test_names_of_the_lines_after_the_offset(self):
+        path = self.log_file(EARLIER)
+        offset = path.stat().st_size
+        with path.open("a") as f:
+            f.write(SHUTDOWN)
+        self.assertEqual(["Stubs", "IdIndex"], fleet.index_rebuild_requests(path, offset))
+
+    def test_file_that_is_smaller_than_the_offset_is_read_from_its_start(self):
+        # The IDE moves a full idea.log to idea.1.log and starts a new idea.log.
+        path = self.log_file(SHUTDOWN)
+        self.assertEqual(["Stubs", "IdIndex"], fleet.index_rebuild_requests(path, path.stat().st_size + 1))
+
+    def test_file_that_does_not_exist_gives_no_name(self):
+        path = self.log_file("")
+        path.unlink()
+        self.assertEqual([], fleet.index_rebuild_requests(path, 0))
+
+    def test_name_of_two_lines_is_given_one_time(self):
+        path = self.log_file(SHUTDOWN + SHUTDOWN.replace("IdIndex", "Trigram.Index"))
+        self.assertEqual(["Stubs", "IdIndex", "Trigram.Index"], fleet.index_rebuild_requests(path, 0))
+
+
 class SetOpenProjectsTest(unittest.TestCase):
     def proc(self):
         cfg = Path(tempfile.mkdtemp())
@@ -242,16 +338,18 @@ class SetOpenProjectsTest(unittest.TestCase):
         launcher = cfg / "goland.sh"
         launcher.write_text("#!/bin/sh\n")
         launcher.chmod(0o755)
-        return fleet.IdeProcess(4242, launcher, cfg, {"HOME": "/home/u"}, "/home/u")
+        return fleet.IdeProcess(4242, launcher, cfg, cfg / "log", {"HOME": "/home/u"}, "/home/u")
 
     def switch(self, proc, post, stop=None, start=None, **kw):
-        """Run a switch with a fake stop and a fake start. Returns (error, stop mock, start mock)."""
+        """Run a switch with a fake stop, a fake start and a fake quiet wait. Returns (error, stop mock, start mock)."""
         kw.setdefault("start_timeout", 1.0)  # the wait for the IDE has no sleep here: keep a failure short
+        kw.setdefault("quiet_wait", quiet_at_once)
+        kw.setdefault("log", lambda s: None)
         with mock.patch.object(fleet, "find_ide_process", return_value=proc), \
              mock.patch.object(fleet, "_stop", side_effect=stop, return_value=None) as stop_mock, \
              mock.patch.object(fleet, "_start", side_effect=start) as start_mock, \
              mock.patch.object(fleet.time, "sleep"):
-            err = fleet.set_open_projects(GOLAND, kw.pop("wanted", [FIX, CADDY]), post, log=lambda s: None, **kw)
+            err = fleet.set_open_projects(GOLAND, kw.pop("wanted", [FIX, CADDY]), post, **kw)
         return err, stop_mock, start_mock
 
     def test_no_restart_when_the_set_is_already_open(self):
@@ -265,7 +363,7 @@ class SetOpenProjectsTest(unittest.TestCase):
              mock.patch.object(fleet, "_stop", return_value=None) as stop, \
              mock.patch.object(fleet, "_start") as start, mock.patch.object(fleet.time, "sleep"):
             err = fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX), None, projects(FIX, CADDY)),
-                                          log=lambda s: None)
+                                          log=lambda s: None, quiet_wait=quiet_at_once)
         self.assertIsNone(err)
         stop.assert_called_once()
         start.assert_called_once_with(proc)
@@ -281,7 +379,8 @@ class SetOpenProjectsTest(unittest.TestCase):
         with mock.patch.object(fleet, "find_ide_process", return_value=proc), \
              mock.patch.object(fleet, "_stop", return_value="goland did not stop in 90 s"), \
              mock.patch.object(fleet, "_start") as start:
-            err = fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX)), log=lambda s: None)
+            err = fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX)), log=lambda s: None,
+                                          quiet_wait=quiet_at_once)
         # The IDE has its signal and can still stop later, so the line gives the start command.
         self.assertEqual(f"goland did not stop in 90 s. If it stops later, start it with: {proc.launcher} serverMode", err)
         start.assert_not_called()
@@ -397,7 +496,7 @@ class SetOpenProjectsTest(unittest.TestCase):
              mock.patch.object(fleet, "_start") as start, mock.patch.object(fleet.time, "sleep"):
             with self.assertRaises(KeyboardInterrupt):
                 fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX), None, projects(FIX, CADDY)),
-                                        log=lambda s: None)
+                                        log=lambda s: None, quiet_wait=quiet_at_once)
         start.assert_called_once_with(proc)
 
     def test_interrupt_that_another_thread_receives_is_held_back_too(self):
@@ -424,7 +523,7 @@ class SetOpenProjectsTest(unittest.TestCase):
              mock.patch.object(fleet, "_start") as start, mock.patch.object(fleet.time, "sleep"):
             with self.assertRaises(KeyboardInterrupt):
                 fleet.set_open_projects(GOLAND, [FIX, CADDY], answers(projects(FIX), None, projects(FIX, CADDY)),
-                                        log=lambda s: None)
+                                        log=lambda s: None, quiet_wait=quiet_at_once)
         start.assert_called_once_with(proc)
 
     def test_sigterm_after_the_stop_is_delivered_after_the_start(self):
@@ -463,6 +562,79 @@ class SetOpenProjectsTest(unittest.TestCase):
         err, _, _ = self.switch(proc, answers(projects(FIX)), start=OSError("no memory"))
         self.assertEqual(f"cannot start goland: no memory. Start command: {proc.launcher} serverMode", err)
 
+    def test_ide_that_does_not_get_quiet_is_not_stopped(self):
+        # A stop while the IDE indexes can damage its index (#308).
+        proc = self.proc()
+        err, stop, start = self.switch(proc, answers(projects(FIX)),
+                                       quiet_wait=lambda url, post: ("no 5 answers in 900 s", 900.0))
+        self.assertEqual("goland did not get quiet: no 5 answers in 900 s. The harness did not restart goland", err)
+        stop.assert_not_called()
+        start.assert_not_called()
+        self.assertEqual(RECENT, (proc.config_dir / "options" / "recentProjects.xml").read_text())
+
+    def test_quiet_wait_comes_before_the_stop(self):
+        events, post = [], answers(projects(FIX), None, projects(FIX, CADDY))
+
+        def quiet(url, given_post):
+            events.append(("quiet wait", url, given_post))
+            return None, 20.0
+        err, _, _ = self.switch(self.proc(), post, quiet_wait=quiet,
+                                stop=lambda *a: events.append("stop"), start=lambda proc: events.append("start"))
+        self.assertIsNone(err)
+        self.assertEqual([("quiet wait", fleet.ide_url(GOLAND), post), "stop", "start"], events)
+
+    def test_quiet_wait_that_is_longer_than_the_minimum_is_logged(self):
+        # The minimum is 20 s. The requests of the wait take some time too.
+        for waited, logged in ((20.4, []), (37.0, ["[goland] waited 37 s for a quiet IDE before the stop"])):
+            with self.subTest(waited=waited):
+                lines = []
+                err, _, _ = self.switch(self.proc(), answers(projects(FIX), None, projects(FIX, CADDY)),
+                                        quiet_wait=lambda url, post: (None, waited), log=lines.append)
+                self.assertIsNone(err)
+                self.assertEqual(logged, [line for line in lines if "quiet" in line])
+
+    def shutdown_writes(self, proc, text, **kw):
+        """Run a switch whose stop appends `text` to idea.log. Before the switch, idea.log holds EARLIER."""
+        proc.log_dir.mkdir()
+        (proc.log_dir / "idea.log").write_text(EARLIER)
+
+        def stop(*a):
+            with (proc.log_dir / "idea.log").open("a") as f:
+                f.write(text)
+        return self.switch(proc, answers(projects(FIX), None, projects(FIX, CADDY)), stop=stop, **kw)
+
+    def damage_line(self, proc):
+        return (f"goland requested an index rebuild at the restart: Stubs, IdIndex. The index of goland can be "
+                f"damaged (#308). To repair it, stop goland, remove the folder {proc.log_dir.parent / 'index'}, "
+                f"and start goland")
+
+    def test_index_rebuild_request_of_the_shutdown_is_reported_after_the_start(self):
+        proc = self.proc()
+        err, _, start = self.shutdown_writes(proc, SHUTDOWN)
+        start.assert_called_once_with(proc)
+        self.assertEqual(self.damage_line(proc), err)
+
+    def test_shutdown_with_no_index_rebuild_request_gives_no_error(self):
+        # The request of an earlier shutdown in idea.log is no error of this switch.
+        err, _, start = self.shutdown_writes(self.proc(), SHUTDOWN.replace("Requesting index rebuild", "Saved"))
+        self.assertIsNone(err)
+        start.assert_called_once()
+
+    def test_scan_error_does_not_prevent_the_start(self):
+        proc, started = self.proc(), []
+
+        def scan(log_file, offset):
+            raise RuntimeError("no scan")
+        with self.assertRaisesRegex(RuntimeError, "no scan"):
+            self.switch(proc, answers(projects(FIX), None, projects(FIX, CADDY)), scan=scan, start=started.append)
+        self.assertEqual([proc], started)
+
+    def test_start_error_and_index_rebuild_request_are_both_reported(self):
+        proc = self.proc()
+        err, _, _ = self.shutdown_writes(proc, SHUTDOWN, start=OSError("no memory"))
+        self.assertEqual(f"cannot start goland: no memory. Start command: {proc.launcher} serverMode. "
+                         + self.damage_line(proc), err)
+
 
 class StartCommandTest(unittest.TestCase):
     """The command of `_start`; no process starts and no systemd is needed."""
@@ -471,7 +643,7 @@ class StartCommandTest(unittest.TestCase):
     PLAIN = ["setsid", "--fork", "/ide/idea.sh", "serverMode"]
 
     def proc(self):
-        return fleet.IdeProcess(0, Path("/ide/idea.sh"), Path("/cfg"), {"PATH": "/bin"}, "/work")
+        return fleet.IdeProcess(0, Path("/ide/idea.sh"), Path("/cfg"), Path("/log"), {"PATH": "/bin"}, "/work")
 
     def commands(self, prefix=None, fail_first=False):
         calls = []
@@ -549,7 +721,7 @@ class StartStopTest(unittest.TestCase):
         script.write_text("#!/bin/sh\n" + body)
         script.chmod(0o755)
         env = {"PATH": os.environ["PATH"], "FLEET_TEST": "yes", "OUT": str(out)}
-        fleet._start(fleet.IdeProcess(0, script, d, env, str(d)))
+        fleet._start(fleet.IdeProcess(0, script, d, d, env, str(d)))
         deadline = time.monotonic() + 5
         while not (out.is_file() and out.read_text().endswith("\n")):
             self.assertLess(time.monotonic(), deadline, "the fake IDE did not start")
@@ -560,7 +732,7 @@ class StartStopTest(unittest.TestCase):
         d, script, text = self.launch(body)
         pid = int(text)
         self.addCleanup(lambda: Path(f"/proc/{pid}").exists() and os.kill(pid, signal.SIGKILL))
-        return fleet.IdeProcess(pid, script, d, {}, str(d))
+        return fleet.IdeProcess(pid, script, d, d, {}, str(d))
 
     def test_start_passes_the_argument_the_environment_and_the_working_directory(self):
         d, _, text = self.launch('echo "$1 $FLEET_TEST $(pwd)" > "$OUT"\n')
@@ -661,7 +833,7 @@ class StopLeftoverChildTest(unittest.TestCase):
         self.assertEqual({"dbus-monitor", "sleep"} if with_dbus_monitor else {"sleep"}, set(children))
         if with_dbus_monitor:
             self.assertEqual("dbus-monitor\n", Path(f"/proc/{children['dbus-monitor'][0]}/comm").read_text())
-        return fleet.IdeProcess(ide.pid, Path("/nonexistent"), Path("/nonexistent"), {}, "/"), children
+        return fleet.IdeProcess(ide.pid, Path("/nonexistent"), Path("/nonexistent"), Path("/nonexistent"), {}, "/"), children
 
     def own_child(self, name):
         """A stand-in child of this test with the process name `name`. Returns (PID, start time)."""

@@ -123,7 +123,9 @@ file is stale.
 | line:col | probe id | tool | identifier |
 |---|---|---|---|
 | — | file-structure-GithubEventRouter.ts | file_structure | — |
+| 30:14 | explain-GithubEventRouter-pos | explain_symbol | `GithubEventRouter` |
 | 30:14 | hier-super-GithubEventRouter | type_hierarchy | `GithubEventRouter` |
+| 30:14 | usage-GithubEventRouter | find_usages | `GithubEventRouter` |
 | 30:40 | canary-def-SubTopicEventRouter-extends-package | find_definition | `SubTopicEventRouter` |
 | 38:13 | super-GithubEventRouter.getSubscriberId-two-levels | find_super_methods | `getSubscriberId` |
 | 42:13 | super-GithubEventRouter.determineSubTopic | find_super_methods | `determineSubTopic` |
@@ -197,5 +199,6 @@ file is stale.
 | search-text-useApi-paged | search_text | `{"pageSize":100,"query":"useApi"}` |
 | status-Status | index_status | `{}` |
 | usage-Config-bysymbol | find_usages | `{"symbol":"Config"}` |
+| usage-GithubEventRouter-bysymbol | find_usages | `{"symbol":"GithubEventRouter"}` |
 | usage-InfoCard-page2 | find_usages | `{"pageSize":50}` |
 | usage-UrlReaderPredicateMux-bysymbol | find_usages | `{"symbol":"UrlReaderPredicateMux"}` |
